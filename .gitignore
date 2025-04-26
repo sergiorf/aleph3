@@ -1,12 +1,64 @@
+# CMake generated files
 CMakeLists.txt.user
 CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
+CMakeFiles/
+CMakeScripts/
+Testing/
 Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
-_deps
+_deps/
 CMakeUserPresets.json
+
+# Build directories
+build/
+bin/
+lib/
+
+# Visual Studio specific files
+*.vcxproj.user
+*.vcxproj.filters
+*.suo
+*.user
+*.userosscache
+*.userprefs
+*.ncb
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+
+# Logs and databases
+*.log
+*.tlog
+*.lastbuildstate
+
+# Temporary files
+*.tmp
+*.temp
+*.obj
+*.pch
+*.pdb
+*.ilk
+*.idb
+*.ipch
+*.rsp
+
+# Output files
+*.exe
+*.dll
+*.lib
+*.so
+*.a
+*.lo
+*.o
+
+# IDE-specific files
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db

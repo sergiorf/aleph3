@@ -74,9 +74,25 @@ namespace mathix {
                 }
                 return expr;
             }
+            else if (std::isalpha(peek())) {
+                return parse_symbol();
+            }
             else {
                 return parse_number();
             }
+        }
+
+        ExprPtr parse_symbol() {
+            skip_whitespace();
+            size_t start = pos;
+            while (pos < input.size() && (std::isalnum(input[pos]) || input[pos] == '_')) {
+                ++pos;
+            }
+            if (start == pos) {
+                throw std::runtime_error("Expected symbol");
+            }
+            std::string name = input.substr(start, pos - start);
+            return make_expr<Symbol>(name);
         }
 
         ExprPtr parse_number() {
@@ -104,6 +120,13 @@ namespace mathix {
                 return true;
             }
             return false;
+        }
+
+        char peek() const {
+            if (pos < input.size()) {
+                return input[pos];
+            }
+            return '\0'; // End of input
         }
     };
 

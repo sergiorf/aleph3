@@ -2,6 +2,7 @@
 #pragma once
 
 #include "expr/Expr.hpp"
+#include "evaluator/EvaluationContext.hpp"
 #include "util/Overloaded.hpp"
 
 #include <stdexcept>
@@ -9,37 +10,37 @@
 
 namespace mathix {
 
-inline ExprPtr evaluate(const ExprPtr& expr);
+ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
 
-inline ExprPtr evaluate_function(const FunctionCall& func) {
+inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.head == "Plus") {
         if (func.args.size() != 2) throw std::runtime_error("Plus expects 2 arguments");
-        auto left = evaluate(func.args[0]);
-        auto right = evaluate(func.args[1]);
+        auto left = evaluate(func.args[0], ctx);
+        auto right = evaluate(func.args[1], ctx);
         auto lnum = std::get<Number>(*left);
         auto rnum = std::get<Number>(*right);
         return make_expr<Number>(lnum.value + rnum.value);
     }
     else if (func.head == "Minus") {
         if (func.args.size() != 2) throw std::runtime_error("Minus expects 2 arguments");
-        auto left = evaluate(func.args[0]);
-        auto right = evaluate(func.args[1]);
+        auto left = evaluate(func.args[0], ctx);
+        auto right = evaluate(func.args[1], ctx);
         auto lnum = std::get<Number>(*left);
         auto rnum = std::get<Number>(*right);
         return make_expr<Number>(lnum.value - rnum.value);
     }
     else if (func.head == "Times") {
         if (func.args.size() != 2) throw std::runtime_error("Times expects 2 arguments");
-        auto left = evaluate(func.args[0]);
-        auto right = evaluate(func.args[1]);
+        auto left = evaluate(func.args[0], ctx);
+        auto right = evaluate(func.args[1], ctx);
         auto lnum = std::get<Number>(*left);
         auto rnum = std::get<Number>(*right);
         return make_expr<Number>(lnum.value * rnum.value);
     }
     else if (func.head == "Divide") {
         if (func.args.size() != 2) throw std::runtime_error("Divide expects 2 arguments");
-        auto left = evaluate(func.args[0]);
-        auto right = evaluate(func.args[1]);
+        auto left = evaluate(func.args[0], ctx);
+        auto right = evaluate(func.args[1], ctx);
         auto lnum = std::get<Number>(*left);
         auto rnum = std::get<Number>(*right);
         if (rnum.value == 0.0) throw std::runtime_error("Division by zero");
@@ -50,18 +51,22 @@ inline ExprPtr evaluate_function(const FunctionCall& func) {
     }
 }
 
-inline ExprPtr evaluate(const ExprPtr& expr) {
-    return std::visit(overloaded {
+inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
+    return std::visit(overloaded{
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
         },
-        [](const Symbol& sym) -> ExprPtr {
-            return make_expr<Symbol>(sym.name); // later we can lookup variables here
+        [&ctx](const Symbol& sym) -> ExprPtr {
+            auto it = ctx.variables.find(sym.name);
+            if (it == ctx.variables.end()) {
+                throw std::runtime_error("Unknown variable: " + sym.name);
+            }
+            return make_expr<Number>(it->second);
         },
-        [](const FunctionCall& func) -> ExprPtr {
-            return evaluate_function(func);
+        [&ctx](const FunctionCall& func) -> ExprPtr {
+            return evaluate_function(func, ctx);
         }
-    }, *expr);
+        }, *expr);
 }
 
 } // namespace mathix

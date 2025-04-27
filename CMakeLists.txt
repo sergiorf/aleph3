@@ -9,6 +9,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 include_directories(include)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
+file(GLOB_RECURSE HEADERS "include/*.hpp" "include/*.h")
 
-add_executable(mathix ${SOURCES})
+add_executable(mathix ${SOURCES} ${HEADERS})
 

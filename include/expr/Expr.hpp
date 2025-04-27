@@ -44,7 +44,7 @@ struct FunctionCall {
     std::vector<ExprPtr> args;    // Arguments
 
     FunctionCall(std::string h, const std::vector<ExprPtr>& a)
-        : head(std::move(h)), args(a) {}
+        : head(h), args(a) {}
 };
 
 // Utility functions

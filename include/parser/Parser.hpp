@@ -18,7 +18,7 @@ namespace mathix {
             auto expr = parse_expression();
             skip_whitespace();
             if (pos != input.size()) {
-                throw std::runtime_error("Unexpected characters at end of input");
+                error("Unexpected characters at end of input");
             }
             return expr;
         }
@@ -70,7 +70,7 @@ namespace mathix {
             if (match('(')) {
                 auto expr = parse_expression();
                 if (!match(')')) {
-                    throw std::runtime_error("Expected ')'");
+                    error("Expected ')'");
                 }
                 return expr;
             }
@@ -89,9 +89,30 @@ namespace mathix {
                 ++pos;
             }
             if (start == pos) {
-                throw std::runtime_error("Expected symbol");
+                error("Expected symbol");
             }
             std::string name = input.substr(start, pos - start);
+
+            skip_whitespace();
+            if (match('(')) {
+                // It's a function call
+                std::vector<ExprPtr> args;
+                if (!match(')')) { // Handle empty argument list
+                    while (true) {
+                        args.push_back(parse_expression());
+                        skip_whitespace();
+                        if (match(')')) {
+                            break;
+                        }
+                        if (!match(',')) {
+                            error("Expected ',' or ')' in function call");
+                        }
+                    }
+                }
+                return make_expr<FunctionCall>(name, args);
+            }
+
+            // Otherwise, it's a plain symbol (variable)
             return make_expr<Symbol>(name);
         }
 
@@ -102,7 +123,7 @@ namespace mathix {
                 ++pos;
             }
             if (start == pos) {
-                throw std::runtime_error("Expected number");
+                error("Expected number");
             }
             double value = std::stod(input.substr(start, pos - start));
             return make_expr<Number>(value);
@@ -127,6 +148,15 @@ namespace mathix {
                 return input[pos];
             }
             return '\0'; // End of input
+        }
+
+        [[noreturn]] void error(const std::string& message) const {
+            std::string pointer_line(input.size(), ' ');
+            if (pos < pointer_line.size()) pointer_line[pos] = '^'; // mark where error is
+
+            throw std::runtime_error(
+                message + "\n" + input + "\n" + pointer_line
+            );
         }
     };
 

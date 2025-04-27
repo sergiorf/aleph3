@@ -1,4 +1,10 @@
 <p align="center">
+  ![Build Status](https://img.shields.io/github/actions/workflow/status/sergiorf/mathix/build.yml)
+  ![Contributors](https://img.shields.io/github/contributors/sergiorf/mathix)
+  ![License](https://img.shields.io/github/license/sergiorf/mathix)
+</p>
+
+<p align="center">
   <img src="assets/logo.png" alt="Mathix Logo" width="200"/>
 </p>
 
@@ -26,6 +32,8 @@ To build Mathix, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    ```bash
    cmake -S . -B build
    cmake --build build
+   cd build
+   ctest -C Debug --output-on-failure
    ```
 
 3. Run the Mathix CLI:
@@ -33,11 +41,18 @@ To build Mathix, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    ./build/bin/mathix
    ```
 
-## Contributing
-If you want to contribute to Mathix, please contact me via email or open an issue in the GitHub repository. Contributions are welcome!
+## Looking for Contributors 🚀
+We are actively looking for contributors to help improve Mathix! Whether you're experienced in C++ or just starting out, your contributions are welcome. Here are some ways you can help:
+- Add new features (e.g., advanced mathematical operations, symbolic differentiation).
+- Improve the codebase by refactoring or optimizing existing code.
+- Write documentation or tutorials for new users.
+- Report bugs or suggest enhancements.
 
-### C++ Style Guide
-To ensure consistency and readability across the codebase, please follow the [C++ Style Guide](docs/style_guide.md). It includes naming conventions, formatting rules, and best practices for contributing to Mathix.
+If you're interested, please:
+1. Open an issue or discussion in the repository.
+2. Contact me via email for more details.
+
+Check out the [C++ Style Guide](docs/style_guide.md) to get started with contributing!
 
 ## License
 [MIT License](LICENSE)

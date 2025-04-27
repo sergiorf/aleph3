@@ -23,3 +23,10 @@ TEST_CASE("Nested function calls are parsed correctly", "[parser]") {
     auto expr = parse_expression("max(2, min(3, 4))");
     REQUIRE(to_string(expr) == "max[2.000000, min[3.000000, 4.000000]]");
 }
+
+TEST_CASE("Parser correctly parses power expressions", "[parser]") {
+    auto expr = parse_expression("2^3");
+
+    REQUIRE(expr != nullptr);
+    REQUIRE(to_string(expr) == "Pow[2.000000, 3.000000]");
+}

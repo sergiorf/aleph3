@@ -47,15 +47,15 @@ namespace mathix {
         }
 
         ExprPtr parse_term() {
-            auto left = parse_factor();
+            auto left = parse_power();
             while (true) {
                 skip_whitespace();
                 if (match('*')) {
-                    auto right = parse_factor();
+                    auto right = parse_power();
                     left = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{left, right});
                 }
                 else if (match('/')) {
-                    auto right = parse_factor();
+                    auto right = parse_power();
                     left = make_expr<FunctionCall>("Divide", std::vector<ExprPtr>{left, right});
                 }
                 else {
@@ -127,6 +127,17 @@ namespace mathix {
             }
             double value = std::stod(input.substr(start, pos - start));
             return make_expr<Number>(value);
+        }
+
+        ExprPtr parse_power() {
+            auto left = parse_factor();
+            skip_whitespace();
+            while (match('^')) {
+                auto right = parse_factor();
+                left = make_expr<FunctionCall>("Pow", std::vector<ExprPtr>{left, right});
+                skip_whitespace();
+            }
+            return left;
         }
 
         void skip_whitespace() {

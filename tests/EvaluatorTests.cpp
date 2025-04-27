@@ -64,3 +64,14 @@ TEST_CASE("Unknown variables throw an exception", "[evaluator][context]") {
     auto expr = parse_expression("z + 1");
     REQUIRE_THROWS(evaluate(expr, ctx));
 }
+
+TEST_CASE("Evaluator correctly evaluates power expressions", "[evaluator][pow]") {
+    auto expr = parse_expression("2^3");
+    EvaluationContext ctx; // Empty context if required by evaluate
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(result != nullptr);
+
+    auto num = std::get<Number>(*result);
+    REQUIRE(std::abs(num.value - 8.0) < 1e-9); // Floating-point comparison
+}

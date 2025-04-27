@@ -86,6 +86,12 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         }
         return make_expr<Number>(std::exp(get_number_value(evaluated_args[0])));
     }
+    else if (name == "Pow") {
+        if (evaluated_args.size() != 2) {
+            throw std::runtime_error("Pow expects exactly 2 arguments");
+        }
+        return make_expr<Number>(std::pow(get_number_value(evaluated_args[0]), get_number_value(evaluated_args[1])));
+    }
 
     // If unknown function, keep it unevaluated
     return make_expr<FunctionCall>(func.head, evaluated_args);

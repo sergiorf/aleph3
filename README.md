@@ -1,8 +1,6 @@
-<p align="center">
-  ![Build Status](https://img.shields.io/github/actions/workflow/status/sergiorf/mathix/build.yml)
-  ![Contributors](https://img.shields.io/github/contributors/sergiorf/mathix)
-  ![License](https://img.shields.io/github/license/sergiorf/mathix)
-</p>
+![Build Status](https://img.shields.io/github/actions/workflow/status/sergiorf/mathix/build.yml)
+![Contributors](https://img.shields.io/github/contributors/sergiorf/mathix)
+![License](https://img.shields.io/github/license/sergiorf/mathix)
 
 <p align="center">
   <img src="assets/logo.png" alt="Mathix Logo" width="200"/>

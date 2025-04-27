@@ -1,5 +1,4 @@
 ![Build Status](https://img.shields.io/github/actions/workflow/status/sergiorf/mathix/build.yml)
-![Contributors](https://img.shields.io/github/contributors/sergiorf/mathix)
 ![License](https://img.shields.io/github/license/sergiorf/mathix)
 
 <p align="center">
@@ -31,7 +30,7 @@ To build Mathix, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    cmake -S . -B build
    cmake --build build
    cd build
-   ctest -C Debug --output-on-failure
+   ctest -C Debug --output-on-failure --verbose
    ```
 
 3. Run the Mathix CLI:

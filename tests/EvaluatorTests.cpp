@@ -75,3 +75,55 @@ TEST_CASE("Evaluator correctly evaluates power expressions", "[evaluator][pow]")
     auto num = std::get<Number>(*result);
     REQUIRE(std::abs(num.value - 8.0) < 1e-9); // Floating-point comparison
 }
+
+TEST_CASE("Exponential function is evaluated correctly", "[evaluator][exp]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("exp(1)");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::abs(get_number_value(result) - std::exp(1)) < 1e-6);
+
+    expr = parse_expression("exp(0)");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::abs(get_number_value(result) - 1.0) < 1e-6);
+}
+
+TEST_CASE("Floor function is evaluated correctly", "[evaluator][floor]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("floor(3.7)");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(get_number_value(result) == 3.0);
+
+    expr = parse_expression("floor(-3.7)");
+    result = evaluate(expr, ctx);
+    REQUIRE(get_number_value(result) == -4.0);
+}
+
+TEST_CASE("Ceil function is evaluated correctly", "[evaluator][ceil]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("ceil(3.2)");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(get_number_value(result) == 4.0);
+
+    expr = parse_expression("ceil(-3.2)");
+    result = evaluate(expr, ctx);
+    REQUIRE(get_number_value(result) == -3.0);
+}
+
+TEST_CASE("Round function is evaluated correctly", "[evaluator][round]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("round(3.5)");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(get_number_value(result) == 4.0);
+
+    expr = parse_expression("round(3.4)");
+    result = evaluate(expr, ctx);
+    REQUIRE(get_number_value(result) == 3.0);
+
+    expr = parse_expression("round(-3.5)");
+    result = evaluate(expr, ctx);
+    REQUIRE(get_number_value(result) == -4.0);
+
+    expr = parse_expression("round(-3.4)");
+    result = evaluate(expr, ctx);
+    REQUIRE(get_number_value(result) == -3.0);
+}

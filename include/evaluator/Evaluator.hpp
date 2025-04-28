@@ -7,6 +7,8 @@
 
 #include <stdexcept>
 #include <cmath>
+#include <unordered_map>
+#include <functional>
 
 namespace mathix {
 
@@ -21,6 +23,27 @@ inline double get_number_value(const ExprPtr& expr) {
 }
 
 inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
+    static const std::unordered_map<std::string, std::function<double(double)>> unary_functions = {
+        {"sin", [](double x) { return std::sin(x); }},
+        {"cos", [](double x) { return std::cos(x); }},
+        {"tan", [](double x) { return std::tan(x); }},
+        {"abs", [](double x) { return std::fabs(x); }},
+        {"sqrt", [](double x) { return std::sqrt(x); }},
+        {"log", [](double x) { return std::log(x); }},
+        {"exp", [](double x) { return std::exp(x); }},
+        {"floor", [](double x) { return std::floor(x); }},
+        {"ceil", [](double x) { return std::ceil(x); }},
+        {"round", [](double x) { return std::round(x); }}
+    };
+
+    static const std::unordered_map<std::string, std::function<double(double, double)>> binary_functions = {
+        {"Plus", [](double a, double b) { return a + b; }},
+        {"Minus", [](double a, double b) { return a - b; }},
+        {"Times", [](double a, double b) { return a * b; }},
+        {"Divide", [](double a, double b) { return a / b; }},
+        {"Pow", [](double a, double b) { return std::pow(a, b); }}
+    };
+
     std::vector<ExprPtr> evaluated_args;
     for (const auto& arg : func.args) {
         evaluated_args.push_back(evaluate(arg, ctx));
@@ -28,72 +51,29 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
 
     const std::string& name = func.head;
 
-    // Handle known built-in functions
-    if (name == "Plus") {
-        double sum = 0.0;
-        for (const auto& arg : evaluated_args) {
-            sum += get_number_value(arg);
-        }
-        return make_expr<Number>(sum);
-    }
-    else if (name == "Minus") {
-        if (evaluated_args.size() == 1) {
-            return make_expr<Number>(-get_number_value(evaluated_args[0]));
-        } else if (evaluated_args.size() == 2) {
-            return make_expr<Number>(get_number_value(evaluated_args[0]) - get_number_value(evaluated_args[1]));
-        }
-    }
-    else if (name == "Times") {
-        double product = 1.0;
-        for (const auto& arg : evaluated_args) {
-            product *= get_number_value(arg);
-        }
-        return make_expr<Number>(product);
-    }
-    else if (name == "Divide") {
-        if (evaluated_args.size() != 2) {
-            throw std::runtime_error("Divide expects exactly 2 arguments");
-        }
-        return make_expr<Number>(get_number_value(evaluated_args[0]) / get_number_value(evaluated_args[1]));
-    }
-    else if (name == "sin") {
+    if (auto it = unary_functions.find(name); it != unary_functions.end()) {
         if (evaluated_args.size() != 1) {
-            throw std::runtime_error("sin expects 1 argument");
+            throw std::runtime_error(name + " expects 1 argument");
         }
-        return make_expr<Number>(std::sin(get_number_value(evaluated_args[0])));
-    }
-    else if (name == "cos") {
-        if (evaluated_args.size() != 1) {
-            throw std::runtime_error("cos expects 1 argument");
-        }
-        return make_expr<Number>(std::cos(get_number_value(evaluated_args[0])));
-    }
-    else if (name == "sqrt") {
-        if (evaluated_args.size() != 1) {
-            throw std::runtime_error("sqrt expects 1 argument");
-        }
-        return make_expr<Number>(std::sqrt(get_number_value(evaluated_args[0])));
-    }
-    else if (name == "log") {
-        if (evaluated_args.size() != 1) {
-            throw std::runtime_error("log expects 1 argument");
-        }
-        return make_expr<Number>(std::log(get_number_value(evaluated_args[0])));
-    }
-    else if (name == "exp") {
-        if (evaluated_args.size() != 1) {
-            throw std::runtime_error("exp expects 1 argument");
-        }
-        return make_expr<Number>(std::exp(get_number_value(evaluated_args[0])));
-    }
-    else if (name == "Pow") {
-        if (evaluated_args.size() != 2) {
-            throw std::runtime_error("Pow expects exactly 2 arguments");
-        }
-        return make_expr<Number>(std::pow(get_number_value(evaluated_args[0]), get_number_value(evaluated_args[1])));
+        double arg = get_number_value(evaluated_args[0]);
+        return make_expr<Number>(it->second(arg));
     }
 
-    // If unknown function, keep it unevaluated
+    if (auto it = binary_functions.find(name); it != binary_functions.end()) {
+        if (evaluated_args.size() != 2) {
+            throw std::runtime_error(name + " expects exactly 2 arguments");
+        }
+        double arg1 = get_number_value(evaluated_args[0]);
+        double arg2 = get_number_value(evaluated_args[1]);
+        return make_expr<Number>(it->second(arg1, arg2));
+    }
+
+    // Special case: unary minus (negation)
+    if (name == "Negate" && evaluated_args.size() == 1) {
+        return make_expr<Number>(-get_number_value(evaluated_args[0]));
+    }
+
+    // Unknown function: keep unevaluated
     return make_expr<FunctionCall>(func.head, evaluated_args);
 }
 

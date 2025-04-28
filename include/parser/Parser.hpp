@@ -67,6 +67,18 @@ namespace mathix {
 
         ExprPtr parse_factor() {
             skip_whitespace();
+
+            // Handle unary plus/minus
+            if (match('+')) {
+                // Simply parse the factor after '+'
+                return parse_factor();
+            }
+            if (match('-')) {
+                // Parse the factor after '-' and negate it
+                auto factor = parse_factor();
+                return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+            }
+
             if (match('(')) {
                 auto expr = parse_expression();
                 if (!match(')')) {

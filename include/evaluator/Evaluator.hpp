@@ -1,4 +1,4 @@
-// evaluator/Evaluator.hpp
+﻿// evaluator/Evaluator.hpp
 #pragma once
 
 #include "expr/Expr.hpp"
@@ -63,9 +63,19 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         if (evaluated_args.size() != 2) {
             throw std::runtime_error(name + " expects exactly 2 arguments");
         }
-        double arg1 = get_number_value(evaluated_args[0]);
-        double arg2 = get_number_value(evaluated_args[1]);
-        return make_expr<Number>(it->second(arg1, arg2));
+
+        // Try numeric evaluation
+        auto left = evaluated_args[0];
+        auto right = evaluated_args[1];
+
+        if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
+            double arg1 = get_number_value(left);
+            double arg2 = get_number_value(right);
+            return make_expr<Number>(it->second(arg1, arg2));
+        }
+
+        // ❗ If not fully numeric, return symbolic expression
+        return make_expr<FunctionCall>(name, evaluated_args);
     }
 
     // Special case: unary minus (negation)
@@ -73,8 +83,35 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         return make_expr<Number>(-get_number_value(evaluated_args[0]));
     }
 
-    // Unknown function: keep unevaluated
-    return make_expr<FunctionCall>(func.head, evaluated_args);
+    // Check for user-defined functions
+    if (auto user_it = ctx.user_functions.find(name); user_it != ctx.user_functions.end()) {
+        const FunctionDefinition& def = user_it->second;
+
+        if (def.params.size() != evaluated_args.size()) {
+            throw std::runtime_error("Function " + name + " expects " +
+                std::to_string(def.params.size()) + " arguments, got " +
+                std::to_string(evaluated_args.size()));
+        }
+
+        // Create a new context to evaluate the function body
+        EvaluationContext local_ctx = ctx; // Copy current context (captures global vars/functions)
+
+        // Bind formal parameters to evaluated arguments
+        for (size_t i = 0; i < def.params.size(); ++i) {
+            if (std::holds_alternative<Number>(*evaluated_args[i])) {
+                double val = get_number_value(evaluated_args[i]);
+                local_ctx.variables[def.params[i]] = val;
+            }
+            else {
+                throw std::runtime_error("Only numeric arguments supported for user-defined functions for now.");
+            }
+        }
+
+        return evaluate(def.body, local_ctx); // Recursively evaluate the body with new bindings
+    }
+
+    // If no matching function is found, throw an exception
+    throw std::runtime_error("Unknown function: " + name);
 }
 
 inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
@@ -85,12 +122,44 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
         [&ctx](const Symbol& sym) -> ExprPtr {
             auto it = ctx.variables.find(sym.name);
             if (it == ctx.variables.end()) {
-                throw std::runtime_error("Unknown variable: " + sym.name);
+                return make_expr<Symbol>(sym.name);
             }
             return make_expr<Number>(it->second);
         },
         [&ctx](const FunctionCall& func) -> ExprPtr {
+            // Check for user-defined functions
+            auto user_it = ctx.user_functions.find(func.head);
+            if (user_it != ctx.user_functions.end()) {
+                const FunctionDefinition& def = user_it->second;
+
+                if (def.params.size() != func.args.size()) {
+                    throw std::runtime_error("Function " + func.head + " expects " +
+                        std::to_string(def.params.size()) + " arguments, got " +
+                        std::to_string(func.args.size()));
+                }
+
+                // Create a new context for the function evaluation
+                EvaluationContext local_ctx = ctx;
+
+                // Bind formal parameters to actual arguments
+                for (size_t i = 0; i < def.params.size(); ++i) {
+                    auto arg_value = evaluate(func.args[i], ctx);
+                    local_ctx.variables[def.params[i]] = get_number_value(arg_value);
+                }
+
+                // Evaluate the function body in the new context
+                return evaluate(def.body, local_ctx);
+            }
+
+            // If not a user-defined function, evaluate as a built-in function
             return evaluate_function(func, ctx);
+        },
+        [&ctx](const FunctionDefinition& def) -> ExprPtr {
+            // Store the function definition in the context
+            ctx.user_functions[def.name] = def;
+
+            // Return the full function definition as feedback
+            return make_expr<FunctionDefinition>(def.name, def.params, def.body);
         }
         }, *expr);
 }

@@ -15,12 +15,42 @@ namespace mathix {
         Parser(const std::string& input) : input(input), pos(0) {}
 
         ExprPtr parse() {
-            auto expr = parse_expression();
             skip_whitespace();
-            if (pos != input.size()) {
-                error("Unexpected characters at end of input");
+            // Detect function definition like f[x_] := x + 1
+            if (std::isalpha(peek())) {
+                size_t backup = pos; // Save the current position
+                auto func_name = parse_identifier();
+                skip_whitespace();
+                if (match('[')) {
+                    std::vector<std::string> args;
+                    while (true) {
+                        skip_whitespace();
+                        auto arg_name = parse_identifier();
+                        skip_whitespace();
+                        if (!match('_')) { // Ensure `_` follows the argument name
+                            pos = backup;  // Not a function definition, reset position
+                            break;         // Fall through to parse_expression()
+                        }
+                        args.push_back(arg_name);
+                        skip_whitespace();
+                        if (match(']')) break;
+                        if (!match(',')) error("Expected ',' or ']' in function argument list");
+                    }
+                    skip_whitespace();
+                    if (match(':') && match('=')) { // Match `:=` for function definition
+                        auto body = parse_expression();
+                        return make_expr<FunctionDefinition>(func_name, args, body);
+                    }
+                    else {
+                        pos = backup;  // Not a definition; reset position
+                    }
+                }
+                else {
+                    pos = backup;  // Not a function definition; reset position
+                }
             }
-            return expr;
+            // Delegate to parse_expression() for general expressions
+            return parse_expression();
         }
 
     private:
@@ -70,12 +100,10 @@ namespace mathix {
 
             // Handle unary plus/minus
             if (match('+')) {
-                // Simply parse the factor after '+'
-                return parse_factor();
+                return parse_factor(); // Simply parse the factor after '+'
             }
             if (match('-')) {
-                // Parse the factor after '-' and negate it
-                auto factor = parse_factor();
+                auto factor = parse_factor(); // Parse the factor after '-' and negate it
                 return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
             }
 
@@ -86,12 +114,19 @@ namespace mathix {
                 }
                 return expr;
             }
-            else if (std::isalpha(peek())) {
+
+            // Handle symbols (variables) or function calls
+            if (std::isalpha(peek())) {
                 return parse_symbol();
             }
-            else {
+
+            // Handle numbers
+            if (std::isdigit(peek()) || peek() == '.') {
                 return parse_number();
             }
+
+            // If none of the above, throw an error
+            error("Expected a number, symbol, or '('");
         }
 
         ExprPtr parse_symbol() {
@@ -106,18 +141,18 @@ namespace mathix {
             std::string name = input.substr(start, pos - start);
 
             skip_whitespace();
-            if (match('(')) {
+            if (match('[')) {
                 // It's a function call
                 std::vector<ExprPtr> args;
-                if (!match(')')) { // Handle empty argument list
+                if (!match(']')) { // Handle empty argument list
                     while (true) {
                         args.push_back(parse_expression());
                         skip_whitespace();
-                        if (match(')')) {
+                        if (match(']')) {
                             break;
                         }
                         if (!match(',')) {
-                            error("Expected ',' or ')' in function call");
+                            error("Expected ',' or ']' in function call");
                         }
                     }
                 }
@@ -150,6 +185,18 @@ namespace mathix {
                 skip_whitespace();
             }
             return left;
+        }
+
+        std::string parse_identifier() {
+            skip_whitespace();
+            size_t start = pos;
+            while (pos < input.size() && std::isalnum(input[pos])) { // Only consume alphanumeric characters
+                ++pos;
+            }
+            if (start == pos) {
+                error("Expected identifier");
+            }
+            return input.substr(start, pos - start);
         }
 
         void skip_whitespace() {

@@ -12,9 +12,10 @@ namespace mathix {
 struct Symbol;
 struct Number;
 struct FunctionCall;
+struct FunctionDefinition;
 
 // Core Expression type: variant of all expression types
-using Expr = std::variant<Symbol, Number, FunctionCall>;
+using Expr = std::variant < Symbol, Number, FunctionCall, FunctionDefinition > ;
 
 // Smart pointer to expressions
 using ExprPtr = std::shared_ptr<Expr>;
@@ -45,6 +46,20 @@ struct FunctionCall {
 
     FunctionCall(std::string h, const std::vector<ExprPtr>& a)
         : head(h), args(a) {}
+};
+
+struct FunctionDefinition {
+    std::string name;
+    std::vector<std::string> params;
+    ExprPtr body;
+
+    FunctionDefinition() : name(""), params(), body(nullptr) {}
+
+    FunctionDefinition(const std::string& name,
+        const std::vector<std::string>& params,
+        const ExprPtr& body)
+        : name(name), params(params), body(body) {
+    }
 };
 
 // Utility functions

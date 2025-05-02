@@ -61,6 +61,34 @@ struct FunctionDefinition {
         const ExprPtr& body)
         : name(name), params(params), body(body) {
     }
+
+    FunctionDefinition(const FunctionDefinition& other)
+        : name(other.name), params(other.params), body(other.body) {
+    }
+
+    FunctionDefinition(FunctionDefinition&& other) noexcept
+        : name(std::move(other.name)),
+        params(std::move(other.params)),
+        body(std::move(other.body)) {
+    }
+
+    FunctionDefinition& operator=(const FunctionDefinition& other) {
+        if (this != &other) {
+            name = other.name;
+            params = other.params;
+            body = other.body;
+        }
+        return *this;
+    }
+
+    FunctionDefinition& operator=(FunctionDefinition&& other) noexcept {
+        if (this != &other) {
+            name = std::move(other.name);
+            params = std::move(other.params);
+            body = std::move(other.body);
+        }
+        return *this;
+    }
 };
 
 // Utility functions

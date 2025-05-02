@@ -38,6 +38,7 @@ struct Number {
     double value;
 
     Number(double v) : value(v) {}
+    Number(int v) : value(static_cast<double>(v)) {}
 };
 
 struct FunctionCall {

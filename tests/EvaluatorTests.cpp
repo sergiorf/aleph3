@@ -171,6 +171,94 @@ TEST_CASE("User-defined functions are parsed and evaluated correctly", "[evaluat
         evaluate(parse_expression("f[x_] := x + 1"), ctx);
         auto call_expr = parse_expression("double[f[3]]");
         auto result = evaluate(call_expr, ctx);
-        REQUIRE(get_number_value(result) == 8.0); // f(3) = 4, double(4) = 8
+        REQUIRE(get_number_value(result) == 8.0); // f(3) = 4, double(4) = 8 
     }
 }
+
+TEST_CASE("Simplify addition with zero", "[evaluator][simplification]") {
+    EvaluationContext ctx; // Empty context
+
+    auto expr = parse_expression("0 + x");
+    auto result = evaluate(expr, ctx);
+
+    // Ensure the result is a symbolic expression: x
+    REQUIRE(std::holds_alternative<Symbol>(*result));
+    REQUIRE(std::get<Symbol>(*result).name == "x");
+
+    expr = parse_expression("x + 0");
+    result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<Symbol>(*result));
+    REQUIRE(std::get<Symbol>(*result).name == "x");
+}
+
+TEST_CASE("Simplify multiplication with one", "[evaluator][simplification]") {
+    EvaluationContext ctx; // Empty context
+
+    auto expr = parse_expression("1 * x");
+    auto result = evaluate(expr, ctx);
+
+    // Ensure the result is a symbolic expression: x
+    REQUIRE(std::holds_alternative<Symbol>(*result));
+    REQUIRE(std::get<Symbol>(*result).name == "x");
+
+    expr = parse_expression("x * 1");
+    result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<Symbol>(*result));
+    REQUIRE(std::get<Symbol>(*result).name == "x");
+}
+
+TEST_CASE("Simplify multiplication with zero", "[evaluator][simplification]") {
+    EvaluationContext ctx; // Empty context
+
+    auto expr = parse_expression("0 * x");
+    auto result = evaluate(expr, ctx);
+
+    // Ensure the result is a numeric value: 0
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(get_number_value(result) == 0.0);
+
+    expr = parse_expression("x * 0");
+    result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(get_number_value(result) == 0.0);
+}
+
+TEST_CASE("Simplify exponentiation", "[evaluator][simplification]") {
+    EvaluationContext ctx; // Empty context
+
+    auto expr = parse_expression("x^0");
+    auto result = evaluate(expr, ctx);
+
+    // Ensure the result is a numeric value: 1
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(get_number_value(result) == 1.0);
+
+    expr = parse_expression("x^1");
+    result = evaluate(expr, ctx);
+
+    // Ensure the result is a symbolic expression: x
+    REQUIRE(std::holds_alternative<Symbol>(*result));
+    REQUIRE(std::get<Symbol>(*result).name == "x");
+}
+
+TEST_CASE("Simplify nested expressions", "[evaluator][simplification]") {
+    EvaluationContext ctx; // Empty context
+
+    auto expr = parse_expression("0 + (1 * x)");
+    auto result = evaluate(expr, ctx);
+
+    // Ensure the result is a symbolic expression: x
+    REQUIRE(std::holds_alternative<Symbol>(*result));
+    REQUIRE(std::get<Symbol>(*result).name == "x");
+
+    expr = parse_expression("(x * 0) + 1");
+    result = evaluate(expr, ctx);
+
+    // Ensure the result is a numeric value: 1
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(get_number_value(result) == 1.0);
+}
+

@@ -24,30 +24,30 @@ TEST_CASE("Multiplication and parentheses are evaluated correctly", "[evaluator]
 
 TEST_CASE("Trigonometric functions are evaluated correctly", "[evaluator]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("sin(0)");
+    auto expr = parse_expression("sin[0]");
     auto result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - 0.0) < 1e-6);
 
-    expr = parse_expression("cos(0)");
+    expr = parse_expression("cos[0]");
     result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - 1.0) < 1e-6);
 }
 
 TEST_CASE("Square root and exponential functions are evaluated correctly", "[evaluator]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("sqrt(9)");
+    auto expr = parse_expression("sqrt[9]");
     auto result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - 3.0) < 1e-6);
 
-    expr = parse_expression("exp(1)");
+    expr = parse_expression("exp[1]");
     result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - std::exp(1)) < 1e-6);
 }
 
 TEST_CASE("Variables are evaluated correctly using context", "[evaluator][context]") {
     EvaluationContext ctx;
-    ctx.variables["x"] = 10.0;
-    ctx.variables["y"] = 5.0;
+    ctx.variables["x"] = make_expr<Number>(10.0);
+    ctx.variables["y"] = make_expr<Number>(5.0);
 
     auto expr = parse_expression("x + y");
     auto result = evaluate(expr, ctx);
@@ -58,11 +58,21 @@ TEST_CASE("Variables are evaluated correctly using context", "[evaluator][contex
     REQUIRE(get_number_value(result) == 50.0);
 }
 
-TEST_CASE("Unknown variables throw an exception", "[evaluator][context]") {
+TEST_CASE("Unknown variables are treated as symbolic", "[evaluator][context]") {
     EvaluationContext ctx; // Empty context
 
     auto expr = parse_expression("z + 1");
-    REQUIRE_THROWS(evaluate(expr, ctx));
+    auto result = evaluate(expr, ctx);
+
+    // Ensure the result is a symbolic expression: Plus[z, 1]
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    auto func = std::get<FunctionCall>(*result);
+    REQUIRE(func.head == "Plus");
+    REQUIRE(func.args.size() == 2);
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
+    REQUIRE(std::get<Symbol>(*func.args[0]).name == "z");
+    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
+    REQUIRE(std::get<Number>(*func.args[1]).value == 1.0);
 }
 
 TEST_CASE("Evaluator correctly evaluates power expressions", "[evaluator][pow]") {
@@ -78,52 +88,89 @@ TEST_CASE("Evaluator correctly evaluates power expressions", "[evaluator][pow]")
 
 TEST_CASE("Exponential function is evaluated correctly", "[evaluator][exp]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("exp(1)");
+    auto expr = parse_expression("exp[1]");
     auto result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - std::exp(1)) < 1e-6);
 
-    expr = parse_expression("exp(0)");
+    expr = parse_expression("exp[0]");
     result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - 1.0) < 1e-6);
 }
 
 TEST_CASE("Floor function is evaluated correctly", "[evaluator][floor]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("floor(3.7)");
+    auto expr = parse_expression("floor[3.7]");
     auto result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == 3.0);
 
-    expr = parse_expression("floor(-3.7)");
+    expr = parse_expression("floor[-3.7]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == -4.0);
 }
 
 TEST_CASE("Ceil function is evaluated correctly", "[evaluator][ceil]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("ceil(3.2)");
+    auto expr = parse_expression("ceil[3.2]");
     auto result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == 4.0);
 
-    expr = parse_expression("ceil(-3.2)");
+    expr = parse_expression("ceil[-3.2]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == -3.0);
 }
 
 TEST_CASE("Round function is evaluated correctly", "[evaluator][round]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("round(3.5)");
+    auto expr = parse_expression("round[3.5]");
     auto result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == 4.0);
 
-    expr = parse_expression("round(3.4)");
+    expr = parse_expression("round[3.4]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == 3.0);
 
-    expr = parse_expression("round(-3.5)");
+    expr = parse_expression("round[-3.5]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == -4.0);
 
-    expr = parse_expression("round(-3.4)");
+    expr = parse_expression("round[-3.4]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == -3.0);
+}
+
+TEST_CASE("User-defined functions are parsed and evaluated correctly", "[evaluator][functions]") {
+    EvaluationContext ctx;
+
+    SECTION("Simple increment function") {
+        // Define function f[x_] := x + 1
+        auto def_expr = parse_expression("f[x_] := x + 1");
+        evaluate(def_expr, ctx); // Should register the function
+
+        // Call f[3]
+        auto call_expr = parse_expression("f[3]");
+        auto result = evaluate(call_expr, ctx);
+        REQUIRE(get_number_value(result) == 4.0);
+    }
+
+    SECTION("Function using multiple variables") {
+        // Define function add[a_, b_] := a + b
+        auto def_expr = parse_expression("add[a_, b_] := a + b");
+        evaluate(def_expr, ctx);
+
+        auto call_expr = parse_expression("add[2, 5]");
+        auto result = evaluate(call_expr, ctx);
+        REQUIRE(get_number_value(result) == 7.0);
+    }
+
+    SECTION("Nested function call") {
+        // Define double[x_] := x * 2
+        auto def_expr = parse_expression("double[x_] := x * 2");
+        evaluate(def_expr, ctx);
+
+        // Call double(f[3]) where f[x_] := x + 1
+        evaluate(parse_expression("f[x_] := x + 1"), ctx);
+        auto call_expr = parse_expression("double[f[3]]");
+        auto result = evaluate(call_expr, ctx);
+        REQUIRE(get_number_value(result) == 8.0); // f(3) = 4, double(4) = 8
+    }
 }

@@ -7,7 +7,7 @@
 namespace mathix {
 
 struct EvaluationContext {
-    std::unordered_map<std::string, double> variables;
+    std::unordered_map<std::string, ExprPtr> variables;
     std::unordered_map<std::string, FunctionDefinition> user_functions;
 };
 

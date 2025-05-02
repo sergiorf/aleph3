@@ -1,4 +1,4 @@
-#include "expr/Expr.hpp"
+﻿#include "expr/Expr.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "parser/Parser.hpp"
@@ -7,6 +7,21 @@
 #include <string>
 
 using namespace mathix;
+
+template <typename Container>
+std::string join(const Container& container, const std::string& delimiter) {
+    std::string result;
+    auto it = container.begin();
+    if (it != container.end()) {
+        result += *it;
+        ++it;
+    }
+    while (it != container.end()) {
+        result += delimiter + *it;
+        ++it;
+    }
+    return result;
+}
 
 int main() {
     EvaluationContext ctx;
@@ -24,6 +39,8 @@ int main() {
         if (input == "exit") {
             break;
         }
+
+        if (input.empty()) continue;
 
         if (input.starts_with("let ")) {
             // Example: let x = 5
@@ -44,30 +61,34 @@ int main() {
         
             auto expr = parse_expression(expr_text);
             auto result = evaluate(expr, ctx);
+
+            ctx.variables[varname] = result;
+            std::cout << varname << " = " << to_string(result) << std::endl;
         
-            if (auto num = std::get_if<Number>(&*result)) {
-                ctx.variables[varname] = num->value;
-                std::cout << varname << " = " << num->value << std::endl;
-            } else {
-                std::cout << "Error: Can only assign numbers for now" << std::endl;
-            }
             continue;
         }
-        else {
-            try {
-                auto expr = parse_expression(input);
-                auto result = evaluate(expr, ctx);
-    
-                if (auto num = std::get_if<Number>(&*result)) {
-                    std::cout << "= " << num->value << std::endl;
-                }
-                else {
-                    std::cout << "= " << to_string(result) << std::endl;
-                }
+
+        try {
+            auto expr = parse_expression(input);
+
+            // Handle function definition
+            if (auto def = std::get_if<FunctionDefinition>(&*expr)) {
+                ctx.user_functions[def->name] = *def;
+                std::cout << "= " << def->name << "[" << join(def->params, ", ") << "] := " << to_string(def->body) << std::endl;
+                continue;
             }
-            catch (const std::exception& ex) {
-                std::cout << "Error: " << ex.what() << std::endl;
+
+            // Evaluate normal expression
+            auto result = evaluate(expr, ctx);
+            if (auto num = std::get_if<Number>(&*result)) {
+                std::cout << "= " << num->value << std::endl;
             }
+            else {
+                std::cout << "= " << to_string(result) << std::endl;
+            }
+        }
+        catch (const std::exception& ex) {
+            std::cout << "Error: " << ex.what() << std::endl;
         }
     }
 

@@ -6,11 +6,11 @@
 </p>
 
 # Mathix
-_A computational software system written in C++._
+_A symbolic math system and computational software written in C++._
 
 ## Mathix: A C++ Computer Algebra System
 
-Mathix is a powerful and flexible computer algebra system written in modern C++ (C++20). It allows users to perform symbolic computations, evaluate mathematical expressions, and define custom functions.
+Mathix is a powerful and flexible computer algebra system (CAS) written in modern C++ (C++20). It enables users to perform symbolic computations, manipulate mathematical expressions, and define custom functions.
 
 ## Features
 - Basic algebraic operations: `+`, `-`, `*`, `/`

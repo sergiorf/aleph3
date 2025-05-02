@@ -16,40 +16,61 @@ namespace mathix {
 
         ExprPtr parse() {
             skip_whitespace();
-            // Detect function definition like f[x_] := x + 1
+            size_t backup = pos;
+
+            // Try parsing function definition
             if (std::isalpha(peek())) {
-                size_t backup = pos; // Save the current position
                 auto func_name = parse_identifier();
                 skip_whitespace();
+
+                // If it's followed by '[', maybe it's a definition
                 if (match('[')) {
                     std::vector<std::string> args;
+                    bool is_def = true;
+
+                    size_t args_backup = pos;
+
                     while (true) {
                         skip_whitespace();
-                        auto arg_name = parse_identifier();
-                        skip_whitespace();
-                        if (!match('_')) { // Ensure `_` follows the argument name
-                            pos = backup;  // Not a function definition, reset position
-                            break;         // Fall through to parse_expression()
+                        size_t id_backup = pos;
+                        std::string arg;
+                        try {
+                            arg = parse_identifier();
                         }
-                        args.push_back(arg_name);
+                        catch (...) {
+                            is_def = false;
+                            break;
+                        }
+                        skip_whitespace();
+                        if (!match('_')) {
+                            is_def = false;
+                            break;
+                        }
+                        args.push_back(arg);
                         skip_whitespace();
                         if (match(']')) break;
-                        if (!match(',')) error("Expected ',' or ']' in function argument list");
+                        if (!match(',')) {
+                            is_def = false;
+                            break;
+                        }
                     }
+
                     skip_whitespace();
-                    if (match(':') && match('=')) { // Match `:=` for function definition
+                    if (is_def && match(':') && match('=')) {
                         auto body = parse_expression();
                         return make_expr<FunctionDefinition>(func_name, args, body);
                     }
                     else {
-                        pos = backup;  // Not a definition; reset position
+                        // Not a definition; reset and fall through to expression
+                        pos = backup;
                     }
                 }
                 else {
-                    pos = backup;  // Not a function definition; reset position
+                    // Not a function definition; reset
+                    pos = backup;
                 }
             }
-            // Delegate to parse_expression() for general expressions
+
             return parse_expression();
         }
 
@@ -128,7 +149,6 @@ namespace mathix {
             // If none of the above, throw an error
             error("Expected a number, symbol, or '('");
         }
-
         ExprPtr parse_symbol() {
             skip_whitespace();
             size_t start = pos;
@@ -146,7 +166,13 @@ namespace mathix {
                 std::vector<ExprPtr> args;
                 if (!match(']')) { // Handle empty argument list
                     while (true) {
-                        args.push_back(parse_expression());
+                        // Handle unary minus
+                        if (match('-')) {
+                            args.push_back(make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{parse_expression()}));
+                        }
+                        else {
+                            args.push_back(parse_expression());
+                        }
                         skip_whitespace();
                         if (match(']')) {
                             break;

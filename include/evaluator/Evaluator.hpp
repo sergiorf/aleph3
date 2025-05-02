@@ -98,13 +98,7 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
 
         // Bind formal parameters to evaluated arguments
         for (size_t i = 0; i < def.params.size(); ++i) {
-            if (std::holds_alternative<Number>(*evaluated_args[i])) {
-                double val = get_number_value(evaluated_args[i]);
-                local_ctx.variables[def.params[i]] = val;
-            }
-            else {
-                throw std::runtime_error("Only numeric arguments supported for user-defined functions for now.");
-            }
+            local_ctx.variables[def.params[i]] = func.args[i]; // Use unevaluated arg for symbolic substitution
         }
 
         return evaluate(def.body, local_ctx); // Recursively evaluate the body with new bindings
@@ -124,7 +118,7 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
             if (it == ctx.variables.end()) {
                 return make_expr<Symbol>(sym.name);
             }
-            return make_expr<Number>(it->second);
+            return evaluate(it->second, ctx); // recursively evaluate bound expression
         },
         [&ctx](const FunctionCall& func) -> ExprPtr {
             // Check for user-defined functions
@@ -144,7 +138,7 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
                 // Bind formal parameters to actual arguments
                 for (size_t i = 0; i < def.params.size(); ++i) {
                     auto arg_value = evaluate(func.args[i], ctx);
-                    local_ctx.variables[def.params[i]] = get_number_value(arg_value);
+                    local_ctx.variables[def.params[i]] = arg_value;
                 }
 
                 // Evaluate the function body in the new context

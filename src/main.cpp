@@ -25,21 +25,16 @@ std::string join(const Container& container, const std::string& delimiter) {
 
 int main() {
     EvaluationContext ctx;
+    int counter = 1;
 
     std::cout << "Welcome to Mathix CLI!" << std::endl;
     std::cout << "Type 'exit' to quit." << std::endl;
 
     while (true) {
-        std::cout << "> ";
+        std::cout << "In[" << counter << "]:= ";
         std::string input;
-        if (!std::getline(std::cin, input)) {
-            break; // End of input (Ctrl+D or error)
-        }
-
-        if (input == "exit") {
-            break;
-        }
-
+        if (!std::getline(std::cin, input)) break;
+        if (input == "exit") break;
         if (input.empty()) continue;
 
         if (input.starts_with("let ")) {
@@ -51,20 +46,19 @@ int main() {
             }
             std::string varname = input.substr(4, eq_pos - 4);
             std::string expr_text = input.substr(eq_pos + 1);
-        
+
             // Trim spaces
             varname.erase(0, varname.find_first_not_of(" \t"));
             varname.erase(varname.find_last_not_of(" \t") + 1);
-        
             expr_text.erase(0, expr_text.find_first_not_of(" \t"));
             expr_text.erase(expr_text.find_last_not_of(" \t") + 1);
-        
+
             auto expr = parse_expression(expr_text);
             auto result = evaluate(expr, ctx);
-
             ctx.variables[varname] = result;
-            std::cout << varname << " = " << to_string(result) << std::endl;
-        
+
+            std::cout << "Out[" << counter << "]= " << varname << " = " << to_string(result) << std::endl;
+            counter++;
             continue;
         }
 
@@ -74,24 +68,33 @@ int main() {
             // Handle function definition
             if (auto def = std::get_if<FunctionDefinition>(&*expr)) {
                 ctx.user_functions[def->name] = *def;
-                std::cout << "= " << def->name << "[" << join(def->params, ", ") << "] := " << to_string(def->body) << std::endl;
+                std::cout << "Out[" << counter << "]= "
+                    << def->name << "[" << join(def->params, ", ") << "] := "
+                    << to_string(def->body) << std::endl;
+                counter++;
                 continue;
             }
 
-            // Evaluate normal expression
+            // Evaluate and simplify expression
             auto result = evaluate(expr, ctx);
-            if (auto num = std::get_if<Number>(&*result)) {
-                std::cout << "= " << num->value << std::endl;
+            auto simplified = simplify(result);
+
+            std::cout << "Out[" << counter << "]= ";
+            if (auto num = std::get_if<Number>(&*simplified)) {
+                std::cout << num->value << std::endl;
             }
             else {
-                std::cout << "= " << to_string(result) << std::endl;
+                std::cout << to_string(simplified) << std::endl;
             }
         }
         catch (const std::exception& ex) {
             std::cout << "Error: " << ex.what() << std::endl;
         }
+
+        counter++;
     }
 
     std::cout << "Goodbye!" << std::endl;
     return 0;
 }
+

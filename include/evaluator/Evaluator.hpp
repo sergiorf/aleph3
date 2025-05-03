@@ -4,7 +4,8 @@
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "util/Overloaded.hpp"
-#include "transforms/Expand.hpp"
+#include "util/ExprUtils.hpp"
+#include "transforms/Transforms.hpp"
 
 #include <stdexcept>
 #include <cmath>
@@ -15,22 +16,6 @@
 namespace mathix {
 
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
-
-inline double get_number_value(const ExprPtr& expr) {
-    if (auto num = std::get_if<Number>(&(*expr))) {
-        return num->value;
-    } else {
-        throw std::runtime_error("Expected a Number during evaluation, but got something else");
-    }
-}
-
-inline bool is_zero(const ExprPtr& e) {
-    return std::holds_alternative<Number>(*e) && get_number_value(e) == 0.0;
-}
-
-inline bool is_one(const ExprPtr& e) {
-    return std::holds_alternative<Number>(*e) && get_number_value(e) == 1.0;
-}
 
 inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
     static const std::unordered_map<std::string, std::function<double(double)>> unary_functions = {

@@ -143,12 +143,22 @@ namespace mathix {
 
             // Handle numbers
             if (std::isdigit(peek()) || peek() == '.') {
-                return parse_number();
+                auto left = parse_number();
+
+                // If the next token is a symbol, assume it's a multiplication (e.g., "2x")
+                skip_whitespace();
+                if (std::isalpha(peek())) {
+                    auto right = parse_symbol();
+                    return make_expr<FunctionCall>("Times", std::vector<ExprPtr>{left, right});
+                }
+
+                return left;
             }
 
             // If none of the above, throw an error
             error("Expected a number, symbol, or '('");
         }
+
         ExprPtr parse_symbol() {
             skip_whitespace();
             size_t start = pos;

@@ -262,3 +262,20 @@ TEST_CASE("Simplify nested expressions", "[evaluator][simplification]") {
     REQUIRE(get_number_value(result) == 1.0);
 }
 
+TEST_CASE("Simplify Plus[2, 3, 4] to 9", "[evaluator][simplification]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("2 + 3 + 4");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(get_number_value(result) == 9.0);
+}
+
+TEST_CASE("Simplify Times[2, 3, 0] to 0", "[evaluator][simplification]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("2 * 3 * 0");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(get_number_value(result) == 0.0);
+}

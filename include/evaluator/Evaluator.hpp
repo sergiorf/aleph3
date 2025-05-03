@@ -4,6 +4,7 @@
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "util/Overloaded.hpp"
+#include "transforms/Expand.hpp"
 
 #include <stdexcept>
 #include <cmath>
@@ -59,6 +60,13 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
     }
 
     const std::string& name = func.head;
+
+    if (name == "Expand") {
+        if (evaluated_args.size() != 1) {
+            throw std::runtime_error("Expand expects exactly one argument");
+        }
+        return expand(evaluated_args[0]);
+    }
 
     // === Unary Built-in ===
     if (auto it = unary_functions.find(name); it != unary_functions.end()) {

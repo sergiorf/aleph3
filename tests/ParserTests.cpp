@@ -162,3 +162,55 @@ TEST_CASE("Parser handles implicit multiplication with parentheses", "[parser]")
     REQUIRE(right_right != nullptr);
     REQUIRE(right_right->name == "x");
 }
+
+void validate_function_definition(
+    const ExprPtr& expr,
+    const std::string& expected_name,
+    const std::vector<std::string>& expected_params,
+    bool expected_delayed,
+    const std::string& expected_body_head
+) {
+    REQUIRE(expr != nullptr);
+
+    // Check that the parsed expression is a function definition
+    auto* func_def = std::get_if<FunctionDefinition>(&(*expr));
+    REQUIRE(func_def != nullptr);
+    REQUIRE(func_def->name == expected_name);
+    REQUIRE(func_def->params == expected_params);
+    REQUIRE(func_def->delayed == expected_delayed);
+
+    // Check the body of the function
+    auto* body = std::get_if<FunctionCall>(&(*func_def->body));
+    REQUIRE(body != nullptr);
+    REQUIRE(body->head == expected_body_head);
+    REQUIRE(body->args.size() == 2);
+
+    auto* left = std::get_if<FunctionCall>(&(*body->args[0]));
+    auto* right = std::get_if<Number>(&(*body->args[1]));
+
+    REQUIRE(left != nullptr);
+    REQUIRE(left->head == "Pow");
+    REQUIRE(left->args.size() == 2);
+
+    auto* base = std::get_if<Symbol>(&(*left->args[0]));
+    auto* exponent = std::get_if<Number>(&(*left->args[1]));
+
+    REQUIRE(base != nullptr);
+    REQUIRE(base->name == expected_params[0]); // The parameter name
+    REQUIRE(exponent != nullptr);
+    REQUIRE(exponent->value == 3.0);
+
+    REQUIRE(right != nullptr);
+    REQUIRE(right->value == 1.0);
+}
+
+TEST_CASE("Parser handles function definitions with delayed and immediate assignment", "[parser]") {
+    // Test delayed assignment (:=)
+    auto expr = parse_expression("f[a_] := a^3 - 1");
+    validate_function_definition(expr, "f", { "a" }, true, "Minus");
+
+    // Test immediate assignment (=)
+    expr = parse_expression("f[a_] = a^3 - 1");
+    validate_function_definition(expr, "f", { "a" }, false, "Minus");
+}
+

@@ -50,16 +50,15 @@ struct FunctionCall {
 };
 
 struct FunctionDefinition {
-    std::string name;
-    std::vector<std::string> params;
-    ExprPtr body;
+    std::string name;               // Function name
+    std::vector<std::string> params; // Parameters
+    ExprPtr body;                   // Function body
+    bool delayed;                   // True for `:=`, false for `=`
 
-    FunctionDefinition() : name(""), params(), body(nullptr) {}
+    FunctionDefinition() : name(""), params(), body(nullptr), delayed(true) {}
 
-    FunctionDefinition(const std::string& name,
-        const std::vector<std::string>& params,
-        const ExprPtr& body)
-        : name(name), params(params), body(body) {
+    FunctionDefinition(const std::string& name, const std::vector<std::string>& params, const ExprPtr& body, bool delayed)
+        : name(name), params(params), body(body), delayed(delayed) {
     }
 };
 

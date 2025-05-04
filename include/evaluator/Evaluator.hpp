@@ -179,19 +179,38 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
                 }
 
                 // Evaluate the function body in the new context
-                return evaluate(def.body, local_ctx);
+                if (def.delayed) {
+                    // Delayed assignment: evaluate the body each time the function is called
+                    return evaluate(def.body, local_ctx);
+                }
+                else {
+                    // Immediate assignment: use the pre-evaluated body
+                    return def.body;
+                }
             }
-
             // If not a user-defined function, evaluate as a built-in function
             return evaluate_function(func, ctx);
         },
         [&ctx](const FunctionDefinition& def) -> ExprPtr {
-            // Store the function definition in the context
-            ctx.user_functions[def.name] = def;
 
+            // Store the function definition in the context
+            if (def.delayed) {
+                // Delayed assignment: store the unevaluated body
+                ctx.user_functions[def.name] = def;
+            }
+            else {
+                // Immediate assignment: evaluate the body immediately
+                EvaluationContext local_ctx = ctx;
+                for (const auto& param : def.params) {
+                    local_ctx.variables[param] = make_expr<Symbol>(param); // Bind parameters symbolically
+                }
+                auto evaluated_body = evaluate(def.body, local_ctx);
+                ctx.user_functions[def.name] = FunctionDefinition(def.name, def.params, evaluated_body, false);
+            }
             // Return the full function definition as feedback
-            return make_expr<FunctionDefinition>(def.name, def.params, def.body);
+            return make_expr<FunctionDefinition>(def.name, def.params, def.body, def.delayed);
         }
+
         }, *expr);
 }
 

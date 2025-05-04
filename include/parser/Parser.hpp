@@ -57,9 +57,11 @@ namespace mathix {
                     }
 
                     skip_whitespace();
-                    if (is_def && match(':') && match('=')) {
+                    // Handle both `:=` and `=` for function definitions
+                    if (is_def && (match_string(":=") || match('='))) {
+                        bool delayed = input[pos - 2] == ':'; // Check if `:=` was matched
                         auto body = parse_expression();
-                        return make_expr<FunctionDefinition>(func_name, args, body);
+                        return make_expr<FunctionDefinition>(func_name, args, body, delayed);
                     }
                     else {
                         // Not a definition; reset and fall through to expression

@@ -121,7 +121,8 @@ namespace mathix {
                     result += def.params[i] + "_";
                     if (i + 1 < def.params.size()) result += ", ";
                 }
-                result += "] := " + to_string(def.body);
+                // Use `:=` for delayed assignment and `=` for immediate assignment
+                result += (def.delayed ? "] := " : "] = ") + to_string(def.body);
                 return result;
             }
 

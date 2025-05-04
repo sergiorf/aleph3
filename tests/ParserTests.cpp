@@ -214,3 +214,17 @@ TEST_CASE("Parser handles function definitions with delayed and immediate assign
     validate_function_definition(expr, "f", { "a" }, false, "Minus");
 }
 
+TEST_CASE("Parser handles variable assignments", "[parser]") {
+    auto expr = parse_expression("x = 2");
+    REQUIRE(expr != nullptr);
+
+    // Check that the parsed expression is an assignment
+    auto* assign = std::get_if<Assignment>(&(*expr));
+    REQUIRE(assign != nullptr);
+    REQUIRE(assign->name == "x");
+
+    // Check the assigned value
+    auto* value = std::get_if<Number>(&(*assign->value));
+    REQUIRE(value != nullptr);
+    REQUIRE(value->value == 2.0);
+}

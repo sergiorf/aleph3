@@ -279,3 +279,23 @@ TEST_CASE("Simplify Times[2, 3, 0] to 0", "[evaluator][simplification]") {
     REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(get_number_value(result) == 0.0);
 }
+
+TEST_CASE("Evaluator handles variable assignments", "[evaluator]") {
+    EvaluationContext ctx;
+
+    // Assign a value to x
+    auto assign = make_expr<Assignment>("x", make_expr<Number>(2));
+    auto result = evaluate(assign, ctx);
+
+    // Check that the feedback is the variable name
+    REQUIRE(std::get<Symbol>(*result).name == "x");
+
+    // Check that x is stored in the context
+    REQUIRE(ctx.variables.find("x") != ctx.variables.end());
+    REQUIRE(std::get<Number>(*ctx.variables["x"]).value == 2);
+
+    // Evaluate x
+    auto x = make_expr<Symbol>("x");
+    result = evaluate(x, ctx);
+    REQUIRE(std::get<Number>(*result).value == 2);
+}

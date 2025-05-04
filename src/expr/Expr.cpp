@@ -124,6 +124,10 @@ namespace mathix {
                 // Use `:=` for delayed assignment and `=` for immediate assignment
                 result += (def.delayed ? "] := " : "] = ") + to_string(def.body);
                 return result;
+            },
+
+            [](const Assignment& assign) -> std::string {
+                return assign.name + " = " + to_string(assign.value);
             }
 
             }, expr);

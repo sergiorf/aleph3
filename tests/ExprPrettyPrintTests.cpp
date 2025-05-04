@@ -52,3 +52,8 @@ TEST_CASE("Pretty printing of negation and functions with delayed and immediate 
     // Test function call
     REQUIRE(to_string(FunctionCall{ "f", {make_expr<Number>(1), make_expr<Number>(2)} }) == "f[1, 2]");
 }
+
+TEST_CASE("Pretty printing of assignments", "[prettyprint]") {
+    auto assign = make_expr<Assignment>("x", make_expr<Number>(2));
+    REQUIRE(to_string(*assign) == "x = 2");
+}

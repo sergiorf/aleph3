@@ -13,9 +13,10 @@ struct Symbol;
 struct Number;
 struct FunctionCall;
 struct FunctionDefinition;
+struct Assignment;
 
 // Core Expression type: variant of all expression types
-using Expr = std::variant < Symbol, Number, FunctionCall, FunctionDefinition > ;
+using Expr = std::variant < Symbol, Number, FunctionCall, FunctionDefinition, Assignment > ;
 
 // Smart pointer to expressions
 using ExprPtr = std::shared_ptr<Expr>;
@@ -59,6 +60,15 @@ struct FunctionDefinition {
 
     FunctionDefinition(const std::string& name, const std::vector<std::string>& params, const ExprPtr& body, bool delayed)
         : name(name), params(params), body(body), delayed(delayed) {
+    }
+};
+
+struct Assignment {
+    std::string name; // Variable name
+    ExprPtr value;    // Assigned value
+
+    Assignment(const std::string& name, const ExprPtr& value)
+        : name(name), value(value) {
     }
 };
 

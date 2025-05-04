@@ -21,8 +21,14 @@ namespace mathix {
 
             // Try parsing function definition
             if (std::isalpha(peek())) {
-                auto func_name = parse_identifier();
+                auto name = parse_identifier();
                 skip_whitespace();
+
+                // Check if it's an assignment (e.g., x = 2)
+                if (match('=')) {
+                    auto value = parse_expression(); // Parse the assigned value
+                    return make_expr<Assignment>(name, value);
+                }
 
                 // If it's followed by '[', maybe it's a definition
                 if (match('[')) {
@@ -61,7 +67,7 @@ namespace mathix {
                     if (is_def && (match_string(":=") || match('='))) {
                         bool delayed = input[pos - 2] == ':'; // Check if `:=` was matched
                         auto body = parse_expression();
-                        return make_expr<FunctionDefinition>(func_name, args, body, delayed);
+                        return make_expr<FunctionDefinition>(name, args, body, delayed);
                     }
                     else {
                         // Not a definition; reset and fall through to expression
@@ -80,6 +86,19 @@ namespace mathix {
     private:
         std::string input;
         size_t pos;
+
+        ExprPtr parse_assignment() {
+            skip_whitespace();
+            auto name = parse_identifier(); // Parse the variable name
+            skip_whitespace();
+
+            if (!match('=')) {
+                error("Expected '=' in assignment");
+            }
+
+            auto value = parse_expression(); // Parse the assigned value
+            return make_expr<Assignment>(name, value);
+        }
 
         ExprPtr parse_comparison() {
             auto left = parse_expression();

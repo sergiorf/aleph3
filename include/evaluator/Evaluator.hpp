@@ -209,6 +209,13 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
             }
             // Return the full function definition as feedback
             return make_expr<FunctionDefinition>(def.name, def.params, def.body, def.delayed);
+        },
+        [&ctx](const Assignment& assign) -> ExprPtr {
+            // Evaluate the assigned value and store it in the context
+            ctx.variables[assign.name] = evaluate(assign.value, ctx);
+
+            // Return the variable name as feedback (like Mathematica does)
+            return make_expr<Symbol>(assign.name);
         }
 
         }, *expr);

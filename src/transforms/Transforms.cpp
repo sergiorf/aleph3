@@ -1,12 +1,45 @@
 ﻿#include "transforms/Transforms.hpp"
 #include "expr/Expr.hpp"
-#include "util/ExprUtils.hpp"
+#include "expr/ExprUtils.hpp"
 
 #include <cmath>
 #include <map>
 #include <algorithm>
 
 namespace mathix {
+
+    ExprPtr simplify_relational(const std::string& head, const ExprPtr& left, const ExprPtr& right) {
+        auto simplified_left = simplify(left);
+        auto simplified_right = simplify(right);
+
+        // If both sides are numbers, evaluate the relational operation
+        if (std::holds_alternative<Number>(*simplified_left) && std::holds_alternative<Number>(*simplified_right)) {
+            double left_value = get_number_value(simplified_left);
+            double right_value = get_number_value(simplified_right);
+
+            if (head == "Equal") {
+                return make_expr<Symbol>(left_value == right_value ? "True" : "False");
+            }
+            else if (head == "NotEqual") {
+                return make_expr<Symbol>(left_value != right_value ? "True" : "False");
+            }
+            else if (head == "Less") {
+                return make_expr<Symbol>(left_value < right_value ? "True" : "False");
+            }
+            else if (head == "Greater") {
+                return make_expr<Symbol>(left_value > right_value ? "True" : "False");
+            }
+            else if (head == "LessEqual") {
+                return make_expr<Symbol>(left_value <= right_value ? "True" : "False");
+            }
+            else if (head == "GreaterEqual") {
+                return make_expr<Symbol>(left_value >= right_value ? "True" : "False");
+            }
+        }
+
+        // Otherwise, return the simplified function call
+        return make_fcall(head, { simplified_left, simplified_right });
+    }
 
     // Simplify trivial cases
     ExprPtr simplify(const ExprPtr& expr) {
@@ -183,6 +216,11 @@ namespace mathix {
                 });
 
                 return make_expr<FunctionCall>("Plus", non_numeric_terms);
+            }
+
+            if (f->head == "Equal" || f->head == "NotEqual" || f->head == "Less" ||
+                f->head == "Greater" || f->head == "LessEqual" || f->head == "GreaterEqual") {
+                return simplify_relational(f->head, f->args[0], f->args[1]);
             }
         }
         return expr; // Return the original expression if no simplification is possible

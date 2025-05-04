@@ -103,5 +103,8 @@ namespace mathix {
         throw std::runtime_error("Expected integer number");
     }
 
+    inline ExprPtr make_fcall(std::string name, std::initializer_list<ExprPtr> args) {
+        return make_expr<FunctionCall>(name, std::vector<ExprPtr>(args));
+    }
 
 } // namespace mathix

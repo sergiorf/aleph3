@@ -7,6 +7,7 @@
 #include <cctype>
 #include <stdexcept>
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
 
 namespace mathix {
 
@@ -71,12 +72,44 @@ namespace mathix {
                 }
             }
 
-            return parse_expression();
+            return parse_comparison();
         }
 
     private:
         std::string input;
         size_t pos;
+
+        ExprPtr parse_comparison() {
+            auto left = parse_expression();
+
+            skip_whitespace();
+            if (match_string("==")) {
+                auto right = parse_expression();
+                return make_fcall("Equal", { left, right });
+            }
+            else if (match_string("!=")) {
+                auto right = parse_expression();
+                return make_fcall("NotEqual", { left, right });
+            }
+            else if (match_string("<=")) {
+                auto right = parse_expression();
+                return make_fcall("LessEqual", { left, right });
+            }
+            else if (match_string(">=")) {
+                auto right = parse_expression();
+                return make_fcall("GreaterEqual", { left, right });
+            }
+            else if (match('<')) {
+                auto right = parse_expression();
+                return make_fcall("Less", { left, right });
+            }
+            else if (match('>')) {
+                auto right = parse_expression();
+                return make_fcall("Greater", { left, right });
+            }
+
+            return left;
+        }
 
         ExprPtr parse_expression() {
             auto left = parse_term();
@@ -244,6 +277,15 @@ namespace mathix {
         bool match(char expected) {
             if (pos < input.size() && input[pos] == expected) {
                 ++pos;
+                return true;
+            }
+            return false;
+        }
+
+        bool match_string(const std::string& s) {
+            skip_whitespace();
+            if (input.substr(pos, s.size()) == s) {
+                pos += s.size();
                 return true;
             }
             return false;

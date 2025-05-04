@@ -4,7 +4,7 @@
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "util/Overloaded.hpp"
-#include "util/ExprUtils.hpp"
+#include "expr/ExprUtils.hpp"
 #include "transforms/Transforms.hpp"
 
 #include <stdexcept>

@@ -134,3 +134,31 @@ TEST_CASE("Parser handles negative numbers with multiplication (2x and -2x)") {
     REQUIRE(right != nullptr);
     REQUIRE(right->name == "x");
 }
+
+TEST_CASE("Parser handles implicit multiplication with parentheses", "[parser]") {
+    auto expr = parse_expression("2(3 + x)");
+    REQUIRE(expr != nullptr);
+
+    // Check that the parsed expression is a multiplication: "Times(2, Plus(3, x))"
+    auto* func_call = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(func_call != nullptr);
+    REQUIRE(func_call->head == "Times");
+    REQUIRE(func_call->args.size() == 2);
+
+    auto* left = std::get_if<Number>(&(*func_call->args[0]));
+    REQUIRE(left != nullptr);
+    REQUIRE(left->value == 2.0);
+
+    auto* right = std::get_if<FunctionCall>(&(*func_call->args[1]));
+    REQUIRE(right != nullptr);
+    REQUIRE(right->head == "Plus");
+    REQUIRE(right->args.size() == 2);
+
+    auto* right_left = std::get_if<Number>(&(*right->args[0]));
+    auto* right_right = std::get_if<Symbol>(&(*right->args[1]));
+
+    REQUIRE(right_left != nullptr);
+    REQUIRE(right_left->value == 3.0);
+    REQUIRE(right_right != nullptr);
+    REQUIRE(right_right->name == "x");
+}

@@ -185,6 +185,12 @@ namespace mathix {
                     return make_expr<FunctionCall>("Times", std::vector<ExprPtr>{left, right});
                 }
 
+                // If the next token is '(', assume it's implicit multiplication (e.g., "2(3 + x)")
+                if (peek() == '(') {
+                    auto right = parse_factor(); // Parse the parenthesized expression
+                    return make_expr<FunctionCall>("Times", std::vector<ExprPtr>{left, right});
+                }
+
                 return left;
             }
 

@@ -228,3 +228,72 @@ TEST_CASE("Parser handles variable assignments", "[parser]") {
     REQUIRE(value != nullptr);
     REQUIRE(value->value == 2.0);
 }
+
+TEST_CASE("Parser handles simple If statement", "[parser]") {
+    std::string input = "If[x == 0, 1, 2]";
+    auto expr = parse_expression(input);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+    auto func = std::get<FunctionCall>(*expr);
+
+    REQUIRE(func.head == "If");
+    REQUIRE(func.args.size() == 3);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*func.args[0]));
+    auto condition = std::get<FunctionCall>(*func.args[0]);
+    REQUIRE(condition.head == "Equal");
+    REQUIRE(condition.args.size() == 2);
+    REQUIRE(std::holds_alternative<Symbol>(*condition.args[0]));
+    REQUIRE(std::get<Symbol>(*condition.args[0]).name == "x");
+    REQUIRE(std::holds_alternative<Number>(*condition.args[1]));
+    REQUIRE(std::get<Number>(*condition.args[1]).value == 0.0);
+
+    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
+    REQUIRE(std::get<Number>(*func.args[1]).value == 1.0);
+
+    REQUIRE(std::holds_alternative<Number>(*func.args[2]));
+    REQUIRE(std::get<Number>(*func.args[2]).value == 2.0);
+}
+
+TEST_CASE("Parser handles recursive function definitions", "[parser]") {
+    std::string input = "factorial[n_] := If[n == 0, 1, n * factorial[n - 1]]";
+    auto expr = mathix::parse_expression(input);
+
+    REQUIRE(std::holds_alternative<FunctionDefinition>(*expr));
+    auto func_def = std::get<FunctionDefinition>(*expr);
+
+    REQUIRE(func_def.name == "factorial");
+    REQUIRE(func_def.params.size() == 1);
+    REQUIRE(func_def.params[0] == "n");
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*func_def.body));
+    auto if_call = std::get<FunctionCall>(*func_def.body);
+    REQUIRE(if_call.head == "If");
+    REQUIRE(if_call.args.size() == 3);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*if_call.args[0]));
+    auto condition = std::get<FunctionCall>(*if_call.args[0]);
+    REQUIRE(condition.head == "Equal");
+    REQUIRE(condition.args.size() == 2);
+    REQUIRE(std::get<Symbol>(*condition.args[0]).name == "n");
+    REQUIRE(std::get<Number>(*condition.args[1]).value == 0.0);
+
+    REQUIRE(std::holds_alternative<Number>(*if_call.args[1]));
+    REQUIRE(std::get<Number>(*if_call.args[1]).value == 1.0);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*if_call.args[2]));
+    auto false_branch = std::get<FunctionCall>(*if_call.args[2]);
+    REQUIRE(false_branch.head == "Times");
+    REQUIRE(false_branch.args.size() == 2);
+    REQUIRE(std::get<Symbol>(*false_branch.args[0]).name == "n");
+
+    auto recursive_call = std::get<FunctionCall>(*false_branch.args[1]);
+    REQUIRE(recursive_call.head == "factorial");
+    REQUIRE(recursive_call.args.size() == 1);
+
+    auto recursive_arg = std::get<FunctionCall>(*recursive_call.args[0]);
+    REQUIRE(recursive_arg.head == "Minus");
+    REQUIRE(recursive_arg.args.size() == 2);
+    REQUIRE(std::get<Symbol>(*recursive_arg.args[0]).name == "n");
+    REQUIRE(std::get<Number>(*recursive_arg.args[1]).value == 1.0);
+}

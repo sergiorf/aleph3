@@ -24,6 +24,12 @@ namespace mathix {
                 auto name = parse_identifier();
                 skip_whitespace();
 
+                // Special case: If statement
+                if (name == "If" && match('[')) {
+                    pos -= 3; // Reset position to re-parse the "If[" in parse_if
+                    return parse_if();
+                }
+
                 // Check if it's an assignment (e.g., x = 2)
                 if (match('=')) {
                     auto value = parse_expression(); // Parse the assigned value
@@ -217,6 +223,37 @@ namespace mathix {
 
             // If none of the above, throw an error
             error("Expected a number, symbol, or '('");
+        }
+
+        ExprPtr parse_if() {
+            skip_whitespace();
+            if (!match_string("If[")) {
+                error("Expected 'If['");
+            }
+
+            // Parse the condition
+            auto condition = parse_expression();
+            skip_whitespace();
+            if (!match(',')) {
+                error("Expected ',' after condition in If");
+            }
+
+            // Parse the true branch
+            auto true_branch = parse_expression();
+            skip_whitespace();
+            if (!match(',')) {
+                error("Expected ',' after true branch in If");
+            }
+
+            // Parse the false branch
+            auto false_branch = parse_expression();
+            skip_whitespace();
+            if (!match(']')) {
+                error("Expected ']' at the end of If");
+            }
+
+            // Return the parsed If expression as a FunctionCall
+            return make_expr<FunctionCall>("If", std::vector<ExprPtr>{condition, true_branch, false_branch});
         }
 
         ExprPtr parse_symbol() {

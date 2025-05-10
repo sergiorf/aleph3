@@ -383,7 +383,6 @@ TEST_CASE("Evaluator handles division by zero as DirectedInfinity", "[evaluator]
     REQUIRE(std::get<Number>(*func.args[0]).value == 1.0); // Positive infinity
 }
 
-/*
 TEST_CASE("Evaluator handles negative infinity", "[evaluator][infinity]") {
     EvaluationContext ctx; // Empty context
     auto expr = parse_expression("-1 / 0");
@@ -396,6 +395,7 @@ TEST_CASE("Evaluator handles negative infinity", "[evaluator][infinity]") {
     REQUIRE(func.args.size() == 1);
     REQUIRE(std::get<Number>(*func.args[0]).value == -1.0); // Negative infinity
 }
+
 TEST_CASE("Evaluator handles 0/0 as Indeterminate", "[evaluator][indeterminate]") {
     EvaluationContext ctx; // Empty context
     auto expr = parse_expression("0 / 0");
@@ -406,4 +406,58 @@ TEST_CASE("Evaluator handles 0/0 as Indeterminate", "[evaluator][indeterminate]"
     REQUIRE(func.head == "Indeterminate");
     REQUIRE(func.args.empty()); // Indeterminate should have no arguments
 }
-*/
+
+TEST_CASE("Evaluator handles undefined variables symbolically", "[evaluator][symbolic]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("x + 1");
+    auto result = evaluate(expr, ctx);
+
+    // Ensure the result is a symbolic expression: Plus[x, 1]
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    auto func = std::get<FunctionCall>(*result);
+    REQUIRE(func.head == "Plus");
+    REQUIRE(func.args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
+    REQUIRE(std::get<Symbol>(*func.args[0]).name == "x");
+
+    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
+    REQUIRE(std::get<Number>(*func.args[1]).value == 1.0);
+}
+
+TEST_CASE("Evaluator handles nested parentheses correctly", "[evaluator]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("2 * (3 + (4 * (5 - 1)))");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(get_number_value(result) == 38.0);
+}
+
+TEST_CASE("Evaluator handles function overwriting", "[evaluator][functions]") {
+    EvaluationContext ctx;
+
+    // Define a function f[x_] := x + 1
+    auto def_expr = parse_expression("f[x_] := x + 1");
+    evaluate(def_expr, ctx);
+
+    // Overwrite the function f[x_] := x * 2
+    def_expr = parse_expression("f[x_] := x * 2");
+    evaluate(def_expr, ctx);
+
+    // Call the overwritten function
+    auto call_expr = parse_expression("f[3]");
+    auto result = evaluate(call_expr, ctx);
+    REQUIRE(get_number_value(result) == 6.0);
+}
+
+TEST_CASE("Evaluator handles recursive function calls", "[evaluator][functions]") {
+    EvaluationContext ctx;
+
+    // Define a recursive function factorial[n_] := If[n == 0, 1, n * factorial[n - 1]]
+    auto def_expr = parse_expression("factorial[n_] := If[n == 0, 1, n * factorial[n - 1]]");
+    evaluate(def_expr, ctx);
+
+    // Call the recursive function
+    auto call_expr = parse_expression("factorial[5]");
+    auto result = evaluate(call_expr, ctx);
+    REQUIRE(get_number_value(result) == 120.0); // 5! = 120
+}

@@ -297,3 +297,21 @@ TEST_CASE("Parser handles recursive function definitions", "[parser]") {
     REQUIRE(std::get<Symbol>(*recursive_arg.args[0]).name == "n");
     REQUIRE(std::get<Number>(*recursive_arg.args[1]).value == 1.0);
 }
+
+TEST_CASE("Parser handles equality operator (==)", "[parser]") {
+    std::string input = "x == 0";
+    auto expr = parse_expression(input);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+    auto func = std::get<FunctionCall>(*expr);
+
+    REQUIRE(func.head == "Equal");
+    REQUIRE(func.args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
+    REQUIRE(std::get<Symbol>(*func.args[0]).name == "x");
+
+    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
+    REQUIRE(std::get<Number>(*func.args[1]).value == 0.0);
+}
+

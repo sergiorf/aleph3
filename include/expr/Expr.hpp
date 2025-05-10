@@ -11,12 +11,13 @@ namespace mathix {
 // Forward declarations
 struct Symbol;
 struct Number;
+struct Boolean;
 struct FunctionCall;
 struct FunctionDefinition;
 struct Assignment;
 
 // Core Expression type: variant of all expression types
-using Expr = std::variant < Symbol, Number, FunctionCall, FunctionDefinition, Assignment > ;
+using Expr = std::variant < Symbol, Number, Boolean, FunctionCall, FunctionDefinition, Assignment > ;
 
 // Smart pointer to expressions
 using ExprPtr = std::shared_ptr<Expr>;
@@ -40,6 +41,12 @@ struct Number {
 
     Number(double v) : value(v) {}
     Number(int v) : value(static_cast<double>(v)) {}
+};
+
+struct Boolean {
+    bool value;
+
+    Boolean(bool v) : value(v) {}
 };
 
 struct FunctionCall {

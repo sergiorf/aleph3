@@ -40,6 +40,15 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         {"Pow", [](double a, double b) { return std::pow(a, b); }}
     };
 
+    static const std::unordered_map<std::string, std::function<bool(double, double)>> comparison_functions = {
+        {"Equal", [](double a, double b) { return a == b; }},
+        {"NotEqual", [](double a, double b) { return a != b; }},
+        {"Less", [](double a, double b) { return a < b; }},
+        {"Greater", [](double a, double b) { return a > b; }},
+        {"LessEqual", [](double a, double b) { return a <= b; }},
+        {"GreaterEqual", [](double a, double b) { return a >= b; }}
+    };
+
     std::vector<ExprPtr> evaluated_args;
     for (const auto& arg : func.args) {
         evaluated_args.push_back(evaluate(arg, ctx));
@@ -138,6 +147,25 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         return make_expr<FunctionCall>("Times", std::vector({ make_expr<Number>(-1), evaluated_args[0] }));
     }
 
+    // === Comparison Operators ===
+    if (auto it = comparison_functions.find(name); it != comparison_functions.end()) {
+        if (evaluated_args.size() != 2) {
+            throw std::runtime_error(name + " expects 2 arguments");
+        }
+
+        // Check if both arguments are numbers
+        if (std::holds_alternative<Number>(*evaluated_args[0]) &&
+            std::holds_alternative<Number>(*evaluated_args[1])) {
+            double a = get_number_value(evaluated_args[0]);
+            double b = get_number_value(evaluated_args[1]);
+            bool result = it->second(a, b);
+            return make_expr<Boolean>(result);
+        }
+
+        // If not both arguments are numbers, return unevaluated
+        return make_expr<FunctionCall>(name, evaluated_args);
+    }
+
     // === User-defined Function ===
     if (auto user_it = ctx.user_functions.find(name); user_it != ctx.user_functions.end()) {
         const FunctionDefinition& def = user_it->second;
@@ -165,6 +193,9 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
     return std::visit(overloaded{
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
+        },
+        [](const Boolean& boolean) -> ExprPtr {
+            return make_expr<Boolean>(boolean.value);
         },
         [&](const Symbol& sym) -> ExprPtr {
             if (visited.count(sym.name)) {

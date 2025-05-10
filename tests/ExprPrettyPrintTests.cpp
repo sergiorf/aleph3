@@ -80,3 +80,11 @@ TEST_CASE("Pretty printing of immediate and delayed function definitions", "[pre
     );
     REQUIRE(to_string(*immediate_func) == "f[a_] = a^3 - x");
 }
+
+TEST_CASE("to_string handles Boolean type", "[prettyprint]") {
+    ExprPtr true_expr = make_expr<Boolean>(true);
+    ExprPtr false_expr = make_expr<Boolean>(false);
+
+    REQUIRE(to_string(true_expr) == "True");
+    REQUIRE(to_string(false_expr) == "False");
+}

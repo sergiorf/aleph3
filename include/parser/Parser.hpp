@@ -30,6 +30,11 @@ namespace mathix {
                     return parse_if();
                 }
 
+                // Check for comparison operators (e.g., ==, !=, <, >, <=, >=)
+                if (is_comparison_operator()) {
+                    return parse_comparison(make_expr<Symbol>(name));
+                }
+
                 // Check if it's an assignment (e.g., x = 2)
                 if (match('=')) {
                     auto value = parse_expression(); // Parse the assigned value
@@ -86,12 +91,31 @@ namespace mathix {
                 }
             }
 
-            return parse_comparison();
+            // Delegate to parse_expression for general expressions
+            return parse_expression();
         }
 
     private:
         std::string input;
         size_t pos;
+
+        bool is_comparison_operator() {
+            skip_whitespace();
+
+            // Check for multi-character operators first
+            std::string two_chars = peek_string(2);
+            if (two_chars == "==" || two_chars == "!=" || two_chars == "<=" || two_chars == ">=") {
+                return true;
+            }
+
+            // Check for single-character operators
+            char current = peek();
+            if (current == '<' || current == '>') {
+                return true;
+            }
+
+            return false;
+        }
 
         ExprPtr parse_assignment() {
             skip_whitespace();
@@ -106,10 +130,9 @@ namespace mathix {
             return make_expr<Assignment>(name, value);
         }
 
-        ExprPtr parse_comparison() {
-            auto left = parse_expression();
-
+        ExprPtr parse_comparison(ExprPtr left) {
             skip_whitespace();
+
             if (match_string("==")) {
                 auto right = parse_expression();
                 return make_fcall("Equal", { left, right });
@@ -154,7 +177,8 @@ namespace mathix {
                     break;
                 }
             }
-            return left;
+            // Delegate to parse_comparison to handle comparison operators
+            return parse_comparison(left);
         }
 
         ExprPtr parse_term() {
@@ -360,6 +384,14 @@ namespace mathix {
                 return input[pos];
             }
             return '\0'; // End of input
+        }
+
+        std::string peek_string(size_t length) {
+            // Ensure we don't go out of bounds
+            if (pos + length > input.size()) {
+                return ""; // Return an empty string if the requested length exceeds input
+            }
+            return input.substr(pos, length);
         }
 
         [[noreturn]] void error(const std::string& message) const {

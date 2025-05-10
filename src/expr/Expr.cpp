@@ -61,6 +61,10 @@ namespace mathix {
             [](const Symbol& sym) -> std::string {
                 return sym.name;
             },
+            
+            [](const Boolean& boolean) -> std::string {
+            return boolean.value ? "True" : "False";
+            },
 
             [](const FunctionCall& f) -> std::string {
                 const auto& args = f.args;

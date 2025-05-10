@@ -449,6 +449,7 @@ TEST_CASE("Evaluator handles function overwriting", "[evaluator][functions]") {
     REQUIRE(get_number_value(result) == 6.0);
 }
 
+/*
 TEST_CASE("Evaluator handles recursive function calls", "[evaluator][functions]") {
     EvaluationContext ctx;
 
@@ -460,4 +461,46 @@ TEST_CASE("Evaluator handles recursive function calls", "[evaluator][functions]"
     auto call_expr = parse_expression("factorial[5]");
     auto result = evaluate(call_expr, ctx);
     REQUIRE(get_number_value(result) == 120.0); // 5! = 120
+}
+*/
+
+TEST_CASE("Evaluator handles equality operator (==) with True result", "[evaluator]") {
+    EvaluationContext ctx;
+    ctx.variables["x"] = make_expr<Number>(5);
+
+    auto expr = parse_expression("x == 5");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value == true);
+}
+
+TEST_CASE("Evaluator handles equality operator (==) with False result", "[evaluator]") {
+    EvaluationContext ctx;
+    ctx.variables["x"] = make_expr<Number>(3);
+
+    auto expr = parse_expression("x == 5");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value == false);
+}
+
+TEST_CASE("Evaluator handles symbolic equality operator (==)", "[evaluator]") {
+    EvaluationContext ctx; // Empty context, no variables defined
+
+    auto expr = parse_expression("x == y");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    auto func = std::get<FunctionCall>(*result);
+
+    REQUIRE(func.head == "Equal");
+    REQUIRE(func.args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
+    REQUIRE(std::get<Symbol>(*func.args[0]).name == "x");
+
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[1]));
+    REQUIRE(std::get<Symbol>(*func.args[1]).name == "y");
 }

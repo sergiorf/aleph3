@@ -103,6 +103,20 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
             double a = get_number_value(left);
             double b = get_number_value(right);
+
+            // Handle division by zero
+            if (name == "Divide" && b == 0) {
+                if (a == 0) {
+                    return make_fcall("Indeterminate", {});
+                }
+                else if (a > 0) {
+                    return make_fcall("DirectedInfinity", { make_expr<Number>(1) });
+                }
+                else {
+                    return make_fcall("DirectedInfinity", { make_expr<Number>(-1) });
+                }
+            }
+
             return make_expr<Number>(binary_functions.at(name)(a, b));
         }
 

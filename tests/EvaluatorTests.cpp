@@ -370,3 +370,40 @@ TEST_CASE("Evaluator handles delayed function definitions", "[evaluator]") {
     REQUIRE(stored_func_def.params[0] == "a");
     REQUIRE(stored_func_def.delayed == true);
 }
+
+TEST_CASE("Evaluator handles division by zero as DirectedInfinity", "[evaluator][infinity]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("1 / 0");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    auto func = std::get<FunctionCall>(*result);
+    REQUIRE(func.head == "DirectedInfinity");
+    REQUIRE(func.args.size() == 1);
+    REQUIRE(std::get<Number>(*func.args[0]).value == 1.0); // Positive infinity
+}
+
+/*
+TEST_CASE("Evaluator handles negative infinity", "[evaluator][infinity]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("-1 / 0");
+    auto result = evaluate(expr, ctx);
+
+    // Ensure the result is a symbolic representation of negative infinity
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    auto func = std::get<FunctionCall>(*result);
+    REQUIRE(func.head == "DirectedInfinity");
+    REQUIRE(func.args.size() == 1);
+    REQUIRE(std::get<Number>(*func.args[0]).value == -1.0); // Negative infinity
+}
+TEST_CASE("Evaluator handles 0/0 as Indeterminate", "[evaluator][indeterminate]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("0 / 0");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    auto func = std::get<FunctionCall>(*result);
+    REQUIRE(func.head == "Indeterminate");
+    REQUIRE(func.args.empty()); // Indeterminate should have no arguments
+}
+*/

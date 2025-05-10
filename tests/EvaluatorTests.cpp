@@ -299,3 +299,74 @@ TEST_CASE("Evaluator handles variable assignments", "[evaluator]") {
     result = evaluate(x, ctx);
     REQUIRE(std::get<Number>(*result).value == 2);
 }
+
+TEST_CASE("Evaluator handles immediate function definitions with x assigned first", "[evaluator]") {
+    EvaluationContext ctx;
+
+    // Assign a value to x before defining the function
+    ctx.variables["x"] = make_expr<Number>(2);
+
+    // Define a function with immediate assignment
+    auto func_def = make_fdef(
+        "f", { "a" },
+        make_fcall("Minus", {
+            make_fcall("Pow", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
+            make_expr<Symbol>("x")
+            }),
+        false // Immediate assignment
+    );
+    evaluate(func_def, ctx);
+
+    // Call the function with a specific value for 'a'
+    auto result = evaluate(make_fcall("f", { make_expr<Number>(3) }), ctx);
+    REQUIRE(std::get<Number>(*result).value == 25.0); // 3^3 - 2 = 25
+
+    // Change the value of x
+    ctx.variables["x"] = make_expr<Number>(5);
+
+    // Call the function again with the same value for 'a'
+    auto result_after_x_change = evaluate(make_fcall("f", { make_expr<Number>(3) }), ctx);
+    REQUIRE(std::get<Number>(*result_after_x_change).value == 25.0); // Should still be 25, as f was defined with the old x
+
+    // Validate that the function definition in the context has not changed
+    const auto& stored_func_def = ctx.user_functions["f"];
+    REQUIRE(stored_func_def.name == "f");
+    REQUIRE(stored_func_def.params.size() == 1);
+    REQUIRE(stored_func_def.params[0] == "a");
+}
+
+TEST_CASE("Evaluator handles delayed function definitions", "[evaluator]") {
+    EvaluationContext ctx;
+
+    // Define a function with delayed assignment
+    auto func_def = make_fdef(
+        "f", { "a" },
+        make_fcall("Minus", {
+            make_fcall("Pow", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
+            make_expr<Symbol>("x")
+            }),
+        true // Delayed assignment
+    );
+    evaluate(func_def, ctx);
+
+    // Assign a value to x
+    ctx.variables["x"] = make_expr<Number>(2);
+
+    // Call the function with a specific value for 'a'
+    auto result = evaluate(make_fcall("f", { make_expr<Number>(3) }), ctx);
+    REQUIRE(std::get<Number>(*result).value == 25.0); // 3^3 - 2 = 25
+
+    // Change the value of x
+    ctx.variables["x"] = make_expr<Number>(5);
+
+    // Call the function again with the same value for 'a'
+    auto result_after_x_change = evaluate(make_fcall("f", { make_expr<Number>(3) }), ctx);
+    REQUIRE(std::get<Number>(*result_after_x_change).value == 22.0); // 3^3 - 5 = 22
+
+    // Validate that the function definition in the context remains delayed
+    const auto& stored_func_def = ctx.user_functions["f"];
+    REQUIRE(stored_func_def.name == "f");
+    REQUIRE(stored_func_def.params.size() == 1);
+    REQUIRE(stored_func_def.params[0] == "a");
+    REQUIRE(stored_func_def.delayed == true);
+}

@@ -68,9 +68,7 @@ int main() {
             // Handle function definition
             if (auto def = std::get_if<FunctionDefinition>(&*expr)) {
                 ctx.user_functions[def->name] = *def;
-                std::cout << "Out[" << counter << "]= "
-                    << def->name << "[" << join(def->params, ", ") << "] := "
-                    << to_string(def->body) << std::endl;
+                std::cout << "Out[" << counter << "]= " << to_string(*expr) << std::endl;
                 counter++;
                 continue;
             }

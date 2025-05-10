@@ -107,4 +107,8 @@ namespace mathix {
         return make_expr<FunctionCall>(name, std::vector<ExprPtr>(args));
     }
 
+    inline ExprPtr make_fdef(std::string name, std::initializer_list<std::string> args, const ExprPtr& body, bool delayed) {
+        return make_expr<FunctionDefinition>(name, std::vector<std::string>(args), body, delayed);
+    }
+
 } // namespace mathix

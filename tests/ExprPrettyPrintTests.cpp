@@ -1,4 +1,5 @@
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 using namespace mathix;
@@ -56,4 +57,26 @@ TEST_CASE("Pretty printing of negation and functions with delayed and immediate 
 TEST_CASE("Pretty printing of assignments", "[prettyprint]") {
     auto assign = make_expr<Assignment>("x", make_expr<Number>(2));
     REQUIRE(to_string(*assign) == "x = 2");
+}
+
+TEST_CASE("Pretty printing of immediate and delayed function definitions", "[prettyprint]") {
+    auto delayed_func = make_fdef(
+        "f", { "a" },
+        make_fcall("Minus", {
+            make_fcall("Pow", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
+            make_expr<Symbol>("x")
+            }),
+        true // Delayed assignment
+    );
+    REQUIRE(to_string(*delayed_func) == "f[a_] := a^3 - x");
+
+    auto immediate_func = make_fdef(
+        "f", { "a" },
+        make_fcall("Minus", {
+            make_fcall("Pow", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
+            make_expr<Symbol>("x")
+            }),
+        false // Immediate assignment
+    );
+    REQUIRE(to_string(*immediate_func) == "f[a_] = a^3 - x");
 }

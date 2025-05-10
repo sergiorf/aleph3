@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <functional>
 #include <algorithm>
+#include <unordered_set>
 
 namespace mathix {
 
@@ -145,17 +146,25 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
     return make_expr<FunctionCall>(name, evaluated_args);
 }
 
-inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
+inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx, 
+    std::unordered_set<std::string>& visited) {
     return std::visit(overloaded{
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
         },
-        [&ctx](const Symbol& sym) -> ExprPtr {
+        [&](const Symbol& sym) -> ExprPtr {
+            if (visited.count(sym.name)) {
+                // Detected recursion, return symbol unevaluated
+                return make_expr<Symbol>(sym.name);
+            }
             auto it = ctx.variables.find(sym.name);
             if (it == ctx.variables.end()) {
                 return make_expr<Symbol>(sym.name);
             }
-            return evaluate(it->second, ctx); // recursively evaluate bound expression
+            visited.insert(sym.name);
+            auto result = evaluate(it->second, ctx, visited);
+            visited.erase(sym.name);
+            return result;
         },
         [&ctx](const FunctionCall& func) -> ExprPtr {
             // Check for user-defined functions
@@ -177,16 +186,9 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
                     auto arg_value = evaluate(func.args[i], ctx);
                     local_ctx.variables[def.params[i]] = arg_value;
                 }
-
+                
                 // Evaluate the function body in the new context
-                if (def.delayed) {
-                    // Delayed assignment: evaluate the body each time the function is called
-                    return evaluate(def.body, local_ctx);
-                }
-                else {
-                    // Immediate assignment: use the pre-evaluated body
-                    return def.body;
-                }
+                return evaluate(def.body, local_ctx);
             }
             // If not a user-defined function, evaluate as a built-in function
             return evaluate_function(func, ctx);
@@ -206,6 +208,7 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
                 }
                 auto evaluated_body = evaluate(def.body, local_ctx);
                 ctx.user_functions[def.name] = FunctionDefinition(def.name, def.params, evaluated_body, false);
+                return evaluated_body;
             }
             // Return the full function definition as feedback
             return make_expr<FunctionDefinition>(def.name, def.params, def.body, def.delayed);
@@ -219,6 +222,11 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
         }
 
         }, *expr);
+}
+
+inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
+    std::unordered_set<std::string> visited;
+    return evaluate(expr, ctx, visited);
 }
 
 } // namespace mathix

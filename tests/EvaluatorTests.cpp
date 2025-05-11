@@ -484,3 +484,14 @@ TEST_CASE("Evaluator handles symbolic equality operator (==)", "[evaluator]") {
     REQUIRE(std::holds_alternative<Symbol>(*func.args[1]));
     REQUIRE(std::get<Symbol>(*func.args[1]).name == "y");
 }
+
+TEST_CASE("Evaluator handles logical expressions", "[evaluator][logic]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("True && False");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(get_boolean_value(result) == false);
+
+    expr = parse_expression("True || False");
+    result = evaluate(expr, ctx);
+    REQUIRE(get_boolean_value(result) == true);
+}

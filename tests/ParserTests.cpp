@@ -315,3 +315,97 @@ TEST_CASE("Parser handles equality operator (==)", "[parser]") {
     REQUIRE(std::get<Number>(*func.args[1]).value == 0.0);
 }
 
+TEST_CASE("Parser handles logical AND (&&)", "[parser][logic]") {
+    auto expr = parse_expression("True && False");
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+
+    auto func = std::get<FunctionCall>(*expr);
+    REQUIRE(func.head == "And");
+    REQUIRE(func.args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Boolean>(*func.args[0]));
+    REQUIRE(std::get<Boolean>(*func.args[0]).value == true);
+
+    REQUIRE(std::holds_alternative<Boolean>(*func.args[1]));
+    REQUIRE(std::get<Boolean>(*func.args[1]).value == false);
+}
+
+TEST_CASE("Parser handles logical OR (||)", "[parser][logic]") {
+    auto expr = parse_expression("True || False");
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+
+    auto func = std::get<FunctionCall>(*expr);
+    REQUIRE(func.head == "Or");
+    REQUIRE(func.args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Boolean>(*func.args[0]));
+    REQUIRE(std::get<Boolean>(*func.args[0]).value == true);
+
+    REQUIRE(std::holds_alternative<Boolean>(*func.args[1]));
+    REQUIRE(std::get<Boolean>(*func.args[1]).value == false);
+}
+
+TEST_CASE("Parser handles mixed logical expressions", "[parser][logic]") {
+    auto expr = parse_expression("True && False || True");
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+
+    auto func = std::get<FunctionCall>(*expr);
+    REQUIRE(func.head == "Or");
+    REQUIRE(func.args.size() == 2);
+
+    // Left side of the OR is an AND
+    REQUIRE(std::holds_alternative<FunctionCall>(*func.args[0]));
+    auto left_func = std::get<FunctionCall>(*func.args[0]);
+    REQUIRE(left_func.head == "And");
+    REQUIRE(left_func.args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Boolean>(*left_func.args[0]));
+    REQUIRE(std::get<Boolean>(*left_func.args[0]).value == true);
+
+    REQUIRE(std::holds_alternative<Boolean>(*left_func.args[1]));
+    REQUIRE(std::get<Boolean>(*left_func.args[1]).value == false);
+
+    // Right side of the OR is True
+    REQUIRE(std::holds_alternative<Boolean>(*func.args[1]));
+    REQUIRE(std::get<Boolean>(*func.args[1]).value == true);
+}
+
+TEST_CASE("Parser handles symbolic logical expressions", "[parser][logic]") {
+    auto expr = parse_expression("x && y");
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+
+    auto func = std::get<FunctionCall>(*expr);
+    REQUIRE(func.head == "And");
+    REQUIRE(func.args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
+    REQUIRE(std::get<Symbol>(*func.args[0]).name == "x");
+
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[1]));
+    REQUIRE(std::get<Symbol>(*func.args[1]).name == "y");
+}
+
+TEST_CASE("Parser handles nested logical expressions", "[parser][logic]") {
+    auto expr = parse_expression("(True || False) && x");
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+
+    auto func = std::get<FunctionCall>(*expr);
+    REQUIRE(func.head == "And");
+    REQUIRE(func.args.size() == 2);
+
+    // Left side of the AND is an OR
+    REQUIRE(std::holds_alternative<FunctionCall>(*func.args[0]));
+    auto left_func = std::get<FunctionCall>(*func.args[0]);
+    REQUIRE(left_func.head == "Or");
+    REQUIRE(left_func.args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Boolean>(*left_func.args[0]));
+    REQUIRE(std::get<Boolean>(*left_func.args[0]).value == true);
+
+    REQUIRE(std::holds_alternative<Boolean>(*left_func.args[1]));
+    REQUIRE(std::get<Boolean>(*left_func.args[1]).value == false);
+
+    // Right side of the AND is x
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[1]));
+    REQUIRE(std::get<Symbol>(*func.args[1]).name == "x");
+}

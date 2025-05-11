@@ -165,13 +165,21 @@ namespace mathix {
             auto left = parse_term();
             while (true) {
                 skip_whitespace();
-                if (match('+')) {
+                if (match_string("&&")) {
                     auto right = parse_term();
-                    left = make_expr<FunctionCall>("Plus", std::vector<ExprPtr>{left, right});
+                    left = make_fcall("And", {left, right});
+                }
+                else if (match_string("||")) {
+                    auto right = parse_term();
+                    left = make_fcall("Or", {left, right});
+                }
+                else if (match('+')) {
+                    auto right = parse_term();
+                    left = make_fcall("Plus", {left, right});
                 }
                 else if (match('-')) {
                     auto right = parse_term();
-                    left = make_expr<FunctionCall>("Minus", std::vector<ExprPtr>{left, right});
+                    left = make_fcall("Minus", {left, right});
                 }
                 else {
                     break;
@@ -290,6 +298,14 @@ namespace mathix {
                 error("Expected symbol");
             }
             std::string name = input.substr(start, pos - start);
+
+            // Handle Boolean literals
+            if (name == "True") {
+                return make_expr<Boolean>(true);
+            }
+            if (name == "False") {
+                return make_expr<Boolean>(false);
+            }
 
             skip_whitespace();
             if (match('[')) {

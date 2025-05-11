@@ -13,6 +13,13 @@ namespace mathix {
         }
     }
 
+    inline bool get_boolean_value(const ExprPtr& expr) {
+        if (std::holds_alternative<Boolean>(*expr)) {
+            return std::get<Boolean>(*expr).value;
+        }
+        throw std::runtime_error("Expression is not a Boolean");
+    }
+
     inline bool is_zero(const ExprPtr& e) {
         return std::holds_alternative<Number>(*e) && get_number_value(e) == 0.0;
     }

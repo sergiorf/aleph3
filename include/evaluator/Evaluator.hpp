@@ -19,6 +19,8 @@ namespace mathix {
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
 
 inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
+    //std::cout << "Evaluating function: " << func.head << std::endl;
+
     static const std::unordered_map<std::string, std::function<double(double)>> unary_functions = {
         {"sin", [](double x) { return std::sin(x); }},
         {"cos", [](double x) { return std::cos(x); }},
@@ -49,66 +51,109 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         {"GreaterEqual", [](double a, double b) { return a >= b; }}
     };
 
-    std::vector<ExprPtr> evaluated_args;
-    for (const auto& arg : func.args) {
-        evaluated_args.push_back(evaluate(arg, ctx));
-    }
-
     const std::string& name = func.head;
 
+    // === Handle If ===
+    if (name == "If") {
+       //std::cout << "Handling If statement" << std::endl;
+
+        if (func.args.size() != 3) {
+            throw std::runtime_error("If expects exactly 3 arguments");
+        }
+
+        // Evaluate the condition only
+        auto condition = evaluate(func.args[0], ctx);
+
+        // Check if the condition is Boolean
+        if (std::holds_alternative<Boolean>(*condition)) {
+            bool condition_value = std::get<Boolean>(*condition).value;
+            //std::cout << "  Condition evaluated to: " << (condition_value ? "True" : "False") << std::endl;
+
+            // Return the true branch if condition is true, otherwise the false branch
+            return condition_value ? evaluate(func.args[1], ctx) : evaluate(func.args[2], ctx);
+        }
+
+        //std::cout << "  Condition is not Boolean, returning unevaluated If" << std::endl;
+        // If the condition is not Boolean, return the If unevaluated
+        return make_expr<FunctionCall>(name, func.args);
+    }
+
     if (name == "Expand") {
-        if (evaluated_args.size() != 1) {
+        if (func.args.size() != 1) {
             throw std::runtime_error("Expand expects exactly one argument");
         }
-        return expand(evaluated_args[0]);
+        auto arg = evaluate(func.args[0], ctx);
+        return expand(arg);
     }
 
     // === Unary Built-in ===
     if (auto it = unary_functions.find(name); it != unary_functions.end()) {
-        if (evaluated_args.size() != 1) {
+        if (func.args.size() != 1) {
             throw std::runtime_error(name + " expects 1 argument");
         }
-        double arg = get_number_value(evaluated_args[0]);
-        return make_expr<Number>(it->second(arg));
+        auto arg = evaluate(func.args[0], ctx);
+        double value = get_number_value(arg);
+        return make_expr<Number>(it->second(value));
     }
 
     // === Binary Built-in with Simplification ===
     if (name == "Plus" || name == "Times") {
-        bool all_numbers = std::all_of(evaluated_args.begin(), evaluated_args.end(),
-            [](const ExprPtr& e) { return std::holds_alternative<Number>(*e); });
+        double result = (name == "Plus") ? 0 : 1;
+        bool all_numbers = true;
+        std::vector<ExprPtr> simplified;
 
-        if (all_numbers) {
-            double result = (name == "Plus") ? 0 : 1;
-            for (auto& arg : evaluated_args) {
-                double val = get_number_value(arg);
+        for (const auto& arg : func.args) {
+            auto evaluated_arg = evaluate(arg, ctx);
+
+            if (std::holds_alternative<Number>(*evaluated_arg)) {
+                double val = get_number_value(evaluated_arg);
+
+                // Early exit for Times: if any value is 0, whole product is 0
+                if (name == "Times" && val == 0) {
+                    return make_expr<Number>(0);
+                }
+
+                // Skip trivial values: 0 in Plus, 1 in Times
+                if ((name == "Plus" && val == 0) || (name == "Times" && val == 1)) {
+                    continue;
+                }
+
                 result = (name == "Plus") ? result + val : result * val;
             }
+            else {
+                all_numbers = false;
+                simplified.push_back(evaluated_arg);
+            }
+        }
+
+        if (all_numbers) {
             return make_expr<Number>(result);
         }
 
-        // Apply trivial simplification rules
-        std::vector<ExprPtr> simplified;
-        for (const auto& arg : evaluated_args) {
-            if (name == "Plus" && !is_zero(arg)) simplified.push_back(arg);
-            else if (name == "Times") {
-                if (is_zero(arg)) return make_expr<Number>(0); // 0 * x = 0
-                if (!is_one(arg)) simplified.push_back(arg);
-            }
+        // Add numeric part if not trivial
+        if ((name == "Plus" && result != 0) || (name == "Times" && result != 1)) {
+            simplified.insert(simplified.begin(), make_expr<Number>(result));
         }
 
+        // Handle cases like Plus[] => 0 or Times[] => 1
         if (simplified.empty()) return make_expr<Number>((name == "Plus") ? 0 : 1);
+
+        // Single argument: unwrap it (e.g., Plus[x] => x)
         if (simplified.size() == 1) return simplified[0];
+
         return make_expr<FunctionCall>(name, simplified);
     }
 
     if (name == "Minus" || name == "Divide" || name == "Pow") {
-        if (evaluated_args.size() != 2) {
+        if (func.args.size() != 2) {
             throw std::runtime_error(name + " expects 2 arguments");
         }
 
-        auto left = evaluated_args[0];
-        auto right = evaluated_args[1];
+        // Lazily evaluate the left and right arguments
+        auto left = evaluate(func.args[0], ctx);
+        auto right = evaluate(func.args[1], ctx);
 
+        // Handle fully numeric arguments
         if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
             double a = get_number_value(left);
             double b = get_number_value(right);
@@ -129,63 +174,84 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
             return make_expr<Number>(binary_functions.at(name)(a, b));
         }
 
-        // Trivial simplification for exponentiation
+        // Trivial simplifications for exponentiation
         if (name == "Pow") {
-            if (is_zero(right)) return make_expr<Number>(1);
-            if (is_one(right)) return left;
+            if (is_zero(right)) return make_expr<Number>(1); // x^0 = 1
+            if (is_one(right)) return left;                 // x^1 = x
         }
 
         // Return symbolic form if not fully numeric
-        return make_expr<FunctionCall>(name, evaluated_args);
+        return make_expr<FunctionCall>(name, std::vector{ left, right });
     }
 
     // Special case: unary negation
-    if (name == "Negate" && evaluated_args.size() == 1) {
-        if (std::holds_alternative<Number>(*evaluated_args[0])) {
-            return make_expr<Number>(-get_number_value(evaluated_args[0]));
+    if (name == "Negate") {
+        if (func.args.size() != 1) {
+            throw std::runtime_error("Negate expects exactly 1 argument");
         }
-        return make_expr<FunctionCall>("Times", std::vector({ make_expr<Number>(-1), evaluated_args[0] }));
+
+        // Lazily evaluate the argument
+        auto arg = evaluate(func.args[0], ctx);
+
+        // If the argument is a number, return the negated value
+        if (std::holds_alternative<Number>(*arg)) {
+            return make_expr<Number>(-get_number_value(arg));
+        }
+
+        // If the argument is symbolic, return a symbolic negation
+        return make_expr<FunctionCall>("Times", std::vector{ make_expr<Number>(-1), arg });
     }
 
     // === Comparison Operators ===
     if (auto it = comparison_functions.find(name); it != comparison_functions.end()) {
-        if (evaluated_args.size() != 2) {
+        if (func.args.size() != 2) {
             throw std::runtime_error(name + " expects 2 arguments");
         }
 
+        // Lazily evaluate the left and right arguments
+        auto left = evaluate(func.args[0], ctx);
+        auto right = evaluate(func.args[1], ctx);
+
         // Check if both arguments are numbers
-        if (std::holds_alternative<Number>(*evaluated_args[0]) &&
-            std::holds_alternative<Number>(*evaluated_args[1])) {
-            double a = get_number_value(evaluated_args[0]);
-            double b = get_number_value(evaluated_args[1]);
+        if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
+            double a = get_number_value(left);
+            double b = get_number_value(right);
             bool result = it->second(a, b);
-            return make_expr<Boolean>(result);
+            return make_expr<Boolean>(result); // Return Boolean(true) or Boolean(false)
         }
 
-        // If not both arguments are numbers, return unevaluated
-        return make_expr<FunctionCall>(name, evaluated_args);
+        // If not both arguments are numbers, return the comparison unevaluated
+        return make_expr<FunctionCall>(name, std::vector{ left, right });
     }
 
     // === User-defined Function ===
     if (auto user_it = ctx.user_functions.find(name); user_it != ctx.user_functions.end()) {
         const FunctionDefinition& def = user_it->second;
 
-        if (def.params.size() != evaluated_args.size()) {
+        if (def.params.size() != func.args.size()) {
             throw std::runtime_error("Function " + name + " expects " +
                 std::to_string(def.params.size()) + " arguments, got " +
-                std::to_string(evaluated_args.size()));
+                std::to_string(func.args.size()));
         }
 
+        // Create a new local context for the function evaluation
         EvaluationContext local_ctx = ctx;
+
+        // Lazily bind formal parameters to actual arguments
         for (size_t i = 0; i < def.params.size(); ++i) {
-            local_ctx.variables[def.params[i]] = func.args[i]; // keep unevaluated for symbolic binding
+            local_ctx.variables[def.params[i]] = func.args[i]; // Keep unevaluated for symbolic binding
         }
 
+        // Evaluate the function body in the new context
         return evaluate(def.body, local_ctx);
     }
 
     // Unknown function: return unevaluated for symbolic preservation
-    return make_expr<FunctionCall>(name, evaluated_args);
+    std::vector<ExprPtr> unevaluated_args;
+    for (const auto& arg : func.args) {
+        unevaluated_args.push_back(arg); // Keep arguments unevaluated
+    }
+    return make_expr<FunctionCall>(name, unevaluated_args);
 }
 
 inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx, 

@@ -44,7 +44,7 @@ TEST_CASE("Square root and exponential functions are evaluated correctly", "[eva
     REQUIRE(std::abs(get_number_value(result) - std::exp(1)) < 1e-6);
 }
 
-TEST_CASE("Variables are evaluated correctly using context", "[evaluator][context]") {
+TEST_CASE("Variables are evaluated correctly using context", "[evaluator]") {
     EvaluationContext ctx;
     ctx.variables["x"] = make_expr<Number>(10.0);
     ctx.variables["y"] = make_expr<Number>(5.0);
@@ -56,23 +56,6 @@ TEST_CASE("Variables are evaluated correctly using context", "[evaluator][contex
     expr = parse_expression("x * y");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == 50.0);
-}
-
-TEST_CASE("Unknown variables are treated as symbolic", "[evaluator][context]") {
-    EvaluationContext ctx; // Empty context
-
-    auto expr = parse_expression("z + 1");
-    auto result = evaluate(expr, ctx);
-
-    // Ensure the result is a symbolic expression: Plus[z, 1]
-    REQUIRE(std::holds_alternative<FunctionCall>(*result));
-    auto func = std::get<FunctionCall>(*result);
-    REQUIRE(func.head == "Plus");
-    REQUIRE(func.args.size() == 2);
-    REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
-    REQUIRE(std::get<Symbol>(*func.args[0]).name == "z");
-    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
-    REQUIRE(std::get<Number>(*func.args[1]).value == 1.0);
 }
 
 TEST_CASE("Evaluator correctly evaluates power expressions", "[evaluator][pow]") {
@@ -407,22 +390,21 @@ TEST_CASE("Evaluator handles 0/0 as Indeterminate", "[evaluator][indeterminate]"
     REQUIRE(func.args.empty()); // Indeterminate should have no arguments
 }
 
-TEST_CASE("Evaluator handles undefined variables symbolically", "[evaluator][symbolic]") {
+TEST_CASE("Unknown variables are treated as symbolic", "[evaluator]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("x + 1");
+
+    auto expr = parse_expression("z + 1");
     auto result = evaluate(expr, ctx);
 
-    // Ensure the result is a symbolic expression: Plus[x, 1]
+    // Ensure the result is a symbolic expression: Plus[1, z]
     REQUIRE(std::holds_alternative<FunctionCall>(*result));
     auto func = std::get<FunctionCall>(*result);
     REQUIRE(func.head == "Plus");
     REQUIRE(func.args.size() == 2);
-
-    REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
-    REQUIRE(std::get<Symbol>(*func.args[0]).name == "x");
-
-    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
-    REQUIRE(std::get<Number>(*func.args[1]).value == 1.0);
+    REQUIRE(std::holds_alternative<Number>(*func.args[0])); // Numeric argument comes first
+    REQUIRE(std::get<Number>(*func.args[0]).value == 1.0);
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[1])); // Symbolic argument comes second
+    REQUIRE(std::get<Symbol>(*func.args[1]).name == "z");
 }
 
 TEST_CASE("Evaluator handles nested parentheses correctly", "[evaluator]") {
@@ -449,7 +431,6 @@ TEST_CASE("Evaluator handles function overwriting", "[evaluator][functions]") {
     REQUIRE(get_number_value(result) == 6.0);
 }
 
-/*
 TEST_CASE("Evaluator handles recursive function calls", "[evaluator][functions]") {
     EvaluationContext ctx;
 
@@ -462,7 +443,6 @@ TEST_CASE("Evaluator handles recursive function calls", "[evaluator][functions]"
     auto result = evaluate(call_expr, ctx);
     REQUIRE(get_number_value(result) == 120.0); // 5! = 120
 }
-*/
 
 TEST_CASE("Evaluator handles equality operator (==) with True result", "[evaluator]") {
     EvaluationContext ctx;

@@ -485,13 +485,58 @@ TEST_CASE("Evaluator handles symbolic equality operator (==)", "[evaluator]") {
     REQUIRE(std::get<Symbol>(*func.args[1]).name == "y");
 }
 
-TEST_CASE("Evaluator handles logical expressions", "[evaluator][logic]") {
-    EvaluationContext ctx; // Empty context
+TEST_CASE("Evaluator handles logical AND (&&)", "[evaluator][logic]") {
+    EvaluationContext ctx;
+
+    // True && False -> False
     auto expr = parse_expression("True && False");
     auto result = evaluate(expr, ctx);
-    REQUIRE(get_boolean_value(result) == false);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value == false);
 
-    expr = parse_expression("True || False");
+    // True && True -> True
+    expr = parse_expression("True && True");
     result = evaluate(expr, ctx);
-    REQUIRE(get_boolean_value(result) == true);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value == true);
+
+    // True && x -> Unevaluated
+    expr = parse_expression("True && x");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    auto func = std::get<FunctionCall>(*result);
+    REQUIRE(func.head == "And");
+    REQUIRE(func.args.size() == 2);
+    REQUIRE(std::holds_alternative<Boolean>(*func.args[0]));
+    REQUIRE(std::get<Boolean>(*func.args[0]).value == true);
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[1]));
+    REQUIRE(std::get<Symbol>(*func.args[1]).name == "x");
+}
+
+TEST_CASE("Evaluator handles logical OR (||)", "[evaluator][logic]") {
+    EvaluationContext ctx;
+
+    // True || False -> True
+    auto expr = parse_expression("True || False");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value == true);
+
+    // False || False -> False
+    expr = parse_expression("False || False");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value == false);
+
+    // False || x -> Unevaluated
+    expr = parse_expression("False || x");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    auto func = std::get<FunctionCall>(*result);
+    REQUIRE(func.head == "Or");
+    REQUIRE(func.args.size() == 2);
+    REQUIRE(std::holds_alternative<Boolean>(*func.args[0]));
+    REQUIRE(std::get<Boolean>(*func.args[0]).value == false);
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[1]));
+    REQUIRE(std::get<Symbol>(*func.args[1]).name == "x");
 }

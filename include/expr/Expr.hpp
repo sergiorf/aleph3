@@ -16,9 +16,10 @@ struct String;
 struct FunctionCall;
 struct FunctionDefinition;
 struct Assignment;
+struct Rule;
 
 // Core Expression type: variant of all expression types
-using Expr = std::variant < Symbol, Number, Boolean, String, FunctionCall, FunctionDefinition, Assignment > ;
+using Expr = std::variant < Symbol, Number, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule > ;
 
 // Smart pointer to expressions
 using ExprPtr = std::shared_ptr<Expr>;
@@ -84,6 +85,12 @@ struct Assignment {
     Assignment(const std::string& name, const ExprPtr& value)
         : name(name), value(value) {
     }
+};
+
+struct Rule {
+    ExprPtr lhs;
+    ExprPtr rhs;
+    Rule(const ExprPtr& lhs, const ExprPtr& rhs) : lhs(lhs), rhs(rhs) {}
 };
 
 // Utility functions

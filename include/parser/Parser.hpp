@@ -184,6 +184,11 @@ namespace mathix {
                     // If we were joining, return the flat StringJoin
                     return make_fcall("StringJoin", string_join_args);
                 }
+                if (match_string("->")) {
+                    auto right = parse_term();
+                    left = make_expr<Rule>(left, right);
+                    continue;
+                }
                 if (match_string("&&")) {
                     auto right = parse_term();
                     left = make_fcall("And", {left, right});

@@ -136,7 +136,11 @@ namespace mathix {
 
             [](const Assignment& assign) -> std::string {
                 return assign.name + " = " + to_string(assign.value);
-            }
+            },
+
+            [](const Rule& rule) -> std::string {
+                return to_string(rule.lhs) + " -> " + to_string(rule.rhs);
+            },
 
             }, expr);
     }

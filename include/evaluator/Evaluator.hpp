@@ -341,9 +341,14 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
 
             // Return the variable name as feedback (like Mathematica does)
             return make_expr<Symbol>(assign.name);
-        }
-
-        }, *expr);
+        },
+        [&](const Rule& rule) -> ExprPtr {
+            auto lhs = evaluate(rule.lhs, ctx, visited);
+            auto rhs = evaluate(rule.rhs, ctx, visited);
+            return make_expr<Rule>(lhs, rhs);
+        },
+        }, 
+        *expr);
 }
 
 inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {

@@ -450,3 +450,69 @@ TEST_CASE("Parser handles chained string concatenation with <>", "[parser][strin
     REQUIRE(arg2 != nullptr);
     REQUIRE(arg2->value == "World");
 }
+
+TEST_CASE("Parser handles simple rule operator (->)", "[parser][rule]") {
+    auto expr = parse_expression("\"World\" -> \"Mathix\"");
+    REQUIRE(expr != nullptr);
+
+    // The result should be a Rule node
+    auto* rule = std::get_if<Rule>(&(*expr));
+    REQUIRE(rule != nullptr);
+
+    auto* lhs = std::get_if<String>(&(*rule->lhs));
+    auto* rhs = std::get_if<String>(&(*rule->rhs));
+
+    REQUIRE(lhs != nullptr);
+    REQUIRE(lhs->value == "World");
+    REQUIRE(rhs != nullptr);
+    REQUIRE(rhs->value == "Mathix");
+}
+
+TEST_CASE("Parser handles rule as argument in function call", "[parser][rule]") {
+    auto expr = parse_expression("StringReplace[\"Hello World\", \"World\" -> \"Mathix\"]");
+    REQUIRE(expr != nullptr);
+
+    auto* func_call = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(func_call != nullptr);
+    REQUIRE(func_call->head == "StringReplace");
+    REQUIRE(func_call->args.size() == 2);
+
+    auto* arg0 = std::get_if<String>(&(*func_call->args[0]));
+    REQUIRE(arg0 != nullptr);
+    REQUIRE(arg0->value == "Hello World");
+
+    auto* rule = std::get_if<Rule>(&(*func_call->args[1]));
+    REQUIRE(rule != nullptr);
+
+    auto* lhs = std::get_if<String>(&(*rule->lhs));
+    auto* rhs = std::get_if<String>(&(*rule->rhs));
+    REQUIRE(lhs != nullptr);
+    REQUIRE(lhs->value == "World");
+    REQUIRE(rhs != nullptr);
+    REQUIRE(rhs->value == "Mathix");
+}
+
+TEST_CASE("Parser handles StringJoin and Rule precedence", "[parser][rule][string]") {
+    auto expr = parse_expression("\"a\" <> \"b\" -> \"c\"");
+    REQUIRE(expr != nullptr);
+
+    // Should parse as Rule[StringJoin["a", "b"], "c"]
+    auto* rule = std::get_if<Rule>(&(*expr));
+    REQUIRE(rule != nullptr);
+
+    auto* join = std::get_if<FunctionCall>(&(*rule->lhs));
+    REQUIRE(join != nullptr);
+    REQUIRE(join->head == "StringJoin");
+    REQUIRE(join->args.size() == 2);
+
+    auto* arg0 = std::get_if<String>(&(*join->args[0]));
+    auto* arg1 = std::get_if<String>(&(*join->args[1]));
+    REQUIRE(arg0 != nullptr);
+    REQUIRE(arg0->value == "a");
+    REQUIRE(arg1 != nullptr);
+    REQUIRE(arg1->value == "b");
+
+    auto* rhs = std::get_if<String>(&(*rule->rhs));
+    REQUIRE(rhs != nullptr);
+    REQUIRE(rhs->value == "c");
+}

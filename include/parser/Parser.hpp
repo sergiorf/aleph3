@@ -11,6 +11,33 @@
 
 namespace mathix {
 
+    enum class Assoc { Left, Right };
+
+    struct OperatorInfo {
+        int precedence;
+        Assoc assoc;
+        std::string ast_name; // "Plus", "Times", "Rule", etc.
+    };
+
+    // Operator table: precedence (higher = tighter), associativity, AST head
+    static const std::vector<std::pair<std::string, OperatorInfo>> infix_operators = {
+        {"->",   {1, Assoc::Right, "Rule"}},
+        {"==",   {2, Assoc::Left,  "Equal"}},
+        {"!=",   {2, Assoc::Left,  "NotEqual"}},
+        {"<=",   {2, Assoc::Left,  "LessEqual"}},
+        {">=",   {2, Assoc::Left,  "GreaterEqual"}},
+        {"<",    {2, Assoc::Left,  "Less"}},
+        {">",    {2, Assoc::Left,  "Greater"}},
+        {"||",   {3, Assoc::Left,  "Or"}},
+        {"&&",   {4, Assoc::Left,  "And"}},
+        {"<>",   {5, Assoc::Left,  "StringJoin"}},
+        {"+",    {6, Assoc::Left,  "Plus"}},
+        {"-",    {6, Assoc::Left,  "Minus"}},
+        {"*",    {7, Assoc::Left,  "Times"}},
+        {"/",    {7, Assoc::Left,  "Divide"}},
+        {"^",    {8, Assoc::Right, "Pow"}},
+    };
+
     class Parser {
     public:
         Parser(const std::string& input) : input(input), pos(0) {}
@@ -30,13 +57,8 @@ namespace mathix {
                     return parse_if();
                 }
 
-                // Check for comparison operators (e.g., ==, !=, <, >, <=, >=)
-                if (is_comparison_operator()) {
-                    return parse_comparison(make_expr<Symbol>(name));
-                }
-
                 // Check if it's an assignment (e.g., x = 2)
-                if (match('=')) {
+                if (peek_string(2) != "==" && match('=')) {
                     auto value = parse_expression(); // Parse the assigned value
                     return make_expr<Assignment>(name, value);
                 }
@@ -91,7 +113,7 @@ namespace mathix {
                 }
             }
 
-            // Delegate to parse_expression for general expressions
+            // Delegate to Pratt parser for general expressions
             return parse_expression();
         }
 
@@ -99,134 +121,48 @@ namespace mathix {
         std::string input;
         size_t pos;
 
-        bool is_comparison_operator() {
-            skip_whitespace();
-
-            // Check for multi-character operators first
-            std::string two_chars = peek_string(2);
-            if (two_chars == "==" || two_chars == "!=" || two_chars == "<=" || two_chars == ">=") {
-                return true;
-            }
-
-            // Check for single-character operators
-            char current = peek();
-            if (current == '<' || current == '>') {
-                return true;
-            }
-
-            return false;
-        }
-
-        ExprPtr parse_assignment() {
-            skip_whitespace();
-            auto name = parse_identifier(); // Parse the variable name
-            skip_whitespace();
-
-            if (!match('=')) {
-                error("Expected '=' in assignment");
-            }
-
-            auto value = parse_expression(); // Parse the assigned value
-            return make_expr<Assignment>(name, value);
-        }
-
-        ExprPtr parse_comparison(ExprPtr left) {
-            skip_whitespace();
-
-            if (match_string("==")) {
-                auto right = parse_expression();
-                return make_fcall("Equal", { left, right });
-            }
-            else if (match_string("!=")) {
-                auto right = parse_expression();
-                return make_fcall("NotEqual", { left, right });
-            }
-            else if (match_string("<=")) {
-                auto right = parse_expression();
-                return make_fcall("LessEqual", { left, right });
-            }
-            else if (match_string(">=")) {
-                auto right = parse_expression();
-                return make_fcall("GreaterEqual", { left, right });
-            }
-            else if (match('<')) {
-                auto right = parse_expression();
-                return make_fcall("Less", { left, right });
-            }
-            else if (match('>')) {
-                auto right = parse_expression();
-                return make_fcall("Greater", { left, right });
-            }
-
-            return left;
-        }
-
-        ExprPtr parse_expression() {
-            auto left = parse_term();
-
-            // Handle chained string joins
-            std::vector<ExprPtr> string_join_args;
-            bool joining = false;
+        // Pratt/precedence climbing parser
+        ExprPtr parse_expression(int min_precedence = 1) {
+            auto left = parse_factor();
 
             while (true) {
                 skip_whitespace();
-                if (match_string("<>")) {
-                    if (!joining) {
-                        string_join_args.push_back(left);
-                        joining = true;
-                    }
-                    auto right = parse_term();
-                    string_join_args.push_back(right);
-                    left = right; // for further chaining
-                    continue;
-                }
-                if (joining) {
-                    // If we were joining, return the flat StringJoin
-                    return make_fcall("StringJoin", string_join_args);
-                }
-                if (match_string("->")) {
-                    auto right = parse_term();
+                std::string op = peek_operator();
+                if (op.empty()) break;
+
+                OperatorInfo info = get_operator_info(op);
+                if (info.precedence < min_precedence) break;
+
+                pos += op.size(); // consume operator
+
+                int next_min_prec = info.assoc == Assoc::Left ? info.precedence + 1 : info.precedence;
+                auto right = parse_expression(next_min_prec);
+
+                if (info.ast_name == "Rule") {
                     left = make_expr<Rule>(left, right);
-                    continue;
                 }
-                if (match_string("&&")) {
-                    auto right = parse_term();
-                    left = make_fcall("And", {left, right});
-                }
-                else if (match_string("||")) {
-                    auto right = parse_term();
-                    left = make_fcall("Or", {left, right});
-                }
-                else if (match('+')) {
-                    auto right = parse_term();
-                    left = make_fcall("Plus", {left, right});
-                }
-                else if (match('-')) {
-                    auto right = parse_term();
-                    left = make_fcall("Minus", {left, right});
-                }
-                else {
-                    break;
-                }
-            }
-            // Delegate to parse_comparison to handle comparison operators
-            return parse_comparison(left);
-        }
-
-        ExprPtr parse_term() {
-            auto left = parse_power();
-            while (true) {
-                skip_whitespace();
-                if (match('*')) {
-                    auto right = parse_power();
-                    left = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{left, right});
-                }
-                else if (match('/')) {
-                    auto right = parse_power();
-                    left = make_expr<FunctionCall>("Divide", std::vector<ExprPtr>{left, right});
+                else if (info.ast_name == "StringJoin") {
+                    // Flatten left if it's also a StringJoin
+                    std::vector<ExprPtr> args;
+                    if (auto* left_call = std::get_if<FunctionCall>(&(*left));
+                        left_call && left_call->head == "StringJoin") {
+                        args = left_call->args;
+                    }
+                    else {
+                        args.push_back(left);
+                    }
+                    // Flatten right if it's also a StringJoin (rare, but for completeness)
+                    if (auto* right_call = std::get_if<FunctionCall>(&(*right));
+                        right_call && right_call->head == "StringJoin") {
+                        args.insert(args.end(), right_call->args.begin(), right_call->args.end());
+                    }
+                    else {
+                        args.push_back(right);
+                    }
+                    left = make_fcall("StringJoin", args);
                 }
                 else {
-                    break;
+                    left = make_fcall(info.ast_name, { left, right });
                 }
             }
             return left;
@@ -253,6 +189,7 @@ namespace mathix {
             if (match('+')) {
                 return parse_factor(); // Simply parse the factor after '+'
             }
+
             if (match('-')) {
                 auto factor = parse_factor(); // Parse the factor after '-' and negate it
                 return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
@@ -374,6 +311,29 @@ namespace mathix {
             return make_expr<Symbol>(name);
         }
 
+        // --- Operator helpers ---
+        OperatorInfo get_operator_info(const std::string& op) {
+            for (const auto& pair : infix_operators) {
+                if (op == pair.first) return pair.second;
+            }
+            return { -1, Assoc::Left, "" }; // Not found
+        }
+
+        std::string peek_operator() {
+            skip_whitespace();
+            // Try to match the longest operator first
+            size_t max_len = 0;
+            std::string matched_op;
+            for (const auto& pair : infix_operators) {
+                const std::string& op = pair.first;
+                if (input.substr(pos, op.size()) == op && op.size() > max_len) {
+                    matched_op = op;
+                    max_len = op.size();
+                }
+            }
+            return matched_op;
+        }
+
         ExprPtr parse_number() {
             skip_whitespace();
             size_t start = pos;
@@ -385,17 +345,6 @@ namespace mathix {
             }
             double value = std::stod(input.substr(start, pos - start));
             return make_expr<Number>(value);
-        }
-
-        ExprPtr parse_power() {
-            auto left = parse_factor();
-            skip_whitespace();
-            while (match('^')) {
-                auto right = parse_factor();
-                left = make_expr<FunctionCall>("Pow", std::vector<ExprPtr>{left, right});
-                skip_whitespace();
-            }
-            return left;
         }
 
         std::string parse_identifier() {

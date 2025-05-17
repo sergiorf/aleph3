@@ -1,6 +1,7 @@
 ﻿#include "expr/Expr.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluationContext.hpp"
+#include "evaluator/BuiltInFunctions.hpp"
 #include "parser/Parser.hpp"
 
 #include <iostream>
@@ -26,6 +27,8 @@ std::string join(const Container& container, const std::string& delimiter) {
 int main() {
     EvaluationContext ctx;
     int counter = 1;
+
+    mathix::register_built_in_functions();
 
     std::cout << "Welcome to Mathix CLI!" << std::endl;
     std::cout << "Type 'exit' to quit." << std::endl;

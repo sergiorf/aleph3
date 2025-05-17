@@ -3,6 +3,7 @@
 
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
+#include "evaluator/FunctionRegistry.hpp"
 #include "util/Overloaded.hpp"
 #include "expr/ExprUtils.hpp"
 #include "transforms/Transforms.hpp"
@@ -53,41 +54,11 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
 
     const std::string& name = func.head;
 
-    // === Logical Operators ===
-    if (name == "And") {
-        for (const auto& arg : func.args) {
-            auto evaluated_arg = evaluate(arg, ctx);
-
-            // If the argument is Boolean and False, short-circuit
-            if (std::holds_alternative<Boolean>(*evaluated_arg)) {
-                if (!std::get<Boolean>(*evaluated_arg).value) {
-                    return make_expr<Boolean>(false); // Short-circuit if any argument is False
-                }
-            }
-            else {
-                // If the argument is not Boolean, return unevaluated
-                return make_expr<FunctionCall>("And", func.args);
-            }
-        }
-        return make_expr<Boolean>(true); // All arguments are True
-    }
-
-    if (name == "Or") {
-        for (const auto& arg : func.args) {
-            auto evaluated_arg = evaluate(arg, ctx);
-
-            // If the argument is Boolean and True, short-circuit
-            if (std::holds_alternative<Boolean>(*evaluated_arg)) {
-                if (std::get<Boolean>(*evaluated_arg).value) {
-                    return make_expr<Boolean>(true); // Short-circuit if any argument is True
-                }
-            }
-            else {
-                // If the argument is not Boolean, return unevaluated
-                return make_expr<FunctionCall>("Or", func.args);
-            }
-        }
-        return make_expr<Boolean>(false); // All arguments are False
+    // Check if the function is a built-in function
+    auto& registry = FunctionRegistry::instance();
+    if (registry.has_function(name)) {
+        auto handler = registry.get_function(name);
+        return handler(func, ctx);
     }
 
     // === Handle If ===

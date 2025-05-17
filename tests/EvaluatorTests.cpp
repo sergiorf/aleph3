@@ -3,6 +3,7 @@
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_all.hpp>
 #include <cmath>
 #include <stdexcept>
 
@@ -539,4 +540,104 @@ TEST_CASE("Evaluator handles logical OR (||)", "[evaluator][logic]") {
     REQUIRE(std::get<Boolean>(*func.args[0]).value == false);
     REQUIRE(std::holds_alternative<Symbol>(*func.args[1]));
     REQUIRE(std::get<Symbol>(*func.args[1]).name == "x");
+}
+
+TEST_CASE("Evaluator handles StringJoin", "[evaluator][string]") {
+    EvaluationContext ctx;
+
+    // Test "Hello" <> " " <> "World"
+    auto expr = parse_expression("\"Hello\" <> \" \" <> \"World\"");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<String>(*result));
+    REQUIRE(std::get<String>(*result).value == "Hello World");
+
+    // Test "Mathix" <> " Rocks"
+    expr = parse_expression("\"Mathix\" <> \" Rocks\"");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<String>(*result));
+    REQUIRE(std::get<String>(*result).value == "Mathix Rocks");
+
+    // Test empty string concatenation
+    expr = parse_expression("\"\" <> \"Hello\"");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<String>(*result));
+    REQUIRE(std::get<String>(*result).value == "Hello");
+}
+
+TEST_CASE("Evaluator handles StringLength", "[evaluator][string]") {
+    EvaluationContext ctx;
+
+    // Test StringLength["Hello"]
+    auto expr = parse_expression("StringLength[\"Hello\"]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 5);
+
+    // Test StringLength[""]
+    expr = parse_expression("StringLength[\"\"]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 0);
+
+    // Test StringLength["Mathix Rocks"]
+    expr = parse_expression("StringLength[\"Mathix Rocks\"]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 12);
+}
+
+TEST_CASE("Evaluator handles StringReplace", "[evaluator][string]") {
+    EvaluationContext ctx;
+
+    // Test StringReplace["Hello World", "World" -> "Mathix"]
+    auto expr = parse_expression("StringReplace[\"Hello World\", \"World\" -> \"Mathix\"]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<String>(*result));
+    REQUIRE(std::get<String>(*result).value == "Hello Mathix");
+
+    // Test StringReplace["abcabc", "abc" -> "x"]
+    expr = parse_expression("StringReplace[\"abcabc\", \"abc\" -> \"x\"]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<String>(*result));
+    REQUIRE(std::get<String>(*result).value == "xx");
+
+    // Test StringReplace["Hello", "x" -> "y"] (no match)
+    expr = parse_expression("StringReplace[\"Hello\", \"x\" -> \"y\"]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<String>(*result));
+    REQUIRE(std::get<String>(*result).value == "Hello");
+}
+
+TEST_CASE("Evaluator handles StringTake", "[evaluator][string]") {
+    EvaluationContext ctx;
+
+    // Test StringTake["Hello", 3]
+    auto expr = parse_expression("StringTake[\"Hello\", 3]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<String>(*result));
+    REQUIRE(std::get<String>(*result).value == "Hel");
+
+    // Test StringTake["Hello", -2]
+    expr = parse_expression("StringTake[\"Hello\", -2]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<String>(*result));
+    REQUIRE(std::get<String>(*result).value == "lo");
+
+    // Test StringTake["Hello", {2, 4}]
+    expr = parse_expression("StringTake[\"Hello\", {2, 4}]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<String>(*result));
+    REQUIRE(std::get<String>(*result).value == "ell");
+
+    // Test StringTake["Hello", 0] (invalid index)
+    expr = parse_expression("StringTake[\"Hello\", 0]");
+    REQUIRE_THROWS_WITH(evaluate(expr, ctx), "StringTake expects a valid index or range");
+}
+
+TEST_CASE("Evaluator throws error for invalid StringJoin arguments", "[evaluator][string]") {
+    EvaluationContext ctx;
+
+    // Test invalid argument: "Hello" <> 123
+    auto expr = parse_expression("\"Hello\" <> 123");
+    REQUIRE_THROWS_WITH(evaluate(expr, ctx), "StringJoin expects string arguments");
 }

@@ -66,6 +66,10 @@ namespace mathix {
             return boolean.value ? "True" : "False";
             },
 
+            [](const String& str) -> std::string { 
+                return "\"" + str.value + "\""; 
+            },
+
             [](const FunctionCall& f) -> std::string {
                 const auto& args = f.args;
 

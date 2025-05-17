@@ -300,6 +300,9 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
         [](const Boolean& boolean) -> ExprPtr {
             return make_expr<Boolean>(boolean.value);
         },
+        [](const String& str) -> ExprPtr {
+            return make_expr<String>(str.value);
+        },
         [&](const Symbol& sym) -> ExprPtr {
             if (visited.count(sym.name)) {
                 // Detected recursion, return symbol unevaluated

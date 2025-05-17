@@ -165,6 +165,10 @@ namespace mathix {
             auto left = parse_term();
             while (true) {
                 skip_whitespace();
+                if (match_string("<>")) {
+                    auto right = parse_term(); // Parse the right-hand side
+                    left = make_fcall("StringJoin", {left, right});
+                }
                 if (match_string("&&")) {
                     auto right = parse_term();
                     left = make_fcall("And", {left, right});
@@ -210,6 +214,20 @@ namespace mathix {
 
         ExprPtr parse_factor() {
             skip_whitespace();
+
+            // Handle strings
+            if (match('"')) {
+                size_t start = pos;
+                while (pos < input.size() && input[pos] != '"') {
+                    ++pos;
+                }
+                if (pos >= input.size() || input[pos] != '"') {
+                    error("Unterminated string");
+                }
+                std::string value = input.substr(start, pos - start);
+                ++pos; // Consume the closing quote
+                return make_expr<String>(value);
+            }
 
             // Handle unary plus/minus
             if (match('+')) {

@@ -545,17 +545,17 @@ TEST_CASE("Evaluator handles logical OR (||)", "[evaluator][logic]") {
 TEST_CASE("Evaluator handles StringJoin", "[evaluator][string]") {
     EvaluationContext ctx;
 
-    // Test "Hello" <> " " <> "World"
-    auto expr = parse_expression("\"Hello\" <> \" \" <> \"World\"");
+    // Test "Mathix" <> " Rocks"
+    auto expr = parse_expression("\"Mathix\" <> \" Rocks\"");
     auto result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<String>(*result));
-    REQUIRE(std::get<String>(*result).value == "Hello World");
+    REQUIRE(std::get<String>(*result).value == "Mathix Rocks");
 
-    // Test "Mathix" <> " Rocks"
-    expr = parse_expression("\"Mathix\" <> \" Rocks\"");
+    // Test "Hello" <> " " <> "World"
+    expr = parse_expression("\"Hello\" <> \" \" <> \"World\"");
     result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<String>(*result));
-    REQUIRE(std::get<String>(*result).value == "Mathix Rocks");
+    REQUIRE(std::get<String>(*result).value == "Hello World");
 
     // Test empty string concatenation
     expr = parse_expression("\"\" <> \"Hello\"");

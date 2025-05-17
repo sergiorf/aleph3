@@ -409,3 +409,44 @@ TEST_CASE("Parser handles nested logical expressions", "[parser][logic]") {
     REQUIRE(std::holds_alternative<Symbol>(*func.args[1]));
     REQUIRE(std::get<Symbol>(*func.args[1]).name == "x");
 }
+
+TEST_CASE("Parser handles simple string concatenation with <>", "[parser][string]") {
+    auto expr = parse_expression("\"Mathix\" <> \" Rocks\"");
+    REQUIRE(expr != nullptr);
+
+    // The result should be a FunctionCall to StringJoin with 2 arguments
+    auto* func_call = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(func_call != nullptr);
+    REQUIRE(func_call->head == "StringJoin");
+    REQUIRE(func_call->args.size() == 2);
+
+    auto* arg0 = std::get_if<String>(&(*func_call->args[0]));
+    auto* arg1 = std::get_if<String>(&(*func_call->args[1]));
+
+    REQUIRE(arg0 != nullptr);
+    REQUIRE(arg0->value == "Mathix");
+    REQUIRE(arg1 != nullptr);
+    REQUIRE(arg1->value == " Rocks");
+}
+
+TEST_CASE("Parser handles chained string concatenation with <>", "[parser][string]") {
+    auto expr = parse_expression("\"Hello\" <> \" \" <> \"World\"");
+    REQUIRE(expr != nullptr);
+
+    // The result should be a FunctionCall to StringJoin with 3 arguments
+    auto* func_call = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(func_call != nullptr);
+    REQUIRE(func_call->head == "StringJoin");
+    REQUIRE(func_call->args.size() == 3);
+
+    auto* arg0 = std::get_if<String>(&(*func_call->args[0]));
+    auto* arg1 = std::get_if<String>(&(*func_call->args[1]));
+    auto* arg2 = std::get_if<String>(&(*func_call->args[2]));
+
+    REQUIRE(arg0 != nullptr);
+    REQUIRE(arg0->value == "Hello");
+    REQUIRE(arg1 != nullptr);
+    REQUIRE(arg1->value == " ");
+    REQUIRE(arg2 != nullptr);
+    REQUIRE(arg2->value == "World");
+}

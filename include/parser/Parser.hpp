@@ -163,11 +163,26 @@ namespace mathix {
 
         ExprPtr parse_expression() {
             auto left = parse_term();
+
+            // Handle chained string joins
+            std::vector<ExprPtr> string_join_args;
+            bool joining = false;
+
             while (true) {
                 skip_whitespace();
                 if (match_string("<>")) {
-                    auto right = parse_term(); // Parse the right-hand side
-                    left = make_fcall("StringJoin", {left, right});
+                    if (!joining) {
+                        string_join_args.push_back(left);
+                        joining = true;
+                    }
+                    auto right = parse_term();
+                    string_join_args.push_back(right);
+                    left = right; // for further chaining
+                    continue;
+                }
+                if (joining) {
+                    // If we were joining, return the flat StringJoin
+                    return make_fcall("StringJoin", string_join_args);
                 }
                 if (match_string("&&")) {
                     auto right = parse_term();

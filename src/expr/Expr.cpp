@@ -126,7 +126,10 @@ namespace mathix {
             [](const FunctionDefinition& def) -> std::string {
                 std::string result = def.name + "[";
                 for (size_t i = 0; i < def.params.size(); ++i) {
-                    result += def.params[i] + "_";
+                    result += def.params[i].name + "_";
+                    if (def.params[i].default_value) {
+                        result += ":" + to_string(def.params[i].default_value);
+                    }
                     if (i + 1 < def.params.size()) result += ", ";
                 }
                 // Use `:=` for delayed assignment and `=` for immediate assignment

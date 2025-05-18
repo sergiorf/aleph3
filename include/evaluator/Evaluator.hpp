@@ -280,19 +280,37 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
     // === User-defined Function ===
     if (auto user_it = ctx.user_functions.find(name); user_it != ctx.user_functions.end()) {
         const FunctionDefinition& def = user_it->second;
+        size_t param_count = def.params.size();
+        size_t arg_count = func.args.size();
 
-        if (def.params.size() != func.args.size()) {
-            throw std::runtime_error("Function " + name + " expects " +
-                std::to_string(def.params.size()) + " arguments, got " +
-                std::to_string(func.args.size()));
+        std::vector<ExprPtr> final_args;
+        for (size_t i = 0; i < param_count; ++i) {
+            if (i < arg_count) {
+                final_args.push_back(func.args[i]);
+            }
+            else if (def.params[i].default_value != nullptr) {
+                final_args.push_back(def.params[i].default_value);
+            }
+            else {
+                throw std::runtime_error("Function " + name + " expects at least " +
+                    std::to_string(i + 1) + " arguments, got " +
+                    std::to_string(arg_count));
+            }
+        }
+
+        // Too many arguments
+        if (arg_count > param_count) {
+            throw std::runtime_error("Function " + name + " expects at most " +
+                std::to_string(param_count) + " arguments, got " +
+                std::to_string(arg_count));
         }
 
         // Create a new local context for the function evaluation
         EvaluationContext local_ctx = ctx;
 
-        // Lazily bind formal parameters to actual arguments
-        for (size_t i = 0; i < def.params.size(); ++i) {
-            local_ctx.variables[def.params[i]] = func.args[i]; // Keep unevaluated for symbolic binding
+        // Bind formal parameters to actual arguments (unevaluated for delayed)
+        for (size_t i = 0; i < param_count; ++i) {
+            local_ctx.variables[def.params[i].name] = final_args[i];
         }
 
         // Evaluate the function body in the new context
@@ -347,22 +365,41 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
             auto user_it = ctx.user_functions.find(func.head);
             if (user_it != ctx.user_functions.end()) {
                 const FunctionDefinition& def = user_it->second;
+                size_t param_count = def.params.size();
+                size_t arg_count = func.args.size();
 
-                if (def.params.size() != func.args.size()) {
-                    throw std::runtime_error("Function " + func.head + " expects " +
-                        std::to_string(def.params.size()) + " arguments, got " +
-                        std::to_string(func.args.size()));
+                // Prepare argument list, filling in defaults if needed
+                std::vector<ExprPtr> final_args;
+                for (size_t i = 0; i < param_count; ++i) {
+                    if (i < arg_count) {
+                        final_args.push_back(func.args[i]);
+                    }
+                    else if (def.params[i].default_value != nullptr) {
+                        final_args.push_back(def.params[i].default_value);
+                    }
+                    else {
+                        throw std::runtime_error("Function " + func.head + " expects at least " +
+                            std::to_string(i + 1) + " arguments, got " +
+                            std::to_string(arg_count));
+                    }
+                }
+
+                // Too many arguments
+                if (arg_count > param_count) {
+                    throw std::runtime_error("Function " + func.head + " expects at most " +
+                        std::to_string(param_count) + " arguments, got " +
+                        std::to_string(arg_count));
                 }
 
                 // Create a new context for the function evaluation
                 EvaluationContext local_ctx = ctx;
 
                 // Bind formal parameters to actual arguments
-                for (size_t i = 0; i < def.params.size(); ++i) {
-                    auto arg_value = evaluate(func.args[i], ctx);
-                    local_ctx.variables[def.params[i]] = arg_value;
+                for (size_t i = 0; i < param_count; ++i) {
+                    auto arg_value = evaluate(final_args[i], ctx);
+                    local_ctx.variables[def.params[i].name] = arg_value;
                 }
-                
+
                 // Evaluate the function body in the new context
                 return evaluate(def.body, local_ctx);
             }
@@ -380,7 +417,7 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
                 // Immediate assignment: evaluate the body immediately
                 EvaluationContext local_ctx = ctx;
                 for (const auto& param : def.params) {
-                    local_ctx.variables[param] = make_expr<Symbol>(param); // Bind parameters symbolically
+                    local_ctx.variables[param.name] = make_expr<Symbol>(param.name); // Bind parameters symbolically
                 }
                 auto evaluated_body = evaluate(def.body, local_ctx);
                 ctx.user_functions[def.name] = FunctionDefinition(def.name, def.params, evaluated_body, false);

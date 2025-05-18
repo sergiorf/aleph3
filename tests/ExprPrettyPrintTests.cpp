@@ -38,14 +38,16 @@ TEST_CASE("Pretty printing of negation and functions with delayed and immediate 
 
     // Test delayed assignment (:=)
     REQUIRE(to_string(FunctionDefinition{
-        "f", {"x", "y"},
+        "f",
+        { Parameter("x"), Parameter("y") },
         make_expr<FunctionCall>("Plus", std::vector<ExprPtr>{x, y}),
         true // Delayed assignment
         }) == "f[x_, y_] := x + y");
 
     // Test immediate assignment (=)
     REQUIRE(to_string(FunctionDefinition{
-        "f", {"x", "y"},
+        "f",
+        { Parameter("x"), Parameter("y") },
         make_expr<FunctionCall>("Plus", std::vector<ExprPtr>{x, y}),
         false // Immediate assignment
         }) == "f[x_, y_] = x + y");

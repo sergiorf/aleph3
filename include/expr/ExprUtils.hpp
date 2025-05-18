@@ -118,8 +118,16 @@ namespace mathix {
         return make_expr<FunctionCall>(name, std::vector<ExprPtr>(args));
     }
 
+    inline ExprPtr make_fdef(std::string name, std::initializer_list<Parameter> params, const ExprPtr& body, bool delayed) {
+        return make_expr<FunctionDefinition>(name, std::vector<Parameter>(params), body, delayed);
+    }
+
     inline ExprPtr make_fdef(std::string name, std::initializer_list<std::string> args, const ExprPtr& body, bool delayed) {
-        return make_expr<FunctionDefinition>(name, std::vector<std::string>(args), body, delayed);
+        std::vector<Parameter> params;
+        for (const auto& arg : args) {
+            params.emplace_back(arg);
+        }
+        return make_expr<FunctionDefinition>(name, params, body, delayed);
     }
 
 } // namespace mathix

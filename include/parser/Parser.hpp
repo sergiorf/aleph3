@@ -65,10 +65,8 @@ namespace mathix {
 
                 // If it's followed by '[', maybe it's a definition
                 if (match('[')) {
-                    std::vector<std::string> args;
+                    std::vector<Parameter> params;
                     bool is_def = true;
-
-                    size_t args_backup = pos;
 
                     while (true) {
                         skip_whitespace();
@@ -86,7 +84,13 @@ namespace mathix {
                             is_def = false;
                             break;
                         }
-                        args.push_back(arg);
+                        skip_whitespace();
+                        ExprPtr default_value = nullptr;
+                        if (match(':')) {
+                            // Parse the default value expression
+                            default_value = parse_expression();
+                        }
+                        params.emplace_back(arg, default_value);
                         skip_whitespace();
                         if (match(']')) break;
                         if (!match(',')) {
@@ -100,7 +104,7 @@ namespace mathix {
                     if (is_def && (match_string(":=") || match('='))) {
                         bool delayed = input[pos - 2] == ':'; // Check if `:=` was matched
                         auto body = parse_expression();
-                        return make_expr<FunctionDefinition>(name, args, body, delayed);
+                        return make_expr<FunctionDefinition>(name, params, body, delayed);
                     }
                     else {
                         // Not a definition; reset and fall through to expression

@@ -70,15 +70,24 @@ struct FunctionCall {
         : head(h), args(a) {}
 };
 
+struct Parameter {
+    std::string name;
+    ExprPtr default_value; // nullptr if no default
+
+    Parameter(const std::string& n, ExprPtr def = nullptr)
+        : name(n), default_value(def) {
+    }
+};
+
 struct FunctionDefinition {
-    std::string name;               // Function name
-    std::vector<std::string> params; // Parameters
-    ExprPtr body;                   // Function body
-    bool delayed;                   // True for `:=`, false for `=`
+    std::string name;                       // Function name
+    std::vector<Parameter> params;          // Parameters (with optional defaults)
+    ExprPtr body;                           // Function body
+    bool delayed;                           // True for `:=`, false for `=`
 
     FunctionDefinition() : name(""), params(), body(nullptr), delayed(true) {}
 
-    FunctionDefinition(const std::string& name, const std::vector<std::string>& params, const ExprPtr& body, bool delayed)
+    FunctionDefinition(const std::string& name, const std::vector<Parameter>& params, const ExprPtr& body, bool delayed)
         : name(name), params(params), body(body), delayed(delayed) {
     }
 };

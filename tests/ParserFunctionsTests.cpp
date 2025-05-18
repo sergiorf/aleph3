@@ -177,3 +177,268 @@ TEST_CASE("Parser handles function definitions with delayed and immediate assign
     expr = parse_expression("f[a_] = a^3 - 1");
     validate_function_definition(expr, "f", { "a" }, false, "Minus");
 }
+
+TEST_CASE("Parser handles log(exp(2))", "[parser][functions]") {
+    auto expr = parse_expression("log[exp[2]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "log");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "exp");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 2.0);
+}
+
+TEST_CASE("Parser handles cos(acos(0.5))", "[parser][functions]") {
+    auto expr = parse_expression("cos[acos[0.5]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "cos");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "acos");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 0.5);
+}
+
+TEST_CASE("Parser handles tan(atan(3))", "[parser][functions]") {
+    auto expr = parse_expression("tan[atan[3]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "tan");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "atan");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 3.0);
+}
+
+TEST_CASE("Parser handles exp(log(7))", "[parser][functions]") {
+    auto expr = parse_expression("exp[log[7]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "exp");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "log");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 7.0);
+}
+
+TEST_CASE("Parser handles asin(sin(0.7))", "[parser][functions]") {
+    auto expr = parse_expression("asin[sin[0.7]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "asin");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "sin");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 0.7);
+}
+
+TEST_CASE("Parser handles acos(cos(1.2))", "[parser][functions]") {
+    auto expr = parse_expression("acos[cos[1.2]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "acos");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "cos");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 1.2);
+}
+
+TEST_CASE("Parser handles atan(tan(-2))", "[parser][functions]") {
+    auto expr = parse_expression("atan[tan[-2]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "atan");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "tan");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == -2.0);
+}
+
+TEST_CASE("Parser handles exp(log(3.5))", "[parser][functions]") {
+    auto expr = parse_expression("exp[log[3.5]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "exp");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "log");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 3.5);
+}
+
+TEST_CASE("Parser handles log10(pow(10, 4))", "[parser][functions]") {
+    auto expr = parse_expression("log10[pow[10, 4]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "log10");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "pow");
+    REQUIRE(inner->args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 10.0);
+    REQUIRE(std::holds_alternative<Number>(*inner->args[1]));
+    REQUIRE(std::get<Number>(*inner->args[1]).value == 4.0);
+}
+
+TEST_CASE("Parser handles pow(sqrt(5), 2)", "[parser][functions]") {
+    auto expr = parse_expression("pow[sqrt[5], 2]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "pow");
+    REQUIRE(outer->args.size() == 2);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "sqrt");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 5.0);
+
+    REQUIRE(std::holds_alternative<Number>(*outer->args[1]));
+    REQUIRE(std::get<Number>(*outer->args[1]).value == 2.0);
+}
+
+TEST_CASE("Parser handles sqrt(pow(8, 2))", "[parser][functions]") {
+    auto expr = parse_expression("sqrt[pow[8, 2]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "sqrt");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "pow");
+    REQUIRE(inner->args.size() == 2);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 8.0);
+    REQUIRE(std::holds_alternative<Number>(*inner->args[1]));
+    REQUIRE(std::get<Number>(*inner->args[1]).value == 2.0);
+}
+
+TEST_CASE("Parser handles abs(abs(-7))", "[parser][functions]") {
+    auto expr = parse_expression("abs[abs[-7]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "abs");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "abs");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == -7.0);
+}
+
+TEST_CASE("Parser handles floor(ceil(3.2))", "[parser][functions]") {
+    auto expr = parse_expression("floor[ceil[3.2]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "floor");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "ceil");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 3.2);
+}
+
+TEST_CASE("Parser handles round(floor(ceil(2.9)))", "[parser][functions]") {
+    auto expr = parse_expression("round[floor[ceil[2.9]]]");
+    REQUIRE(expr != nullptr);
+
+    auto* outer = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(outer != nullptr);
+    REQUIRE(outer->head == "round");
+    REQUIRE(outer->args.size() == 1);
+
+    auto* mid = std::get_if<FunctionCall>(&(*outer->args[0]));
+    REQUIRE(mid != nullptr);
+    REQUIRE(mid->head == "floor");
+    REQUIRE(mid->args.size() == 1);
+
+    auto* inner = std::get_if<FunctionCall>(&(*mid->args[0]));
+    REQUIRE(inner != nullptr);
+    REQUIRE(inner->head == "ceil");
+    REQUIRE(inner->args.size() == 1);
+
+    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
+    REQUIRE(std::get<Number>(*inner->args[0]).value == 2.9);
+}
+

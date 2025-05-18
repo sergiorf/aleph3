@@ -592,3 +592,4 @@ TEST_CASE("Parser handles nested empty lists", "[parser][list]") {
     REQUIRE(l1->args.empty());
     REQUIRE(l2->args.empty());
 }
+

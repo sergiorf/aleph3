@@ -142,6 +142,18 @@ namespace mathix {
 
             throw std::runtime_error("StringTake expects a valid index or range");
             });
+
+        registry.register_function("Length", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() != 1) {
+                throw std::runtime_error("Length expects exactly 1 argument");
+            }
+            auto arg = evaluate(func.args[0], ctx);
+            if (std::holds_alternative<List>(*arg)) {
+                const auto& list = std::get<List>(*arg);
+                return make_expr<Number>(static_cast<double>(list.elements.size()));
+            }
+            throw std::runtime_error("Length expects a list argument");
+            });
     }
 
 } // namespace mathix

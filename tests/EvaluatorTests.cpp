@@ -655,3 +655,123 @@ TEST_CASE("Evaluator handles list operations", "[evaluator][lists]") {
     REQUIRE(get_number_value(list.elements[1]) == 7.0);
     REQUIRE(get_number_value(list.elements[2]) == 9.0);
 }
+
+TEST_CASE("Evaluator handles scalar and list addition (broadcast)", "[evaluator][lists]") {
+    EvaluationContext ctx;
+    auto expr = parse_expression("10 + {1, 2, 3}");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<List>(*result));
+    auto list = std::get<List>(*result);
+    REQUIRE(list.elements.size() == 3);
+    REQUIRE(get_number_value(list.elements[0]) == 11.0);
+    REQUIRE(get_number_value(list.elements[1]) == 12.0);
+    REQUIRE(get_number_value(list.elements[2]) == 13.0);
+
+    expr = parse_expression("{1, 2, 3} + 10");
+    result = evaluate(expr, ctx);
+    list = std::get<List>(*result);
+    REQUIRE(list.elements.size() == 3);
+    REQUIRE(get_number_value(list.elements[0]) == 11.0);
+    REQUIRE(get_number_value(list.elements[1]) == 12.0);
+    REQUIRE(get_number_value(list.elements[2]) == 13.0);
+}
+
+TEST_CASE("Evaluator handles elementwise multiplication of lists", "[evaluator][lists]") {
+    EvaluationContext ctx;
+    auto expr = parse_expression("{1, 2, 3} * {4, 5, 6}");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<List>(*result));
+    auto list = std::get<List>(*result);
+    REQUIRE(list.elements.size() == 3);
+    REQUIRE(get_number_value(list.elements[0]) == 4.0);
+    REQUIRE(get_number_value(list.elements[1]) == 10.0);
+    REQUIRE(get_number_value(list.elements[2]) == 18.0);
+}
+
+TEST_CASE("Evaluator handles scalar and list multiplication (broadcast)", "[evaluator][lists]") {
+    EvaluationContext ctx;
+    auto expr = parse_expression("2 * {4, 5, 6}");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<List>(*result));
+    auto list = std::get<List>(*result);
+    REQUIRE(list.elements.size() == 3);
+    REQUIRE(get_number_value(list.elements[0]) == 8.0);
+    REQUIRE(get_number_value(list.elements[1]) == 10.0);
+    REQUIRE(get_number_value(list.elements[2]) == 12.0);
+
+    expr = parse_expression("{4, 5, 6} * 2");
+    result = evaluate(expr, ctx);
+    list = std::get<List>(*result);
+    REQUIRE(list.elements.size() == 3);
+    REQUIRE(get_number_value(list.elements[0]) == 8.0);
+    REQUIRE(get_number_value(list.elements[1]) == 10.0);
+    REQUIRE(get_number_value(list.elements[2]) == 12.0);
+}
+
+TEST_CASE("Evaluator handles nested lists with elementwise addition", "[evaluator][lists]") {
+    EvaluationContext ctx;
+    auto expr = parse_expression("{{1, 2}, {3, 4}} + {{10, 20}, {30, 40}}");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<List>(*result));
+    auto outer = std::get<List>(*result);
+    REQUIRE(outer.elements.size() == 2);
+
+    auto* inner1 = std::get_if<List>(outer.elements[0].get());
+    auto* inner2 = std::get_if<List>(outer.elements[1].get());
+    REQUIRE(inner1);
+    REQUIRE(inner2);
+
+    REQUIRE(get_number_value(inner1->elements[0]) == 11.0);
+    REQUIRE(get_number_value(inner1->elements[1]) == 22.0);
+    REQUIRE(get_number_value(inner2->elements[0]) == 33.0);
+    REQUIRE(get_number_value(inner2->elements[1]) == 44.0);
+}
+
+TEST_CASE("Evaluator throws on mismatched list sizes", "[evaluator][lists]") {
+    EvaluationContext ctx;
+    auto expr = parse_expression("{1, 2} + {3, 4, 5}");
+    REQUIRE_THROWS_WITH(evaluate(expr, ctx), "List sizes must match for elementwise operation");
+}
+
+TEST_CASE("Evaluator handles lists with symbolic elements", "[evaluator][lists]") {
+    EvaluationContext ctx;
+    auto expr = parse_expression("{x, y, 3} + {1, 2, z}");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<List>(*result));
+    auto list = std::get<List>(*result);
+    REQUIRE(list.elements.size() == 3);
+
+    // x + 1
+    REQUIRE(std::holds_alternative<FunctionCall>(*list.elements[0]));
+    auto f0 = std::get<FunctionCall>(*list.elements[0]);
+    REQUIRE(f0.head == "Plus");
+
+    // y + 2
+    REQUIRE(std::holds_alternative<FunctionCall>(*list.elements[1]));
+    auto f1 = std::get<FunctionCall>(*list.elements[1]);
+    REQUIRE(f1.head == "Plus");
+
+    // 3 + z
+    REQUIRE(std::holds_alternative<FunctionCall>(*list.elements[2]));
+    auto f2 = std::get<FunctionCall>(*list.elements[2]);
+    REQUIRE(f2.head == "Plus");
+}
+
+TEST_CASE("Evaluator handles Length for lists", "[evaluator][lists]") {
+    EvaluationContext ctx;
+    auto expr = parse_expression("Length[{1, 2, 3, 4}]");
+    auto result = evaluate(expr, ctx);
+
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 4.0);
+
+    expr = parse_expression("Length[{}]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 0.0);
+}

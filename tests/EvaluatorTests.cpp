@@ -623,13 +623,11 @@ TEST_CASE("Evaluator handles StringTake", "[evaluator][string]") {
     REQUIRE(std::holds_alternative<String>(*result));
     REQUIRE(std::get<String>(*result).value == "lo");
 
-#if 0 // TODO: needs support for lists first
     // Test StringTake["Hello", {2, 4}]
     expr = parse_expression("StringTake[\"Hello\", {2, 4}]");
     result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<String>(*result));
     REQUIRE(std::get<String>(*result).value == "ell");
-#endif //  0
 
     // Test StringTake["Hello", 0] (invalid index)
     expr = parse_expression("StringTake[\"Hello\", 0]");
@@ -642,4 +640,18 @@ TEST_CASE("Evaluator throws error for invalid StringJoin arguments", "[evaluator
     // Test invalid argument: "Hello" <> 123
     auto expr = parse_expression("\"Hello\" <> 123");
     REQUIRE_THROWS_WITH(evaluate(expr, ctx), "StringJoin expects string arguments");
+}
+
+TEST_CASE("Evaluator handles list operations", "[evaluator][lists]") {
+    EvaluationContext ctx; // Empty context
+    auto expr = parse_expression("{1, 2, 3} + {4, 5, 6}");
+    auto result = evaluate(expr, ctx);
+
+    // Ensure the result is a list: {5, 7, 9}
+    REQUIRE(std::holds_alternative<List>(*result));
+    auto list = std::get<List>(*result);
+    REQUIRE(list.elements.size() == 3);
+    REQUIRE(get_number_value(list.elements[0]) == 5.0);
+    REQUIRE(get_number_value(list.elements[1]) == 7.0);
+    REQUIRE(get_number_value(list.elements[2]) == 9.0);
 }

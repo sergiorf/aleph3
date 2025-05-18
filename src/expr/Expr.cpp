@@ -142,6 +142,16 @@ namespace mathix {
                 return to_string(rule.lhs) + " -> " + to_string(rule.rhs);
             },
 
+            [](const List& list) -> std::string {
+                std::string result = "{";
+                for (size_t i = 0; i < list.elements.size(); ++i) {
+                    result += to_string(list.elements[i]);
+                    if (i + 1 < list.elements.size()) result += ", ";
+                }
+                result += "}";
+                return result;
+            },
+
             }, expr);
     }
 

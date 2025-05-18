@@ -171,6 +171,23 @@ namespace mathix {
         ExprPtr parse_factor() {
             skip_whitespace();
 
+            // Handle lists: { ... }
+            if (match('{')) {
+                std::vector<ExprPtr> elements;
+                skip_whitespace();
+                if (!match('}')) { // Non-empty list
+                    while (true) {
+                        elements.push_back(parse_expression());
+                        skip_whitespace();
+                        if (match('}')) break;
+                        if (!match(',')) {
+                            error("Expected ',' or '}' in list");
+                        }
+                    }
+                }
+                return make_expr<FunctionCall>("List", elements);
+            }
+
             // Handle strings
             if (match('"')) {
                 size_t start = pos;

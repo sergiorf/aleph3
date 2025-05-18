@@ -123,11 +123,11 @@ namespace mathix {
             }
 
             // Case 2: StringTake["Hello", {2, 4}] -> "ell"
-            if (std::holds_alternative<FunctionCall>(*idx_arg)) {
-                const auto& call = std::get<FunctionCall>(*idx_arg);
-                if (call.head == "List" && call.args.size() == 2) {
-                    auto* start_num = std::get_if<Number>(&(*call.args[0]));
-                    auto* end_num = std::get_if<Number>(&(*call.args[1]));
+            if (std::holds_alternative<List>(*idx_arg)) {
+                const auto& list = std::get<List>(*idx_arg);
+                if (list.elements.size() == 2) {
+                    auto* start_num = std::get_if<Number>(&(*list.elements[0]));
+                    auto* end_num = std::get_if<Number>(&(*list.elements[1]));
                     if (start_num && end_num) {
                         int start = static_cast<int>(start_num->value);
                         int end = static_cast<int>(end_num->value);

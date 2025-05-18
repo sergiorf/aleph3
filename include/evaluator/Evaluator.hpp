@@ -22,6 +22,38 @@ ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
 inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
     //std::cout << "Evaluating function: " << func.head << std::endl;
 
+    // Helper for elementwise/broadcasted binary operations
+    auto elementwise = [&ctx](const std::string& op, const ExprPtr& a, const ExprPtr& b) -> ExprPtr {
+        if (std::holds_alternative<List>(*a) && std::holds_alternative<List>(*b)) {
+            const auto& l1 = std::get<List>(*a).elements;
+            const auto& l2 = std::get<List>(*b).elements;
+            if (l1.size() != l2.size())
+                throw std::runtime_error("List sizes must match for elementwise operation");
+            std::vector<ExprPtr> result;
+            for (size_t i = 0; i < l1.size(); ++i) {
+                result.push_back(evaluate(make_fcall(op, { l1[i], l2[i] }), ctx));
+            }
+            return std::make_shared<Expr>(List{ result });
+        }
+        if (std::holds_alternative<List>(*a)) {
+            const auto& l1 = std::get<List>(*a).elements;
+            std::vector<ExprPtr> result;
+            for (const auto& elem : l1) {
+                result.push_back(evaluate(make_fcall(op, { elem, b }), ctx));
+            }
+            return std::make_shared<Expr>(List{ result });
+        }
+        if (std::holds_alternative<List>(*b)) {
+            const auto& l2 = std::get<List>(*b).elements;
+            std::vector<ExprPtr> result;
+            for (const auto& elem : l2) {
+                result.push_back(evaluate(make_fcall(op, { a, elem }), ctx));
+            }
+            return std::make_shared<Expr>(List{ result });
+        }
+        return nullptr;
+    };
+
     static const std::unordered_map<std::string, std::function<double(double)>> unary_functions = {
         {"sin", [](double x) { return std::sin(x); }},
         {"cos", [](double x) { return std::cos(x); }},
@@ -104,111 +136,124 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         return make_expr<Number>(it->second(value));
     }
 
-    // === Binary Built-in with Simplification ===
-    if (name == "Plus" || name == "Times") {
-        double result = (name == "Plus") ? 0 : 1;
-        bool all_numbers = true;
-        std::vector<ExprPtr> simplified;
-
-        for (const auto& arg : func.args) {
-            auto evaluated_arg = evaluate(arg, ctx);
-
-            if (std::holds_alternative<Number>(*evaluated_arg)) {
-                double val = get_number_value(evaluated_arg);
-
-                // Early exit for Times: if any value is 0, whole product is 0
-                if (name == "Times" && val == 0) {
-                    return make_expr<Number>(0);
-                }
-
-                // Skip trivial values: 0 in Plus, 1 in Times
-                if ((name == "Plus" && val == 0) || (name == "Times" && val == 1)) {
-                    continue;
-                }
-
-                result = (name == "Plus") ? result + val : result * val;
+        // === Binary Built-in with Simplification ===
+        if (name == "Plus" || name == "Times") {
+            // Handle elementwise/broadcasted for two arguments
+            if (func.args.size() == 2) {
+                auto left = evaluate(func.args[0], ctx);
+                auto right = evaluate(func.args[1], ctx);
+                auto ew = elementwise(name, left, right);
+                if (ew) return ew;
             }
-            else {
-                all_numbers = false;
-                simplified.push_back(evaluated_arg);
-            }
-        }
 
-        if (all_numbers) {
-            return make_expr<Number>(result);
-        }
+            // Fallback to your existing logic for n-ary Plus/Times
+            double result = (name == "Plus") ? 0 : 1;
+            bool all_numbers = true;
+            std::vector<ExprPtr> simplified;
 
-        // Add numeric part if not trivial
-        if ((name == "Plus" && result != 0) || (name == "Times" && result != 1)) {
-            simplified.insert(simplified.begin(), make_expr<Number>(result));
-        }
+            for (const auto& arg : func.args) {
+                auto evaluated_arg = evaluate(arg, ctx);
 
-        // Handle cases like Plus[] => 0 or Times[] => 1
-        if (simplified.empty()) return make_expr<Number>((name == "Plus") ? 0 : 1);
+                if (std::holds_alternative<Number>(*evaluated_arg)) {
+                    double val = get_number_value(evaluated_arg);
 
-        // Single argument: unwrap it (e.g., Plus[x] => x)
-        if (simplified.size() == 1) return simplified[0];
+                    // Early exit for Times: if any value is 0, whole product is 0
+                    if (name == "Times" && val == 0) {
+                        return make_expr<Number>(0);
+                    }
 
-        return make_expr<FunctionCall>(name, simplified);
-    }
+                    // Skip trivial values: 0 in Plus, 1 in Times
+                    if ((name == "Plus" && val == 0) || (name == "Times" && val == 1)) {
+                        continue;
+                    }
 
-    if (name == "Minus" || name == "Divide" || name == "Pow") {
-        if (func.args.size() != 2) {
-            throw std::runtime_error(name + " expects 2 arguments");
-        }
-
-        // Lazily evaluate the left and right arguments
-        auto left = evaluate(func.args[0], ctx);
-        auto right = evaluate(func.args[1], ctx);
-
-        // Handle fully numeric arguments
-        if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
-            double a = get_number_value(left);
-            double b = get_number_value(right);
-
-            // Handle division by zero
-            if (name == "Divide" && b == 0) {
-                if (a == 0) {
-                    return make_fcall("Indeterminate", {});
-                }
-                else if (a > 0) {
-                    return make_fcall("DirectedInfinity", { make_expr<Number>(1) });
+                    result = (name == "Plus") ? result + val : result * val;
                 }
                 else {
-                    return make_fcall("DirectedInfinity", { make_expr<Number>(-1) });
+                    all_numbers = false;
+                    simplified.push_back(evaluated_arg);
                 }
             }
 
-            return make_expr<Number>(binary_functions.at(name)(a, b));
+            if (all_numbers) {
+                return make_expr<Number>(result);
+            }
+
+            // Add numeric part if not trivial
+            if ((name == "Plus" && result != 0) || (name == "Times" && result != 1)) {
+                simplified.insert(simplified.begin(), make_expr<Number>(result));
+            }
+
+            // Handle cases like Plus[] => 0 or Times[] => 1
+            if (simplified.empty()) return make_expr<Number>((name == "Plus") ? 0 : 1);
+
+            // Single argument: unwrap it (e.g., Plus[x] => x)
+            if (simplified.size() == 1) return simplified[0];
+
+            return make_expr<FunctionCall>(name, simplified);
         }
 
-        // Trivial simplifications for exponentiation
-        if (name == "Pow") {
-            if (is_zero(right)) return make_expr<Number>(1); // x^0 = 1
-            if (is_one(right)) return left;                 // x^1 = x
+        if (name == "Minus" || name == "Divide" || name == "Pow") {
+            if (func.args.size() != 2) {
+                throw std::runtime_error(name + " expects 2 arguments");
+            }
+
+            // Lazily evaluate the left and right arguments
+            auto left = evaluate(func.args[0], ctx);
+            auto right = evaluate(func.args[1], ctx);
+
+            // Handle elementwise/broadcasted
+            auto ew = elementwise(name, left, right);
+            if (ew) return ew;
+
+            // Handle fully numeric arguments
+            if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
+                double a = get_number_value(left);
+                double b = get_number_value(right);
+
+                // Handle division by zero
+                if (name == "Divide" && b == 0) {
+                    if (a == 0) {
+                        return make_fcall("Indeterminate", {});
+                    }
+                    else if (a > 0) {
+                        return make_fcall("DirectedInfinity", { make_expr<Number>(1) });
+                    }
+                    else {
+                        return make_fcall("DirectedInfinity", { make_expr<Number>(-1) });
+                    }
+                }
+
+                return make_expr<Number>(binary_functions.at(name)(a, b));
+            }
+
+            // Trivial simplifications for exponentiation
+            if (name == "Pow") {
+                if (is_zero(right)) return make_expr<Number>(1); // x^0 = 1
+                if (is_one(right)) return left;                 // x^1 = x
+            }
+
+            // Return symbolic form if not fully numeric
+            return make_expr<FunctionCall>(name, std::vector{ left, right });
         }
 
-        // Return symbolic form if not fully numeric
-        return make_expr<FunctionCall>(name, std::vector{ left, right });
-    }
+        // Special case: unary negation
+        if (name == "Negate") {
+            if (func.args.size() != 1) {
+                throw std::runtime_error("Negate expects exactly 1 argument");
+            }
 
-    // Special case: unary negation
-    if (name == "Negate") {
-        if (func.args.size() != 1) {
-            throw std::runtime_error("Negate expects exactly 1 argument");
+            // Lazily evaluate the argument
+            auto arg = evaluate(func.args[0], ctx);
+
+            // If the argument is a number, return the negated value
+            if (std::holds_alternative<Number>(*arg)) {
+                return make_expr<Number>(-get_number_value(arg));
+            }
+
+            // If the argument is symbolic, return a symbolic negation
+            return make_expr<FunctionCall>("Times", std::vector{ make_expr<Number>(-1), arg });
         }
-
-        // Lazily evaluate the argument
-        auto arg = evaluate(func.args[0], ctx);
-
-        // If the argument is a number, return the negated value
-        if (std::holds_alternative<Number>(*arg)) {
-            return make_expr<Number>(-get_number_value(arg));
-        }
-
-        // If the argument is symbolic, return a symbolic negation
-        return make_expr<FunctionCall>("Times", std::vector{ make_expr<Number>(-1), arg });
-    }
 
     // === Comparison Operators ===
     if (auto it = comparison_functions.find(name); it != comparison_functions.end()) {
@@ -289,6 +334,15 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
             return result;
         },
         [&ctx](const FunctionCall& func) -> ExprPtr {
+            // Special case: List
+            if (func.head == "List") {
+                std::vector<ExprPtr> evaluated_elements;
+                for (const auto& arg : func.args) {
+                    evaluated_elements.push_back(evaluate(arg, ctx));
+                }
+                return std::make_shared<Expr>(List{evaluated_elements});
+            }
+
             // Check for user-defined functions
             auto user_it = ctx.user_functions.find(func.head);
             if (user_it != ctx.user_functions.end()) {
@@ -339,13 +393,17 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
             // Evaluate the assigned value and store it in the context
             ctx.variables[assign.name] = evaluate(assign.value, ctx);
 
-            // Return the variable name as feedback (like Mathematica does)
+            // Return the variable name as feedback
             return make_expr<Symbol>(assign.name);
         },
         [&](const Rule& rule) -> ExprPtr {
             auto lhs = evaluate(rule.lhs, ctx, visited);
             auto rhs = evaluate(rule.rhs, ctx, visited);
             return make_expr<Rule>(lhs, rhs);
+        },
+        [](const List& list) -> ExprPtr {
+            // Lists are already evaluated, just return as-is
+            return std::make_shared<Expr>(list);
         },
         }, 
         *expr);

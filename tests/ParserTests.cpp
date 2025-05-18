@@ -516,3 +516,173 @@ TEST_CASE("Parser handles StringJoin and Rule precedence", "[parser][rule][strin
     REQUIRE(rhs != nullptr);
     REQUIRE(rhs->value == "c");
 }
+
+TEST_CASE("Parser handles simple lists", "[parser][list]") {
+    auto expr = parse_expression("{1, 2, 3}");
+    REQUIRE(expr != nullptr);
+
+    auto* list = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(list != nullptr);
+    REQUIRE(list->head == "List");
+    REQUIRE(list->args.size() == 3);
+
+    auto* n1 = std::get_if<Number>(&(*list->args[0]));
+    auto* n2 = std::get_if<Number>(&(*list->args[1]));
+    auto* n3 = std::get_if<Number>(&(*list->args[2]));
+    REQUIRE(n1);
+    REQUIRE(n2);
+    REQUIRE(n3);
+    REQUIRE(n1->value == 1.0);
+    REQUIRE(n2->value == 2.0);
+    REQUIRE(n3->value == 3.0);
+}
+
+TEST_CASE("Parser handles nested lists", "[parser][list]") {
+    auto expr = parse_expression("{1, {2, 3}, 4}");
+    REQUIRE(expr != nullptr);
+
+    auto* list = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(list != nullptr);
+    REQUIRE(list->head == "List");
+    REQUIRE(list->args.size() == 3);
+
+    auto* n1 = std::get_if<Number>(&(*list->args[0]));
+    REQUIRE(n1);
+    REQUIRE(n1->value == 1.0);
+
+    auto* inner_list = std::get_if<FunctionCall>(&(*list->args[1]));
+    REQUIRE(inner_list != nullptr);
+    REQUIRE(inner_list->head == "List");
+    REQUIRE(inner_list->args.size() == 2);
+
+    auto* n2 = std::get_if<Number>(&(*inner_list->args[0]));
+    auto* n3 = std::get_if<Number>(&(*inner_list->args[1]));
+    REQUIRE(n2);
+    REQUIRE(n2->value == 2.0);
+    REQUIRE(n3);
+    REQUIRE(n3->value == 3.0);
+
+    auto* n4 = std::get_if<Number>(&(*list->args[2]));
+    REQUIRE(n4);
+    REQUIRE(n4->value == 4.0);
+}
+
+TEST_CASE("Parser handles lists as function arguments", "[parser][list]") {
+    auto expr = parse_expression("f[{1, 2}, 3]");
+    REQUIRE(expr != nullptr);
+
+    auto* func = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(func != nullptr);
+    REQUIRE(func->head == "f");
+    REQUIRE(func->args.size() == 2);
+
+    auto* list = std::get_if<FunctionCall>(&(*func->args[0]));
+    REQUIRE(list != nullptr);
+    REQUIRE(list->head == "List");
+    REQUIRE(list->args.size() == 2);
+
+    auto* n1 = std::get_if<Number>(&(*list->args[0]));
+    auto* n2 = std::get_if<Number>(&(*list->args[1]));
+    REQUIRE(n1);
+    REQUIRE(n1->value == 1.0);
+    REQUIRE(n2);
+    REQUIRE(n2->value == 2.0);
+
+    auto* n3 = std::get_if<Number>(&(*func->args[1]));
+    REQUIRE(n3);
+    REQUIRE(n3->value == 3.0);
+}
+
+TEST_CASE("Parser handles empty lists", "[parser][list]") {
+    auto expr = parse_expression("{}");
+    REQUIRE(expr != nullptr);
+
+    auto* list = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(list != nullptr);
+    REQUIRE(list->head == "List");
+    REQUIRE(list->args.empty());
+}
+
+TEST_CASE("Parser handles lists with mixed types", "[parser][list]") {
+    auto expr = parse_expression("{1, \"hello\", True, x}");
+    REQUIRE(expr != nullptr);
+
+    auto* list = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(list != nullptr);
+    REQUIRE(list->head == "List");
+    REQUIRE(list->args.size() == 4);
+
+    REQUIRE(std::holds_alternative<Number>(*list->args[0]));
+    REQUIRE(std::get<Number>(*list->args[0]).value == 1.0);
+
+    REQUIRE(std::holds_alternative<String>(*list->args[1]));
+    REQUIRE(std::get<String>(*list->args[1]).value == "hello");
+
+    REQUIRE(std::holds_alternative<Boolean>(*list->args[2]));
+    REQUIRE(std::get<Boolean>(*list->args[2]).value == true);
+
+    REQUIRE(std::holds_alternative<Symbol>(*list->args[3]));
+    REQUIRE(std::get<Symbol>(*list->args[3]).name == "x");
+}
+
+TEST_CASE("Parser handles lists with expressions", "[parser][list]") {
+    auto expr = parse_expression("{1+2, x^2, f[3]}");
+    REQUIRE(expr != nullptr);
+
+    auto* list = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(list != nullptr);
+    REQUIRE(list->head == "List");
+    REQUIRE(list->args.size() == 3);
+
+    // 1+2
+    REQUIRE(std::holds_alternative<FunctionCall>(*list->args[0]));
+    auto plus = std::get<FunctionCall>(*list->args[0]);
+    REQUIRE(plus.head == "Plus");
+
+    // x^2
+    REQUIRE(std::holds_alternative<FunctionCall>(*list->args[1]));
+    auto pow = std::get<FunctionCall>(*list->args[1]);
+    REQUIRE(pow.head == "Pow");
+
+    // f[3]
+    REQUIRE(std::holds_alternative<FunctionCall>(*list->args[2]));
+    auto fcall = std::get<FunctionCall>(*list->args[2]);
+    REQUIRE(fcall.head == "f");
+    REQUIRE(fcall.args.size() == 1);
+    REQUIRE(std::holds_alternative<Number>(*fcall.args[0]));
+    REQUIRE(std::get<Number>(*fcall.args[0]).value == 3.0);
+}
+
+TEST_CASE("Parser handles lists as arguments to built-in functions", "[parser][list]") {
+    auto expr = parse_expression("Length[{1, 2, 3}]");
+    REQUIRE(expr != nullptr);
+
+    auto* func = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(func != nullptr);
+    REQUIRE(func->head == "Length");
+    REQUIRE(func->args.size() == 1);
+
+    auto* list = std::get_if<FunctionCall>(&(*func->args[0]));
+    REQUIRE(list != nullptr);
+    REQUIRE(list->head == "List");
+    REQUIRE(list->args.size() == 3);
+}
+
+TEST_CASE("Parser handles nested empty lists", "[parser][list]") {
+    auto expr = parse_expression("{{}, {}}");
+    REQUIRE(expr != nullptr);
+
+    auto* list = std::get_if<FunctionCall>(&(*expr));
+    REQUIRE(list != nullptr);
+    REQUIRE(list->head == "List");
+    REQUIRE(list->args.size() == 2);
+
+    auto* l1 = std::get_if<FunctionCall>(&(*list->args[0]));
+    auto* l2 = std::get_if<FunctionCall>(&(*list->args[1]));
+    REQUIRE(l1 != nullptr);
+    REQUIRE(l2 != nullptr);
+    REQUIRE(l1->head == "List");
+    REQUIRE(l2->head == "List");
+    REQUIRE(l1->args.empty());
+    REQUIRE(l2->args.empty());
+}

@@ -17,9 +17,10 @@ struct FunctionCall;
 struct FunctionDefinition;
 struct Assignment;
 struct Rule;
+struct List;
 
 // Core Expression type: variant of all expression types
-using Expr = std::variant < Symbol, Number, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule > ;
+using Expr = std::variant < Symbol, Number, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List > ;
 
 // Smart pointer to expressions
 using ExprPtr = std::shared_ptr<Expr>;
@@ -55,6 +56,10 @@ struct Boolean {
     bool value;
 
     Boolean(bool v) : value(v) {}
+};
+
+struct List {
+    std::vector<ExprPtr> elements;
 };
 
 struct FunctionCall {

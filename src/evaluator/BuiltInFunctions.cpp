@@ -1,9 +1,49 @@
 #include "evaluator/FunctionRegistry.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "expr/ExprUtils.hpp"
+#include "Constants.hpp"
 #include <cmath>
 
 namespace mathix {
+
+    // Helper for numeric evaluation of constants and expressions
+    inline ExprPtr numeric_eval(const ExprPtr& expr) {
+        return std::visit(overloaded{
+            [](const Number& num) -> ExprPtr { return make_expr<Number>(num.value); },
+            [](const Boolean& boolean) -> ExprPtr { return make_expr<Boolean>(boolean.value); },
+            [](const String& str) -> ExprPtr { return make_expr<String>(str.value); },
+            [](const Symbol& sym) -> ExprPtr {
+                if (sym.name == "Pi") return make_expr<Number>(PI);
+                if (sym.name == "E") return make_expr<Number>(E);
+                if (sym.name == "Degree") return make_expr<Number>(PI / 180.0);
+                // Add more constants as needed
+                return make_expr<Symbol>(sym.name);
+            },
+            [](const List& list) -> ExprPtr {
+                std::vector<ExprPtr> evaluated;
+                for (const auto& elem : list.elements) {
+                    evaluated.push_back(numeric_eval(elem));
+                }
+                return std::make_shared<Expr>(List{evaluated});
+            },
+            [](const FunctionDefinition& def) -> ExprPtr {
+                return make_expr<FunctionDefinition>(def.name, def.params, def.body, def.delayed);
+            },
+            [](const Assignment& assign) -> ExprPtr {
+                return make_expr<Assignment>(assign.name, assign.value);
+            },
+            [](const Rule& rule) -> ExprPtr {
+                return make_expr<Rule>(numeric_eval(rule.lhs), numeric_eval(rule.rhs));
+            },
+            [](const FunctionCall& func) -> ExprPtr {
+                std::vector<ExprPtr> evaluated_args;
+                for (const auto& arg : func.args) {
+                    evaluated_args.push_back(numeric_eval(arg));
+                }
+                return make_expr<FunctionCall>(func.head, evaluated_args);
+            }
+            }, *expr);
+    }
 
     void register_built_in_functions() {
         auto& registry = FunctionRegistry::instance();
@@ -153,6 +193,15 @@ namespace mathix {
                 return make_expr<Number>(static_cast<double>(list.elements.size()));
             }
             throw std::runtime_error("Length expects a list argument");
+            });
+
+        registry.register_function("N", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() != 1) {
+                throw std::runtime_error("N expects exactly 1 argument");
+            }
+            auto arg = evaluate(func.args[0], ctx);
+            auto num_arg = numeric_eval(arg);
+            return evaluate(num_arg, ctx);
             });
     }
 

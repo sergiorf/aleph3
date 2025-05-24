@@ -227,7 +227,7 @@ void check_symbolic_eval(const std::string& expr_str, const std::string& expecte
     REQUIRE(std::get<FunctionCall>(*result).head == expected_head);
 }
 
-TEST_CASE("Evaluator: numeric and symbolic evaluation (Mathematica-like)", "[evaluator][functions][builtins]") {
+TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][builtins]") {
     struct NumericCase {
         std::string expr;
         double expected;
@@ -241,7 +241,70 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation (Mathematica-like)", "[eva
 
     // Numeric cases: argument is numeric or a known constant, so result is numeric
     std::vector<NumericCase> numeric_cases = {
-        // N forces numeric evaluation, even for symbolic input
+        // Abs
+        {"Abs[0]", 0.0, "Abs[0] is 0."},
+        {"Abs[3.5]", 3.5, "Abs[3.5] is 3.5."},
+        {"Abs[-1]", 1.0, "Abs[-1] is 1."},
+        {"Abs[-3.5]", 3.5, "Abs[-3.5] is 3.5."},
+        {"Abs[-5]", 5.0, "Abs[-5] is 5.0."},
+
+        // ArcCos
+        {"ArcCos[0]", PI / 2, "ArcCos[0] is Pi/2."},
+        {"ArcCos[1]", 0.0, "ArcCos[1] is 0.0."},
+
+        // ArcSin
+        {"ArcSin[0]", 0.0, "ArcSin[0] is 0.0."},
+        {"ArcSin[1]", PI / 2, "ArcSin[1] is Pi/2."},
+
+        // ArcTan
+        {"ArcTan[0]", 0.0, "ArcTan[0] is 0.0."},
+        {"ArcTan[1]", PI / 4, "ArcTan[1] is Pi/4."},
+        {"ArcTan[-1]", -PI / 4, "ArcTan[-1] is -Pi/4."},
+        {"ArcTan[1, 1]", PI / 4, "ArcTan[1,1] is Pi/4."},
+
+        // Ceiling
+        {"Ceiling[2.1]", 3.0, "Ceiling[2.1] is 3.0."},
+
+        // Cos
+        {"Cos[0]", 1.0, "Cos[0] is 1.0."},
+        {"Cos[Pi]", -1.0, "Cos[Pi] is -1.0."},
+        {"Cos[2*Pi]", 1.0, "Cos[2*Pi] is 1.0."},
+        {"Cos[Pi/2]", 0.0, "Cos[Pi/2] is 0.0."},
+        {"Cos[Pi/4]", std::sqrt(2.0) / 2.0, "Cos[Pi/4] is sqrt(2)/2."},
+        {"Cos[-Pi]", -1.0, "Cos[-Pi] is -1.0."},
+
+        // Cosh
+        {"Cosh[0]", 1.0, "Cosh[0] is 1.0."},
+        {"Cosh[1]", std::cosh(1.0), "Cosh[1] is cosh(1)."},
+
+        // Cot
+        {"Cot[1]", 1.0 / std::tan(1.0), "Cot[1] is numeric."},
+        {"Cot[Pi/4]", 1.0, "Cot[Pi/4] is 1.0."},
+        {"Cot[-Pi/4]", -1.0, "Cot[-Pi/4] is -1.0."},
+
+        // Csc
+        {"Csc[Pi/2]", 1.0, "Csc[Pi/2] is 1.0."},
+
+        // Degree
+        {"Degree", PI / 180.0, "Degree is Pi/180."},
+
+        // Exp
+        {"Exp[0]", 1.0, "Exp[0] is 1.0."},
+        {"Exp[1]", E, "Exp[1] is E."},
+
+        // Floor
+        {"Floor[2.7]", 2.0, "Floor[2.7] is 2.0."},
+
+        // Gamma
+        {"Gamma[6]", 120.0, "Gamma[6] = 5! = 120."},
+
+        // Log
+        {"Log[1]", 0.0, "Log[1] is 0.0."},
+        {"Log[E]", 1.0, "Log[E] is 1.0."},
+        {"Log[10, 100]", 2.0, "Log base 10 of 100 is 2."},
+        {"Log[10, 1000]", 3.0, "Log base 10 of 1000 is 3."},
+
+        // N (numeric evaluation)
         {"N[Pi]", PI, "N[Pi] evaluates Pi to its numeric value."},
         {"N[E]", E, "N[E] evaluates E to its numeric value."},
         {"N[Degree]", PI / 180.0, "N[Degree] evaluates Degree to its numeric value."},
@@ -249,41 +312,58 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation (Mathematica-like)", "[eva
         {"N[Cos[0]]", 1.0, "Cos[0] is a known value, N returns 1.0."},
         {"N[Csc[Pi/2]]", 1.0, "Csc[Pi/2] is a known value, N returns 1.0."},
         {"N[Sec[0]]", 1.0, "Sec[0] is a known value, N returns 1.0."},
-        {"N[Cot[Pi/4]]", 1.0, "Cot[Pi/4] is a known value, N returns 1.0 (floating-point)."},
+        {"N[Cot[Pi/4]]", 1.0, "Cot[Pi/4] is a known value, N returns 1.0."},
         {"N[Exp[1]]", E, "Exp[1] is a known value, N returns E."},
         {"N[Log[E]]", 1.0, "Log[E] is a known value, N returns 1.0."},
-        // N on numeric input: always numeric
         {"N[Sin[1]]", std::sin(1.0), "Sin[1] is not a known symbolic value, N returns numeric result."},
         {"N[Cot[1]]", 1.0 / std::tan(1.0), "Cot[1] is not a known symbolic value, N returns numeric result."},
         {"N[ArcSin[0.5]]", std::asin(0.5), "ArcSin[0.5] is numeric, N returns numeric result."},
         {"N[ArcCos[0.5]]", std::acos(0.5), "ArcCos[0.5] is numeric, N returns numeric result."},
         {"N[ArcTan[1, 1]]", std::atan2(1.0, 1.0), "ArcTan[1,1] is numeric, N returns numeric result."},
-        // Built-in functions with numeric arguments (no N needed)
-        {"Csc[Pi/2]", 1.0, "Csc[Pi/2] is a known value, returns 1.0."},
-        {"Sin[0]", 0.0, "Sin[0] is a known value, returns 0.0."},
-        {"Cos[0]", 1.0, "Cos[0] is a known value, returns 1.0."},
-        {"Tan[0]", 0.0, "Tan[0] is a known value, returns 0.0."},
-        {"ArcSin[1]", PI / 2, "ArcSin[1] is a known value, returns Pi/2."},
-        {"ArcCos[1]", 0.0, "ArcCos[1] is a known value, returns 0.0."},
-        {"ArcTan[1]", PI / 4, "ArcTan[1] is a known value, returns Pi/4."},
-        {"ArcTan[1, 1]", PI / 4, "ArcTan[1,1] is a known value, returns Pi/4."},
-        {"Sinh[0]", 0.0, "Sinh[0] is a known value, returns 0.0."},
-        {"Cosh[0]", 1.0, "Cosh[0] is a known value, returns 1.0."},
-        {"Tanh[0]", 0.0, "Tanh[0] is a known value, returns 0.0."},
-        {"Sec[0]", 1.0, "Sec[0] is a known value, returns 1.0."},
-        {"Cot[1]", 1.0 / std::tan(1.0), "Cot[1] is numeric, returns numeric result."},
-        {"Abs[-5]", 5.0, "Abs[-5] is numeric, returns 5.0."},
-        {"Sqrt[9]", 3.0, "Sqrt[9] is numeric, returns 3.0."},
-        {"Log[1]", 0.0, "Log[1] is numeric, returns 0.0."},
-        {"Log[10, 100]", 2.0, "Log base 10 of 100 is 2."},
-        {"Log[10, 1000]", 3.0, "Log base 10 of 1000 is 3."},
-        {"Exp[0]", 1.0, "Exp[0] is numeric, returns 1.0."},
-        {"Floor[2.7]", 2.0, "Floor[2.7] is numeric, returns 2.0."},
-        {"Ceiling[2.1]", 3.0, "Ceiling[2.1] is numeric, returns 3.0."},
-        {"Round[2.6]", 3.0, "Round[2.6] is numeric, returns 3.0."},
+
+        // Pi
+        {"Pi", PI, "Pi is Pi."},
+
+        // Power
         {"Power[2, 3]", 8.0, "2^3 is 8."},
         {"Power[2, 5]", 32.0, "2^5 is 32."},
-        {"Gamma[6]", 120.0, "Gamma[6] = 5! = 120."}
+        {"Power[4, 0.5]", 2.0, "4^0.5 is 2."},
+        {"Power[9, 0.5]", 3.0, "9^0.5 is 3."},
+        {"Power[27, 1.0/3.0]", 3.0, "27^(1/3) is 3."},
+
+        // Round
+        {"Round[2.6]", 3.0, "Round[2.6] is 3.0."},
+
+        // Sec
+        {"Sec[0]", 1.0, "Sec[0] is 1.0."},
+
+        // Sin
+        {"Sin[0]", 0.0, "Sin[0] is 0.0."},
+        {"Sin[Pi]", 0.0, "Sin[Pi] is 0.0."},
+        {"Sin[2*Pi]", 0.0, "Sin[2*Pi] is 0.0."},
+        {"Sin[Pi/2]", 1.0, "Sin[Pi/2] is 1.0."},
+        {"Sin[Pi/4]", std::sqrt(2.0) / 2.0, "Sin[Pi/4] is sqrt(2)/2."},
+        {"Sin[-Pi/2]", -1.0, "Sin[-Pi/2] is -1.0."},
+
+        // Sinh
+        {"Sinh[0]", 0.0, "Sinh[0] is 0.0."},
+        {"Sinh[1]", std::sinh(1.0), "Sinh[1] is sinh(1)."},
+
+        // Sqrt
+        {"Sqrt[0]", 0.0, "Sqrt[0] is 0.0."},
+        {"Sqrt[1]", 1.0, "Sqrt[1] is 1.0."},
+        {"Sqrt[4]", 2.0, "Sqrt[4] is 2.0."},
+        {"Sqrt[9]", 3.0, "Sqrt[9] is 3.0."},
+
+        // Tanh
+        {"Tanh[0]", 0.0, "Tanh[0] is 0.0."},
+        {"Tanh[1]", std::tanh(1.0), "Tanh[1] is tanh(1)."},
+
+        // Tan
+        {"Tan[0]", 0.0, "Tan[0] is 0.0."},
+        {"Tan[Pi]", 0.0, "Tan[Pi] is 0.0."},
+        {"Tan[Pi/4]", 1.0, "Tan[Pi/4] is 1.0."},
+        {"Tan[Pi/6]", std::tan(PI / 6), "Tan[Pi/6] is sqrt(3)/3."}
     };
 
     // Symbolic cases: argument is symbolic or out of domain, so result is symbolic

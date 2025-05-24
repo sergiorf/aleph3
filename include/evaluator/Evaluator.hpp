@@ -8,6 +8,7 @@
 #include "expr/ExprUtils.hpp"
 #include "transforms/Transforms.hpp"
 #include "ExtraMath.hpp"
+#include "Constants.hpp"
 
 #include <stdexcept>
 #include <cmath>
@@ -19,6 +20,25 @@
 namespace mathix {
 
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
+
+inline std::string expr_to_key(const ExprPtr& expr) {
+    if (std::holds_alternative<Number>(*expr)) {
+        double val = std::get<Number>(*expr).value;
+        if (val == 0.0) return "0";
+        if (val == PI) return "Pi";
+        return std::to_string(val);
+    }
+    if (std::holds_alternative<Symbol>(*expr)) {
+        return std::get<Symbol>(*expr).name;
+    }
+    if (std::holds_alternative<FunctionCall>(*expr)) {
+        const auto& call = std::get<FunctionCall>(*expr);
+        if (call.head == "Divide" && call.args.size() == 2) {
+            return expr_to_key(call.args[0]) + "/" + expr_to_key(call.args[1]);
+        }
+    }
+    return ""; // Not a known key
+}
 
 inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
     const std::string& name = func.head;
@@ -98,6 +118,52 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         {"GreaterEqual",  [](double a, double b) { return a >= b; }}
     };
 
+    static const std::unordered_map<std::string, std::unordered_map<std::string, double>> known_symbolic_unary = {
+        {"Sin", {
+            {"0", 0.0},
+            {"Pi", 0.0},
+            {"2*Pi", 0.0},
+            {"-Pi", 0.0},
+            {"Pi/2", 1.0},
+            {"-Pi/2", -1.0},
+            {"Pi/4", std::sqrt(2.0) / 2.0},
+            {"-Pi/4", -std::sqrt(2.0) / 2.0},
+            {"3*Pi/2", -1.0},
+            {"-3*Pi/2", 1.0}
+        }},
+        {"Cos", {
+            {"0", 1.0},
+            {"Pi", -1.0},
+            {"2*Pi", 1.0},
+            {"-Pi", -1.0},
+            {"Pi/2", 0.0},
+            {"-Pi/2", 0.0},
+            {"Pi/4", std::sqrt(2.0) / 2.0},
+            {"-Pi/4", std::sqrt(2.0) / 2.0},
+            {"3*Pi/2", 0.0},
+            {"-3*Pi/2", 0.0}
+        }},
+        {"Tan", {
+            {"0", 0.0},
+            {"Pi", 0.0},
+            {"2*Pi", 0.0},
+            {"-Pi", 0.0},
+            {"Pi/4", 1.0},
+            {"-Pi/4", -1.0},
+            {"Pi/6", std::tan(PI / 6)},
+            {"-Pi/6", std::tan(-PI / 6)},
+            {"Pi/3", std::tan(PI / 3)},
+            {"-Pi/3", std::tan(-PI / 3)}
+        }},
+        {"Sinc", {
+            {"0", 1.0},
+            {"Pi", std::sin(PI) / PI},
+            {"-Pi", std::sin(-PI) / -PI},
+            {"2*Pi", std::sin(2 * PI) / (2 * PI)},
+            {"-2*Pi", std::sin(-2 * PI) / (-2 * PI)}
+        }}
+    };
+
     // 4. Elementwise/broadcasted binary operations
     auto elementwise = [&ctx](const std::string& op, const ExprPtr& a, const ExprPtr& b) -> ExprPtr {
         if (std::holds_alternative<List>(*a) && std::holds_alternative<List>(*b)) {
@@ -134,8 +200,26 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
     if (nargs == 1) {
         auto it = unary_functions.find(name);
         if (it != unary_functions.end()) {
-            double arg = get_number_value(evaluate(func.args[0], ctx));
-            return make_expr<Number>(it->second(arg));
+            auto arg_eval = evaluate(func.args[0], ctx);
+
+            // 1. Check for known symbolic values
+            auto known_func = known_symbolic_unary.find(name);
+            if (known_func != known_symbolic_unary.end()) {
+                std::string key = expr_to_key(arg_eval);
+                auto val_it = known_func->second.find(key);
+                if (val_it != known_func->second.end()) {
+                    return make_expr<Number>(val_it->second);
+                }
+            }
+
+            // 2. Numeric evaluation
+            if (std::holds_alternative<Number>(*arg_eval)) {
+                double arg = get_number_value(arg_eval);
+                return make_expr<Number>(it->second(arg));
+            }
+
+            // 3. Fallback: symbolic
+            return make_fcall(name, { arg_eval });
         }
     }
 

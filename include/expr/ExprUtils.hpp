@@ -94,7 +94,7 @@ namespace mathix {
     }
 
     inline ExprPtr make_pow(const ExprPtr& base, int exponent) {
-        return make_expr<FunctionCall>("Pow", std::vector<ExprPtr>{
+        return make_expr<FunctionCall>("Power", std::vector<ExprPtr>{
             base, make_expr<Number>((double)exponent)
         });
     }

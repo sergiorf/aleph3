@@ -548,7 +548,7 @@ TEST_CASE("Parser handles lists with expressions", "[parser][list]") {
     // x^2
     REQUIRE(std::holds_alternative<FunctionCall>(*list->args[1]));
     auto pow = std::get<FunctionCall>(*list->args[1]);
-    REQUIRE(pow.head == "Pow");
+    REQUIRE(pow.head == "Power");
 
     // f[3]
     REQUIRE(std::holds_alternative<FunctionCall>(*list->args[2]));
@@ -593,3 +593,16 @@ TEST_CASE("Parser handles nested empty lists", "[parser][list]") {
     REQUIRE(l2->args.empty());
 }
 
+TEST_CASE("Parser parses mathix constants as symbols", "[parser][constants]") {
+    std::vector<std::string> constants = {
+        "Pi", "E", "Degree", "GoldenRatio", "Catalan", "EulerGamma", "Infinity"
+    };
+
+    for (const auto& name : constants) {
+        CAPTURE(name);
+        auto expr = parse_expression(name);
+        REQUIRE(expr != nullptr);
+        REQUIRE(std::holds_alternative<Symbol>(*expr));
+        REQUIRE(std::get<Symbol>(*expr).name == name);
+    }
+}

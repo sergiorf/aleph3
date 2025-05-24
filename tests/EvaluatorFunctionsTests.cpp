@@ -26,10 +26,10 @@ TEST_CASE("User-defined functions are parsed and evaluated correctly", "[evaluat
 
     SECTION("Function using multiple variables") {
         // Define function add[a_, b_] := a + b
-        auto def_expr = parse_expression("add[a_, b_] := a + b");
+        auto def_expr = parse_expression("Add[a_, b_] := a + b");
         evaluate(def_expr, ctx);
 
-        auto call_expr = parse_expression("add[2, 5]");
+        auto call_expr = parse_expression("Add[2, 5]");
         auto result = evaluate(call_expr, ctx);
         REQUIRE(get_number_value(result) == 7.0);
     }
@@ -131,7 +131,7 @@ TEST_CASE("Evaluator handles immediate function definitions with x assigned firs
     auto func_def = make_fdef(
         "f", { "a" },
         make_fcall("Minus", {
-            make_fcall("Pow", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
+            make_fcall("Power", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
             make_expr<Symbol>("x")
             }),
         false // Immediate assignment
@@ -163,7 +163,7 @@ TEST_CASE("Evaluator handles delayed function definitions", "[evaluator][functio
     auto func_def = make_fdef(
         "f", { "a" },
         make_fcall("Minus", {
-            make_fcall("Pow", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
+            make_fcall("Power", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
             make_expr<Symbol>("x")
             }),
         true // Delayed assignment
@@ -194,64 +194,118 @@ TEST_CASE("Evaluator handles delayed function definitions", "[evaluator][functio
 
 void check_builtin_eval(const std::string& expr_str, double expected, double tol = 1e-12) {
     EvaluationContext ctx;
-    auto expr = parse_expression(expr_str);
-    auto result = evaluate(expr, ctx);
+    try {
+        auto expr = parse_expression(expr_str);
+        auto result = evaluate(expr, ctx);
 
-    // Check that result is a Number
-    if (!std::holds_alternative<Number>(*result)) {
-        CAPTURE(expr_str);
-        FAIL("Result is not a Number, got: " << result->index());
+        // Check that result is a Number
+        if (!std::holds_alternative<Number>(*result)) {
+            CAPTURE(expr_str);
+            FAIL("Result is not a Number, got: " << result->index());
+        }
+
+        double actual = get_number_value(result);
+        CAPTURE(expr_str, expected, actual);
+        REQUIRE(std::abs(actual - expected) < tol);
     }
-
-    double actual = get_number_value(result);
-    CAPTURE(expr_str, expected, actual);
-    REQUIRE(std::abs(actual - expected) < tol);
+    catch (const std::exception& ex) {
+        CAPTURE(expr_str, expected);
+        FAIL("Exception thrown: " << ex.what());
+    }
+    catch (...) {
+        CAPTURE(expr_str, expected);
+        FAIL("Unknown exception thrown.");
+    }
 }
 
-TEST_CASE("Evaluator computes built-in functions on numeric input", "[evaluator][builtins]") {
-    struct TestCase {
+// Helper to check symbolic result (expression remains unevaluated)
+void check_symbolic_eval(const std::string& expr_str, const std::string& expected_head) {
+    EvaluationContext ctx;
+    auto expr = parse_expression(expr_str);
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    REQUIRE(std::get<FunctionCall>(*result).head == expected_head);
+}
+
+TEST_CASE("Evaluator: numeric and symbolic evaluation (Mathematica-like)", "[evaluator][functions][builtins]") {
+    struct NumericCase {
         std::string expr;
         double expected;
+        const char* explanation;
+    };
+    struct SymbolicCase {
+        std::string expr;
+        std::string expected_head;
+        const char* explanation;
     };
 
-    std::vector<TestCase> cases = {
-        {"sin[0]", 0.0},
-        {"asin[1]", PI / 2},
-        {"cos[0]", 1.0},
-        {"acos[1]", 0.0},
-        {"tan[0]", 0.0},
-        {"atan[1]", PI / 4},
-        {"abs[-5]", 5.0},
-        {"sqrt[9]", 3.0},
-        {"log[1]", 0.0},
-        {"exp[0]", 1.0},
-        {"floor[2.7]", 2.0},
-        {"ceil[2.1]", 3.0},
-        {"round[2.6]", 3.0},
-        {"pow[2, 3]", 8.0 },
-        {"log10[1000]", 3.0},
-        {"sinh[0]", 0.0},
-        {"cosh[0]", 1.0},
-        {"tanh[0]", 0.0},
-        {"sec[0]", 1.0},
-        {"csc[Pi/2]", 1.0},
-        {"cot[1]", 1.0 / std::tan(1.0)},
-        {"gamma[6]", 120.0}, // 5! = 120
-        {"atan2[1, 1]", PI / 4},
-        {"pow[2, 5]", 32.0},
-        {"log10[100]", 2.0},
-        {"sinh[0]", 0.0},
-        {"cosh[0]", 1.0},
-        {"tanh[0]", 0.0},
-        {"sec[0]", 1.0},
-        {"csc[Pi/2]", 1.0}, // csc(pi/2)
-        {"cot[1]", 1.0 / std::tan(1.0)},
-        {"gamma[6]", 120.0}, // 5! = 120
-        {"atan2[1, 1]", PI / 4}
+    // Numeric cases: argument is numeric or a known constant, so result is numeric
+    std::vector<NumericCase> numeric_cases = {
+        // N forces numeric evaluation, even for symbolic input
+        {"N[Pi]", PI, "N[Pi] evaluates Pi to its numeric value."},
+        {"N[E]", E, "N[E] evaluates E to its numeric value."},
+        {"N[Degree]", PI / 180.0, "N[Degree] evaluates Degree to its numeric value."},
+        {"N[Sin[Pi/2]]", 1.0, "Sin[Pi/2] is a known value, N returns 1.0."},
+        {"N[Cos[0]]", 1.0, "Cos[0] is a known value, N returns 1.0."},
+        {"N[Csc[Pi/2]]", 1.0, "Csc[Pi/2] is a known value, N returns 1.0."},
+        {"N[Sec[0]]", 1.0, "Sec[0] is a known value, N returns 1.0."},
+        {"N[Cot[Pi/4]]", 1.0, "Cot[Pi/4] is a known value, N returns 1.0 (floating-point)."},
+        {"N[Exp[1]]", E, "Exp[1] is a known value, N returns E."},
+        {"N[Log[E]]", 1.0, "Log[E] is a known value, N returns 1.0."},
+        // N on numeric input: always numeric
+        {"N[Sin[1]]", std::sin(1.0), "Sin[1] is not a known symbolic value, N returns numeric result."},
+        {"N[Cot[1]]", 1.0 / std::tan(1.0), "Cot[1] is not a known symbolic value, N returns numeric result."},
+        {"N[ArcSin[0.5]]", std::asin(0.5), "ArcSin[0.5] is numeric, N returns numeric result."},
+        {"N[ArcCos[0.5]]", std::acos(0.5), "ArcCos[0.5] is numeric, N returns numeric result."},
+        {"N[ArcTan[1, 1]]", std::atan2(1.0, 1.0), "ArcTan[1,1] is numeric, N returns numeric result."},
+        // Built-in functions with numeric arguments (no N needed)
+        {"Csc[Pi/2]", 1.0, "Csc[Pi/2] is a known value, returns 1.0."},
+        {"Sin[0]", 0.0, "Sin[0] is a known value, returns 0.0."},
+        {"Cos[0]", 1.0, "Cos[0] is a known value, returns 1.0."},
+        {"Tan[0]", 0.0, "Tan[0] is a known value, returns 0.0."},
+        {"ArcSin[1]", PI / 2, "ArcSin[1] is a known value, returns Pi/2."},
+        {"ArcCos[1]", 0.0, "ArcCos[1] is a known value, returns 0.0."},
+        {"ArcTan[1]", PI / 4, "ArcTan[1] is a known value, returns Pi/4."},
+        {"ArcTan[1, 1]", PI / 4, "ArcTan[1,1] is a known value, returns Pi/4."},
+        {"Sinh[0]", 0.0, "Sinh[0] is a known value, returns 0.0."},
+        {"Cosh[0]", 1.0, "Cosh[0] is a known value, returns 1.0."},
+        {"Tanh[0]", 0.0, "Tanh[0] is a known value, returns 0.0."},
+        {"Sec[0]", 1.0, "Sec[0] is a known value, returns 1.0."},
+        {"Cot[1]", 1.0 / std::tan(1.0), "Cot[1] is numeric, returns numeric result."},
+        {"Abs[-5]", 5.0, "Abs[-5] is numeric, returns 5.0."},
+        {"Sqrt[9]", 3.0, "Sqrt[9] is numeric, returns 3.0."},
+        {"Log[1]", 0.0, "Log[1] is numeric, returns 0.0."},
+        {"Log[10, 100]", 2.0, "Log base 10 of 100 is 2."},
+        {"Log[10, 1000]", 3.0, "Log base 10 of 1000 is 3."},
+        {"Exp[0]", 1.0, "Exp[0] is numeric, returns 1.0."},
+        {"Floor[2.7]", 2.0, "Floor[2.7] is numeric, returns 2.0."},
+        {"Ceiling[2.1]", 3.0, "Ceiling[2.1] is numeric, returns 3.0."},
+        {"Round[2.6]", 3.0, "Round[2.6] is numeric, returns 3.0."},
+        {"Power[2, 3]", 8.0, "2^3 is 8."},
+        {"Power[2, 5]", 32.0, "2^5 is 32."},
+        {"Gamma[6]", 120.0, "Gamma[6] = 5! = 120."}
     };
 
-    for (const auto& tc : cases) {
-        check_builtin_eval(tc.expr, tc.expected);
+    // Symbolic cases: argument is symbolic or out of domain, so result is symbolic
+    std::vector<SymbolicCase> symbolic_cases = {
+        {"Sin[Pi/7]", "Sin", "Pi/7 is not a known special angle, so Sin[Pi/7] remains symbolic."},
+        {"Cot[Pi/7]", "Cot", "Pi/7 is not a known special angle, so Cot[Pi/7] remains symbolic."},
+        {"ArcSin[2]", "ArcSin", "ArcSin[2] is out of domain (|x|>1), so remains symbolic."},
+        {"Log[-1]", "Log", "Log[-1] is not a real number, so remains symbolic."}
+    };
+
+    SECTION("Numeric evaluation") {
+        for (const auto& tc : numeric_cases) {
+            CAPTURE(tc.expr, tc.explanation);
+            check_builtin_eval(tc.expr, tc.expected);
+        }
+    }
+
+    SECTION("Symbolic fallback (unevaluated)") {
+        for (const auto& tc : symbolic_cases) {
+            CAPTURE(tc.expr, tc.explanation);
+            check_symbolic_eval(tc.expr, tc.expected_head);
+        }
     }
 }
 

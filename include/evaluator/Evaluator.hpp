@@ -7,6 +7,7 @@
 #include "util/Overloaded.hpp"
 #include "expr/ExprUtils.hpp"
 #include "transforms/Transforms.hpp"
+#include "ExtraMath.hpp"
 
 #include <stdexcept>
 #include <cmath>
@@ -20,9 +21,84 @@ namespace mathix {
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
 
 inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
-    //std::cout << "Evaluating function: " << func.head << std::endl;
+    const std::string& name = func.head;
+    size_t nargs = func.args.size();
 
-    // Helper for elementwise/broadcasted binary operations
+    // 1. Try FunctionRegistry (for extensible built-ins)
+    auto& registry = FunctionRegistry::instance();
+    if (registry.has_function(name)) {
+        auto handler = registry.get_function(name);
+        return handler(func, ctx);
+    }
+
+    // 2. Special forms
+    if (name == "If") {
+        if (nargs != 3) throw std::runtime_error("If expects exactly 3 arguments");
+        auto condition = evaluate(func.args[0], ctx);
+        if (std::holds_alternative<Boolean>(*condition)) {
+            bool cond = std::get<Boolean>(*condition).value;
+            return cond ? evaluate(func.args[1], ctx) : evaluate(func.args[2], ctx);
+        }
+        return make_expr<FunctionCall>(name, func.args);
+    }
+    if (name == "Expand") {
+        if (nargs != 1) throw std::runtime_error("Expand expects exactly one argument");
+        auto arg = evaluate(func.args[0], ctx);
+        return expand(arg);
+    }
+    if (name == "Negate") {
+        if (nargs != 1) throw std::runtime_error("Negate expects exactly 1 argument");
+        auto arg = evaluate(func.args[0], ctx);
+        if (std::holds_alternative<Number>(*arg)) {
+            return make_expr<Number>(-get_number_value(arg));
+        }
+        return make_expr<FunctionCall>("Times", std::vector{ make_expr<Number>(-1), arg });
+    }
+
+    // 3. Built-in function maps
+    static const std::unordered_map<std::string, std::function<double(double)>> unary_functions = {
+        {"Sin",   [](double x) { return std::sin(x); }},
+        {"Cos",   [](double x) { return std::cos(x); }},
+        {"Tan",   [](double x) { return std::tan(x); }},
+        {"Csc",   [](double x) { return csc(x); }},
+        {"Sec",   [](double x) { return sec(x); }},
+        {"Sinh",  [](double x) { return std::sinh(x); }},
+        {"Cosh",  [](double x) { return std::cosh(x); }},
+        {"Tanh",  [](double x) { return std::tanh(x); }},
+        {"Coth",  [](double x) { return coth(x); }},
+        {"Sech",  [](double x) { return sech(x); }},
+        {"Csch",  [](double x) { return csch(x); }},
+        {"Cot",   [](double x) { return cot(x); }},
+        {"Abs",   [](double x) { return std::fabs(x); }},
+        {"Sqrt",  [](double x) { return std::sqrt(x); }},
+        {"Exp",   [](double x) { return std::exp(x); }},
+        {"Log",   [](double x) { return std::log(x); }},
+        {"Floor", [](double x) { return std::floor(x); }},
+        {"Ceiling",[](double x) { return std::ceil(x); }},
+        {"Round", [](double x) { return std::round(x); }},
+        {"ArcSin",[](double x) { return std::asin(x); }},
+        {"ArcCos",[](double x) { return std::acos(x); }},
+        {"ArcTan",[](double x) { return std::atan(x); }}
+    };
+    static const std::unordered_map<std::string, std::function<double(double, double)>> binary_functions = {
+        {"Plus",   [](double a, double b) { return a + b; }},
+        {"Minus",  [](double a, double b) { return a - b; }},
+        {"Times",  [](double a, double b) { return a * b; }},
+        {"Divide", [](double a, double b) { return a / b; }},
+        {"Power",  [](double a, double b) { return std::pow(a, b); }},
+        {"Log",    [](double b, double x) { return std::log(x) / std::log(b); }},
+        {"ArcTan", [](double x, double y) { return std::atan2(y, x); }}
+    };
+    static const std::unordered_map<std::string, std::function<bool(double, double)>> comparison_functions = {
+        {"Equal",         [](double a, double b) { return a == b; }},
+        {"NotEqual",      [](double a, double b) { return a != b; }},
+        {"Less",          [](double a, double b) { return a < b; }},
+        {"Greater",       [](double a, double b) { return a > b; }},
+        {"LessEqual",     [](double a, double b) { return a <= b; }},
+        {"GreaterEqual",  [](double a, double b) { return a >= b; }}
+    };
+
+    // 4. Elementwise/broadcasted binary operations
     auto elementwise = [&ctx](const std::string& op, const ExprPtr& a, const ExprPtr& b) -> ExprPtr {
         if (std::holds_alternative<List>(*a) && std::holds_alternative<List>(*b)) {
             const auto& l1 = std::get<List>(*a).elements;
@@ -52,237 +128,73 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
             return std::make_shared<Expr>(List{ result });
         }
         return nullptr;
-    };
+        };
 
-    static const std::unordered_map<std::string, std::function<double(double)>> unary_functions = {
-        {"sin", [](double x) { return std::sin(x); }},
-        {"cos", [](double x) { return std::cos(x); }},
-        {"tan", [](double x) { return std::tan(x); }},
-        {"abs", [](double x) { return std::fabs(x); }},
-        {"sqrt", [](double x) { return std::sqrt(x); }},
-        {"log", [](double x) { return std::log(x); }},
-        {"exp", [](double x) { return std::exp(x); }},
-        {"floor", [](double x) { return std::floor(x); }},
-        {"ceil", [](double x) { return std::ceil(x); }},
-        {"round", [](double x) { return std::round(x); }}
-    };
-
-    static const std::unordered_map<std::string, std::function<double(double, double)>> binary_functions = {
-        {"Plus", [](double a, double b) { return a + b; }},
-        {"Minus", [](double a, double b) { return a - b; }},
-        {"Times", [](double a, double b) { return a * b; }},
-        {"Divide", [](double a, double b) { return a / b; }},
-        {"Pow", [](double a, double b) { return std::pow(a, b); }}
-    };
-
-    static const std::unordered_map<std::string, std::function<bool(double, double)>> comparison_functions = {
-        {"Equal", [](double a, double b) { return a == b; }},
-        {"NotEqual", [](double a, double b) { return a != b; }},
-        {"Less", [](double a, double b) { return a < b; }},
-        {"Greater", [](double a, double b) { return a > b; }},
-        {"LessEqual", [](double a, double b) { return a <= b; }},
-        {"GreaterEqual", [](double a, double b) { return a >= b; }}
-    };
-
-    const std::string& name = func.head;
-
-    // Check if the function is a built-in function
-    auto& registry = FunctionRegistry::instance();
-    if (registry.has_function(name)) {
-        auto handler = registry.get_function(name);
-        return handler(func, ctx);
+    // 5. Built-in unary
+    if (nargs == 1) {
+        auto it = unary_functions.find(name);
+        if (it != unary_functions.end()) {
+            double arg = get_number_value(evaluate(func.args[0], ctx));
+            return make_expr<Number>(it->second(arg));
+        }
     }
 
-    // === Handle If ===
-    if (name == "If") {
-       //std::cout << "Handling If statement" << std::endl;
-
-        if (func.args.size() != 3) {
-            throw std::runtime_error("If expects exactly 3 arguments");
-        }
-
-        // Evaluate the condition only
-        auto condition = evaluate(func.args[0], ctx);
-
-        // Check if the condition is Boolean
-        if (std::holds_alternative<Boolean>(*condition)) {
-            bool condition_value = std::get<Boolean>(*condition).value;
-            //std::cout << "  Condition evaluated to: " << (condition_value ? "True" : "False") << std::endl;
-
-            // Return the true branch if condition is true, otherwise the false branch
-            return condition_value ? evaluate(func.args[1], ctx) : evaluate(func.args[2], ctx);
-        }
-
-        //std::cout << "  Condition is not Boolean, returning unevaluated If" << std::endl;
-        // If the condition is not Boolean, return the If unevaluated
-        return make_expr<FunctionCall>(name, func.args);
-    }
-
-    if (name == "Expand") {
-        if (func.args.size() != 1) {
-            throw std::runtime_error("Expand expects exactly one argument");
-        }
-        auto arg = evaluate(func.args[0], ctx);
-        return expand(arg);
-    }
-
-    // === Unary Built-in ===
-    if (auto it = unary_functions.find(name); it != unary_functions.end()) {
-        if (func.args.size() != 1) {
-            throw std::runtime_error(name + " expects 1 argument");
-        }
-        auto arg = evaluate(func.args[0], ctx);
-        double value = get_number_value(arg);
-        return make_expr<Number>(it->second(value));
-    }
-
-        // === Binary Built-in with Simplification ===
-        if (name == "Plus" || name == "Times") {
-            // Handle elementwise/broadcasted for two arguments
-            if (func.args.size() == 2) {
-                auto left = evaluate(func.args[0], ctx);
-                auto right = evaluate(func.args[1], ctx);
-                auto ew = elementwise(name, left, right);
-                if (ew) return ew;
-            }
-
-            // Fallback to your existing logic for n-ary Plus/Times
-            double result = (name == "Plus") ? 0 : 1;
-            bool all_numbers = true;
-            std::vector<ExprPtr> simplified;
-
-            for (const auto& arg : func.args) {
-                auto evaluated_arg = evaluate(arg, ctx);
-
-                if (std::holds_alternative<Number>(*evaluated_arg)) {
-                    double val = get_number_value(evaluated_arg);
-
-                    // Early exit for Times: if any value is 0, whole product is 0
-                    if (name == "Times" && val == 0) {
-                        return make_expr<Number>(0);
-                    }
-
-                    // Skip trivial values: 0 in Plus, 1 in Times
-                    if ((name == "Plus" && val == 0) || (name == "Times" && val == 1)) {
-                        continue;
-                    }
-
-                    result = (name == "Plus") ? result + val : result * val;
-                }
-                else {
-                    all_numbers = false;
-                    simplified.push_back(evaluated_arg);
-                }
-            }
-
-            if (all_numbers) {
-                return make_expr<Number>(result);
-            }
-
-            // Add numeric part if not trivial
-            if ((name == "Plus" && result != 0) || (name == "Times" && result != 1)) {
-                simplified.insert(simplified.begin(), make_expr<Number>(result));
-            }
-
-            // Handle cases like Plus[] => 0 or Times[] => 1
-            if (simplified.empty()) return make_expr<Number>((name == "Plus") ? 0 : 1);
-
-            // Single argument: unwrap it (e.g., Plus[x] => x)
-            if (simplified.size() == 1) return simplified[0];
-
-            return make_expr<FunctionCall>(name, simplified);
-        }
-
-        if (name == "Minus" || name == "Divide" || name == "Pow") {
-            if (func.args.size() != 2) {
-                throw std::runtime_error(name + " expects 2 arguments");
-            }
-
-            // Lazily evaluate the left and right arguments
+    // 6. Built-in binary (with elementwise support)
+    if (nargs == 2) {
+        auto it = binary_functions.find(name);
+        if (it != binary_functions.end()) {
             auto left = evaluate(func.args[0], ctx);
             auto right = evaluate(func.args[1], ctx);
-
-            // Handle elementwise/broadcasted
-            auto ew = elementwise(name, left, right);
-            if (ew) return ew;
-
-            // Handle fully numeric arguments
+            if (auto ew = elementwise(name, left, right)) return ew;
             if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
                 double a = get_number_value(left);
                 double b = get_number_value(right);
-
-                // Handle division by zero
-                if (name == "Divide" && b == 0) {
-                    if (a == 0) {
-                        return make_fcall("Indeterminate", {});
-                    }
-                    else if (a > 0) {
-                        return make_fcall("DirectedInfinity", { make_expr<Number>(1) });
-                    }
-                    else {
-                        return make_fcall("DirectedInfinity", { make_expr<Number>(-1) });
-                    }
-                }
-
-                return make_expr<Number>(binary_functions.at(name)(a, b));
+                return make_expr<Number>(it->second(a, b));
             }
-
-            // Trivial simplifications for exponentiation
-            if (name == "Pow") {
-                if (is_zero(right)) return make_expr<Number>(1); // x^0 = 1
-                if (is_one(right)) return left;                 // x^1 = x
-            }
-
-            // Return symbolic form if not fully numeric
-            return make_expr<FunctionCall>(name, std::vector{ left, right });
+            return make_fcall(name, { left, right });
         }
-
-        // Special case: unary negation
-        if (name == "Negate") {
-            if (func.args.size() != 1) {
-                throw std::runtime_error("Negate expects exactly 1 argument");
-            }
-
-            // Lazily evaluate the argument
-            auto arg = evaluate(func.args[0], ctx);
-
-            // If the argument is a number, return the negated value
-            if (std::holds_alternative<Number>(*arg)) {
-                return make_expr<Number>(-get_number_value(arg));
-            }
-
-            // If the argument is symbolic, return a symbolic negation
-            return make_expr<FunctionCall>("Times", std::vector{ make_expr<Number>(-1), arg });
+        // Comparison functions
+        auto cmp = comparison_functions.find(name);
+        if (cmp != comparison_functions.end()) {
+            double arg1 = get_number_value(evaluate(func.args[0], ctx));
+            double arg2 = get_number_value(evaluate(func.args[1], ctx));
+            return make_expr<Boolean>(cmp->second(arg1, arg2));
         }
-
-    // === Comparison Operators ===
-    if (auto it = comparison_functions.find(name); it != comparison_functions.end()) {
-        if (func.args.size() != 2) {
-            throw std::runtime_error(name + " expects 2 arguments");
-        }
-
-        // Lazily evaluate the left and right arguments
-        auto left = evaluate(func.args[0], ctx);
-        auto right = evaluate(func.args[1], ctx);
-
-        // Check if both arguments are numbers
-        if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
-            double a = get_number_value(left);
-            double b = get_number_value(right);
-            bool result = it->second(a, b);
-            return make_expr<Boolean>(result); // Return Boolean(true) or Boolean(false)
-        }
-
-        // If not both arguments are numbers, return the comparison unevaluated
-        return make_expr<FunctionCall>(name, std::vector{ left, right });
     }
 
-    // === User-defined Function ===
-    if (auto user_it = ctx.user_functions.find(name); user_it != ctx.user_functions.end()) {
+    // 7. Special n-ary handling for Plus/Times (symbolic math)
+    if ((name == "Plus" || name == "Times") && nargs > 2) {
+        double result = (name == "Plus") ? 0 : 1;
+        bool all_numbers = true;
+        std::vector<ExprPtr> simplified;
+        for (const auto& arg : func.args) {
+            auto evaluated_arg = evaluate(arg, ctx);
+            if (std::holds_alternative<Number>(*evaluated_arg)) {
+                double val = get_number_value(evaluated_arg);
+                if (name == "Times" && val == 0) return make_expr<Number>(0);
+                if ((name == "Plus" && val == 0) || (name == "Times" && val == 1)) continue;
+                result = (name == "Plus") ? result + val : result * val;
+            }
+            else {
+                all_numbers = false;
+                simplified.push_back(evaluated_arg);
+            }
+        }
+        if (all_numbers) return make_expr<Number>(result);
+        if ((name == "Plus" && result != 0) || (name == "Times" && result != 1)) {
+            simplified.insert(simplified.begin(), make_expr<Number>(result));
+        }
+        if (simplified.empty()) return make_expr<Number>((name == "Plus") ? 0 : 1);
+        if (simplified.size() == 1) return simplified[0];
+        return make_expr<FunctionCall>(name, simplified);
+    }
+
+    // 8. User-defined functions
+    auto user_it = ctx.user_functions.find(name);
+    if (user_it != ctx.user_functions.end()) {
         const FunctionDefinition& def = user_it->second;
         size_t param_count = def.params.size();
         size_t arg_count = func.args.size();
-
         std::vector<ExprPtr> final_args;
         for (size_t i = 0; i < param_count; ++i) {
             if (i < arg_count) {
@@ -297,30 +209,22 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                     std::to_string(arg_count));
             }
         }
-
-        // Too many arguments
         if (arg_count > param_count) {
             throw std::runtime_error("Function " + name + " expects at most " +
                 std::to_string(param_count) + " arguments, got " +
                 std::to_string(arg_count));
         }
-
-        // Create a new local context for the function evaluation
         EvaluationContext local_ctx = ctx;
-
-        // Bind formal parameters to actual arguments (unevaluated for delayed)
         for (size_t i = 0; i < param_count; ++i) {
             local_ctx.variables[def.params[i].name] = final_args[i];
         }
-
-        // Evaluate the function body in the new context
         return evaluate(def.body, local_ctx);
     }
 
-    // Unknown function: return unevaluated for symbolic preservation
+    // 9. Fallback: return unevaluated
     std::vector<ExprPtr> unevaluated_args;
     for (const auto& arg : func.args) {
-        unevaluated_args.push_back(arg); // Keep arguments unevaluated
+        unevaluated_args.push_back(arg);
     }
     return make_expr<FunctionCall>(name, unevaluated_args);
 }

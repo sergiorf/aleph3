@@ -27,7 +27,7 @@ namespace mathix {
     // Precedence levels: higher = tighter binding
     inline int get_precedence(const std::string& op) {
         if (op == "Negate") return 4;
-        if (op == "Pow")    return 3;
+        if (op == "Power")    return 3;
         if (op == "Times" || op == "Divide") return 2;
         if (op == "Plus" || op == "Minus")   return 1;
         return 0; // Lowest
@@ -103,10 +103,10 @@ namespace mathix {
                            to_string_with_parens(args[1], get_precedence("Divide"), true);
                 }
 
-                if (f.head == "Pow" && args.size() == 2) {
-                    return to_string_with_parens(args[0], get_precedence("Pow")) +
+                if (f.head == "Power" && args.size() == 2) {
+                    return to_string_with_parens(args[0], get_precedence("Power")) +
                            "^" +
-                           to_string_with_parens(args[1], get_precedence("Pow"), true);
+                           to_string_with_parens(args[1], get_precedence("Power"), true);
                 }
 
                 if (f.head == "Negate" && args.size() == 1) {

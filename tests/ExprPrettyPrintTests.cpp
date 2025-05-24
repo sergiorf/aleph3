@@ -19,11 +19,11 @@ TEST_CASE("Pretty printing of infix operators with precedence", "[prettyprint]")
     auto x = make_expr<Symbol>("x");
     auto y = make_expr<Symbol>("y");
 
-    REQUIRE(to_string(FunctionCall{ "Pow", {
+    REQUIRE(to_string(FunctionCall{ "Power", {
         make_expr<FunctionCall>("Plus", std::vector<ExprPtr>{x, y}), make_expr<Number>(2)
     } }) == "(x + y)^2");
 
-    REQUIRE(to_string(FunctionCall{ "Pow", {
+    REQUIRE(to_string(FunctionCall{ "Power", {
         x, make_expr<FunctionCall>("Plus", std::vector<ExprPtr>{y, make_expr<Number>(2)})
     } }) == "x^(y + 2)");
 }
@@ -65,7 +65,7 @@ TEST_CASE("Pretty printing of immediate and delayed function definitions", "[pre
     auto delayed_func = make_fdef(
         "f", { "a" },
         make_fcall("Minus", {
-            make_fcall("Pow", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
+            make_fcall("Power", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
             make_expr<Symbol>("x")
             }),
         true // Delayed assignment
@@ -75,7 +75,7 @@ TEST_CASE("Pretty printing of immediate and delayed function definitions", "[pre
     auto immediate_func = make_fdef(
         "f", { "a" },
         make_fcall("Minus", {
-            make_fcall("Pow", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
+            make_fcall("Power", {make_expr<Symbol>("a"), make_expr<Number>(3)}),
             make_expr<Symbol>("x")
             }),
         false // Immediate assignment

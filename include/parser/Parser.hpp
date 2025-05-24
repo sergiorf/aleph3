@@ -35,7 +35,7 @@ namespace mathix {
         {"-",    {6, Assoc::Left,  "Minus"}},
         {"*",    {7, Assoc::Left,  "Times"}},
         {"/",    {7, Assoc::Left,  "Divide"}},
-        {"^",    {8, Assoc::Right, "Pow"}},
+        {"^",    {8, Assoc::Right, "Power"}},
     };
 
     class Parser {

@@ -58,7 +58,7 @@ namespace mathix {
                         symbol_counts[sym->name] += 1;
                     }
                     else if (auto pow = std::get_if<FunctionCall>(simplified_arg.get())) {
-                        if (pow->head == "Pow") {
+                        if (pow->head == "Power") {
                             if (auto base = std::get_if<Symbol>(pow->args[0].get())) {
                                 if (auto exp = std::get_if<Number>(pow->args[1].get())) {
                                     symbol_counts[base->name] += static_cast<int>(exp->value);
@@ -78,7 +78,7 @@ namespace mathix {
                     result.push_back(make_number(coefficient));
                 }
 
-                // Reconstruct Pow terms
+                // Reconstruct Power terms
                 std::vector<std::string> ordered_symbols;
                 for (const auto& [name, _] : symbol_counts) {
                     ordered_symbols.push_back(name);
@@ -102,7 +102,7 @@ namespace mathix {
                 return make_expr<FunctionCall>("Times", result);
             }
 
-            if (f->head == "Pow") {
+            if (f->head == "Power") {
                 auto base = f->args[0];
                 auto exponent = f->args[1];
 
@@ -179,7 +179,7 @@ namespace mathix {
                 std::sort(non_numeric_terms.begin(), non_numeric_terms.end(), [](const ExprPtr& a, const ExprPtr& b) {
                     auto degree = [](const ExprPtr& term) -> int {
                         if (auto pow = std::get_if<FunctionCall>(term.get())) {
-                            if (pow->head == "Pow") {
+                            if (pow->head == "Power") {
                                 if (auto exp = std::get_if<Number>(pow->args[1].get())) {
                                     return static_cast<int>(exp->value);
                                 }
@@ -187,7 +187,7 @@ namespace mathix {
                             if (pow->head == "Times") {
                                 for (auto& arg : pow->args) {
                                     if (auto inner_pow = std::get_if<FunctionCall>(arg.get())) {
-                                        if (inner_pow->head == "Pow") {
+                                        if (inner_pow->head == "Power") {
                                             if (auto exp = std::get_if<Number>(inner_pow->args[1].get())) {
                                                 return static_cast<int>(exp->value);
                                             }
@@ -274,7 +274,7 @@ namespace mathix {
                 return simplify(make_expr<FunctionCall>("Times", new_args));
             }
 
-            if (f->head == "Pow" && new_args.size() == 2) {
+            if (f->head == "Power" && new_args.size() == 2) {
                 auto base = new_args[0];
                 int exp;
 
@@ -283,7 +283,7 @@ namespace mathix {
                 }
                 catch (...) {
                     // Return unevaluated if exponent is not an integer
-                    return make_expr<FunctionCall>("Pow", new_args);
+                    return make_expr<FunctionCall>("Power", new_args);
                 }
 
                 // Check for (a + b)^2 pattern
@@ -301,7 +301,7 @@ namespace mathix {
                 }
 
                 // No special expansion case
-                return simplify(make_expr<FunctionCall>("Pow", new_args));
+                return simplify(make_expr<FunctionCall>("Power", new_args));
             }
 
             return simplify(make_expr<FunctionCall>(f->head, new_args));

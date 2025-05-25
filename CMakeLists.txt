@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
-project(mathix VERSION 0.1.0 LANGUAGES CXX)
+
+set(PROJECT_NAME aleph3)
+project(${PROJECT_NAME} VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -13,10 +15,10 @@ list(REMOVE_ITEM LIB_SOURCES "${CMAKE_SOURCE_DIR}/src/main.cpp") # Exclude main.
 file(GLOB_RECURSE HEADERS "include/*.hpp" "include/*.h")
 
 # Create a library target for shared code
-add_library(mathix_lib ${LIB_SOURCES} ${HEADERS})
+add_library(${PROJECT_NAME}_lib ${LIB_SOURCES} ${HEADERS})
 
-add_executable(mathix src/main.cpp)
-target_link_libraries(mathix PRIVATE mathix_lib)
+add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
 
 # Fetch Catch2 for testing
 include(FetchContent)
@@ -33,12 +35,12 @@ FetchContent_MakeAvailable(Catch2)
 
 # Add test executable
 file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp")
-add_executable(mathix_tests ${TEST_SOURCES})
-target_link_libraries(mathix_tests PRIVATE mathix_lib Catch2::Catch2WithMain)
+add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
+target_link_libraries(${PROJECT_NAME}_tests PRIVATE ${PROJECT_NAME}_lib Catch2::Catch2WithMain)
 
 # Enable testing
 include(CTest)
-add_test(NAME MathixTests COMMAND mathix_tests)
+add_test(NAME ${PROJECT_NAME}_Tests COMMAND ${PROJECT_NAME}_tests)
 
 # Add compile definitions for versioning
-add_compile_definitions(MATHIX_VERSION="0.1.0")
+add_compile_definitions(${PROJECT_NAME}_VERSION="0.1.0")

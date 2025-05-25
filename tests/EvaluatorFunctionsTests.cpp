@@ -8,7 +8,7 @@
 #include <cmath>
 #include <stdexcept>
 
-using namespace mathix;
+using namespace aleph3;
 
 TEST_CASE("User-defined functions are parsed and evaluated correctly", "[evaluator][functions]") {
     EvaluationContext ctx;

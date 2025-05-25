@@ -4,7 +4,7 @@
 #include "Constants.hpp"
 #include <cmath>
 
-namespace mathix {
+namespace aleph3 {
 
     // Helper for numeric evaluation of constants and expressions
     inline ExprPtr numeric_eval(const ExprPtr& expr) {
@@ -205,4 +205,4 @@ namespace mathix {
             });
     }
 
-} // namespace mathix
+}

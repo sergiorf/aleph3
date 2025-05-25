@@ -2,7 +2,7 @@
 
 struct BuiltInFunctionsFixture {
     BuiltInFunctionsFixture() {
-        mathix::register_built_in_functions();
+        aleph3::register_built_in_functions();
     }
 };
 

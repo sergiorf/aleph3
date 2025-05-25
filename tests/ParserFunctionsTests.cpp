@@ -2,7 +2,7 @@
 #include "expr/Expr.hpp"
 #include <catch2/catch_test_macros.hpp>
 
-using namespace mathix;
+using namespace aleph3;
 
 TEST_CASE("Parser handles simple function definition", "[parser][functions]") {
     auto expr = parse_expression("f[x_] := x^2");
@@ -81,7 +81,7 @@ TEST_CASE("Parser handles function call with all arguments including optional", 
 
 TEST_CASE("Parser handles recursive function definitions", "[parser]") {
     std::string input = "factorial[n_] := If[n == 0, 1, n * factorial[n - 1]]";
-    auto expr = mathix::parse_expression(input);
+    auto expr = aleph3::parse_expression(input);
 
     REQUIRE(std::holds_alternative<FunctionDefinition>(*expr));
     auto func_def = std::get<FunctionDefinition>(*expr);

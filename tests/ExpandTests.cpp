@@ -3,7 +3,7 @@
 #include "expr/Expr.hpp"
 #include <catch2/catch_test_macros.hpp>
 
-using namespace mathix;
+using namespace aleph3;
 
 TEST_CASE("Expand distributes multiplication over addition - left side") {
     auto expr = parse_expression("(a + b) * c");

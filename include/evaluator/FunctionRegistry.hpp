@@ -6,7 +6,7 @@
 #include <functional>
 #include <stdexcept>
 
-namespace mathix {
+namespace aleph3 {
 
 using FunctionHandler = std::function<ExprPtr(const FunctionCall&, EvaluationContext&)>;
 

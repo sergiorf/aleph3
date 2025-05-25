@@ -1,7 +1,7 @@
 #pragma once
 #include <cmath>
 
-namespace mathix {
+namespace aleph3 {
     inline double csc(double x)  { return 1.0 / std::sin(x); }
     inline double sec(double x)  { return 1.0 / std::cos(x); }
     inline double coth(double x) { return 1.0 / std::tanh(x); }

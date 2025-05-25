@@ -2,7 +2,7 @@
 #include "expr/ExprUtils.hpp"
 #include <catch2/catch_test_macros.hpp>
 
-using namespace mathix;
+using namespace aleph3;
 
 TEST_CASE("Simplify relational functions to True/False", "[simplify]") {
     auto expr = make_expr<FunctionCall>("Equal", std::vector<ExprPtr>{

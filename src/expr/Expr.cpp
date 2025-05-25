@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <cmath>
 
-namespace mathix {
+namespace aleph3 {
 
     // Format numbers: show integers cleanly, floats with fixed precision
     inline std::string format_number(double value) {
@@ -158,4 +158,4 @@ namespace mathix {
             }, expr);
     }
 
-} // namespace mathix
+}

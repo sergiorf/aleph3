@@ -7,7 +7,7 @@
 #include <iostream>
 #include <string>
 
-using namespace mathix;
+using namespace aleph3;
 
 template <typename Container>
 std::string join(const Container& container, const std::string& delimiter) {
@@ -28,9 +28,9 @@ int main() {
     EvaluationContext ctx;
     int counter = 1;
 
-    mathix::register_built_in_functions();
+    aleph3::register_built_in_functions();
 
-    std::cout << "Welcome to Mathix CLI!" << std::endl;
+    std::cout << "Welcome to Aleph3 CLI!" << std::endl;
     std::cout << "Type 'exit' to quit." << std::endl;
 
     while (true) {

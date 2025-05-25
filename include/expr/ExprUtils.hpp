@@ -2,7 +2,7 @@
 
 #include "expr/Expr.hpp"
 
-namespace mathix {
+namespace aleph3 {
 
     inline double get_number_value(const ExprPtr& expr) {
         if (auto num = std::get_if<Number>(&(*expr))) {
@@ -130,4 +130,4 @@ namespace mathix {
         return make_expr<FunctionDefinition>(name, params, body, delayed);
     }
 
-} // namespace mathix
+}

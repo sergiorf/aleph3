@@ -9,7 +9,7 @@
 #include "expr/Expr.hpp"
 #include "expr/ExprUtils.hpp"
 
-namespace mathix {
+namespace aleph3 {
 
     enum class Assoc { Left, Right };
 
@@ -434,4 +434,4 @@ namespace mathix {
         return parser.parse();
     }
 
-} // namespace mathix
+}

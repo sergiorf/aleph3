@@ -1,7 +1,7 @@
 #pragma once
 #include "expr/Expr.hpp"
 
-namespace mathix {
+namespace aleph3 {
 
     ExprPtr simplify(const ExprPtr& expr);
 

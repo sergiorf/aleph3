@@ -7,7 +7,7 @@
 #include <cmath>
 #include <stdexcept>
 
-using namespace mathix;
+using namespace aleph3;
 
 TEST_CASE("Basic operations are evaluated correctly", "[evaluator]") {
     EvaluationContext ctx; // Empty context
@@ -407,11 +407,11 @@ TEST_CASE("Evaluator handles logical OR (||)", "[evaluator][logic]") {
 TEST_CASE("Evaluator handles StringJoin", "[evaluator][string]") {
     EvaluationContext ctx;
 
-    // Test "Mathix" <> " Rocks"
-    auto expr = parse_expression("\"Mathix\" <> \" Rocks\"");
+    // Test "Aleph3" <> " Rocks"
+    auto expr = parse_expression("\"Aleph3\" <> \" Rocks\"");
     auto result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<String>(*result));
-    REQUIRE(std::get<String>(*result).value == "Mathix Rocks");
+    REQUIRE(std::get<String>(*result).value == "Aleph3 Rocks");
 
     // Test "Hello" <> " " <> "World"
     expr = parse_expression("\"Hello\" <> \" \" <> \"World\"");
@@ -441,8 +441,8 @@ TEST_CASE("Evaluator handles StringLength", "[evaluator][string]") {
     REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(std::get<Number>(*result).value == 0);
 
-    // Test StringLength["Mathix Rocks"]
-    expr = parse_expression("StringLength[\"Mathix Rocks\"]");
+    // Test StringLength["Aleph3 Rocks"]
+    expr = parse_expression("StringLength[\"Aleph3 Rocks\"]");
     result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(std::get<Number>(*result).value == 12);
@@ -451,11 +451,11 @@ TEST_CASE("Evaluator handles StringLength", "[evaluator][string]") {
 TEST_CASE("Evaluator handles StringReplace", "[evaluator][string]") {
     EvaluationContext ctx;
 
-    // Test StringReplace["Hello World", "World" -> "Mathix"]
-    auto expr = parse_expression("StringReplace[\"Hello World\", \"World\" -> \"Mathix\"]");
+    // Test StringReplace["Hello World", "World" -> "Aleph3"]
+    auto expr = parse_expression("StringReplace[\"Hello World\", \"World\" -> \"Aleph3\"]");
     auto result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<String>(*result));
-    REQUIRE(std::get<String>(*result).value == "Hello Mathix");
+    REQUIRE(std::get<String>(*result).value == "Hello Aleph3");
 
     // Test StringReplace["abcabc", "abc" -> "x"]
     expr = parse_expression("StringReplace[\"abcabc\", \"abc\" -> \"x\"]");

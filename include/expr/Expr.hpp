@@ -6,7 +6,7 @@
 #include <vector>
 #include <iostream>
 
-namespace mathix {
+namespace aleph3 {
 
 // Forward declarations
 struct Symbol;
@@ -115,4 +115,4 @@ inline std::string to_string(const ExprPtr& expr_ptr) {
     return to_string(*expr_ptr);
 }
 
-} // namespace mathix
+}

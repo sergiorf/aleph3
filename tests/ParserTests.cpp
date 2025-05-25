@@ -2,7 +2,7 @@
 #include "expr/Expr.hpp"
 #include <catch2/catch_test_macros.hpp>
 
-using namespace mathix;
+using namespace aleph3;
 
 TEST_CASE("Basic expressions are parsed correctly", "[parser]") {
     auto expr = parse_expression("2 + 3");
@@ -317,7 +317,7 @@ TEST_CASE("Parser handles nested logical expressions", "[parser][logic]") {
 }
 
 TEST_CASE("Parser handles simple string concatenation with <>", "[parser][string]") {
-    auto expr = parse_expression("\"Mathix\" <> \" Rocks\"");
+    auto expr = parse_expression("\"Aleph3\" <> \" Rocks\"");
     REQUIRE(expr != nullptr);
 
     // The result should be a FunctionCall to StringJoin with 2 arguments
@@ -330,7 +330,7 @@ TEST_CASE("Parser handles simple string concatenation with <>", "[parser][string
     auto* arg1 = std::get_if<String>(&(*func_call->args[1]));
 
     REQUIRE(arg0 != nullptr);
-    REQUIRE(arg0->value == "Mathix");
+    REQUIRE(arg0->value == "Aleph3");
     REQUIRE(arg1 != nullptr);
     REQUIRE(arg1->value == " Rocks");
 }
@@ -358,7 +358,7 @@ TEST_CASE("Parser handles chained string concatenation with <>", "[parser][strin
 }
 
 TEST_CASE("Parser handles simple rule operator (->)", "[parser][rule]") {
-    auto expr = parse_expression("\"World\" -> \"Mathix\"");
+    auto expr = parse_expression("\"World\" -> \"Aleph3\"");
     REQUIRE(expr != nullptr);
 
     // The result should be a Rule node
@@ -371,11 +371,11 @@ TEST_CASE("Parser handles simple rule operator (->)", "[parser][rule]") {
     REQUIRE(lhs != nullptr);
     REQUIRE(lhs->value == "World");
     REQUIRE(rhs != nullptr);
-    REQUIRE(rhs->value == "Mathix");
+    REQUIRE(rhs->value == "Aleph3");
 }
 
 TEST_CASE("Parser handles rule as argument in function call", "[parser][rule]") {
-    auto expr = parse_expression("StringReplace[\"Hello World\", \"World\" -> \"Mathix\"]");
+    auto expr = parse_expression("StringReplace[\"Hello World\", \"World\" -> \"Aleph3\"]");
     REQUIRE(expr != nullptr);
 
     auto* func_call = std::get_if<FunctionCall>(&(*expr));
@@ -395,7 +395,7 @@ TEST_CASE("Parser handles rule as argument in function call", "[parser][rule]") 
     REQUIRE(lhs != nullptr);
     REQUIRE(lhs->value == "World");
     REQUIRE(rhs != nullptr);
-    REQUIRE(rhs->value == "Mathix");
+    REQUIRE(rhs->value == "Aleph3");
 }
 
 TEST_CASE("Parser handles StringJoin and Rule precedence", "[parser][rule][string]") {
@@ -593,7 +593,7 @@ TEST_CASE("Parser handles nested empty lists", "[parser][list]") {
     REQUIRE(l2->args.empty());
 }
 
-TEST_CASE("Parser parses mathix constants as symbols", "[parser][constants]") {
+TEST_CASE("Parser parses Aleph3 constants as symbols", "[parser][constants]") {
     std::vector<std::string> constants = {
         "Pi", "E", "Degree", "GoldenRatio", "Catalan", "EulerGamma", "Infinity"
     };

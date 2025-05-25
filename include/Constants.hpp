@@ -1,6 +1,6 @@
 #pragma once
 
-namespace mathix {
+namespace aleph3 {
     constexpr double PI        = 3.14159265358979323846;
     constexpr double E         = 2.71828182845904523536;
     constexpr double TAU       = 6.28318530717958647692; // 2 * PI

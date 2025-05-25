@@ -6,7 +6,7 @@
 #include <map>
 #include <algorithm>
 
-namespace mathix {
+namespace aleph3 {
 
     ExprPtr simplify_relational(const std::string& head, const ExprPtr& left, const ExprPtr& right) {
         auto simplified_left = simplify(left);

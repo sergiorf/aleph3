@@ -2,7 +2,7 @@
 #include "expr/ExprUtils.hpp"
 #include <catch2/catch_test_macros.hpp>
 
-using namespace mathix;
+using namespace aleph3;
 
 // Test for simple arithmetic pretty printing
 TEST_CASE("Pretty printing of simple arithmetic expressions", "[prettyprint]") {

@@ -4,11 +4,11 @@
 #include <string>
 #include "expr/Expr.hpp"
 
-namespace mathix {
+namespace aleph3 {
 
 struct EvaluationContext {
     std::unordered_map<std::string, ExprPtr> variables;
     std::unordered_map<std::string, FunctionDefinition> user_functions;
 };
 
-} // namespace mathix
+}

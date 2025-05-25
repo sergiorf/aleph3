@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <unordered_set>
 
-namespace mathix {
+namespace aleph3 {
 
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
 
@@ -439,4 +439,4 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
     return evaluate(expr, ctx, visited);
 }
 
-} // namespace mathix
+}

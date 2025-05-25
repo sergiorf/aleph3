@@ -22,22 +22,9 @@ namespace aleph3 {
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
 
 inline std::string expr_to_key(const ExprPtr& expr) {
-    if (std::holds_alternative<Number>(*expr)) {
-        double val = std::get<Number>(*expr).value;
-        if (val == 0.0) return "0";
-        if (val == PI) return "Pi";
-        return std::to_string(val);
-    }
-    if (std::holds_alternative<Symbol>(*expr)) {
-        return std::get<Symbol>(*expr).name;
-    }
-    if (std::holds_alternative<FunctionCall>(*expr)) {
-        const auto& call = std::get<FunctionCall>(*expr);
-        if (call.head == "Divide" && call.args.size() == 2) {
-            return expr_to_key(call.args[0]) + "/" + expr_to_key(call.args[1]);
-        }
-    }
-    return ""; // Not a known key
+    std::string s = to_string(expr);
+    s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
+    return s;
 }
 
 inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {

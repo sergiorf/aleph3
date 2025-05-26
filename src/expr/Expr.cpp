@@ -83,6 +83,15 @@ namespace aleph3 {
                 }
 
                 if (f.head == "Times") {
+                    // Special case: Times[-1, x] => -x
+                    if (args.size() == 2) {
+                        if (auto num = std::get_if<Number>(args[0].get()); num && num->value == -1) {
+                            return "-" + to_string_with_parens(args[1], get_precedence("Negate"));
+                        }
+                        if (auto num = std::get_if<Number>(args[1].get()); num && num->value == -1) {
+                            return "-" + to_string_with_parens(args[0], get_precedence("Negate"));
+                        }
+                    }
                     std::string result;
                     for (size_t i = 0; i < args.size(); ++i) {
                         if (i > 0) result += " * ";

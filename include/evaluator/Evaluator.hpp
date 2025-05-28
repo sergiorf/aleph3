@@ -21,8 +21,88 @@ namespace aleph3 {
 
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
 
+inline ExprPtr normalize_expr(const ExprPtr& expr) {
+    return std::visit(overloaded{
+        [](const Number& num) -> ExprPtr {
+            return make_expr<Number>(num.value);
+        },
+        [](const Boolean& boolean) -> ExprPtr {
+            return make_expr<Boolean>(boolean.value);
+        },
+        [](const String& str) -> ExprPtr {
+            return make_expr<String>(str.value);
+        },
+        [](const Infinity&) -> ExprPtr {
+            return make_expr<Infinity>();
+        },
+        [](const Symbol& sym) -> ExprPtr {
+            return make_expr<Symbol>(sym.name);
+        },
+        [](const FunctionCall& f) -> ExprPtr {
+            // Normalize Negate(x)
+            if (f.head == "Negate" && f.args.size() == 1) {
+                auto arg = normalize_expr(f.args[0]);
+                // If arg is Number, just negate it
+                if (auto num = std::get_if<Number>(arg.get())) {
+                    return make_expr<Number>(-num->value);
+                }
+                // If arg is already Times(-1, ...), flatten
+                if (auto inner = std::get_if<FunctionCall>(arg.get())) {
+                    if (inner->head == "Times" && !inner->args.empty()) {
+                        if (auto n = std::get_if<Number>(inner->args[0].get()); n && n->value == -1) {
+                            // Already normalized
+                            return arg;
+                        }
+                    }
+                }
+                // Otherwise, return Times(-1, arg)
+                return make_fcall("Times", { make_expr<Number>(-1), arg });
+            }
+            // Normalize Times
+            if (f.head == "Times") {
+                std::vector<ExprPtr> norm_args;
+                for (const auto& arg : f.args) {
+                    norm_args.push_back(normalize_expr(arg));
+                }
+                return make_fcall("Times", norm_args);
+            }
+            // Normalize Divide
+            if (f.head == "Divide" && f.args.size() == 2) {
+                return make_fcall("Divide", { normalize_expr(f.args[0]), normalize_expr(f.args[1]) });
+            }
+            // Normalize Power
+            if (f.head == "Power" && f.args.size() == 2) {
+                return make_fcall("Power", { normalize_expr(f.args[0]), normalize_expr(f.args[1]) });
+            }
+            // Default: normalize all arguments
+            std::vector<ExprPtr> norm_args;
+            for (const auto& arg : f.args) {
+                norm_args.push_back(normalize_expr(arg));
+            }
+            return make_fcall(f.head, norm_args);
+        },
+        [](const List& list) -> ExprPtr {
+            std::vector<ExprPtr> norm_elems;
+            for (const auto& elem : list.elements) {
+                norm_elems.push_back(normalize_expr(elem));
+            }
+            return std::make_shared<Expr>(List{norm_elems});
+        },
+        [](const FunctionDefinition& def) -> ExprPtr {
+            return make_expr<FunctionDefinition>(def.name, def.params, def.body, def.delayed);
+        },
+        [](const Assignment& assign) -> ExprPtr {
+            return make_expr<Assignment>(assign.name, assign.value);
+        },
+        [](const Rule& rule) -> ExprPtr {
+            return make_expr<Rule>(normalize_expr(rule.lhs), normalize_expr(rule.rhs));
+        }
+        }, *expr);
+}
+
 inline std::string expr_to_key(const ExprPtr& expr) {
-    std::string s = to_string(expr);
+    auto norm = normalize_expr(expr);
+    std::string s = to_string_raw(norm);
     s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
     return s;
 }
@@ -105,49 +185,67 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         {"GreaterEqual",  [](double a, double b) { return a >= b; }}
     };
 
-    static const std::unordered_map<std::string, std::unordered_map<std::string, double>> known_symbolic_unary = {
+    static const std::unordered_map<std::string, std::unordered_map<std::string, ExprPtr>> known_symbolic_unary = {
         {"Sin", {
-            {"0", 0.0},
-            {"Pi", 0.0},
-            {"2*Pi", 0.0},
-            {"-Pi", 0.0},
-            {"Pi/2", 1.0},
-            {"-Pi/2", -1.0},
-            {"Pi/4", std::sqrt(2.0) / 2.0},
-            {"-Pi/4", -std::sqrt(2.0) / 2.0},
-            {"3*Pi/2", -1.0},
-            {"-3*Pi/2", 1.0}
+            {"0", make_expr<Number>(0.0)},
+            {"Pi", make_expr<Number>(0.0)},
+            {"2*Pi", make_expr<Number>(0.0)},
+            {"-1*Pi", make_expr<Number>(0.0)},
+            {"Pi/2", make_expr<Number>(1.0)},
+            {"-1*Pi/2", make_expr<Number>(-1.0)},
+            {"Pi/4", make_expr<Number>(std::sqrt(2.0) / 2.0)},
+            {"-1*Pi/4", make_expr<Number>(-std::sqrt(2.0) / 2.0)},
+            {"3*Pi/2", make_expr<Number>(-1.0)},
+            {"-1*3*Pi/2", make_expr<Number>(1.0)}
         }},
         {"Cos", {
-            {"0", 1.0},
-            {"Pi", -1.0},
-            {"2*Pi", 1.0},
-            {"-Pi", -1.0},
-            {"Pi/2", 0.0},
-            {"-Pi/2", 0.0},
-            {"Pi/4", std::sqrt(2.0) / 2.0},
-            {"-Pi/4", std::sqrt(2.0) / 2.0},
-            {"3*Pi/2", 0.0},
-            {"-3*Pi/2", 0.0}
+            {"0", make_expr<Number>(1.0)},
+            {"Pi", make_expr<Number>(-1.0)},
+            {"2*Pi", make_expr<Number>(1.0)},
+            {"-1*Pi", make_expr<Number>(-1.0)},
+            {"Pi/2", make_expr<Number>(0.0)},
+            {"-1*Pi/2", make_expr<Number>(0.0)},
+            {"Pi/4", make_expr<Number>(std::sqrt(2.0) / 2.0)},
+            {"-1*Pi/4", make_expr<Number>(std::sqrt(2.0) / 2.0)},
+            {"3*Pi/2", make_expr<Number>(0.0)},
+            {"-1*3*Pi/2", make_expr<Number>(0.0)}
         }},
         {"Tan", {
-            {"0", 0.0},
-            {"Pi", 0.0},
-            {"2*Pi", 0.0},
-            {"-Pi", 0.0},
-            {"Pi/4", 1.0},
-            {"-Pi/4", -1.0},
-            {"Pi/6", std::tan(PI / 6)},
-            {"-Pi/6", std::tan(-PI / 6)},
-            {"Pi/3", std::tan(PI / 3)},
-            {"-Pi/3", std::tan(-PI / 3)}
+            {"0", make_expr<Number>(0.0)},
+            {"Pi", make_expr<Number>(0.0)},
+            {"2*Pi", make_expr<Number>(0.0)},
+            {"-1*Pi", make_expr<Number>(0.0)},
+            {"Pi/4", make_expr<Number>(1.0)},
+            {"-1*Pi/4", make_expr<Number>(-1.0)},
+            {"Pi/6", make_expr<Number>(std::tan(PI / 6))},
+            {"-1*Pi/6", make_expr<Number>(std::tan(-PI / 6))},
+            {"Pi/3", make_expr<Number>(std::tan(PI / 3))},
+            {"-1*Pi/3", make_expr<Number>(std::tan(-PI / 3))}
         }},
         {"Sinc", {
-            {"0", 1.0},
-            {"Pi", std::sin(PI) / PI},
-            {"-Pi", std::sin(-PI) / -PI},
-            {"2*Pi", std::sin(2 * PI) / (2 * PI)},
-            {"-2*Pi", std::sin(-2 * PI) / (-2 * PI)}
+            {"0", make_expr<Number>(1.0)},
+            {"Pi", make_expr<Number>(std::sin(PI) / PI)},
+            {"-1*Pi", make_expr<Number>(std::sin(-PI) / -PI)},
+            {"2*Pi", make_expr<Number>(std::sin(2 * PI) / (2 * PI))},
+            {"-1*2*Pi", make_expr<Number>(std::sin(-2 * PI) / (-2 * PI))}
+        }},
+        {"Cot", {
+            {"0", make_expr<Infinity>()},
+            {"Pi/4", make_expr<Number>(1.0)},
+            {"-1*Pi/4", make_expr<Number>(-1.0)},
+            {"Pi/2", make_expr<Number>(0.0)},
+            {"-1*Pi/2", make_expr<Number>(0.0)},
+            {"Pi", make_expr<Infinity>()},
+            {"-1*Pi", make_expr<Infinity>()}
+        }},
+        {"Csc", {
+            {"0", make_expr<Infinity>()},
+            {"Pi/2", make_expr<Number>(1.0)},
+            {"-1*Pi/2", make_expr<Number>(-1.0)},
+            {"Pi", make_expr<Infinity>()},
+            {"-1*Pi", make_expr<Infinity>()},
+            {"Pi/6", make_expr<Number>(2.0)},
+            {"-1*Pi/6", make_expr<Number>(-2.0)}
         }}
     };
 
@@ -195,7 +293,7 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                 std::string key = expr_to_key(arg_eval);
                 auto val_it = known_func->second.find(key);
                 if (val_it != known_func->second.end()) {
-                    return make_expr<Number>(val_it->second);
+                    return val_it->second;
                 }
             }
 
@@ -416,6 +514,9 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
         [](const List& list) -> ExprPtr {
             // Lists are already evaluated, just return as-is
             return std::make_shared<Expr>(list);
+        },
+        [](const Infinity&) -> ExprPtr {
+            return make_expr<Infinity>();
         },
         }, 
         *expr);

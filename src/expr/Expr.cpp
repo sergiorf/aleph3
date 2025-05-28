@@ -154,6 +154,10 @@ namespace aleph3 {
                 return to_string(rule.lhs) + " -> " + to_string(rule.rhs);
             },
 
+            [](const Infinity&) -> std::string {
+                return "Infinity";
+            },
+
             [](const List& list) -> std::string {
                 std::string result = "{";
                 for (size_t i = 0; i < list.elements.size(); ++i) {
@@ -164,6 +168,74 @@ namespace aleph3 {
                 return result;
             },
 
+            }, expr);
+    }
+
+    // Raw version: never adds parentheses
+    std::string to_string_raw(const Expr& expr) {
+        return std::visit(overloaded{
+            [](const Number& num) -> std::string {
+                return format_number(num.value);
+            },
+            [](const Symbol& sym) -> std::string {
+                return sym.name;
+            },
+            [](const Boolean& boolean) -> std::string {
+                return boolean.value ? "True" : "False";
+            },
+            [](const String& str) -> std::string {
+                return "\"" + str.value + "\"";
+            },
+            [](const FunctionCall& f) -> std::string {
+                // For Plus, Times, etc., just join args with operator, no parens
+                if (f.head == "Plus" || f.head == "Times" || f.head == "Divide" || f.head == "Power" || f.head == "Minus") {
+                    std::string op;
+                    if (f.head == "Plus") op = "+";
+                    else if (f.head == "Times") op = "*";
+                    else if (f.head == "Divide") op = "/";
+                    else if (f.head == "Power") op = "^";
+                    else if (f.head == "Minus") op = "-";
+                    std::string result;
+                    for (size_t i = 0; i < f.args.size(); ++i) {
+                        if (i > 0) result += op;
+                        result += to_string_raw(*f.args[i]);
+                    }
+                    return result;
+                }
+                // Negate: always -arg
+                if (f.head == "Negate" && f.args.size() == 1) {
+                    return "-" + to_string_raw(*f.args[0]);
+                }
+                // Default: head[arg1,arg2,...]
+                std::string result = f.head + "[";
+                for (size_t i = 0; i < f.args.size(); ++i) {
+                    result += to_string_raw(*f.args[i]);
+                    if (i + 1 < f.args.size()) result += ",";
+                }
+                result += "]";
+                return result;
+            },
+            [](const FunctionDefinition& def) -> std::string {
+                return def.name; // Not needed for keys
+            },
+            [](const Assignment& assign) -> std::string {
+                return assign.name;
+            },
+            [](const Rule& rule) -> std::string {
+                return to_string_raw(*rule.lhs) + "->" + to_string_raw(*rule.rhs);
+            },
+            [](const Infinity&) -> std::string {
+                return "Infinity";
+            },
+            [](const List& list) -> std::string {
+                std::string result = "{";
+                for (size_t i = 0; i < list.elements.size(); ++i) {
+                    result += to_string_raw(*list.elements[i]);
+                    if (i + 1 < list.elements.size()) result += ",";
+                }
+                result += "}";
+                return result;
+            }
             }, expr);
     }
 

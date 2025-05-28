@@ -62,3 +62,8 @@ lib/
 # System files
 .DS_Store
 Thumbs.db
+
+# IDE-specific files
+.vscode/
+.idea/
+.vs/

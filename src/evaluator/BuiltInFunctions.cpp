@@ -19,6 +19,9 @@ namespace aleph3 {
                 // Add more constants as needed
                 return make_expr<Symbol>(sym.name);
             },
+            [](const Infinity&) -> ExprPtr {
+                return make_expr<Infinity>();
+            },
             [](const List& list) -> ExprPtr {
                 std::vector<ExprPtr> evaluated;
                 for (const auto& elem : list.elements) {

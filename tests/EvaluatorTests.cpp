@@ -596,7 +596,7 @@ TEST_CASE("Evaluator handles nested lists with elementwise addition", "[evaluato
 TEST_CASE("Evaluator throws on mismatched list sizes", "[evaluator][lists]") {
     EvaluationContext ctx;
     auto expr = parse_expression("{1, 2} + {3, 4, 5}");
-    REQUIRE_THROWS_WITH(evaluate(expr, ctx), "List sizes must match for elementwise operation");
+    REQUIRE_THROWS_WITH(evaluate(expr, ctx), "List sizes must match for elementwise Plus");
 }
 
 TEST_CASE("Evaluator handles lists with symbolic elements", "[evaluator][lists]") {

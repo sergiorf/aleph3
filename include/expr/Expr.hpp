@@ -19,9 +19,10 @@ struct Assignment;
 struct Rule;
 struct List;
 struct Infinity;
+struct Indeterminate;
 
 // Core Expression type: variant of all expression types
-using Expr = std::variant < Symbol, Number, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List, Infinity > ;
+using Expr = std::variant < Symbol, Number, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List, Infinity, Indeterminate > ;
 
 // Smart pointer to expressions
 using ExprPtr = std::shared_ptr<Expr>;
@@ -109,6 +110,8 @@ struct Rule {
 };
 
 struct Infinity {};
+
+struct Indeterminate {};
 
 // Utility functions
 

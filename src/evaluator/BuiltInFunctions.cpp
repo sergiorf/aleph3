@@ -22,6 +22,9 @@ namespace aleph3 {
             [](const Infinity&) -> ExprPtr {
                 return make_expr<Infinity>();
             },
+            [](const Indeterminate&) -> ExprPtr {
+                return make_expr<Indeterminate>();
+            },
             [](const List& list) -> ExprPtr {
                 std::vector<ExprPtr> evaluated;
                 for (const auto& elem : list.elements) {

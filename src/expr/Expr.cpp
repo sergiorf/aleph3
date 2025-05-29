@@ -81,7 +81,6 @@ namespace aleph3 {
                     }
                     return result;
                 }
-
                 if (f.head == "Times") {
                     // Special case: Times[-1, x] => -x
                     if (args.size() == 2) {
@@ -99,27 +98,42 @@ namespace aleph3 {
                     }
                     return result;
                 }
-
                 if (f.head == "Minus" && args.size() == 2) {
                     return to_string_with_parens(args[0], get_precedence("Minus")) +
                            " - " +
                            to_string_with_parens(args[1], get_precedence("Minus"), true);
                 }
-
                 if (f.head == "Divide" && args.size() == 2) {
                     return to_string_with_parens(args[0], get_precedence("Divide")) +
                            " / " +
                            to_string_with_parens(args[1], get_precedence("Divide"), true);
                 }
-
                 if (f.head == "Power" && args.size() == 2) {
                     return to_string_with_parens(args[0], get_precedence("Power")) +
                            "^" +
                            to_string_with_parens(args[1], get_precedence("Power"), true);
                 }
-
                 if (f.head == "Negate" && args.size() == 1) {
                     return "-" + to_string_with_parens(args[0], get_precedence("Negate"));
+                }
+                // Comparison operators
+                if (f.head == "Equal" && args.size() == 2) {
+                    return to_string_with_parens(args[0], 0) + " == " + to_string_with_parens(args[1], 0);
+                }
+                if (f.head == "NotEqual" && args.size() == 2) {
+                    return to_string_with_parens(args[0], 0) + " != " + to_string_with_parens(args[1], 0);
+                }
+                if (f.head == "Less" && args.size() == 2) {
+                    return to_string_with_parens(args[0], 0) + " < " + to_string_with_parens(args[1], 0);
+                }
+                if (f.head == "Greater" && args.size() == 2) {
+                    return to_string_with_parens(args[0], 0) + " > " + to_string_with_parens(args[1], 0);
+                }
+                if (f.head == "LessEqual" && args.size() == 2) {
+                    return to_string_with_parens(args[0], 0) + " <= " + to_string_with_parens(args[1], 0);
+                }
+                if (f.head == "GreaterEqual" && args.size() == 2) {
+                    return to_string_with_parens(args[0], 0) + " >= " + to_string_with_parens(args[1], 0);
                 }
 
                 // Default: head[arg1, arg2, ...]
@@ -158,6 +172,10 @@ namespace aleph3 {
                 return "Infinity";
             },
 
+            [](const Indeterminate&) -> std::string {
+                return "Indeterminate";
+            },
+
             [](const List& list) -> std::string {
                 std::string result = "{";
                 for (size_t i = 0; i < list.elements.size(); ++i) {
@@ -187,6 +205,19 @@ namespace aleph3 {
                 return "\"" + str.value + "\"";
             },
             [](const FunctionCall& f) -> std::string {
+                // Comparison operators
+                if (f.head == "Equal" && f.args.size() == 2)
+                    return to_string_raw(*f.args[0]) + "==" + to_string_raw(*f.args[1]);
+                if (f.head == "NotEqual" && f.args.size() == 2)
+                    return to_string_raw(*f.args[0]) + "!=" + to_string_raw(*f.args[1]);
+                if (f.head == "Less" && f.args.size() == 2)
+                    return to_string_raw(*f.args[0]) + "<" + to_string_raw(*f.args[1]);
+                if (f.head == "Greater" && f.args.size() == 2)
+                    return to_string_raw(*f.args[0]) + ">" + to_string_raw(*f.args[1]);
+                if (f.head == "LessEqual" && f.args.size() == 2)
+                    return to_string_raw(*f.args[0]) + "<=" + to_string_raw(*f.args[1]);
+                if (f.head == "GreaterEqual" && f.args.size() == 2)
+                    return to_string_raw(*f.args[0]) + ">=" + to_string_raw(*f.args[1]);
                 // For Plus, Times, etc., just join args with operator, no parens
                 if (f.head == "Plus" || f.head == "Times" || f.head == "Divide" || f.head == "Power" || f.head == "Minus") {
                     std::string op;
@@ -226,6 +257,9 @@ namespace aleph3 {
             },
             [](const Infinity&) -> std::string {
                 return "Infinity";
+            },
+            [](const Indeterminate&) -> std::string {
+                return "Indeterminate";
             },
             [](const List& list) -> std::string {
                 std::string result = "{";

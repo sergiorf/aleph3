@@ -36,6 +36,9 @@ inline ExprPtr normalize_expr(const ExprPtr& expr) {
         [](const Infinity&) -> ExprPtr {
             return make_expr<Infinity>();
         },
+        [](const Indeterminate&) -> ExprPtr {
+            return make_expr<Indeterminate>();
+        },
         [](const Symbol& sym) -> ExprPtr {
             return make_expr<Symbol>(sym.name);
         },
@@ -369,9 +372,15 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         // Comparison functions
         auto cmp = comparison_functions.find(name);
         if (cmp != comparison_functions.end()) {
-            double arg1 = get_number_value(evaluate(func.args[0], ctx));
-            double arg2 = get_number_value(evaluate(func.args[1], ctx));
-            return make_expr<Boolean>(cmp->second(arg1, arg2));
+            auto left = evaluate(func.args[0], ctx);
+            auto right = evaluate(func.args[1], ctx);
+            if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
+                double arg1 = get_number_value(left);
+                double arg2 = get_number_value(right);
+                return make_expr<Boolean>(cmp->second(arg1, arg2));
+            }
+            // Return unevaluated symbolic comparison if not both numbers
+            return make_fcall(name, { left, right });
         }
     }
 
@@ -534,6 +543,9 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
         },
         [](const Infinity&) -> ExprPtr {
             return make_expr<Infinity>();
+        },
+        [](const Indeterminate&) -> ExprPtr {
+            return make_expr<Indeterminate>();
         },
         }, 
         *expr);

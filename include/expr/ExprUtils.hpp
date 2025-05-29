@@ -130,4 +130,7 @@ namespace aleph3 {
         return make_expr<FunctionDefinition>(name, params, body, delayed);
     }
 
+    inline ExprPtr make_expr(const Indeterminate&) {
+        return std::make_shared<Expr>(Indeterminate{});
+    }
 }

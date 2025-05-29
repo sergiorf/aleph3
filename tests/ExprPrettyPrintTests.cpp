@@ -90,3 +90,15 @@ TEST_CASE("to_string handles Boolean type", "[prettyprint]") {
     REQUIRE(to_string(true_expr) == "True");
     REQUIRE(to_string(false_expr) == "False");
 }
+
+TEST_CASE("Pretty printing of symbolic comparisons", "[prettyprint][comparison]") {
+    auto x = make_expr<Symbol>("x");
+    auto y = make_expr<Symbol>("y");
+
+    REQUIRE(to_string(FunctionCall{ "Equal", {x, y} }) == "x == y");
+    REQUIRE(to_string(FunctionCall{ "NotEqual", {x, y} }) == "x != y");
+    REQUIRE(to_string(FunctionCall{ "Less", {x, y} }) == "x < y");
+    REQUIRE(to_string(FunctionCall{ "Greater", {x, y} }) == "x > y");
+    REQUIRE(to_string(FunctionCall{ "LessEqual", {x, y} }) == "x <= y");
+    REQUIRE(to_string(FunctionCall{ "GreaterEqual", {x, y} }) == "x >= y");
+}

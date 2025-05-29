@@ -25,22 +25,22 @@ TEST_CASE("Multiplication and parentheses are evaluated correctly", "[evaluator]
 
 TEST_CASE("Trigonometric functions are evaluated correctly", "[evaluator]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("sin[0]");
+    auto expr = parse_expression("Sin[0]");
     auto result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - 0.0) < 1e-6);
 
-    expr = parse_expression("cos[0]");
+    expr = parse_expression("Cos[0]");
     result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - 1.0) < 1e-6);
 }
 
 TEST_CASE("Square root and exponential functions are evaluated correctly", "[evaluator]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("sqrt[9]");
+    auto expr = parse_expression("Sqrt[9]");
     auto result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - 3.0) < 1e-6);
 
-    expr = parse_expression("exp[1]");
+    expr = parse_expression("Exp[1]");
     result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - std::exp(1)) < 1e-6);
 }
@@ -72,52 +72,52 @@ TEST_CASE("Evaluator correctly evaluates power expressions", "[evaluator][pow]")
 
 TEST_CASE("Exponential function is evaluated correctly", "[evaluator][exp]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("exp[1]");
+    auto expr = parse_expression("Exp[1]");
     auto result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - std::exp(1)) < 1e-6);
 
-    expr = parse_expression("exp[0]");
+    expr = parse_expression("Exp[0]");
     result = evaluate(expr, ctx);
     REQUIRE(std::abs(get_number_value(result) - 1.0) < 1e-6);
 }
 
 TEST_CASE("Floor function is evaluated correctly", "[evaluator][floor]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("floor[3.7]");
+    auto expr = parse_expression("Floor[3.7]");
     auto result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == 3.0);
 
-    expr = parse_expression("floor[-3.7]");
+    expr = parse_expression("Floor[-3.7]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == -4.0);
 }
 
-TEST_CASE("Ceil function is evaluated correctly", "[evaluator][ceil]") {
+TEST_CASE("Ceil function is evaluated correctly", "[evaluator][ceiling]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("ceil[3.2]");
+    auto expr = parse_expression("Ceiling[3.2]");
     auto result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == 4.0);
 
-    expr = parse_expression("ceil[-3.2]");
+    expr = parse_expression("Ceiling[-3.2]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == -3.0);
 }
 
 TEST_CASE("Round function is evaluated correctly", "[evaluator][round]") {
     EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("round[3.5]");
+    auto expr = parse_expression("Round[3.5]");
     auto result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == 4.0);
 
-    expr = parse_expression("round[3.4]");
+    expr = parse_expression("Round[3.4]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == 3.0);
 
-    expr = parse_expression("round[-3.5]");
+    expr = parse_expression("Round[-3.5]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == -4.0);
 
-    expr = parse_expression("round[-3.4]");
+    expr = parse_expression("Round[-3.4]");
     result = evaluate(expr, ctx);
     REQUIRE(get_number_value(result) == -3.0);
 }

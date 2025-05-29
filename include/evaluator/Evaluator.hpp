@@ -4,6 +4,7 @@
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/FunctionRegistry.hpp"
+#include "evaluator/SimplificationRules.hpp"
 #include "util/Overloaded.hpp"
 #include "expr/ExprUtils.hpp"
 #include "transforms/Transforms.hpp"
@@ -345,7 +346,13 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         }
     }
 
-    // 6. Built-in binary (with elementwise support)
+    // 6. Centralized simplification for known functions
+    auto simp_it = simplification_rules.find(name);
+    if (simp_it != simplification_rules.end()) {
+        return simp_it->second(func.args, ctx, evaluate);
+    }
+
+    // 7. Built-in binary (with elementwise support)
     if (nargs == 2) {
         auto it = binary_functions.find(name);
         if (it != binary_functions.end()) {
@@ -366,33 +373,6 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
             double arg2 = get_number_value(evaluate(func.args[1], ctx));
             return make_expr<Boolean>(cmp->second(arg1, arg2));
         }
-    }
-
-    // 7. Special n-ary handling for Plus/Times (symbolic math)
-    if ((name == "Plus" || name == "Times") && nargs > 2) {
-        double result = (name == "Plus") ? 0 : 1;
-        bool all_numbers = true;
-        std::vector<ExprPtr> simplified;
-        for (const auto& arg : func.args) {
-            auto evaluated_arg = evaluate(arg, ctx);
-            if (std::holds_alternative<Number>(*evaluated_arg)) {
-                double val = get_number_value(evaluated_arg);
-                if (name == "Times" && val == 0) return make_expr<Number>(0);
-                if ((name == "Plus" && val == 0) || (name == "Times" && val == 1)) continue;
-                result = (name == "Plus") ? result + val : result * val;
-            }
-            else {
-                all_numbers = false;
-                simplified.push_back(evaluated_arg);
-            }
-        }
-        if (all_numbers) return make_expr<Number>(result);
-        if ((name == "Plus" && result != 0) || (name == "Times" && result != 1)) {
-            simplified.insert(simplified.begin(), make_expr<Number>(result));
-        }
-        if (simplified.empty()) return make_expr<Number>((name == "Plus") ? 0 : 1);
-        if (simplified.size() == 1) return simplified[0];
-        return make_expr<FunctionCall>(name, simplified);
     }
 
     // 8. User-defined functions

@@ -165,7 +165,8 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         {"Round", [](double x) { return std::round(x); }},
         {"ArcSin",[](double x) { return std::asin(x); }},
         {"ArcCos",[](double x) { return std::acos(x); }},
-        {"ArcTan",[](double x) { return std::atan(x); }}
+        {"ArcTan",[](double x) { return std::atan(x); }},
+        {"Gamma", [](double x) { return std::tgamma(x); }}
     };
     static const std::unordered_map<std::string, std::function<double(double, double)>> binary_functions = {
         {"Plus",   [](double a, double b) { return a + b; }},
@@ -249,6 +250,29 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         }}
     };
 
+    static const std::unordered_map<std::string, std::function<bool(double)>> unary_real_domains = {
+        // Inverse trig
+        {"ArcSin", [](double x) { return x >= -1.0 && x <= 1.0; }},
+        {"ArcCos", [](double x) { return x >= -1.0 && x <= 1.0; }},
+        {"ArcTan", [](double) { return true; }},
+
+        // Logarithm
+        {"Log",    [](double x) { return x > 0.0; }},
+        {"Ln",     [](double x) { return x > 0.0; }},
+
+        // Square root and roots
+        {"Sqrt",   [](double x) { return x >= 0.0; }},
+        {"Root",   [](double x) { return x >= 0.0; }}, // for even roots
+
+        // Reciprocal trig
+        {"ArcSec", [](double x) { return std::abs(x) >= 1.0; }},
+        {"ArcCsc", [](double x) { return std::abs(x) >= 1.0; }},
+        {"ArcCot", [](double) { return true; }},
+
+        // Factorial/Gamma
+        {"Gamma",  [](double x) { return x > 0.0; }}, // real-valued for x > 0
+    };
+
     // 4. Elementwise/broadcasted binary operations
     auto elementwise = [&ctx](const std::string& op, const ExprPtr& a, const ExprPtr& b) -> ExprPtr {
         if (std::holds_alternative<List>(*a) && std::holds_alternative<List>(*b)) {
@@ -297,13 +321,26 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                 }
             }
 
-            // 2. Numeric evaluation
+            // 2. If argument is a known constant symbol, convert to number for numeric evaluation
+            if (std::holds_alternative<Symbol>(*arg_eval)) {
+                const auto& sym = std::get<Symbol>(*arg_eval);
+                if (sym.name == "E") arg_eval = make_expr<Number>(E);
+                else if (sym.name == "Pi") arg_eval = make_expr<Number>(PI);
+                else if (sym.name == "Degree") arg_eval = make_expr<Number>(PI / 180.0);
+            }
+
+            // 3. Numeric evaluation if argument is now a number
             if (std::holds_alternative<Number>(*arg_eval)) {
                 double arg = get_number_value(arg_eval);
+                auto domain_it = unary_real_domains.find(name);
+                if (domain_it != unary_real_domains.end() && !domain_it->second(arg)) {
+                    // Out of domain, return symbolic
+                    return make_fcall(name, { arg_eval });
+                }
                 return make_expr<Number>(it->second(arg));
             }
 
-            // 3. Fallback: symbolic
+            // 4. Fallback: symbolic
             return make_fcall(name, { arg_eval });
         }
     }

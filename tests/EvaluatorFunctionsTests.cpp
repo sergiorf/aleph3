@@ -223,8 +223,16 @@ void check_symbolic_eval(const std::string& expr_str, const std::string& expecte
     EvaluationContext ctx;
     auto expr = parse_expression(expr_str);
     auto result = evaluate(expr, ctx);
-    REQUIRE(std::holds_alternative<FunctionCall>(*result));
-    REQUIRE(std::get<FunctionCall>(*result).head == expected_head);
+
+    if (std::holds_alternative<FunctionCall>(*result)) {
+        REQUIRE(std::get<FunctionCall>(*result).head == expected_head);
+    }
+    else if (std::holds_alternative<Symbol>(*result)) {
+        REQUIRE(std::get<Symbol>(*result).name == expected_head);
+    }
+    else {
+        FAIL("Result is neither FunctionCall nor Symbol");
+    }
 }
 
 TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][builtins]") {
@@ -285,9 +293,6 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         // Csc
         {"Csc[Pi/2]", 1.0, "Csc[Pi/2] is 1.0."},
 
-        // Degree
-        {"Degree", PI / 180.0, "Degree is Pi/180."},
-
         // Exp
         {"Exp[0]", 1.0, "Exp[0] is 1.0."},
         {"Exp[1]", E, "Exp[1] is E."},
@@ -320,9 +325,6 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         {"N[ArcSin[0.5]]", std::asin(0.5), "ArcSin[0.5] is numeric, N returns numeric result."},
         {"N[ArcCos[0.5]]", std::acos(0.5), "ArcCos[0.5] is numeric, N returns numeric result."},
         {"N[ArcTan[1, 1]]", std::atan2(1.0, 1.0), "ArcTan[1,1] is numeric, N returns numeric result."},
-
-        // Pi
-        {"Pi", PI, "Pi is Pi."},
 
         // Power
         {"Power[2, 3]", 8.0, "2^3 is 8."},
@@ -371,7 +373,9 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         {"Sin[Pi/7]", "Sin", "Pi/7 is not a known special angle, so Sin[Pi/7] remains symbolic."},
         {"Cot[Pi/7]", "Cot", "Pi/7 is not a known special angle, so Cot[Pi/7] remains symbolic."},
         {"ArcSin[2]", "ArcSin", "ArcSin[2] is out of domain (|x|>1), so remains symbolic."},
-        {"Log[-1]", "Log", "Log[-1] is not a real number, so remains symbolic."}
+        {"Log[-1]", "Log", "Log[-1] is not a real number, so remains symbolic."},
+        {"Degree", "Degree", "Degree is a symbol."},
+        {"Pi", "Pi", "Pi is a symbol."}
     };
 
     SECTION("Numeric evaluation") {

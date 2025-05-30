@@ -393,56 +393,56 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
     }
 }
 
-/*
-void validate_nested_function_call(
+void validate_evaluator_result(
     const std::string& expr_str,
-    const std::string& outer_func,
-    const std::string& inner_func,
-    const std::vector<double>& inner_args
+    const std::variant<double, std::string>& expected
 ) {
     auto expr = parse_expression(expr_str);
     REQUIRE(expr != nullptr);
 
-    auto* outer = std::get_if<FunctionCall>(&(*expr));
-    REQUIRE(outer != nullptr);
-    REQUIRE(outer->head == outer_func);
-    REQUIRE(outer->args.size() == 1);
+    EvaluationContext ctx;
+    auto result = evaluate(expr, ctx);
 
-    auto* inner = std::get_if<FunctionCall>(&(*outer->args[0]));
-    REQUIRE(inner != nullptr);
-    REQUIRE(inner->head == inner_func);
-    REQUIRE(inner->args.size() == inner_args.size());
-
-    for (size_t i = 0; i < inner_args.size(); ++i) {
-        REQUIRE(std::holds_alternative<Number>(*inner->args[i]));
-        REQUIRE(std::get<Number>(*inner->args[i]).value == inner_args[i]);
+    if (std::holds_alternative<double>(expected)) {
+        double expected_val = std::get<double>(expected);
+        REQUIRE(std::holds_alternative<Number>(*result));
+        REQUIRE(std::abs(std::get<Number>(*result).value - expected_val) < 1e-12);
+    }
+    else {
+        // Symbolic result
+        const std::string& expected_sym = std::get<std::string>(expected);
+        REQUIRE(std::holds_alternative<Symbol>(*result));
+        REQUIRE(std::get<Symbol>(*result).name == expected_sym);
     }
 }
 
-TEST_CASE("Parser handles nested function calls (inverse pairs and more)", "[parser][functions]") {
+TEST_CASE("Evaluator behaviour for nested function calls", "[evaluator][functions]") {
     struct TestCase {
         std::string expr_str;
-        std::string outer_func;
-        std::string inner_func;
-        std::vector<double> inner_args;
+        std::variant<double, std::string> expected; // double for numeric, string for symbol
     };
 
     std::vector<TestCase> cases = {
-        {"sin[asin[1]]", "sin", "asin", {1.0}},
-        {"log[exp[2]]", "log", "exp", {2.0}},
-        {"cos[acos[0.5]]", "cos", "acos", {0.5}},
-        {"tan[atan[3]]", "tan", "atan", {3.0}},
-        {"exp[log[7]]", "exp", "log", {7.0}},
-        {"asin[sin[0.7]]", "asin", "sin", {0.7}},
-        {"acos[cos[1.2]]", "acos", "cos", {1.2}},
-        {"atan[tan[-2]]", "atan", "tan", {-2.0}},
-        {"exp[log[3.5]]", "exp", "log", {3.5}},
-        {"abs[abs[-7]]", "abs", "abs", {-7.0}},
-        {"floor[ceil[3.2]]", "floor", "ceil", {3.2}},
+        // Numeric cases
+        {"Sin[ArcSin[1]]", 1.0},
+        {"Log[Exp[2]]", 2.0},
+        {"Cos[ArcCos[0.5]]", 0.5},
+        {"Tan[ArcTan[3]]", 3.0},
+        {"Exp[Log[7]]", 7.0},
+        {"ArcSin[Sin[0.7]]", 0.7},
+        {"ArcCos[Cos[1.2]]", 1.2},
+        {"Tan[ArcTan[-2]]", -2.0},
+        {"Exp[Log[3.5]]", 3.5},
+        {"Abs[Abs[-7]]", 7.0},
+        {"Floor[Ceiling[3.2]]", 4.0},
+        // Symbolic cases
+        {"Sin[ArcSin[x]]", "x"},
+        {"Exp[Log[x]]", "x"},
+        {"Tan[ArcTan[y]]", "y"},
+        {"Abs[Abs[z]]", "z"},
     };
 
     for (const auto& tc : cases) {
-        validate_nested_function_call(tc.expr_str, tc.outer_func, tc.inner_func, tc.inner_args);
+        validate_evaluator_result(tc.expr_str, tc.expected);
     }
 }
-*/

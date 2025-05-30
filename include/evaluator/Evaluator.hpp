@@ -277,6 +277,18 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         {"Gamma",  [](double x) { return x > 0.0; }}, // real-valued for x > 0
     };
 
+    static const std::unordered_map<std::string, std::string> inverse_unary_pairs = {
+        {"Sin", "ArcSin"},
+        {"Cos", "ArcCos"},
+        {"Tan", "ArcTan"},
+        {"Exp", "Log"},
+        {"Log", "Exp"},
+        {"Abs", "Abs"},
+        {"ArcSin", "Sin"},
+        {"ArcCos", "Cos"},
+        {"ArcTan", "Tan"}
+    };
+
     // 4. Elementwise/broadcasted binary operations
     auto elementwise = [&ctx](const std::string& op, const ExprPtr& a, const ExprPtr& b) -> ExprPtr {
         if (std::holds_alternative<List>(*a) && std::holds_alternative<List>(*b)) {
@@ -315,7 +327,16 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         if (it != unary_functions.end()) {
             auto arg_eval = evaluate(func.args[0], ctx);
 
-            // 1. Check for known symbolic values
+            // 5.1 Inverse function simplification (table-driven)
+            auto inv_it = inverse_unary_pairs.find(name);
+            if (inv_it != inverse_unary_pairs.end()) {
+                auto* inner_call = std::get_if<FunctionCall>(arg_eval.get());
+                if (inner_call && inner_call->head == inv_it->second && inner_call->args.size() == 1) {
+                    return evaluate(inner_call->args[0], ctx);
+                }
+            }
+
+            // 5.2 Check for known symbolic values
             auto known_func = known_symbolic_unary.find(name);
             if (known_func != known_symbolic_unary.end()) {
                 std::string key = expr_to_key(arg_eval);
@@ -325,7 +346,7 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                 }
             }
 
-            // 2. If argument is a known constant symbol, convert to number for numeric evaluation
+            // 5.3 If argument is a known constant symbol, convert to number for numeric evaluation
             if (std::holds_alternative<Symbol>(*arg_eval)) {
                 const auto& sym = std::get<Symbol>(*arg_eval);
                 if (sym.name == "E") arg_eval = make_expr<Number>(E);
@@ -333,7 +354,7 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                 else if (sym.name == "Degree") arg_eval = make_expr<Number>(PI / 180.0);
             }
 
-            // 3. Numeric evaluation if argument is now a number
+            // 5.4 Numeric evaluation if argument is now a number
             if (std::holds_alternative<Number>(*arg_eval)) {
                 double arg = get_number_value(arg_eval);
                 auto domain_it = unary_real_domains.find(name);
@@ -344,7 +365,7 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                 return make_expr<Number>(it->second(arg));
             }
 
-            // 4. Fallback: symbolic
+            // 5.5 Fallback: symbolic
             return make_fcall(name, { arg_eval });
         }
     }

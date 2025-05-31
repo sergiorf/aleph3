@@ -123,6 +123,13 @@ struct Indeterminate {};
 
 // Utility functions
 
+inline std::string to_string(int64_t v) {
+    return std::to_string(v);
+}
+inline std::string to_string_raw(int64_t v) {
+    return std::to_string(v);
+}
+
 std::string to_string(const Expr& expr);
 
 std::string to_string_raw(const Expr& expr);

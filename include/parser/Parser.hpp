@@ -210,9 +210,44 @@ namespace aleph3 {
             if (match('+')) {
                 return parse_factor(); // Simply parse the factor after '+'
             }
-
             if (match('-')) {
-                auto factor = parse_factor(); // Parse the factor after '-' and negate it
+                // Check for -a/b pattern (unary minus before a rational)
+                skip_whitespace();
+                size_t backup = pos;
+                if (std::isdigit(peek()) || peek() == '.') {
+                    auto left = parse_number();
+                    skip_whitespace();
+                    if (peek() == '/') {
+                        ++pos; // consume '/'
+                        skip_whitespace();
+                        auto right = parse_number();
+                        if (auto* left_num = std::get_if<Number>(&(*left))) {
+                            double left_val = left_num->value;
+                            if (std::floor(left_val) == left_val) {
+                                if (auto* right_num = std::get_if<Number>(&(*right))) {
+                                    double right_val = right_num->value;
+                                    if (std::floor(right_val) == right_val) {
+                                        int64_t num = -static_cast<int64_t>(left_val);
+                                        int64_t den = static_cast<int64_t>(right_val);
+                                        if (den == 0) {
+                                            if (num == 0) return make_expr<Indeterminate>();
+                                            return make_expr<Infinity>();
+                                        }
+                                        return make_expr<Rational>(num, den);
+                                    }
+                                }
+                            }
+                        }
+                        // fallback: treat as Divide(Negate(left), right)
+                        pos = backup;
+                        auto neg_left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{left});
+                        return make_fcall("Divide", {neg_left, right});
+                    }
+                    // fallback: treat as Negate(Number)
+                    return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{left});
+                }
+                // fallback: Negate(anything else)
+                auto factor = parse_factor();
                 return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
             }
 
@@ -224,8 +259,101 @@ namespace aleph3 {
                 return expr;
             }
 
+            // Handle numbers and rationals in infix form
+            if (std::isdigit(peek()) || peek() == '.') {
+                size_t backup = pos;
+                auto left = parse_number();
+
+                skip_whitespace();
+                // Check for infix rational: e.g., 3/4
+                if (peek() == '/') {
+                    ++pos; // consume '/'
+                    skip_whitespace();
+                    // Only allow integer/integer for rationals
+                    if (auto* left_num = std::get_if<Number>(&(*left))) {
+                        double left_val = left_num->value;
+                        // Only allow integer numerator
+                        if (std::floor(left_val) == left_val) {
+                            auto right = parse_number();
+                            if (auto* right_num = std::get_if<Number>(&(*right))) {
+                                double right_val = right_num->value;
+                                if (std::floor(right_val) == right_val) {
+                                    // Special cases for denominator
+                                    int64_t num = static_cast<int64_t>(left_val);
+                                    int64_t den = static_cast<int64_t>(right_val);
+                                    if (den == 0) {
+                                        if (num == 0) return make_expr<Indeterminate>();
+                                        return make_expr<Infinity>();
+                                    }
+                                    return make_expr<Rational>(num, den);
+                                }
+                            }
+                        }
+                    }
+                    // If not integer/integer, fallback to Divide node
+                    pos = backup;
+                    auto left_expr = parse_number();
+                    skip_whitespace();
+                    if (peek() == '/') {
+                        ++pos;
+                        auto right_expr = parse_factor();
+                        return make_fcall("Divide", {left_expr, right_expr});
+                    }
+                }
+                return left;
+            }
+
             // Handle symbols (variables) or function calls
             if (std::isalpha(peek())) {
+                // Special-case Rational[a, b]
+                size_t id_start = pos;
+                std::string name = parse_identifier();
+                skip_whitespace();
+                if (name == "Rational" && match('[')) {
+                    auto num_expr = parse_expression();
+                    skip_whitespace();
+                    if (!match(',')) error("Expected ',' in Rational");
+                    auto den_expr = parse_expression();
+                    skip_whitespace();
+                    if (!match(']')) error("Expected ']' in Rational");
+                    // Only allow integer literals
+                    // Helper to extract integer value, even if Negate(Number)
+                    auto extract_int = [](const ExprPtr& expr, int64_t& out) -> bool {
+                        if (auto* num = std::get_if<Number>(&(*expr))) {
+                            double val = num->value;
+                            if (std::floor(val) == val) {
+                                out = static_cast<int64_t>(val);
+                                return true;
+                            }
+                        }
+                        if (auto* neg = std::get_if<FunctionCall>(&(*expr))) {
+                            if (neg->head == "Negate" && neg->args.size() == 1) {
+                                if (auto* num = std::get_if<Number>(&(*neg->args[0]))) {
+                                    double val = num->value;
+                                    if (std::floor(val) == val) {
+                                        out = -static_cast<int64_t>(val);
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                        return false;
+                    };
+
+                    int64_t n, d;
+                    if (extract_int(num_expr, n) && extract_int(den_expr, d)) {
+                        if (d == 0) {
+                            if (n == 0) return make_expr<Indeterminate>();
+                            return make_expr<Infinity>();
+                        }
+                        return make_expr<Rational>(n, d);
+                    }
+                    // Fallback: treat as function call if not integer/integer
+                    std::vector<ExprPtr> args = {num_expr, den_expr};
+                    return make_expr<FunctionCall>("Rational", args);
+                }
+                // Otherwise, fallback to normal symbol/function parsing
+                pos = id_start;
                 return parse_symbol();
             }
 

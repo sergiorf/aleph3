@@ -51,7 +51,8 @@ namespace aleph3 {
             {"Sqrt", "Sqrt[x]: Square root of x", "Other"},
             {"Round", "Round[x]: Round x to the nearest integer", "Other"},
             {"Gamma", "Gamma[x]: Gamma function of x", "Other"},
-
+            {"Rational", "Rational[n, d]: Rational number n/d (exact)", "Other"},
+            
             // Logical
             {"And", "And[a, b, ...]: Logical AND (True if all arguments are True)", "Logical"},
             {"Or", "Or[a, b, ...]: Logical OR (True if any argument is True)", "Logical"},

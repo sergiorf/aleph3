@@ -3,8 +3,17 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <numeric>
+#include <stdexcept>
 
 namespace aleph3 {
+    
+    Rational::Rational(int64_t n, int64_t d) {
+        if (d == 0) throw std::runtime_error("Denominator cannot be zero");
+        int64_t g = std::gcd(n, d);
+        numerator = d < 0 ? -n / g : n / g;
+        denominator = d < 0 ? -d / g : d / g;
+    }
 
     // Format numbers: show integers cleanly, floats with fixed precision
     inline std::string format_number(double value) {
@@ -56,6 +65,10 @@ namespace aleph3 {
 
             [](const Number& num) -> std::string {
                 return format_number(num.value);
+            },
+
+            [](const Rational& r) -> std::string {
+                return to_string(r.numerator) + "/" + to_string(r.denominator);
             },
 
             [](const Symbol& sym) -> std::string {
@@ -194,6 +207,9 @@ namespace aleph3 {
         return std::visit(overloaded{
             [](const Number& num) -> std::string {
                 return format_number(num.value);
+            },
+            [](const Rational& r) -> std::string {
+                return to_string_raw(r.numerator) + "/" + to_string_raw(r.denominator);
             },
             [](const Symbol& sym) -> std::string {
                 return sym.name;

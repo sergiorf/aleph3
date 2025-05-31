@@ -5,12 +5,14 @@
 #include <variant>
 #include <vector>
 #include <iostream>
+#include <cstdint>
 
 namespace aleph3 {
 
 // Forward declarations
 struct Symbol;
 struct Number;
+struct Rational;
 struct Boolean;
 struct String;
 struct FunctionCall;
@@ -22,7 +24,7 @@ struct Infinity;
 struct Indeterminate;
 
 // Core Expression type: variant of all expression types
-using Expr = std::variant < Symbol, Number, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List, Infinity, Indeterminate > ;
+using Expr = std::variant < Symbol, Number, Rational, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List, Infinity, Indeterminate > ;
 
 // Smart pointer to expressions
 using ExprPtr = std::shared_ptr<Expr>;
@@ -52,6 +54,12 @@ struct Number {
 
     Number(double v) : value(v) {}
     Number(int v) : value(static_cast<double>(v)) {}
+};
+
+struct Rational {
+    int64_t numerator;
+    int64_t denominator;
+    Rational(int64_t n, int64_t d);
 };
 
 struct Boolean {

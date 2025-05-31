@@ -10,6 +10,9 @@ namespace aleph3 {
     inline ExprPtr numeric_eval(const ExprPtr& expr) {
         return std::visit(overloaded{
             [](const Number& num) -> ExprPtr { return make_expr<Number>(num.value); },
+            [](const Rational& rat) -> ExprPtr {
+                return make_expr<Number>(static_cast<double>(rat.numerator) / rat.denominator);
+            },
             [](const Boolean& boolean) -> ExprPtr { return make_expr<Boolean>(boolean.value); },
             [](const String& str) -> ExprPtr { return make_expr<String>(str.value); },
             [](const Symbol& sym) -> ExprPtr {

@@ -27,6 +27,9 @@ inline ExprPtr normalize_expr(const ExprPtr& expr) {
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
         },
+        [](const Rational& r) -> ExprPtr {
+            return make_expr<Rational>(r.numerator, r.denominator);
+        },
         [](const Boolean& boolean) -> ExprPtr {
             return make_expr<Boolean>(boolean.value);
         },
@@ -383,6 +386,56 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
             auto left = evaluate(func.args[0], ctx);
             auto right = evaluate(func.args[1], ctx);
             if (auto ew = elementwise(name, left, right)) return ew;
+            // Rational op Rational
+            if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Rational>(*right)) {
+                const auto& a = std::get<Rational>(*left);
+                const auto& b = std::get<Rational>(*right);
+                if (name == "Plus") {
+                    return make_expr<Rational>(a.numerator * b.denominator + b.numerator * a.denominator,
+                        a.denominator * b.denominator);
+                }
+                if (name == "Minus") {
+                    return make_expr<Rational>(a.numerator * b.denominator - b.numerator * a.denominator,
+                        a.denominator * b.denominator);
+                }
+                if (name == "Times") {
+                    return make_expr<Rational>(a.numerator * b.numerator, a.denominator * b.denominator);
+                }
+                if (name == "Divide") {
+                    if (b.numerator == 0) throw std::runtime_error("Division by zero");
+                    return make_expr<Rational>(a.numerator * b.denominator, a.denominator * b.numerator);
+                }
+                // Power: only support integer exponents for now
+                if (name == "Power") {
+                    return make_fcall(name, { left, right }); // fallback to symbolic
+                }
+            }
+            // Rational op Number
+            if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Number>(*right)) {
+                const auto& a = std::get<Rational>(*left);
+                double b = std::get<Number>(*right).value;
+                if (std::floor(b) == b) {
+                    auto b_rat = Rational(static_cast<int64_t>(b), 1);
+                    return evaluate(make_fcall(name, { left, make_expr<Rational>(b_rat.numerator, b_rat.denominator) }), ctx);
+                }
+                else {
+                    double a_val = static_cast<double>(a.numerator) / a.denominator;
+                    return make_expr<Number>(it->second(a_val, b));
+                }
+            }
+            // Number op Rational
+            if (std::holds_alternative<Number>(*left) && std::holds_alternative<Rational>(*right)) {
+                double a = std::get<Number>(*left).value;
+                const auto& b = std::get<Rational>(*right);
+                if (std::floor(a) == a) {
+                    auto a_rat = Rational(static_cast<int64_t>(a), 1);
+                    return evaluate(make_fcall(name, { make_expr<Rational>(a_rat.numerator, a_rat.denominator), right }), ctx);
+                }
+                else {
+                    double b_val = static_cast<double>(b.numerator) / b.denominator;
+                    return make_expr<Number>(it->second(a, b_val));
+                }
+            }
             if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
                 double a = get_number_value(left);
                 double b = get_number_value(right);
@@ -450,6 +503,9 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
     return std::visit(overloaded{
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
+        },
+        [](const Rational& r) -> ExprPtr {
+            return make_expr<Rational>(r.numerator, r.denominator);
         },
         [](const Boolean& boolean) -> ExprPtr {
             return make_expr<Boolean>(boolean.value);

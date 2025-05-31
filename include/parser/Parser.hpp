@@ -175,6 +175,8 @@ namespace aleph3 {
         ExprPtr parse_factor() {
             skip_whitespace();
 
+            ExprPtr left;
+
             // Handle lists: { ... }
             if (match('{')) {
                 std::vector<ExprPtr> elements;
@@ -189,11 +191,10 @@ namespace aleph3 {
                         }
                     }
                 }
-                return make_expr<FunctionCall>("List", elements);
+                left = make_expr<FunctionCall>("List", elements);
             }
-
             // Handle strings
-            if (match('"')) {
+            else if (match('"')) {
                 size_t start = pos;
                 while (pos < input.size() && input[pos] != '"') {
                     ++pos;
@@ -203,89 +204,81 @@ namespace aleph3 {
                 }
                 std::string value = input.substr(start, pos - start);
                 ++pos; // Consume the closing quote
-                return make_expr<String>(value);
+                left = make_expr<String>(value);
             }
-
             // Handle unary plus/minus
-            if (match('+')) {
-                return parse_factor(); // Simply parse the factor after '+'
+            else if (match('+')) {
+                left = parse_factor(); // Simply parse the factor after '+'
             }
-            if (match('-')) {
-                // Check for -a/b pattern (unary minus before a rational)
+            else if (match('-')) {
                 skip_whitespace();
                 size_t backup = pos;
                 if (std::isdigit(peek()) || peek() == '.') {
-                    auto left = parse_number();
+                    auto num = parse_number();
                     skip_whitespace();
                     if (peek() == '/') {
                         ++pos; // consume '/'
                         skip_whitespace();
                         auto right = parse_number();
-                        if (auto* left_num = std::get_if<Number>(&(*left))) {
+                        if (auto* left_num = std::get_if<Number>(&(*num))) {
                             double left_val = left_num->value;
                             if (std::floor(left_val) == left_val) {
                                 if (auto* right_num = std::get_if<Number>(&(*right))) {
                                     double right_val = right_num->value;
                                     if (std::floor(right_val) == right_val) {
-                                        int64_t num = -static_cast<int64_t>(left_val);
-                                        int64_t den = static_cast<int64_t>(right_val);
-                                        if (den == 0) {
-                                            if (num == 0) return make_expr<Indeterminate>();
+                                        int64_t n = -static_cast<int64_t>(left_val);
+                                        int64_t d = static_cast<int64_t>(right_val);
+                                        if (d == 0) {
+                                            if (n == 0) return make_expr<Indeterminate>();
                                             return make_expr<Infinity>();
                                         }
-                                        return make_expr<Rational>(num, den);
+                                        return make_expr<Rational>(n, d);
                                     }
                                 }
                             }
                         }
                         // fallback: treat as Divide(Negate(left), right)
                         pos = backup;
-                        auto neg_left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{left});
-                        return make_fcall("Divide", {neg_left, right});
+                        auto neg_left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{num});
+                        left = make_fcall("Divide", { neg_left, right });
                     }
-                    // fallback: treat as Negate(Number)
-                    return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{left});
+                    else {
+                        left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{num});
+                    }
                 }
-                // fallback: Negate(anything else)
-                auto factor = parse_factor();
-                return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+                else {
+                    auto factor = parse_factor();
+                    left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+                }
             }
-
-            if (match('(')) {
-                auto expr = parse_expression();
+            else if (match('(')) {
+                left = parse_expression();
                 if (!match(')')) {
                     error("Expected ')'");
                 }
-                return expr;
             }
-
             // Handle numbers and rationals in infix form
-            if (std::isdigit(peek()) || peek() == '.') {
+            else if (std::isdigit(peek()) || peek() == '.') {
                 size_t backup = pos;
-                auto left = parse_number();
-
+                left = parse_number();
                 skip_whitespace();
-                // Check for infix rational: e.g., 3/4
                 if (peek() == '/') {
                     ++pos; // consume '/'
                     skip_whitespace();
-                    // Only allow integer/integer for rationals
                     if (auto* left_num = std::get_if<Number>(&(*left))) {
                         double left_val = left_num->value;
-                        // Only allow integer numerator
                         if (std::floor(left_val) == left_val) {
                             auto right = parse_number();
                             if (auto* right_num = std::get_if<Number>(&(*right))) {
                                 double right_val = right_num->value;
                                 if (std::floor(right_val) == right_val) {
-                                    // Special cases for denominator
-                                    int64_t num = static_cast<int64_t>(left_val);
-                                    int64_t den = static_cast<int64_t>(right_val);
-                                    if (den == 0) {
-                                        if (num == 0) return make_expr<Indeterminate>();
+                                    int64_t n = static_cast<int64_t>(left_val);
+                                    int64_t d = static_cast<int64_t>(right_val);
+                                    if (d == 0) {
+                                        if (n == 0) return make_expr<Indeterminate>();
                                         return make_expr<Infinity>();
                                     }
-                                    return make_expr<Rational>(num, den);
+                                    return make_expr<Rational>(n, d);
                                 }
                             }
                         }
@@ -297,15 +290,12 @@ namespace aleph3 {
                     if (peek() == '/') {
                         ++pos;
                         auto right_expr = parse_factor();
-                        return make_fcall("Divide", {left_expr, right_expr});
+                        left = make_fcall("Divide", { left_expr, right_expr });
                     }
                 }
-                return left;
             }
-
             // Handle symbols (variables) or function calls
-            if (std::isalpha(peek())) {
-                // Special-case Rational[a, b]
+            else if (std::isalpha(peek())) {
                 size_t id_start = pos;
                 std::string name = parse_identifier();
                 skip_whitespace();
@@ -317,7 +307,6 @@ namespace aleph3 {
                     skip_whitespace();
                     if (!match(']')) error("Expected ']' in Rational");
                     // Only allow integer literals
-                    // Helper to extract integer value, even if Negate(Number)
                     auto extract_int = [](const ExprPtr& expr, int64_t& out) -> bool {
                         if (auto* num = std::get_if<Number>(&(*expr))) {
                             double val = num->value;
@@ -338,7 +327,7 @@ namespace aleph3 {
                             }
                         }
                         return false;
-                    };
+                        };
 
                     int64_t n, d;
                     if (extract_int(num_expr, n) && extract_int(den_expr, d)) {
@@ -348,37 +337,32 @@ namespace aleph3 {
                         }
                         return make_expr<Rational>(n, d);
                     }
-                    // Fallback: treat as function call if not integer/integer
-                    std::vector<ExprPtr> args = {num_expr, den_expr};
-                    return make_expr<FunctionCall>("Rational", args);
+                    std::vector<ExprPtr> args = { num_expr, den_expr };
+                    left = make_expr<FunctionCall>("Rational", args);
                 }
-                // Otherwise, fallback to normal symbol/function parsing
-                pos = id_start;
-                return parse_symbol();
+                else {
+                    pos = id_start;
+                    left = parse_symbol();
+                }
+            }
+            else {
+                error("Expected a number, symbol, or '('");
             }
 
-            // Handle numbers
-            if (std::isdigit(peek()) || peek() == '.') {
-                auto left = parse_number();
-
-                // If the next token is a symbol, assume it's a multiplication (e.g., "2x")
+            // --- Implicit multiplication loop ---
+            while (true) {
                 skip_whitespace();
-                if (std::isalpha(peek())) {
-                    auto right = parse_symbol();
-                    return make_expr<FunctionCall>("Times", std::vector<ExprPtr>{left, right});
+                char next = peek();
+                // If next token is '(', a digit, or a letter, treat as implicit multiplication
+                if (next == '(' || std::isdigit(next) || std::isalpha(next)) {
+                    ExprPtr right = parse_factor();
+                    left = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{left, right});
                 }
-
-                // If the next token is '(', assume it's implicit multiplication (e.g., "2(3 + x)")
-                if (peek() == '(') {
-                    auto right = parse_factor(); // Parse the parenthesized expression
-                    return make_expr<FunctionCall>("Times", std::vector<ExprPtr>{left, right});
+                else {
+                    break;
                 }
-
-                return left;
             }
-
-            // If none of the above, throw an error
-            error("Expected a number, symbol, or '('");
+            return left;
         }
 
         ExprPtr parse_if() {

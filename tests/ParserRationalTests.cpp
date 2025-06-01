@@ -85,13 +85,13 @@ TEST_CASE("Parser: rational expressions with operators and mixed types", "[parse
         std::vector<std::pair<std::string, double>> numbers; // {type, value}
     };
     std::vector<OpCase> cases = {
-        //{"1/2 + 1/3", "Plus", {{"left", {1,2}}, {"right", {1,3}}}, {}},
-        //{"2 - 3/4", "Minus", {{"right", {3,4}}}, {{"left", 2.0}}},
-        //{"0.5 * 2/3", "Times", {{"right", {2,3}}}, {{"left", 0.5}}},
-        //{"3/4 / 5/6", "Divide", {{"left", {3,4}}, {"right", {5,6}}}, {}},
-        //{"(2/3)^4", "Power", {{"left", {2,3}}}, {{"right", 4.0}}},
-        {"-2/5 + 1/5", "Plus", {{"left", {-2,5}}, {"right", {1,5}}}, {}}
-        //{"1 + -2/5", "Plus", {{"right", {-2,5}}}, {{"left", 1.0}}}
+        {"1/2 + 1/3", "Plus", {{"left", {1,2}}, {"right", {1,3}}}, {}},
+        {"2 - 3/4", "Minus", {{"right", {3,4}}}, {{"left", 2.0}}},
+        {"0.5 * 2/3", "Times", {{"right", {2,3}}}, {{"left", 0.5}}},
+        {"3/4 / 5/6", "Divide", {{"left", {3,4}}, {"right", {5,6}}}, {}},
+        {"(2/3)^4", "Power", {{"left", {2,3}}}, {{"right", 4.0}}},
+        {"-2/5 + 1/5", "Plus", {{"left", {-2,5}}, {"right", {1,5}}}, {}},
+        {"1 + -2/5", "Plus", {{"right", {-2,5}}}, {{"left", 1.0}}}
     };
 
     for (size_t i = 0; i < cases.size(); ++i) {

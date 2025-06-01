@@ -229,7 +229,7 @@ namespace aleph3 {
                                 if (auto* right_num = std::get_if<Number>(&(*right))) {
                                     double right_val = right_num->value;
                                     if (std::floor(right_val) == right_val) {
-                                        int64_t n = static_cast<int64_t>(left_val);
+                                        int64_t n = -static_cast<int64_t>(left_val);
                                         int64_t d = static_cast<int64_t>(right_val);
                                         if (d == 0) {
                                             if (n == 0) return make_expr<Indeterminate>();
@@ -282,12 +282,20 @@ namespace aleph3 {
                     if (auto* left_num = std::get_if<Number>(&(*left))) {
                         double left_val = left_num->value;
                         if (std::floor(left_val) == left_val) {
+                            skip_whitespace();
+                            bool denom_negative = false;
+                            if (peek() == '-') {
+                                denom_negative = true;
+                                ++pos;
+                                skip_whitespace();
+                            }
                             auto right = parse_number();
                             if (auto* right_num = std::get_if<Number>(&(*right))) {
                                 double right_val = right_num->value;
                                 if (std::floor(right_val) == right_val) {
                                     int64_t n = static_cast<int64_t>(left_val);
                                     int64_t d = static_cast<int64_t>(right_val);
+                                    if (denom_negative) d = -d;
                                     if (d == 0) {
                                         if (n == 0) return make_expr<Indeterminate>();
                                         return make_expr<Infinity>();

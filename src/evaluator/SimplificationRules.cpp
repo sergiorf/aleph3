@@ -228,6 +228,21 @@ namespace aleph3 {
             if (b == 0) return make_expr<Number>(0.0);
             if (b == 1) return make_expr<Number>(1.0);
         }
+        // Add this block for rational exponents:
+        if (std::holds_alternative<Number>(*base) && std::holds_alternative<Rational>(*exp)) {
+            double b = get_number_value(base);
+            const auto& r = std::get<Rational>(*exp);
+            // Only handle positive denominator
+            if (r.denominator > 0) {
+                double root = std::pow(b, 1.0 / r.denominator);
+                double result = std::pow(root, r.numerator);
+                // If denominator is odd, allow negative base (real root)
+                if (b < 0 && r.denominator % 2 == 1) {
+                    result = -std::pow(-b, static_cast<double>(r.numerator) / r.denominator);
+                }
+                return make_expr<Number>(result);
+            }
+        }
         if (std::holds_alternative<Number>(*base) && std::holds_alternative<Number>(*exp)) {
             double b = get_number_value(base);
             double e = get_number_value(exp);

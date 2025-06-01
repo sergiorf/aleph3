@@ -29,13 +29,17 @@ TEST_CASE("Evaluator: Rational arithmetic", "[evaluator][rational]") {
         {"-3/4 + 3/4", 0, 1}
     };
     for (const auto& c : cases) {
-        auto expr = parse_expression(c.input);
-        auto result = evaluate(expr, ctx);
-        REQUIRE(result);
-        REQUIRE(std::holds_alternative<Rational>(*result));
-        auto r = std::get<Rational>(*result);
-        CHECK(r.numerator == c.num);
-        CHECK(r.denominator == c.den);
+        DYNAMIC_SECTION("Evaluating: " << c.input) {
+            auto expr = parse_expression(c.input);
+            auto result = evaluate(expr, ctx);
+            REQUIRE(result);
+            REQUIRE(std::holds_alternative<Rational>(*result));
+            auto r = std::get<Rational>(*result);
+            INFO("Input: " << c.input << " | Expected: " << c.num << "/" << c.den
+                << " | Got: " << r.numerator << "/" << r.denominator);
+            CHECK(r.numerator == c.num);
+            CHECK(r.denominator == c.den);
+        }
     }
 }
 

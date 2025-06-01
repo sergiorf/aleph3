@@ -213,42 +213,56 @@ namespace aleph3 {
             else if (match('-')) {
                 skip_whitespace();
                 size_t backup = pos;
+                ExprPtr factor;
+
+                // Try to parse a number or rational
                 if (std::isdigit(peek()) || peek() == '.') {
-                    auto num = parse_number();
+                    factor = parse_number();
                     skip_whitespace();
                     if (peek() == '/') {
                         ++pos; // consume '/'
                         skip_whitespace();
                         auto right = parse_number();
-                        if (auto* left_num = std::get_if<Number>(&(*num))) {
+                        if (auto* left_num = std::get_if<Number>(&(*factor))) {
                             double left_val = left_num->value;
                             if (std::floor(left_val) == left_val) {
                                 if (auto* right_num = std::get_if<Number>(&(*right))) {
                                     double right_val = right_num->value;
                                     if (std::floor(right_val) == right_val) {
-                                        int64_t n = -static_cast<int64_t>(left_val);
+                                        int64_t n = static_cast<int64_t>(left_val);
                                         int64_t d = static_cast<int64_t>(right_val);
                                         if (d == 0) {
                                             if (n == 0) return make_expr<Indeterminate>();
                                             return make_expr<Infinity>();
                                         }
-                                        return make_expr<Rational>(n, d);
+                                        return factor = make_expr<Rational>(n, d);
                                     }
                                 }
                             }
                         }
-                        // fallback: treat as Divide(Negate(left), right)
+                        // If not integer/integer, fallback to Divide node
                         pos = backup;
-                        auto neg_left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{num});
-                        left = make_fcall("Divide", { neg_left, right });
+                        auto left_expr = parse_number();
+                        skip_whitespace();
+                        if (peek() == '/') {
+                            ++pos;
+                            auto right_expr = parse_factor();
+                            factor = make_fcall("Divide", { left_expr, right_expr });
+                        }
                     }
-                    else {
-                        left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{num});
-                    }
+                } else {
+                    factor = parse_factor();
                 }
-                else {
-                    auto factor = parse_factor();
-                    left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+
+                // Check for implicit multiplication after the negative factor
+                skip_whitespace();
+                char next = peek();
+                if (next == '(' || std::isalpha(next)) {
+                    ExprPtr right = parse_factor();
+                    ExprPtr times = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{factor, right});
+                    return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{times});
+                } else {
+                    return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                 }
             }
             else if (match('(')) {

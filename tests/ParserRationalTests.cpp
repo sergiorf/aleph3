@@ -124,3 +124,98 @@ TEST_CASE("Parser: rational expressions with operators and mixed types", "[parse
         }
     }
 }
+
+TEST_CASE("Parser: rational expressions with all sign combinations and implicit multiplication", "[parser][rational][signs][implicit-mul]") {
+    struct Case {
+        std::string input;
+        int64_t num, den;
+        std::string var; // empty if no variable
+        bool negate_outer = false; // true if Negate wraps Times
+    };
+    std::vector<Case> cases = {
+        // Simple rationals
+        {"2/3", 2, 3, "", false},
+        {"-2/3", -2, 3, "", false},
+        {"2/-3", -2, 3, "", false},      // normalized
+        {"-2/-3", 2, 3, "", false},      // normalized
+        // With variable, implicit multiplication
+        {"2/3x", 2, 3, "x", false},
+        {"-2/3x", 2, 3, "x", true},
+        {"2/-3x", 2, 3, "x", true},      // normalized, Negate[Times[Rational[2,3], x]]
+        {"-2/-3x", 2, 3, "x", false},    // normalized
+        // With variable, explicit multiplication
+        {"2/3*x", 2, 3, "x", false},
+        {"-2/3*x", -2, 3, "x", false},
+        {"2/-3*x", -2, 3, "x", false},   // normalized
+        {"-2/-3*x", 2, 3, "x", false},   // normalized
+        // Parentheses
+        {"-(2/3)x", 2, 3, "x", true},
+        {"(-2/3)x", -2, 3, "x", false},
+        {"(2/-3)x", -2, 3, "x", false},  // normalized
+        {"(-2/-3)x", 2, 3, "x", false},  // normalized
+        // Variable numerator/denominator (should parse as Divide)
+        {"a/b", 0, 0, "", false}, // not a rational, skip check
+        {"-a/b", 0, 0, "", false}, // not a rational, skip check
+    };
+
+    for (const auto& c : cases) {
+        INFO("Input: " << c.input);
+        auto expr = parse_expression(c.input);
+        REQUIRE(expr);
+
+        // Variable numerator/denominator: skip rational check
+        if (c.input == "a/b" || c.input == "-a/b") {
+            REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+            continue;
+        }
+
+        if (!c.var.empty()) {
+            // With variable: should be Times or Negate[Times]
+            if (c.negate_outer) {
+                auto* neg = std::get_if<FunctionCall>(&(*expr));
+                REQUIRE(neg);
+                INFO("Expected Negate at top level for input: " << c.input);
+                REQUIRE(neg->head == "Negate");
+                REQUIRE(neg->args.size() == 1);
+                auto* times = std::get_if<FunctionCall>(&(*neg->args[0]));
+                REQUIRE(times);
+                INFO("Expected Times inside Negate for input: " << c.input);
+                REQUIRE(times->head == "Times");
+                REQUIRE(times->args.size() == 2);
+                auto* rat = std::get_if<Rational>(&(*times->args[0]));
+                REQUIRE(rat);
+                INFO("Expected Rational as first argument of Times for input: " << c.input);
+                CHECK(rat->numerator == c.num);
+                CHECK(rat->denominator == c.den);
+                auto* sym = std::get_if<Symbol>(&(*times->args[1]));
+                REQUIRE(sym);
+                INFO("Expected Symbol as second argument of Times for input: " << c.input);
+                CHECK(sym->name == c.var);
+            }
+            else {
+                auto* times = std::get_if<FunctionCall>(&(*expr));
+                REQUIRE(times);
+                INFO("Expected Times at top level for input: " << c.input);
+                REQUIRE(times->head == "Times");
+                REQUIRE(times->args.size() == 2);
+                auto* rat = std::get_if<Rational>(&(*times->args[0]));
+                REQUIRE(rat);
+                INFO("Expected Rational as first argument of Times for input: " << c.input);
+                CHECK(rat->numerator == c.num);
+                CHECK(rat->denominator == c.den);
+                auto* sym = std::get_if<Symbol>(&(*times->args[1]));
+                REQUIRE(sym);
+                INFO("Expected Symbol as second argument of Times for input: " << c.input);
+                CHECK(sym->name == c.var);
+            }
+        }
+        else {
+            // No variable: should be Rational
+            REQUIRE(std::holds_alternative<Rational>(*expr));
+            auto rat = std::get<Rational>(*expr);
+            INFO("Expected Rational for input: " << c.input);
+            CHECK(rat.numerator == c.num);
+            CHECK(rat.denominator == c.den);
+        }
+    }
+}

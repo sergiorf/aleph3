@@ -222,6 +222,12 @@ namespace aleph3 {
                     if (peek() == '/') {
                         ++pos; // consume '/'
                         skip_whitespace();
+                        bool denom_negative = false;
+                        if (peek() == '-') {
+                            denom_negative = true;
+                            ++pos;
+                            skip_whitespace();
+                        }
                         auto right = parse_number();
                         if (auto* left_num = std::get_if<Number>(&(*factor))) {
                             double left_val = left_num->value;
@@ -229,40 +235,41 @@ namespace aleph3 {
                                 if (auto* right_num = std::get_if<Number>(&(*right))) {
                                     double right_val = right_num->value;
                                     if (std::floor(right_val) == right_val) {
-                                        int64_t n = -static_cast<int64_t>(left_val);
+                                        int64_t n = -static_cast<int64_t>(left_val); // unary minus
                                         int64_t d = static_cast<int64_t>(right_val);
+                                        if (denom_negative) d = -d;
                                         if (d == 0) {
                                             if (n == 0) return make_expr<Indeterminate>();
                                             return make_expr<Infinity>();
                                         }
-                                        return factor = make_expr<Rational>(n, d);
+                                        left = make_expr<Rational>(n, d);
+                                    } else {
+                                        left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                                     }
+                                } else {
+                                    left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                                 }
+                            } else {
+                                left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                             }
+                        } else {
+                            // If not integer/integer, fallback to Divide node
+                            pos = backup;
+                            auto left_expr = parse_number();
+                            skip_whitespace();
+                            if (peek() == '/') {
+                                ++pos;
+                                auto right_expr = parse_factor();
+                                factor = make_fcall("Divide", { left_expr, right_expr });
+                            }
+                            left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                         }
-                        // If not integer/integer, fallback to Divide node
-                        pos = backup;
-                        auto left_expr = parse_number();
-                        skip_whitespace();
-                        if (peek() == '/') {
-                            ++pos;
-                            auto right_expr = parse_factor();
-                            factor = make_fcall("Divide", { left_expr, right_expr });
-                        }
+                    } else {
+                        left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                     }
                 } else {
                     factor = parse_factor();
-                }
-
-                // Check for implicit multiplication after the negative factor
-                skip_whitespace();
-                char next = peek();
-                if (next == '(' || std::isalpha(next)) {
-                    ExprPtr right = parse_factor();
-                    ExprPtr times = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{factor, right});
-                    return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{times});
-                } else {
-                    return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+                    left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                 }
             }
             else if (match('(')) {
@@ -279,17 +286,16 @@ namespace aleph3 {
                 if (peek() == '/') {
                     ++pos; // consume '/'
                     skip_whitespace();
+                    bool denom_negative = false;
+                    if (peek() == '-') {
+                        denom_negative = true;
+                        ++pos;
+                        skip_whitespace();
+                    }
+                    auto right = parse_number();
                     if (auto* left_num = std::get_if<Number>(&(*left))) {
                         double left_val = left_num->value;
                         if (std::floor(left_val) == left_val) {
-                            skip_whitespace();
-                            bool denom_negative = false;
-                            if (peek() == '-') {
-                                denom_negative = true;
-                                ++pos;
-                                skip_whitespace();
-                            }
-                            auto right = parse_number();
                             if (auto* right_num = std::get_if<Number>(&(*right))) {
                                 double right_val = right_num->value;
                                 if (std::floor(right_val) == right_val) {
@@ -300,19 +306,22 @@ namespace aleph3 {
                                         if (n == 0) return make_expr<Indeterminate>();
                                         return make_expr<Infinity>();
                                     }
-                                    return make_expr<Rational>(n, d);
+                                    left = make_expr<Rational>(n, d);
+                                    // Do not parse more as denominator! Let implicit multiplication handle next token.
                                 }
                             }
                         }
                     }
                     // If not integer/integer, fallback to Divide node
-                    pos = backup;
-                    auto left_expr = parse_number();
-                    skip_whitespace();
-                    if (peek() == '/') {
-                        ++pos;
-                        auto right_expr = parse_factor();
-                        left = make_fcall("Divide", { left_expr, right_expr });
+                    else {
+                        pos = backup;
+                        auto left_expr = parse_number();
+                        skip_whitespace();
+                        if (peek() == '/') {
+                            ++pos;
+                            auto right_expr = parse_factor();
+                            left = make_fcall("Divide", { left_expr, right_expr });
+                        }
                     }
                 }
             }

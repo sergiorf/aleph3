@@ -40,7 +40,7 @@ namespace aleph3 {
 
     class Parser {
     public:
-        Parser(const std::string& input) : input(input), pos(0) {}
+        Parser(const std::string& input) : input(input), pos(0), paren_depth(0) {}
 
         ExprPtr parse() {
             skip_whitespace();
@@ -124,6 +124,7 @@ namespace aleph3 {
     private:
         std::string input;
         size_t pos;
+        int paren_depth;
 
         // Pratt/precedence climbing parser
         ExprPtr parse_expression(int min_precedence = 1) {
@@ -174,8 +175,8 @@ namespace aleph3 {
 
         ExprPtr parse_factor() {
             skip_whitespace();
-
             ExprPtr left;
+            bool pending_negate = false;
 
             // Handle lists: { ... }
             if (match('{')) {
@@ -210,6 +211,84 @@ namespace aleph3 {
             else if (match('+')) {
                 left = parse_factor(); // Simply parse the factor after '+'
             }
+            else if (match('-')) {
+                skip_whitespace();
+                size_t backup = pos;
+                if ((std::isdigit(peek()) || peek() == '.')) {
+                    auto num = parse_number();
+                    skip_whitespace();
+                    if (peek() == '/') {
+                        ++pos;
+                        skip_whitespace();
+                        bool denom_negative = false;
+                        if (peek() == '-') {
+                            denom_negative = true;
+                            ++pos;
+                            skip_whitespace();
+                        }
+                        auto denom = parse_number();
+                        skip_whitespace();
+
+                        if (auto* num_n = std::get_if<Number>(&(*num))) {
+                            double nval = num_n->value;
+                            if (std::floor(nval) == nval) {
+                                if (auto* denom_n = std::get_if<Number>(&(*denom))) {
+                                    double dval = denom_n->value;
+                                    if (std::floor(dval) == dval) {
+                                        int64_t n = -static_cast<int64_t>(nval); // unary minus on numerator
+                                        int64_t d = static_cast<int64_t>(dval);
+                                        if (denom_negative) d = -d;
+                                        // Normalize: if both negative, make both positive
+                                        if (n < 0 && d < 0) {
+                                            n = -n;
+                                            d = -d;
+                                        }
+                                        if (peek() == '*') {
+                                            // Explicit multiplication: -2/3*x -> Times[Rational[-2,3], x]
+                                            left = make_expr<Rational>(n, d);
+                                            return left;
+                                        } else {
+                                            // Implicit multiplication or end: build Rational, but do NOT return yet!
+                                            if (n < 0 && d > 0) {
+                                                if (paren_depth == 0) {
+                                                    left = make_expr<Rational>(-n, d); // Make numerator positive
+                                                    pending_negate = true;
+                                                }
+                                                else {
+                                                    left = make_expr<Rational>(n, d); // Keep numerator negative inside parentheses
+                                                }
+                                            } else if (n > 0 && d > 0) {
+                                                left = make_expr<Rational>(n, d);
+                                            } else if (d < 0) {
+                                                left = make_expr<Rational>(-n, -d);
+                                            } else {
+                                                left = make_expr<Rational>(n, d);
+                                            }
+                                            // Do NOT return here! Let implicit multiplication loop handle the next token.
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    skip_whitespace();
+                    if (peek() == '*') {
+                        if (auto* num_n = std::get_if<Number>(&(*num))) {
+                            double nval = num_n->value;
+                            if (std::floor(nval) == nval) {
+                                left = make_expr<Number>(-nval);
+                                return left;
+                            }
+                        }
+                    }
+                }
+                // Fallback: Negate the next factor as a whole
+                if (!left) {
+                    ExprPtr factor = parse_factor();
+                    left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+                }
+            }
+            /*
             else if (match('-')) {
                 skip_whitespace();
                 size_t backup = pos;
@@ -272,11 +351,14 @@ namespace aleph3 {
                     left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                 }
             }
+                */
             else if (match('(')) {
+                ++paren_depth;
                 left = parse_expression();
                 if (!match(')')) {
                     error("Expected ')'");
                 }
+                --paren_depth;
             }
             // Handle numbers and rationals in infix form
             else if (std::isdigit(peek()) || peek() == '.') {
@@ -392,6 +474,10 @@ namespace aleph3 {
                 else {
                     break;
                 }
+            }
+
+            if (pending_negate) {
+                left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{left});
             }
             return left;
         }

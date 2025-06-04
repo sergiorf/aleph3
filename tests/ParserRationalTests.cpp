@@ -130,32 +130,32 @@ TEST_CASE("Parser: rational expressions with all sign combinations and implicit 
         std::string input;
         int64_t num, den;
         std::string var; // empty if no variable
-        bool negate_outer = false; // true if Negate wraps Times
+        bool negate_outer = false; // true if Negate wraps Times or Rational
     };
     std::vector<Case> cases = {
         // Simple rationals
         {"2/3", 2, 3, "", false},
-        {"-2/3", -2, 3, "", false},
-        {"2/-3", -2, 3, "", false},      // normalized
-        {"-2/-3", 2, 3, "", false},      // normalized
+        {"-2/3", 2, 3, "", true},         // Negate[Rational[2,3]]
+        {"2/-3", -2, 3, "", false},       // Rational[-2,3]
+        {"-2/-3", 2, 3, "", false},       // Rational[2,3]
         // With variable, implicit multiplication
         {"2/3x", 2, 3, "x", false},
-        {"-2/3x", 2, 3, "x", true},
-        {"2/-3x", 2, 3, "x", true},      // normalized, Negate[Times[Rational[2,3], x]]
-        {"-2/-3x", 2, 3, "x", false},    // normalized
+        {"-2/3x", 2, 3, "x", true},       // Negate[Times[Rational[2,3], x]]
+        {"2/-3x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
+        {"-2/-3x", 2, 3, "x", false},     // Times[Rational[2,3], x]
         // With variable, explicit multiplication
         {"2/3*x", 2, 3, "x", false},
-        {"-2/3*x", -2, 3, "x", false},
-        {"2/-3*x", -2, 3, "x", false},   // normalized
-        {"-2/-3*x", 2, 3, "x", false},   // normalized
+        {"-2/3*x", -2, 3, "x", false},    // Times[Rational[-2,3], x]
+        {"2/-3*x", -2, 3, "x", false},    // Times[Rational[-2,3], x]
+        {"-2/-3*x", 2, 3, "x", false},    // Times[Rational[2,3], x]
         // Parentheses
-        {"-(2/3)x", 2, 3, "x", true},
-        {"(-2/3)x", -2, 3, "x", false},
-        {"(2/-3)x", -2, 3, "x", false},  // normalized
-        {"(-2/-3)x", 2, 3, "x", false},  // normalized
+        {"-(2/3)x", 2, 3, "x", true},     // Negate[Times[Rational[2,3], x]]
+        {"(-2/3)x", -2, 3, "x", false},   // Times[Rational[-2,3], x]
+        {"(2/-3)x", -2, 3, "x", false},   // Times[Rational[-2,3], x]
+        {"(-2/-3)x", 2, 3, "x", false},   // Times[Rational[2,3], x]
         // Variable numerator/denominator (should parse as Divide)
-        {"a/b", 0, 0, "", false}, // not a rational, skip check
-        {"-a/b", 0, 0, "", false}, // not a rational, skip check
+        {"a/b", 0, 0, "", false},         // not a rational, skip check
+        {"-a/b", 0, 0, "", false},        // not a rational, skip check
     };
 
     for (const auto& c : cases) {
@@ -210,12 +210,26 @@ TEST_CASE("Parser: rational expressions with all sign combinations and implicit 
             }
         }
         else {
-            // No variable: should be Rational
-            REQUIRE(std::holds_alternative<Rational>(*expr));
-            auto rat = std::get<Rational>(*expr);
-            INFO("Expected Rational for input: " << c.input);
-            CHECK(rat.numerator == c.num);
-            CHECK(rat.denominator == c.den);
+            // No variable: should be Rational or Negate[Rational]
+            if (c.negate_outer) {
+                auto* neg = std::get_if<FunctionCall>(&(*expr));
+                REQUIRE(neg);
+                INFO("Expected Negate at top level for input: " << c.input);
+                REQUIRE(neg->head == "Negate");
+                REQUIRE(neg->args.size() == 1);
+                auto* rat = std::get_if<Rational>(&(*neg->args[0]));
+                REQUIRE(rat);
+                INFO("Expected Rational inside Negate for input: " << c.input);
+                CHECK(rat->numerator == c.num);
+                CHECK(rat->denominator == c.den);
+            }
+            else {
+                REQUIRE(std::holds_alternative<Rational>(*expr));
+                auto rat = std::get<Rational>(*expr);
+                INFO("Expected Rational for input: " << c.input);
+                CHECK(rat.numerator == c.num);
+                CHECK(rat.denominator == c.den);
+            }
         }
     }
 }

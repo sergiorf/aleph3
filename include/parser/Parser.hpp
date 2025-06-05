@@ -250,13 +250,7 @@ namespace aleph3 {
                                         } else {
                                             // Implicit multiplication or end: build Rational, but do NOT return yet!
                                             if (n < 0 && d > 0) {
-                                                if (paren_depth == 0) {
-                                                    left = make_expr<Rational>(-n, d); // Make numerator positive
-                                                    pending_negate = true;
-                                                }
-                                                else {
-                                                    left = make_expr<Rational>(n, d); // Keep numerator negative inside parentheses
-                                                }
+                                                left = make_expr<Rational>(n, d); // Keep numerator negative
                                             } else if (n > 0 && d > 0) {
                                                 left = make_expr<Rational>(n, d);
                                             } else if (d < 0) {
@@ -281,11 +275,43 @@ namespace aleph3 {
                             }
                         }
                     }
+                    // Handle implicit multiplication: -2x, -2(x), etc.
+                    char next = peek();
+                    if (std::isalpha(next) || next == '(') {
+                        ExprPtr right = parse_factor();
+                        left = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{
+                            make_expr<Number>(-std::get<Number>(*num).value), right
+                        });
+                        return left;
+                    }
+                    // Only here, if left is not already set, set it to a negative number
+                    if (!left) {
+                        left = make_expr<Number>(-std::get<Number>(*num).value);
+                        return left;
+                    }
                 }
                 // Fallback: Negate the next factor as a whole
                 if (!left) {
                     ExprPtr factor = parse_factor();
-                    left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+                    // If factor is a Rational, fold the minus into the numerator
+                    if (auto* rat = std::get_if<Rational>(&(*factor))) {
+                        left = make_expr<Rational>(-rat->numerator, rat->denominator);
+                    } else if (auto* times = std::get_if<FunctionCall>(&(*factor))) {
+                        // Handle -(Rational * x) as Times[Rational[-n, d], x]
+                        if (times->head == "Times" && !times->args.empty()) {
+                            if (auto* rat = std::get_if<Rational>(&(*times->args[0]))) {
+                                std::vector<ExprPtr> new_args = times->args;
+                                new_args[0] = make_expr<Rational>(-rat->numerator, rat->denominator);
+                                left = make_expr<FunctionCall>("Times", new_args);
+                            } else {
+                                left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+                            }
+                        } else {
+                            left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+                        }
+                    } else {
+                        left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
+                    }
                 }
             }
             /*

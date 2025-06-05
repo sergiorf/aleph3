@@ -134,28 +134,28 @@ TEST_CASE("Parser: rational expressions with all sign combinations and implicit 
     };
     std::vector<Case> cases = {
         // Simple rationals
-        {"2/3", 2, 3, "", false},
-        {"-2/3", 2, 3, "", true},         // Negate[Rational[2,3]]
-        {"2/-3", -2, 3, "", false},       // Rational[-2,3]
-        {"-2/-3", 2, 3, "", false},       // Rational[2,3]
+        {"2/3", 2, 3, "", false},           // Rational[2,3]
+        {"-2/3", -2, 3, "", false},         // Rational[-2,3]
+        {"2/-3", -2, 3, "", false},         // Rational[-2,3]
+        {"-2/-3", 2, 3, "", false},         // Rational[2,3]
         // With variable, implicit multiplication
-        {"2/3x", 2, 3, "x", false},
-        {"-2/3x", 2, 3, "x", true},       // Negate[Times[Rational[2,3], x]]
-        {"2/-3x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
-        {"-2/-3x", 2, 3, "x", false},     // Times[Rational[2,3], x]
+        {"2/3x", 2, 3, "x", false},         // Times[Rational[2,3], x]
+        {"-2/3x", -2, 3, "x", false},       // Times[Rational[-2,3], x]
+        {"2/-3x", -2, 3, "x", false},       // Times[Rational[-2,3], x]
+        {"-2/-3x", 2, 3, "x", false},       // Times[Rational[2,3], x]
         // With variable, explicit multiplication
-        {"2/3*x", 2, 3, "x", false},
-        {"-2/3*x", -2, 3, "x", false},    // Times[Rational[-2,3], x]
-        {"2/-3*x", -2, 3, "x", false},    // Times[Rational[-2,3], x]
-        {"-2/-3*x", 2, 3, "x", false},    // Times[Rational[2,3], x]
+        {"2/3*x", 2, 3, "x", false},        // Times[Rational[2,3], x]
+        {"-2/3*x", -2, 3, "x", false},      // Times[Rational[-2,3], x]
+        {"2/-3*x", -2, 3, "x", false},      // Times[Rational[-2,3], x]
+        {"-2/-3*x", 2, 3, "x", false},      // Times[Rational[2,3], x]
         // Parentheses
-        {"-(2/3)x", 2, 3, "x", true},     // Negate[Times[Rational[2,3], x]]
-        {"(-2/3)x", -2, 3, "x", false},   // Times[Rational[-2,3], x]
-        {"(2/-3)x", -2, 3, "x", false},   // Times[Rational[-2,3], x]
-        {"(-2/-3)x", 2, 3, "x", false},   // Times[Rational[2,3], x]
+        {"-(2/3)x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
+        {"(-2/3)x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
+        {"(2/-3)x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
+        {"(-2/-3)x", 2, 3, "x", false},     // Times[Rational[2,3], x]
         // Variable numerator/denominator (should parse as Divide)
-        {"a/b", 0, 0, "", false},         // not a rational, skip check
-        {"-a/b", 0, 0, "", false},        // not a rational, skip check
+        {"a/b", 0, 0, "", false},           // not a rational, skip check
+        {"-a/b", 0, 0, "", false},          // not a rational, skip check
     };
 
     for (const auto& c : cases) {

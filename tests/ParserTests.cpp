@@ -116,21 +116,17 @@ TEST_CASE("Parser handles negative numbers with multiplication (2x and -2x)") {
 
     ExprPtr expr = parse_expression(input);
 
-    // Check that the parsed expression is a Negate followed by Times
+    // Check that the parsed expression is Times[-2, x]
     auto* func_call = std::get_if<FunctionCall>(&(*expr));
     REQUIRE(func_call != nullptr);
-    REQUIRE(func_call->head == "Negate");
+    REQUIRE(func_call->head == "Times");
+    REQUIRE(func_call->args.size() == 2);
 
-    auto* negate_expr = std::get_if<FunctionCall>(&(*func_call->args[0]));
-    REQUIRE(negate_expr != nullptr);
-    REQUIRE(negate_expr->head == "Times");
-    REQUIRE(negate_expr->args.size() == 2);
-
-    auto* left = std::get_if<Number>(&(*negate_expr->args[0]));
-    auto* right = std::get_if<Symbol>(&(*negate_expr->args[1]));
+    auto* left = std::get_if<Number>(&(*func_call->args[0]));
+    auto* right = std::get_if<Symbol>(&(*func_call->args[1]));
 
     REQUIRE(left != nullptr);
-    REQUIRE(left->value == 2.0);
+    REQUIRE(left->value == -2.0);
     REQUIRE(right != nullptr);
     REQUIRE(right->name == "x");
 }

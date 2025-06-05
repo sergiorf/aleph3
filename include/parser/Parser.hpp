@@ -279,9 +279,8 @@ namespace aleph3 {
                     char next = peek();
                     if (std::isalpha(next) || next == '(') {
                         ExprPtr right = parse_factor();
-                        left = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{
-                            make_expr<Number>(-std::get<Number>(*num).value), right
-                        });
+                        ExprPtr lhs = left ? left : make_expr<Number>(-std::get<Number>(*num).value);
+                        left = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{lhs, right});
                         return left;
                     }
                     // Only here, if left is not already set, set it to a negative number
@@ -314,70 +313,6 @@ namespace aleph3 {
                     }
                 }
             }
-            /*
-            else if (match('-')) {
-                skip_whitespace();
-                size_t backup = pos;
-                ExprPtr factor;
-
-                // Try to parse a number or rational
-                if (std::isdigit(peek()) || peek() == '.') {
-                    factor = parse_number();
-                    skip_whitespace();
-                    if (peek() == '/') {
-                        ++pos; // consume '/'
-                        skip_whitespace();
-                        bool denom_negative = false;
-                        if (peek() == '-') {
-                            denom_negative = true;
-                            ++pos;
-                            skip_whitespace();
-                        }
-                        auto right = parse_number();
-                        if (auto* left_num = std::get_if<Number>(&(*factor))) {
-                            double left_val = left_num->value;
-                            if (std::floor(left_val) == left_val) {
-                                if (auto* right_num = std::get_if<Number>(&(*right))) {
-                                    double right_val = right_num->value;
-                                    if (std::floor(right_val) == right_val) {
-                                        int64_t n = -static_cast<int64_t>(left_val); // unary minus
-                                        int64_t d = static_cast<int64_t>(right_val);
-                                        if (denom_negative) d = -d;
-                                        if (d == 0) {
-                                            if (n == 0) return make_expr<Indeterminate>();
-                                            return make_expr<Infinity>();
-                                        }
-                                        left = make_expr<Rational>(n, d);
-                                    } else {
-                                        left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
-                                    }
-                                } else {
-                                    left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
-                                }
-                            } else {
-                                left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
-                            }
-                        } else {
-                            // If not integer/integer, fallback to Divide node
-                            pos = backup;
-                            auto left_expr = parse_number();
-                            skip_whitespace();
-                            if (peek() == '/') {
-                                ++pos;
-                                auto right_expr = parse_factor();
-                                factor = make_fcall("Divide", { left_expr, right_expr });
-                            }
-                            left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
-                        }
-                    } else {
-                        left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
-                    }
-                } else {
-                    factor = parse_factor();
-                    left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
-                }
-            }
-                */
             else if (match('(')) {
                 ++paren_depth;
                 left = parse_expression();

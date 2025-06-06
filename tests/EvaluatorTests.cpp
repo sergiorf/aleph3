@@ -4,6 +4,7 @@
 #include "evaluator/EvaluationContext.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_approx.hpp>
 #include <cmath>
 #include <stdexcept>
 
@@ -636,4 +637,46 @@ TEST_CASE("Evaluator handles Length for lists", "[evaluator][lists]") {
     result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(std::get<Number>(*result).value == 0.0);
+}
+
+struct EvalCase {
+    std::string input;
+    std::map<std::string, double> env;
+    double expected;
+};
+
+TEST_CASE("Evaluator handles division by products and negatives") {
+    std::vector<EvalCase> cases = {
+        {"x/-3x",   {{"x", 2.0}}, -1.0 / 3.0},
+        {"y/2y",    {{"y", 5.0}}, 0.5},
+        {"a/-b",    {{"a", 6.0}, {"b", 2.0}}, -3.0},
+        {"z/4w",    {{"z", 8.0}, {"w", 2.0}}, 1.0},
+        {"t/-7t",   {{"t", 7.0}}, -1.0 / 7.0},
+        {"m/(-2m)", {{"m", 10.0}}, -0.5},
+        {"p/(-q)",  {{"p", 9.0}, {"q", 3.0}}, -3.0},
+    };
+
+    for (const auto& c : cases) {
+        CAPTURE(c.input, c.env, c.expected);
+
+        EvaluationContext ctx;
+        for (const auto& [var, val] : c.env) {
+            ctx.variables[var] = make_expr<Number>(val);
+        }
+
+        ExprPtr expr = parse_expression(c.input);
+        ExprPtr result_expr = evaluate(expr, ctx);
+
+        double value = 0.0;
+        if (auto* num = std::get_if<Number>(&(*result_expr))) {
+            value = num->value;
+        }
+        else if (auto* rat = std::get_if<Rational>(&(*result_expr))) {
+            value = static_cast<double>(rat->numerator) / rat->denominator;
+        }
+        else {
+            FAIL("Evaluator did not return a numeric result");
+        }
+        REQUIRE(value == Catch::Approx(c.expected));
+    }
 }

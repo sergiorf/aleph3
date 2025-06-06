@@ -602,3 +602,53 @@ TEST_CASE("Parser parses Aleph3 constants as symbols", "[parser][constants]") {
         REQUIRE(std::get<Symbol>(*expr).name == name);
     }
 }
+
+struct DivideCase {
+    std::string input;
+    double denom_num; // The numeric value in the denominator (e.g. -3 for -3x)
+    std::string numer_var;
+    std::string denom_var;
+};
+
+TEST_CASE("Parser handles division by products and negatives") {
+    std::vector<DivideCase> cases = {
+        {"x/-3x",   -3.0, "x", "x"},
+        {"y/2y",     2.0, "y", "y"},
+        {"a/-b",    -1.0, "a", "b"},
+        {"z/4w",     4.0, "z", "w"},
+        {"t/-7t",   -7.0, "t", "t"},
+        {"m/(-2m)", -2.0, "m", "m"},
+        {"p/(-q)",  -1.0, "p", "q"},
+    };
+
+    for (const auto& c : cases) {
+        CAPTURE(c.input, c.denom_num, c.numer_var, c.denom_var);
+
+        ExprPtr expr = parse_expression(c.input);
+
+        // Should be Divide[numer_var, Times[denom_num, denom_var]]
+        auto* divide = std::get_if<FunctionCall>(&(*expr));
+        REQUIRE(divide != nullptr);
+        REQUIRE(divide->head == "Divide");
+        REQUIRE(divide->args.size() == 2);
+
+        // Numerator: variable
+        auto* numerator = std::get_if<Symbol>(&(*divide->args[0]));
+        REQUIRE(numerator != nullptr);
+        REQUIRE(numerator->name == c.numer_var);
+
+        // Denominator: Times[denom_num, denom_var]
+        auto* times = std::get_if<FunctionCall>(&(*divide->args[1]));
+        REQUIRE(times != nullptr);
+        REQUIRE(times->head == "Times");
+        REQUIRE(times->args.size() == 2);
+
+        auto* num = std::get_if<Number>(&(*times->args[0]));
+        REQUIRE(num != nullptr);
+        REQUIRE(num->value == c.denom_num);
+
+        auto* var = std::get_if<Symbol>(&(*times->args[1]));
+        REQUIRE(var != nullptr);
+        REQUIRE(var->name == c.denom_var);
+    }
+}

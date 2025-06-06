@@ -295,20 +295,30 @@ namespace aleph3 {
                     // If factor is a Rational, fold the minus into the numerator
                     if (auto* rat = std::get_if<Rational>(&(*factor))) {
                         left = make_expr<Rational>(-rat->numerator, rat->denominator);
-                    } else if (auto* times = std::get_if<FunctionCall>(&(*factor))) {
+                    }
+                    else if (auto* times = std::get_if<FunctionCall>(&(*factor))) {
                         // Handle -(Rational * x) as Times[Rational[-n, d], x]
                         if (times->head == "Times" && !times->args.empty()) {
                             if (auto* rat = std::get_if<Rational>(&(*times->args[0]))) {
                                 std::vector<ExprPtr> new_args = times->args;
                                 new_args[0] = make_expr<Rational>(-rat->numerator, rat->denominator);
                                 left = make_expr<FunctionCall>("Times", new_args);
-                            } else {
+                            }
+                            else {
                                 left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                             }
-                        } else {
+                        }
+                        else {
                             left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                         }
-                    } else {
+                    }
+                    else if (auto* sym = std::get_if<Symbol>(&(*factor))) {
+                        // -b -> Times[-1, b]
+                        left = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{
+                            make_expr<Number>(-1), factor
+                        });
+                    }
+                    else {
                         left = make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{factor});
                     }
                 }

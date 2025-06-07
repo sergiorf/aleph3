@@ -6,6 +6,7 @@
 #include <memory>
 #include <cctype>
 #include <stdexcept>
+#include <cmath>
 #include "expr/Expr.hpp"
 #include "expr/ExprUtils.hpp"
 

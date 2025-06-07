@@ -225,43 +225,63 @@ namespace aleph3 {
                             denom_negative = true;
                             ++pos;
                             skip_whitespace();
-                        }
-                        auto denom = parse_number();
-                        skip_whitespace();
+                        }                        
 
-                        if (auto* num_n = std::get_if<Number>(&(*num))) {
-                            double nval = num_n->value;
-                            if (std::floor(nval) == nval) {
-                                if (auto* denom_n = std::get_if<Number>(&(*denom))) {
-                                    double dval = denom_n->value;
-                                    if (std::floor(dval) == dval) {
-                                        int64_t n = -static_cast<int64_t>(nval); // unary minus on numerator
-                                        int64_t d = static_cast<int64_t>(dval);
-                                        if (denom_negative) d = -d;
-                                        // Normalize: if both negative, make both positive
-                                        if (n < 0 && d < 0) {
-                                            n = -n;
-                                            d = -d;
-                                        }
-                                        if (peek() == '*') {
-                                            // Explicit multiplication: -2/3*x -> Times[Rational[-2,3], x]
-                                            left = make_expr<Rational>(n, d);
-                                            return left;
-                                        } else {
-                                            // Implicit multiplication or end: build Rational, but do NOT return yet!
-                                            if (n < 0 && d > 0) {
-                                                left = make_expr<Rational>(n, d); // Keep numerator negative
-                                            } else if (n > 0 && d > 0) {
-                                                left = make_expr<Rational>(n, d);
-                                            } else if (d < 0) {
-                                                left = make_expr<Rational>(-n, -d);
-                                            } else {
-                                                left = make_expr<Rational>(n, d);
-                                            }
-                                            // Do NOT return here! Let implicit multiplication loop handle the next token.
-                                        }
-                                    }
+                        skip_whitespace();
+                        ExprPtr denom;
+                        bool denom_is_number = false;
+                        double dval = 0.0;
+
+                        if (std::isdigit(peek()) || peek() == '.') {
+                            denom = parse_number();
+                            skip_whitespace();
+                            if (auto* denom_n = std::get_if<Number>(&(*denom))) {
+                                dval = denom_n->value;
+                                denom_is_number = (std::floor(dval) == dval);
+                            }
+                        } else {
+                            denom = parse_factor();
+                            skip_whitespace();
+                        }
+
+                        // If denominator is a number, we can build a Rational
+                        if (denom_is_number) {
+                            if (auto* num_n = std::get_if<Number>(&(*num))) {
+                                double nval = num_n->value;
+                                int64_t n = -static_cast<int64_t>(nval); // unary minus on numerator
+                                int64_t d = static_cast<int64_t>(dval);
+                                if (denom_negative) d = -d;
+                                // Normalize: if both negative, make both positive
+                                if (n < 0 && d < 0) {
+                                    n = -n;
+                                    d = -d;
                                 }
+                                if (peek() == '*') {
+                                    // Explicit multiplication: -2/3*x -> Times[Rational[-2,3], x]
+                                    left = make_expr<Rational>(n, d);
+                                    return left;
+                                } else {
+                                    // Implicit multiplication or end: build Rational, but do NOT return yet!
+                                    if (n < 0 && d > 0) {
+                                        left = make_expr<Rational>(n, d); // Keep numerator negative
+                                    } else if (n > 0 && d > 0) {
+                                        left = make_expr<Rational>(n, d);
+                                    } else if (d < 0) {
+                                        left = make_expr<Rational>(-n, -d);
+                                    } else {
+                                        left = make_expr<Rational>(n, d);
+                                    }
+                                    // Do NOT return here! Let implicit multiplication loop handle the next token.
+                                }
+                            }
+                        } else {
+                            // Not a number: treat as a full factor (e.g. -2/(3x))
+                            if (auto* num_n = std::get_if<Number>(&(*num))) {
+                                double nval = num_n->value;
+                                left = make_expr<FunctionCall>("Divide", std::vector<ExprPtr>{
+                                    make_expr<Number>(-nval), denom
+                                });
+                                return left;
                             }
                         }
                     }

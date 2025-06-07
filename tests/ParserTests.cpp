@@ -652,3 +652,131 @@ TEST_CASE("Parser handles division by products and negatives") {
         REQUIRE(var->name == c.denom_var);
     }
 }
+
+TEST_CASE("Parser handles division with negative numerators and products in denominator") {
+    struct ParseCase {
+        std::string input;
+        enum class DenomType { Times, Symbol } denom_type;
+        double numer;
+        double denom_num;
+        std::string denom_var;
+        std::string denom_symbol;
+    };
+
+    std::vector<ParseCase> cases = {
+        {"-52/(3X)",   ParseCase::DenomType::Times,   -52.0, 3.0, "X", ""},
+        {"-7/(2y)",    ParseCase::DenomType::Times,   -7.0,  2.0, "y", ""},
+        {"-a/(bC)",    ParseCase::DenomType::Symbol,   0.0,  0.0, "", "bC"}, // single symbol
+        {"-a/(b C)",   ParseCase::DenomType::Times,    0.0,  0.0, "", ""},   // product
+        {"-1/(4z)",    ParseCase::DenomType::Times,   -1.0,  4.0, "z", ""},
+        {"-2/(x^2)",   ParseCase::DenomType::Times,   -2.0,  0.0, "", ""},   // power in denominator
+        {"-x/(y+z)",   ParseCase::DenomType::Times,    0.0,  0.0, "", ""},   // sum in denominator
+        {"-3/(Sin[x])",ParseCase::DenomType::Times,   -3.0,  0.0, "", ""},   // function call in denominator
+        {"-a/(b_c)",   ParseCase::DenomType::Symbol,   0.0,  0.0, "", "b_c"}, // symbol with underscore
+    };
+
+    for (const auto& c : cases) {
+        CAPTURE(c.input);
+
+        ExprPtr expr = parse_expression(c.input);
+
+        auto* divide = std::get_if<FunctionCall>(&(*expr));
+        REQUIRE(divide != nullptr);
+        REQUIRE(divide->head == "Divide");
+        REQUIRE(divide->args.size() == 2);
+
+        // Numerator: handle -a and -x as Times[-1, a] or Times[-1, x]
+        if (c.input.find("-a/") == 0 || c.input.find("-x/") == 0) {
+            auto* times = std::get_if<FunctionCall>(&(*divide->args[0]));
+            REQUIRE(times != nullptr);
+            REQUIRE(times->head == "Times");
+            REQUIRE(times->args.size() == 2);
+            auto* minus_one = std::get_if<Number>(&(*times->args[0]));
+            REQUIRE(minus_one != nullptr);
+            REQUIRE(minus_one->value == -1.0);
+            auto* sym = std::get_if<Symbol>(&(*times->args[1]));
+            REQUIRE(sym != nullptr);
+            if (c.input.find("-a/") == 0)
+                REQUIRE(sym->name == "a");
+            else
+                REQUIRE(sym->name == "x");
+        }
+        else {
+            // Numerator: Number
+            auto* numerator = std::get_if<Number>(&(*divide->args[0]));
+            REQUIRE(numerator != nullptr);
+            REQUIRE(numerator->value == c.numer);
+        }
+
+        // Denominator
+        if (c.denom_type == ParseCase::DenomType::Symbol) {
+            auto* denom_sym = std::get_if<Symbol>(&(*divide->args[1]));
+            REQUIRE(denom_sym != nullptr);
+            REQUIRE(denom_sym->name == c.denom_symbol);
+        }
+        else if (c.input == "-a/(b C)") {
+            // Product of two symbols
+            auto* denom_times = std::get_if<FunctionCall>(&(*divide->args[1]));
+            REQUIRE(denom_times != nullptr);
+            REQUIRE(denom_times->head == "Times");
+            REQUIRE(denom_times->args.size() == 2);
+            auto* b = std::get_if<Symbol>(&(*denom_times->args[0]));
+            REQUIRE(b != nullptr);
+            REQUIRE(b->name == "b");
+            auto* C = std::get_if<Symbol>(&(*denom_times->args[1]));
+            REQUIRE(C != nullptr);
+            REQUIRE(C->name == "C");
+        }
+        else if (c.input == "-2/(x^2)") {
+            // Power in denominator
+            auto* power = std::get_if<FunctionCall>(&(*divide->args[1]));
+            REQUIRE(power != nullptr);
+            REQUIRE(power->head == "Power");
+            REQUIRE(power->args.size() == 2);
+            auto* x = std::get_if<Symbol>(&(*power->args[0]));
+            REQUIRE(x != nullptr);
+            REQUIRE(x->name == "x");
+            auto* two = std::get_if<Number>(&(*power->args[1]));
+            REQUIRE(two != nullptr);
+            REQUIRE(two->value == 2.0);
+        }
+        else if (c.input == "-x/(y+z)") {
+            // Sum in denominator
+            auto* plus = std::get_if<FunctionCall>(&(*divide->args[1]));
+            REQUIRE(plus != nullptr);
+            REQUIRE(plus->head == "Plus");
+            REQUIRE(plus->args.size() == 2);
+            auto* y = std::get_if<Symbol>(&(*plus->args[0]));
+            REQUIRE(y != nullptr);
+            REQUIRE(y->name == "y");
+            auto* z = std::get_if<Symbol>(&(*plus->args[1]));
+            REQUIRE(z != nullptr);
+            REQUIRE(z->name == "z");
+        }
+        else if (c.input == "-3/(Sin[x])") {
+            // Function call in denominator
+            auto* sin = std::get_if<FunctionCall>(&(*divide->args[1]));
+            REQUIRE(sin != nullptr);
+            REQUIRE(sin->head == "Sin");
+            REQUIRE(sin->args.size() == 1);
+            auto* x = std::get_if<Symbol>(&(*sin->args[0]));
+            REQUIRE(x != nullptr);
+            REQUIRE(x->name == "x");
+        }
+        else if (c.denom_type == ParseCase::DenomType::Times) {
+            // Times[denom_num, denom_var]
+            auto* times = std::get_if<FunctionCall>(&(*divide->args[1]));
+            REQUIRE(times != nullptr);
+            REQUIRE(times->head == "Times");
+            REQUIRE(times->args.size() == 2);
+
+            auto* denom_num = std::get_if<Number>(&(*times->args[0]));
+            REQUIRE(denom_num != nullptr);
+            REQUIRE(denom_num->value == c.denom_num);
+
+            auto* denom_var = std::get_if<Symbol>(&(*times->args[1]));
+            REQUIRE(denom_var != nullptr);
+            REQUIRE(denom_var->name == c.denom_var);
+        }
+    }
+}

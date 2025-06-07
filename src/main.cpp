@@ -1,4 +1,5 @@
 ﻿#include "expr/Expr.hpp"
+#include "expr/FullForm.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/BuiltInFunctions.hpp"
@@ -139,6 +140,16 @@ int main() {
                     << COLOR_DESC << to_string(*expr) << COLOR_RESET << std::endl;
                 counter++;
                 continue;
+            }
+
+            // Check for FullForm[expr]
+            if (auto* call = std::get_if<FunctionCall>(&*expr)) {
+                if (call->head == "FullForm" && call->args.size() == 1) {
+                    std::cout << COLOR_OUT << "Out[" << counter << "]= " << COLOR_RESET
+                        << to_fullform(call->args[0]) << std::endl;
+                    counter++;
+                    continue;
+                }
             }
 
             // Evaluate and simplify expression

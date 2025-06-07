@@ -69,6 +69,9 @@ namespace aleph3 {
             // Numeric
             {"N", "N[expr]: Evaluate numerically", "Numeric"},
 
+            // Output/Display
+            {"FullForm", "FullForm[expr]: Show the internal structure of expr", "Other"},
+
             // Constants (not functions, but useful for help)
             {"Pi", "Pi: The mathematical constant π ≈ 3.14159", "Constants"},
             {"E", "E: The mathematical constant e ≈ 2.71828", "Constants"},

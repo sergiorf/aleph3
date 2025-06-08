@@ -11,6 +11,9 @@ namespace aleph3 {
         static ExprPtr parse_symbol(Parser& parser) {
             return parser.parse_symbol();
         }
+        static bool match(Parser& parser, char expected) {
+            return parser.match(expected);
+        }
     };
 
 } // namespace aleph3

@@ -10,6 +10,10 @@
 #include <string>
 #include <map>
 #include <algorithm>
+#include <locale>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 using namespace aleph3;
 
@@ -53,6 +57,11 @@ void show_paginated(const std::vector<std::string>& lines, size_t page_size = 20
 }
 
 int main() {
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+#endif
+    std::locale::global(std::locale("en_US.UTF-8"));
     EvaluationContext ctx;
     int counter = 1;
 

@@ -429,7 +429,7 @@ namespace aleph3 {
                 }
             }
             // Handle symbols (variables) or function calls
-            else if (std::isalpha(peek())) {
+            else if (is_letter(peek())) {
                 size_t id_start = pos;
                 std::string name = parse_identifier();
                 skip_whitespace();
@@ -486,9 +486,9 @@ namespace aleph3 {
             // --- Implicit multiplication loop ---
             while (true) {
                 skip_whitespace();
-                char next = peek();
+                uint32_t next = peek();
                 // If next token is '(', a digit, or a letter, treat as implicit multiplication
-                if (next == '(' || std::isdigit(next) || std::isalpha(next)) {
+                if (next == '(' || is_digit(next) || is_letter(next)) {
                     ExprPtr right = parse_factor();
                     left = make_expr<FunctionCall>("Times", std::vector<ExprPtr>{left, right});
                 }
@@ -630,14 +630,24 @@ namespace aleph3 {
 
         ExprPtr parse_number() {
             skip_whitespace();
-            size_t start = pos;
-            while (pos < input.size() && (std::isdigit(input[pos]) || input[pos] == '.')) {
-                ++pos;
+            auto it = input.begin() + pos;
+            auto end = input.end();
+            auto start_it = it;
+
+            while (it != end) {
+                uint32_t cp = utf8::peek_next(it, end);
+                if (!is_digit(cp) && cp != '.') break;
+                utf8::next(it, end);
             }
-            if (start == pos) {
+
+            if (start_it == it) {
                 error("Expected number");
             }
-            double value = std::stod(input.substr(start, pos - start));
+
+            std::string num_str(start_it, it);
+            pos = std::distance(input.begin(), it);
+
+            double value = std::stod(num_str);
             return make_expr<Number>(value);
         }
 

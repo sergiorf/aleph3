@@ -9,6 +9,7 @@
 #include <cmath>
 #include "expr/Expr.hpp"
 #include "expr/ExprUtils.hpp"
+#include "utf8.h"
 
 namespace aleph3 {
 
@@ -39,6 +40,28 @@ namespace aleph3 {
         {"^",    {8, Assoc::Right, "Power"}},
     };
 
+    static bool is_letter(uint32_t cp) {
+        return (cp >= 'A' && cp <= 'Z') ||
+            (cp >= 'a' && cp <= 'z') ||
+            (cp > 127);
+    }
+
+    static bool is_digit(uint32_t cp) {
+        return (cp >= '0' && cp <= '9');
+    }
+
+    static bool is_identifier_start(uint32_t cp) {
+        return cp == '_' || is_letter(cp);
+    }
+
+    static bool is_identifier_body_char(uint32_t cp) {
+        return is_digit(cp) || is_letter(cp);
+    }
+
+    static bool is_symbol_body_char(uint32_t cp) {
+        return cp == '_' || is_digit(cp) || is_letter(cp);
+    }
+
     class Parser {
     public:
         Parser(const std::string& input) : input(input), pos(0), paren_depth(0) {}
@@ -48,7 +71,7 @@ namespace aleph3 {
             size_t backup = pos;
 
             // Try parsing function definition
-            if (std::isalpha(peek())) {
+            if (is_identifier_start(peek())) {
                 auto name = parse_identifier();
                 skip_whitespace();
 
@@ -507,14 +530,37 @@ namespace aleph3 {
 
         ExprPtr parse_symbol() {
             skip_whitespace();
-            size_t start = pos;
-            while (pos < input.size() && (std::isalnum(input[pos]) || input[pos] == '_')) {
-                ++pos;
-            }
-            if (start == pos) {
+            auto it = input.begin() + pos;
+            auto end = input.end();
+            std::string name;
+
+            if (it == end) {
                 error("Expected symbol");
             }
-            std::string name = input.substr(start, pos - start);
+            uint32_t cp = utf8::peek_next(it, end);
+
+            // Allow anonymous pattern symbol '_'
+            if (cp == '_') {
+                cp = utf8::next(it, end);
+                utf8::append(cp, std::back_inserter(name));
+                pos = std::distance(input.begin(), it);
+            } else {
+                // Otherwise, must be a valid identifier start (not '_')
+                if (!is_identifier_start(cp) || cp == '_') {
+                    error("Expected symbol");
+                }
+                cp = utf8::next(it, end);
+                utf8::append(cp, std::back_inserter(name));
+
+                // Subsequent characters: allow '_' in symbol names
+                while (it != end) {
+                    cp = utf8::peek_next(it, end);
+                    if (!is_symbol_body_char(cp)) break;
+                    cp = utf8::next(it, end);
+                    utf8::append(cp, std::back_inserter(name));
+                }
+                pos = std::distance(input.begin(), it);
+            }
 
             // Handle Boolean literals
             if (name == "True") {
@@ -590,26 +636,67 @@ namespace aleph3 {
         }
 
         std::string parse_identifier() {
-            skip_whitespace();
-            size_t start = pos;
-            while (pos < input.size() && std::isalnum(input[pos])) { // Only consume alphanumeric characters
-                ++pos;
+            // Use iterators for UTF-8 safety
+            auto it = input.begin() + pos;
+            auto end = input.end();
+            std::string result;
+
+            // Skip whitespace using iterators
+            while (it != end) {
+                uint32_t cp = utf8::peek_next(it, end);
+                if (!std::isspace(cp)) break;
+                utf8::next(it, end);
             }
-            if (start == pos) {
+
+            if (it == end) error("Expected identifier");
+            uint32_t cp = utf8::peek_next(it, end);
+
+            // Anonymous pattern: just '_'
+            if (cp == '_') {
+                cp = utf8::next(it, end);
+                utf8::append(cp, std::back_inserter(result));
+                pos = std::distance(input.begin(), it);
+                return result;
+            }
+
+            // Otherwise, must be a valid identifier start (not '_')
+            if (!is_identifier_start(cp) || cp == '_') {
                 error("Expected identifier");
             }
-            return input.substr(start, pos - start);
+            cp = utf8::next(it, end);
+            utf8::append(cp, std::back_inserter(result));
+
+            // Subsequent characters: identifier body (no '_')
+            while (it != end) {
+                cp = utf8::peek_next(it, end);
+                if (!is_identifier_body_char(cp)) break;
+                cp = utf8::next(it, end);
+                utf8::append(cp, std::back_inserter(result));
+            }
+
+            pos = std::distance(input.begin(), it);
+            return result;
         }
 
         void skip_whitespace() {
-            while (pos < input.size() && std::isspace(input[pos])) {
-                ++pos;
+            auto it = input.begin() + pos;
+            auto end = input.end();
+            while (it != end) {
+                uint32_t cp = utf8::peek_next(it, end);
+                if (!std::isspace(cp)) break;
+                utf8::next(it, end);
             }
+            pos = std::distance(input.begin(), it);
         }
 
         bool match(char expected) {
-            if (pos < input.size() && input[pos] == expected) {
-                ++pos;
+            auto it = input.begin() + pos;
+            auto end = input.end();
+            if (it == end) return false;
+            uint32_t cp = utf8::peek_next(it, end);
+            if (cp == static_cast<unsigned char>(expected)) {
+                utf8::next(it, end);
+                pos = std::distance(input.begin(), it);
                 return true;
             }
             return false;
@@ -617,18 +704,31 @@ namespace aleph3 {
 
         bool match_string(const std::string& s) {
             skip_whitespace();
-            if (input.substr(pos, s.size()) == s) {
-                pos += s.size();
+            auto it = input.begin() + pos;
+            auto end = input.end();
+            auto sit = s.begin();
+            auto send = s.end();
+
+            auto temp_it = it;
+            while (sit != send && temp_it != end) {
+                uint32_t cp_input = utf8::peek_next(temp_it, end);
+                uint32_t cp_s = utf8::peek_next(sit, send);
+                if (cp_input != cp_s) return false;
+                utf8::next(temp_it, end);
+                utf8::next(sit, send);
+            }
+            if (sit == send) {
+                pos = std::distance(input.begin(), temp_it);
                 return true;
             }
             return false;
         }
 
-        char peek() const {
-            if (pos < input.size()) {
-                return input[pos];
-            }
-            return '\0'; // End of input
+        uint32_t peek() const {
+            auto it = input.begin() + pos;
+            auto end = input.end();
+            if (it == end) return 0;
+            return utf8::peek_next(it, end);
         }
 
         std::string peek_string(size_t length) {

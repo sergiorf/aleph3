@@ -13,10 +13,10 @@ std::string to_fullform(const ExprPtr& expr);
 // Helper for printing a Parameter in FullForm style
 inline std::string to_fullform(const Parameter& param) {
     if (param.default_value) {
-        return "Rule[" + param.name + ", " + to_fullform(param.default_value) + "]";
+        return "Parameter[" + param.name + ", " + to_fullform(param.default_value) + "]";
     }
     else {
-        return param.name;
+        return "Parameter[" + param.name + "]";
     }
 }
 
@@ -48,12 +48,12 @@ inline std::string to_fullform(const ExprPtr& expr) {
             out << "]";
         }
         void operator()(const FunctionDefinition& f) {
-            out << "FunctionDefinition[" << f.name << ", {";
+            out << "FunctionDefinition[" << f.name << ", List[";
             for (size_t i = 0; i < f.params.size(); ++i) {
                 if (i > 0) out << ", ";
                 out << to_fullform(f.params[i]);
             }
-            out << "}, " << to_fullform(f.body) << ", " << (f.delayed ? "True" : "False") << "]";
+            out << "], " << to_fullform(f.body) << ", " << (f.delayed ? "True" : "False") << "]";
         }
         void operator()(const Assignment& a) {
             out << "Set[" << a.name << ", " << to_fullform(a.value) << "]";

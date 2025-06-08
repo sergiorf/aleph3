@@ -16,9 +16,11 @@ file(GLOB_RECURSE HEADERS "include/*.hpp" "include/*.h")
 
 # Create a library target for shared code
 add_library(${PROJECT_NAME}_lib ${LIB_SOURCES} ${HEADERS})
+target_include_directories(${PROJECT_NAME}_lib PRIVATE third_party/utf8cpp)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
+target_include_directories(${PROJECT_NAME} PRIVATE third_party/utf8cpp)
 
 # Fetch Catch2 for testing
 include(FetchContent)
@@ -37,6 +39,7 @@ FetchContent_MakeAvailable(Catch2)
 file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp")
 add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
 target_link_libraries(${PROJECT_NAME}_tests PRIVATE ${PROJECT_NAME}_lib Catch2::Catch2WithMain)
+target_include_directories(${PROJECT_NAME}_tests PRIVATE third_party/utf8cpp)
 
 # Enable testing
 include(CTest)

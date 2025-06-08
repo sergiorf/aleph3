@@ -47,3 +47,20 @@ TEST_CASE("to_fullform nested") {
     });
     REQUIRE(to_fullform(expr) == "Divide[Times[-1, a], bC]");
 }
+
+TEST_CASE("to_fullform function definition") {
+    // g[x_, y_] := x + y
+    std::vector<Parameter> params = {
+        Parameter("x", nullptr),
+        Parameter("y", nullptr)
+    };
+    ExprPtr body = make_expr<FunctionCall>("Plus", std::vector<ExprPtr>{
+        make_expr<Symbol>("x"),
+            make_expr<Symbol>("y")
+    });
+    ExprPtr expr = make_expr<FunctionDefinition>("g", params, body, true);
+    REQUIRE(
+        to_fullform(expr) ==
+        "FunctionDefinition[g, List[Parameter[x], Parameter[y]], Plus[x, y], True]"
+    );
+}

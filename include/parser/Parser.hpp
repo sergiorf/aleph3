@@ -62,7 +62,13 @@ namespace aleph3 {
         return cp == '_' || is_digit(cp) || is_letter(cp);
     }
 
+    static bool is_ascii_whitespace(uint32_t cp) {
+        return cp == ' ' || cp == '\t' || cp == '\n' || cp == '\r' || cp == '\f' || cp == '\v';
+    }
+
     class Parser {
+        friend class ParserTestHelper;
+
     public:
         Parser(const std::string& input) : input(input), pos(0), paren_depth(0) {}
 
@@ -644,7 +650,7 @@ namespace aleph3 {
             // Skip whitespace using iterators
             while (it != end) {
                 uint32_t cp = utf8::peek_next(it, end);
-                if (!std::isspace(cp)) break;
+                if (!is_ascii_whitespace(cp)) break;
                 utf8::next(it, end);
             }
 
@@ -683,7 +689,7 @@ namespace aleph3 {
             auto end = input.end();
             while (it != end) {
                 uint32_t cp = utf8::peek_next(it, end);
-                if (!std::isspace(cp)) break;
+                if (!is_ascii_whitespace(cp)) break;
                 utf8::next(it, end);
             }
             pos = std::distance(input.begin(), it);

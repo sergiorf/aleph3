@@ -1,6 +1,7 @@
-#include "parser/Parser.hpp"
+﻿#include "parser/Parser.hpp"
 #include "expr/Expr.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_all.hpp>
 
 using namespace aleph3;
 

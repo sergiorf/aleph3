@@ -1,4 +1,17 @@
-// parser/Parser.hpp
+/*
+ * Aleph3 Parser
+ * -------------
+ * This header defines the parser for Aleph3, a modern C++20-based computer algebra system.
+ * The parser is responsible for converting user input (strings) into the internal Expr tree
+ * representation, supporting mathematical expressions, function calls, lists, and more.
+ *
+ * Features:
+ * - Tokenization and parsing of mathematical expressions
+ * - Support for numbers, rationals, symbols, functions, and lists
+ * - Error handling for invalid syntax
+ *
+ * See README.md for project overview.
+ */
 #pragma once
 
 #include <string>
@@ -474,6 +487,28 @@ namespace aleph3 {
                     std::vector<ExprPtr> args = { num_expr, den_expr };
                     left = make_expr<FunctionCall>("Rational", args);
                 }
+                else if (name == "Complex" && match('[')) {
+                    auto re_expr = parse_expression();
+                    skip_whitespace();
+                    if (!match(',')) error("Expected ',' in Complex");
+                    auto im_expr = parse_expression();
+                    skip_whitespace();
+                    if (!match(']')) error("Expected ']' in Complex");
+                    // Only allow number literals for now
+                    auto extract_num = [](const ExprPtr& expr, double& out) -> bool {
+                        if (auto* num = std::get_if<Number>(&(*expr))) {
+                            out = num->value;
+                            return true;
+                        }
+                        return false;
+                    };
+                    double re = 0, im = 0;
+                    if (extract_num(re_expr, re) && extract_num(im_expr, im)) {
+                        return make_expr<Complex>(re, im);
+                    }
+                    std::vector<ExprPtr> args = { re_expr, im_expr };
+                    return make_expr<FunctionCall>("Complex", args);
+                }
                 else {
                     pos = id_start;
                     left = parse_symbol();
@@ -574,6 +609,10 @@ namespace aleph3 {
             }
             if (name == "False") {
                 return make_expr<Boolean>(false);
+            }
+            // Handle imaginary unit
+            if (name == "I") {
+                return make_expr<Complex>(0.0, 1.0);
             }
 
             skip_whitespace();
@@ -765,10 +804,110 @@ namespace aleph3 {
         }
     };
 
+    inline ExprPtr try_make_complex(const ExprPtr& expr) {
+        // Recognize Plus(a, Times(b, I)) and similar forms
+        if (auto* call = std::get_if<FunctionCall>(&(*expr))) {
+            // Handle a + b*I and a - b*I
+            if (call->head == "Plus" && call->args.size() == 2) {
+                double real = 0, imag = 0;
+                bool real_ok = false, imag_ok = false;
+
+                // Left as real
+                if (auto* n = std::get_if<Number>(call->args[0].get())) {
+                    real = n->value;
+                    real_ok = true;
+                }
+                // Right as imaginary
+                if (auto* times = std::get_if<FunctionCall>(call->args[1].get())) {
+                    if (times->head == "Times" && times->args.size() == 2) {
+                        // b*I
+                        if (auto* n = std::get_if<Number>(times->args[0].get())) {
+                            if (auto* i = std::get_if<Complex>(times->args[1].get())) {
+                                if (i->real == 0.0 && i->imag == 1.0) {
+                                    imag = n->value;
+                                    imag_ok = true;
+                                }
+                            }
+                        }
+                        // I*b
+                        if (auto* i = std::get_if<Complex>(times->args[0].get())) {
+                            if (i->real == 0.0 && i->imag == 1.0) {
+                                if (auto* n = std::get_if<Number>(times->args[1].get())) {
+                                    imag = n->value;
+                                    imag_ok = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                // Right as real
+                if (!real_ok) {
+                    if (auto* n = std::get_if<Number>(call->args[1].get())) {
+                        real = n->value;
+                        real_ok = true;
+                    }
+                }
+                // Left as imaginary
+                if (!imag_ok) {
+                    if (auto* times = std::get_if<FunctionCall>(call->args[0].get())) {
+                        if (times->head == "Times" && times->args.size() == 2) {
+                            // b*I
+                            if (auto* n = std::get_if<Number>(times->args[0].get())) {
+                                if (auto* i = std::get_if<Complex>(times->args[1].get())) {
+                                    if (i->real == 0.0 && i->imag == 1.0) {
+                                        imag = n->value;
+                                        imag_ok = true;
+                                    }
+                                }
+                            }
+                            // I*b
+                            if (auto* i = std::get_if<Complex>(times->args[0].get())) {
+                                if (i->real == 0.0 && i->imag == 1.0) {
+                                    if (auto* n = std::get_if<Number>(times->args[1].get())) {
+                                        imag = n->value;
+                                        imag_ok = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (real_ok && imag_ok) {
+                    return make_expr<Complex>(real, imag);
+                }
+            }
+            // Handle pure imaginary: Times(Number, I) or Times(I, Number)
+            if (call->head == "Times" && call->args.size() == 2) {
+                if (auto* n = std::get_if<Number>(call->args[0].get())) {
+                    if (auto* i = std::get_if<Complex>(call->args[1].get())) {
+                        if (i->real == 0.0 && i->imag == 1.0) {
+                            return make_expr<Complex>(0.0, n->value);
+                        }
+                    }
+                }
+                if (auto* i = std::get_if<Complex>(call->args[0].get())) {
+                    if (i->real == 0.0 && i->imag == 1.0) {
+                        if (auto* n = std::get_if<Number>(call->args[1].get())) {
+                            return make_expr<Complex>(0.0, n->value);
+                        }
+                    }
+                }
+            }
+        }
+        // Just I
+        if (auto* i = std::get_if<Complex>(&(*expr))) {
+            if (i->real == 0.0 && i->imag == 1.0) {
+                return expr;
+            }
+        }
+        return expr;
+    }
+
     // Helper function to simplify usage
     inline ExprPtr parse_expression(const std::string& input) {
         Parser parser(input);
-        return parser.parse();
+        auto expr = parser.parse();
+        return try_make_complex(expr);
     }
 
 }

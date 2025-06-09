@@ -102,3 +102,30 @@ TEST_CASE("Pretty printing of symbolic comparisons", "[prettyprint][comparison]"
     REQUIRE(to_string(FunctionCall{ "LessEqual", {x, y} }) == "x <= y");
     REQUIRE(to_string(FunctionCall{ "GreaterEqual", {x, y} }) == "x >= y");
 }
+
+TEST_CASE("Pretty printing of complex numbers", "[prettyprint][complex]") {
+    SECTION("Pure imaginary") {
+        auto c = make_expr<Complex>(0.0, 1.0);
+        REQUIRE(to_string(*c) == "1*I");
+    }
+    SECTION("Negative imaginary") {
+        auto c = make_expr<Complex>(0.0, -2.0);
+        REQUIRE(to_string(*c) == "-2*I");
+    }
+    SECTION("Pure real") {
+        auto c = make_expr<Complex>(3.0, 0.0);
+        REQUIRE(to_string(*c) == "3");
+    }
+    SECTION("a + b*I") {
+        auto c = make_expr<Complex>(2.0, 5.0);
+        REQUIRE(to_string(*c) == "2 + 5*I");
+    }
+    SECTION("a - b*I") {
+        auto c = make_expr<Complex>(7.0, -4.0);
+        REQUIRE(to_string(*c) == "7 - 4*I");
+    }
+    SECTION("Zero") {
+        auto c = make_expr<Complex>(0.0, 0.0);
+        REQUIRE(to_string(*c) == "0");
+    }
+}

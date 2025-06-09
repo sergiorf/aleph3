@@ -1,4 +1,18 @@
-﻿// evaluator/Evaluator.hpp
+﻿/*
+ * Aleph3 Evaluator
+ * ----------------
+ * This header defines the core evaluation logic for Aleph3, a modern C++20-based computer algebra system.
+ * The evaluator traverses and computes the value of Expr trees, handling symbolic and numeric computation,
+ * function application, user-defined functions, and built-in mathematical operations.
+ *
+ * Features:
+ * - Recursive evaluation of expressions
+ * - Support for numbers, rationals, booleans, lists, and user-defined functions
+ * - Built-in function and operator handling (arithmetic, comparison, etc.)
+ * - Extensible via function registry and simplification rules
+ *
+ * See README.md for project overview.
+ */
 #pragma once
 
 #include "expr/Expr.hpp"
@@ -26,6 +40,9 @@ inline ExprPtr normalize_expr(const ExprPtr& expr) {
     return std::visit(overloaded{
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
+        },
+        [](const Complex& c) -> ExprPtr {
+            return make_expr<Complex>(c.real, c.imag);
         },
         [](const Rational& r) -> ExprPtr {
             return make_expr<Rational>(r.numerator, r.denominator);
@@ -538,6 +555,9 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
     return std::visit(overloaded{
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
+        },
+        [](const Complex& c) -> ExprPtr {
+            return make_expr<Complex>(c.real, c.imag);
         },
         [](const Rational& r) -> ExprPtr {
             auto [n, d] = normalize_rational(r.numerator, r.denominator);

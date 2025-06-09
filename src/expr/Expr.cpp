@@ -59,6 +59,14 @@ namespace aleph3 {
                 return format_number(num.value);
             },
 
+            [](const Complex& c) -> std::string {
+                if (c.real == 0.0 && c.imag == 0.0) return "0";
+                if (c.real == 0.0) return format_number(c.imag) + "*I";
+                if (c.imag == 0.0) return format_number(c.real);
+                std::string imag_part = (c.imag > 0 ? " + " : " - ") + format_number(std::abs(c.imag)) + "*I";
+                return format_number(c.real) + imag_part;
+            },
+
             [](const Rational& r) -> std::string {
                 return to_string(r.numerator) + "/" + to_string(r.denominator);
             },
@@ -199,6 +207,13 @@ namespace aleph3 {
         return std::visit(overloaded{
             [](const Number& num) -> std::string {
                 return format_number(num.value);
+            },
+            [](const Complex& c) -> std::string {
+                if (c.real == 0.0 && c.imag == 0.0) return "0";
+                if (c.real == 0.0) return format_number(c.imag) + "*I";
+                if (c.imag == 0.0) return format_number(c.real);
+                std::string imag_part = (c.imag > 0 ? "+" : "") + format_number(c.imag) + "*I";
+                return format_number(c.real) + imag_part;
             },
             [](const Rational& r) -> std::string {
                 return to_string_raw(r.numerator) + "/" + to_string_raw(r.denominator);

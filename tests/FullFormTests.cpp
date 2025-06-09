@@ -64,3 +64,11 @@ TEST_CASE("to_fullform function definition") {
         "FunctionDefinition[g, List[Parameter[x], Parameter[y]], Plus[x, y], True]"
     );
 }
+
+TEST_CASE("to_fullform complex numbers") {
+    REQUIRE(to_fullform(make_expr<Complex>(3.0, 4.0)) == "Complex[3, 4]");
+    REQUIRE(to_fullform(make_expr<Complex>(0.0, 1.0)) == "Complex[0, 1]");
+    REQUIRE(to_fullform(make_expr<Complex>(2.0, -5.0)) == "Complex[2, -5]");
+    REQUIRE(to_fullform(make_expr<Complex>(0.0, 0.0)) == "Complex[0, 0]");
+    REQUIRE(to_fullform(make_expr<Complex>(7.0, 0.0)) == "Complex[7, 0]");
+}

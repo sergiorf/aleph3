@@ -27,6 +27,9 @@ inline std::string to_fullform(const ExprPtr& expr) {
         void operator()(const Number& n) {
             out << std::setprecision(16) << n.value;
         }
+        void operator()(const Complex& c) {
+            out << "Complex[" << c.real << ", " << c.imag << "]";
+        }
         void operator()(const Symbol& s) {
             out << s.name;
         }

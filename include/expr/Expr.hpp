@@ -1,3 +1,18 @@
+/*
+ * Aleph3 Expression Types
+ * -----------------------
+ * This header defines the core expression data structures for Aleph3, a modern C++20-based computer algebra system.
+ * The Expr type is a tagged union (std::variant) representing all supported symbolic and numeric objects,
+ * including numbers, rationals, booleans, symbols, strings, lists, function calls, assignments, rules, and more.
+ *
+ * Features:
+ * - Unified variant type (Expr) for all mathematical and symbolic objects
+ * - Smart pointer management for expression trees (ExprPtr)
+ * - Factory functions for constructing expressions
+ * - Type-safe representation of mathematical constructs for parsing, evaluation, and transformation
+ *
+ * See README.md for project overview.
+ */
 #pragma once
 
 #include <memory>
@@ -12,6 +27,7 @@ namespace aleph3 {
 // Forward declarations
 struct Symbol;
 struct Number;
+struct Complex;
 struct Rational;
 struct Boolean;
 struct String;
@@ -24,7 +40,7 @@ struct Infinity;
 struct Indeterminate;
 
 // Core Expression type: variant of all expression types
-using Expr = std::variant < Symbol, Number, Rational, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List, Infinity, Indeterminate > ;
+using Expr = std::variant < Symbol, Number, Complex, Rational, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List, Infinity, Indeterminate > ;
 
 // Smart pointer to expressions
 using ExprPtr = std::shared_ptr<Expr>;
@@ -54,6 +70,11 @@ struct Number {
 
     Number(double v) : value(v) {}
     Number(int v) : value(static_cast<double>(v)) {}
+};
+
+struct Complex {
+    double real;
+    double imag;
 };
 
 struct Rational {

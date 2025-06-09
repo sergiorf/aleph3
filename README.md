@@ -6,11 +6,7 @@
 </p>
 
 # Aleph3
-_A symbolic math system and computational software written in C++._
-
-## ✨Overview
-
-Aleph3 is a powerful and flexible computer algebra system (CAS) written in modern C++ (C++20). It enables users to perform symbolic computations, manipulate mathematical expressions, and define custom functions.
+aleph3 is a modern, extensible computer algebra system written in C++20. It provides fast symbolic computation and mathematical expression evaluation, with a focus on clarity, performance, and a familiar, Mathematica-inspired syntax.
 
 ## Features
 - Basic algebraic operations: `+`, `-`, `*`, `/`

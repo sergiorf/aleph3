@@ -457,6 +457,37 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                 double arg2 = get_number_value(right);
                 return make_expr<Boolean>(cmp->second(arg1, arg2));
             }
+            // Rational op Rational
+            if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Rational>(*right)) {
+                const auto& a = std::get<Rational>(*left);
+                const auto& b = std::get<Rational>(*right);
+                if (name == "Equal")
+                    return make_expr<Boolean>(a.numerator == b.numerator && a.denominator == b.denominator);
+                if (name == "NotEqual")
+                    return make_expr<Boolean>(a.numerator != b.numerator || a.denominator != b.denominator);
+                if (name == "Less")
+                    return make_expr<Boolean>(a.numerator * b.denominator < b.numerator * a.denominator);
+                if (name == "Greater")
+                    return make_expr<Boolean>(a.numerator * b.denominator > b.numerator * a.denominator);
+                if (name == "LessEqual")
+                    return make_expr<Boolean>(a.numerator * b.denominator <= b.numerator * a.denominator);
+                if (name == "GreaterEqual")
+                    return make_expr<Boolean>(a.numerator * b.denominator >= b.numerator * a.denominator);
+            }
+            // Rational op Number
+            if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Number>(*right)) {
+                const auto& a = std::get<Rational>(*left);
+                double b = std::get<Number>(*right).value;
+                double a_val = static_cast<double>(a.numerator) / a.denominator;
+                return make_expr<Boolean>(cmp->second(a_val, b));
+            }
+            // Number op Rational
+            if (std::holds_alternative<Number>(*left) && std::holds_alternative<Rational>(*right)) {
+                double a = std::get<Number>(*left).value;
+                const auto& b = std::get<Rational>(*right);
+                double b_val = static_cast<double>(b.numerator) / b.denominator;
+                return make_expr<Boolean>(cmp->second(a, b_val));
+            }
             // Return unevaluated symbolic comparison if not both numbers
             return make_fcall(name, { left, right });
         }

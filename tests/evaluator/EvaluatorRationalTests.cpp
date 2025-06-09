@@ -169,3 +169,160 @@ TEST_CASE("Evaluator: Rational normalization of signs", "[evaluator][rational][s
         }
     }
 }
+
+TEST_CASE("Evaluator: Rational comparison operators", "[evaluator][rational][comparison]") {
+    EvaluationContext ctx;
+    struct Case {
+        std::string input;
+        bool expected;
+    };
+
+    SECTION("Equality (==)") {
+        std::vector<Case> cases = {
+            {"1/2 == 2/4", true},
+            {"1/2 == 3/4", false},
+            {"-1/2 == 1/-2", true},
+            {"-1/2 == -2/4", true},
+            {"0/5 == 0/7", true},
+            {"3/4 == 6/8", true},
+            {"3/4 == -3/4", false}
+        };
+        for (const auto& c : cases) {
+            DYNAMIC_SECTION("Evaluating: " << c.input) {
+                auto expr = parse_expression(c.input);
+                auto result = evaluate(expr, ctx);
+                REQUIRE(result);
+                REQUIRE(std::holds_alternative<Boolean>(*result));
+                CHECK(std::get<Boolean>(*result).value == c.expected);
+            }
+        }
+    }
+
+    SECTION("Inequality (!=)") {
+        std::vector<Case> cases = {
+            {"1/2 != 2/4", false},
+            {"1/2 != 3/4", true},
+            {"-1/2 != 1/-2", false},
+            {"-1/2 != -2/4", false},
+            {"0/5 != 0/7", false},
+            {"3/4 != 6/8", false},
+            {"3/4 != -3/4", true}
+        };
+        for (const auto& c : cases) {
+            DYNAMIC_SECTION("Evaluating: " << c.input) {
+                auto expr = parse_expression(c.input);
+                auto result = evaluate(expr, ctx);
+                REQUIRE(result);
+                REQUIRE(std::holds_alternative<Boolean>(*result));
+                CHECK(std::get<Boolean>(*result).value == c.expected);
+            }
+        }
+    }
+
+    SECTION("Less than (<)") {
+        std::vector<Case> cases = {
+            {"1/3 < 1/2", true},
+            {"2/3 < 1/2", false},
+            {"-1/2 < 0", true},
+            {"0 < 1/2", true},
+            {"-3/4 < -1/2", true}
+        };
+        for (const auto& c : cases) {
+            DYNAMIC_SECTION("Evaluating: " << c.input) {
+                auto expr = parse_expression(c.input);
+                auto result = evaluate(expr, ctx);
+                REQUIRE(result);
+                REQUIRE(std::holds_alternative<Boolean>(*result));
+                CHECK(std::get<Boolean>(*result).value == c.expected);
+            }
+        }
+    }
+
+    SECTION("Greater than (>)") {
+        std::vector<Case> cases = {
+            {"1/2 > 1/3", true},
+            {"1/2 > 2/3", false},
+            {"0 > -1/2", true},
+            {"-1/2 > 0", false},
+            {"-1/2 > -3/4", true}
+        };
+        for (const auto& c : cases) {
+            DYNAMIC_SECTION("Evaluating: " << c.input) {
+                auto expr = parse_expression(c.input);
+                auto result = evaluate(expr, ctx);
+                REQUIRE(result);
+                REQUIRE(std::holds_alternative<Boolean>(*result));
+                CHECK(std::get<Boolean>(*result).value == c.expected);
+            }
+        }
+    }
+
+    SECTION("Less than or equal (<=)") {
+        std::vector<Case> cases = {
+            {"1/2 <= 1/2", true},
+            {"1/3 <= 1/2", true},
+            {"2/3 <= 1/2", false},
+            {"-1/2 <= 0", true},
+            {"-3/4 <= -1/2", true}
+        };
+        for (const auto& c : cases) {
+            DYNAMIC_SECTION("Evaluating: " << c.input) {
+                auto expr = parse_expression(c.input);
+                auto result = evaluate(expr, ctx);
+                REQUIRE(result);
+                REQUIRE(std::holds_alternative<Boolean>(*result));
+                CHECK(std::get<Boolean>(*result).value == c.expected);
+            }
+        }
+    }
+
+    SECTION("Greater than or equal (>=)") {
+        std::vector<Case> cases = {
+            {"1/2 >= 1/2", true},
+            {"1/2 >= 1/3", true},
+            {"1/2 >= 2/3", false},
+            {"0 >= -1/2", true},
+            {"-1/2 >= 0", false},
+            {"-1/2 >= -3/4", true}
+        };
+        for (const auto& c : cases) {
+            DYNAMIC_SECTION("Evaluating: " << c.input) {
+                auto expr = parse_expression(c.input);
+                auto result = evaluate(expr, ctx);
+                REQUIRE(result);
+                REQUIRE(std::holds_alternative<Boolean>(*result));
+                CHECK(std::get<Boolean>(*result).value == c.expected);
+            }
+        }
+    }
+
+    SECTION("Mixed Rational and Number") {
+        std::vector<Case> cases = {
+            {"1/2 == 0.5", true},
+            {"2/3 == 0.6666666667", false}, // not exactly equal
+            {"2/3 < 0.7", true},
+            {"2/3 > 0.6", true},
+            {"-1/2 < 0.0", true},
+            {"0.25 == 1/4", true},
+            {"0.3333333333 == 1/3", false}, // not exactly equal
+            {"1/2 != 0.5", false},
+            {"1/2 <= 0.5", true},
+            {"1/2 >= 0.5", true},
+            {"1/2 < 0.6", true},
+            {"1/2 > 0.4", true},
+            {"0.5 < 2/3", true},
+            {"0.5 > 1/3", true},
+            {"0.5 != 1/2", false}
+        };
+        for (const auto& c : cases) {
+            DYNAMIC_SECTION("Evaluating: " << c.input) {
+                auto expr = parse_expression(c.input);
+                auto result = evaluate(expr, ctx);
+                REQUIRE(result);
+                REQUIRE(std::holds_alternative<Boolean>(*result));
+                CHECK(std::get<Boolean>(*result).value == c.expected);
+            }
+        }
+    }
+}
+

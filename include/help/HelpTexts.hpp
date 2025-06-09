@@ -52,6 +52,13 @@ namespace aleph3 {
             {"Round", "Round[x]: Round x to the nearest integer", "Other"},
             {"Gamma", "Gamma[x]: Gamma function of x", "Other"},
             {"Rational", "Rational[n, d]: Rational number n/d (exact)", "Other"},
+
+            // Polynomial manipulation
+            {"Expand", "Expand[expr]: Expand out products and powers in a polynomial expression", "Polynomial"},
+            {"Factor", "Factor[expr]: Factor a polynomial expression over the integers", "Polynomial"},
+            {"Collect", "Collect[expr, x]: Collect terms in expr by powers of x", "Polynomial"},
+            {"GCD", "GCD[a, b]: Greatest common divisor of two polynomials or integers", "Polynomial"},
+            {"PolynomialQuotient", "PolynomialQuotient[a, b, x]: Quotient of a divided by b with respect to variable x", "Polynomial"},
             
             // Logical
             {"And", "And[a, b, ...]: Logical AND (True if all arguments are True)", "Logical"},

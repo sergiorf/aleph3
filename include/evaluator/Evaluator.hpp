@@ -38,6 +38,15 @@ namespace aleph3 {
 
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
 
+ExprPtr evaluate_polynomial_function(const FunctionCall& func, EvaluationContext& ctx);
+
+inline bool is_polynomial_function(const std::string& name) {
+    static const std::unordered_set<std::string> poly_functions = {
+        "Expand", "Factor", "Collect", "GCD", "PolynomialQuotient"
+    };
+    return poly_functions.count(name) > 0;
+}
+
 inline std::string expr_to_key(const ExprPtr& expr) {
     auto norm = normalize_expr(expr);
     std::string s = to_string_raw(norm);
@@ -581,6 +590,9 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx, std::unorde
             return result;
         },
         [&ctx](const FunctionCall& func) -> ExprPtr {
+            if (is_polynomial_function(func.head)) {
+                return evaluate_polynomial_function(func, ctx);
+            }
             // Special case: List
             if (func.head == "List") {
                 std::vector<ExprPtr> evaluated_elements;

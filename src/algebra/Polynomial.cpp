@@ -1,4 +1,4 @@
-#include "poly/Polynomial.hpp"
+#include "algebra/Polynomial.hpp"
 #include <sstream>
 #include <cmath>
 
@@ -61,25 +61,31 @@ namespace aleph3 {
             throw std::domain_error("Polynomial division by zero");
         }
 
-        Polynomial dividend(*this);
-        Polynomial quotient;
-        std::vector<double> quot_coeffs(std::max<int>(0, dividend.degree() - divisor.degree() + 1), 0.0);
+        Polynomial remainder(*this);
+        std::vector<double> quot_coeffs(
+            remainder.degree() >= divisor.degree() ? remainder.degree() - divisor.degree() + 1 : 1, 0.0);
 
-        while (dividend.degree() >= divisor.degree() && !dividend.is_zero()) {
-            size_t deg_diff = dividend.degree() - divisor.degree();
-            double lead_coeff_ratio = dividend.coefficients.back() / divisor.coefficients.back();
+        while (remainder.degree() >= divisor.degree() && !remainder.is_zero()) {
+            size_t deg_diff = remainder.degree() - divisor.degree();
+            double lead_coeff_ratio = remainder.coefficients.back() / divisor.coefficients.back();
+
+            // Place the coefficient at the correct degree
+            quot_coeffs[deg_diff] += lead_coeff_ratio;
+
+            // Build the monomial for this step
             std::vector<double> monomial_coeffs(deg_diff + 1, 0.0);
-            monomial_coeffs.back() = lead_coeff_ratio;
-
+            monomial_coeffs[deg_diff] = lead_coeff_ratio;
             Polynomial monomial(monomial_coeffs);
-            quot_coeffs[deg_diff] = lead_coeff_ratio;
 
-            dividend = dividend - (divisor * monomial);
-            dividend.normalize();
+            // Subtract from remainder
+            remainder = remainder - (divisor * monomial);
+            remainder.normalize();
         }
 
-        quotient = Polynomial(quot_coeffs);
-        return { quotient, dividend };
+        Polynomial quotient(quot_coeffs);
+        quotient.normalize();
+        remainder.normalize();
+        return { quotient, remainder };
     }
 
     Polynomial Polynomial::gcd(const Polynomial& a, const Polynomial& b) {

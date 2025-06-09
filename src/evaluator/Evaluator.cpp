@@ -1,6 +1,6 @@
 #include "evaluator/Evaluator.hpp"
-#include "poly/Polynomial.hpp"
-#include "poly/PolyUtils.hpp"
+#include "algebra/Polynomial.hpp"
+#include "algebra/PolyUtils.hpp"
 #include <stdexcept>
 
 namespace aleph3 {

@@ -1,5 +1,5 @@
-#include "poly/PolyUtils.hpp"
-#include "poly/Polynomial.hpp"
+#include "algebra/PolyUtils.hpp"
+#include "algebra/Polynomial.hpp"
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include <stdexcept>

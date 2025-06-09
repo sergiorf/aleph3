@@ -1,8 +1,22 @@
 #pragma once
 
 #include "expr/Expr.hpp"
+#include <numeric>
 
 namespace aleph3 {
+
+    inline std::pair<int64_t, int64_t> normalize_rational(int64_t num, int64_t den) {
+        if (den == 0) throw std::runtime_error("Denominator cannot be zero");
+        int64_t g = std::gcd(num, den);
+        num /= g;
+        den /= g;
+        // Move sign to numerator, denominator always positive
+        if (den < 0) {
+            num = -num;
+            den = -den;
+        }
+        return {num, den};
+    }
 
     inline double get_number_value(const ExprPtr& expr) {
         if (auto num = std::get_if<Number>(&(*expr))) {

@@ -114,3 +114,58 @@ TEST_CASE("Evaluator: Rational edge cases", "[evaluator][rational][edge]") {
         CHECK(r.denominator == 5);
     }
 }
+
+TEST_CASE("Evaluator: Rational reduction to lowest terms", "[evaluator][rational][reduction]") {
+    EvaluationContext ctx;
+    struct Case { std::string input; int64_t num, den; };
+    std::vector<Case> cases = {
+        {"Rational[6,8]", 3, 4},
+        {"Rational[100,250]", 2, 5},
+        {"Rational[-10,20]", -1, 2},
+        {"Rational[  8 ,  12 ]", 2, 3},
+        {"Rational[123456789,987654321]", 13717421, 109739369}
+    };
+    for (const auto& c : cases) {
+        DYNAMIC_SECTION("Evaluating: " << c.input) {
+            auto expr = parse_expression(c.input);
+            auto result = evaluate(expr, ctx);
+            REQUIRE(result);
+            REQUIRE(std::holds_alternative<Rational>(*result));
+            auto r = std::get<Rational>(*result);
+            INFO("Input: " << c.input << " | Expected: " << c.num << "/" << c.den
+                << " | Got: " << r.numerator << "/" << r.denominator);
+            CHECK(r.numerator == c.num);
+            CHECK(r.denominator == c.den);
+        }
+    }
+}
+
+TEST_CASE("Evaluator: Rational normalization of signs", "[evaluator][rational][signs]") {
+    EvaluationContext ctx;
+    struct Case { std::string input; int64_t num, den; };
+    std::vector<Case> cases = {
+        {"Rational[3,4]", 3, 4},
+        {"Rational[-3,4]", -3, 4},
+        {"Rational[3,-4]", -3, 4},
+        {"Rational[-3,-4]", 3, 4},
+        {"Rational[0,5]", 0, 1},
+        {"Rational[0,7]", 0, 1},
+        {"Rational[5,1]", 5, 1},
+        {"Rational[-5,1]", -5, 1},
+        {"Rational[7,3]", 7, 3},
+        {"Rational[-7,3]", -7, 3}
+    };
+    for (const auto& c : cases) {
+        DYNAMIC_SECTION("Evaluating: " << c.input) {
+            auto expr = parse_expression(c.input);
+            auto result = evaluate(expr, ctx);
+            REQUIRE(result);
+            REQUIRE(std::holds_alternative<Rational>(*result));
+            auto r = std::get<Rational>(*result);
+            INFO("Input: " << c.input << " | Expected: " << c.num << "/" << c.den
+                << " | Got: " << r.numerator << "/" << r.denominator);
+            CHECK(r.numerator == c.num);
+            CHECK(r.denominator == c.den);
+        }
+    }
+}

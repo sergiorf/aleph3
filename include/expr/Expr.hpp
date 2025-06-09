@@ -59,7 +59,7 @@ struct Number {
 struct Rational {
     int64_t numerator;
     int64_t denominator;
-    Rational(int64_t n, int64_t d);
+    Rational(int64_t n, int64_t d) : numerator(n), denominator(d) {}
 };
 
 struct Boolean {

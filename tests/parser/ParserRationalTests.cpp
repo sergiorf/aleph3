@@ -10,32 +10,14 @@ TEST_CASE("Rational parsing: numerator and denominator signs", "[parser][rationa
     std::vector<Case> cases = {
         {"Rational[3,4]", 3, 4},
         {"Rational[-3,4]", -3, 4},
-        {"Rational[3,-4]", -3, 4},
-        {"Rational[-3,-4]", 3, 4},
-        {"Rational[0,5]", 0, 1},
-        {"Rational[0,7]", 0, 1},
+        {"Rational[3,-4]", 3, -4},
+        {"Rational[-3,-4]", -3, -4},
+        {"Rational[0,5]", 0, 5},
+        {"Rational[0,7]", 0, 7},
         {"Rational[5,1]", 5, 1},
         {"Rational[-5,1]", -5, 1},
         {"Rational[7,3]", 7, 3},
         {"Rational[-7,3]", -7, 3}
-    };
-    for (const auto& c : cases) {
-        auto expr = parse_expression(c.input);
-        REQUIRE(expr);
-        REQUIRE(std::holds_alternative<Rational>(*expr));
-        auto r = std::get<Rational>(*expr);
-        CHECK(r.numerator == c.num);
-        CHECK(r.denominator == c.den);
-    }
-}
-
-TEST_CASE("Rational parsing: reduction to lowest terms", "[parser][rational]") {
-    struct Case { std::string input; int64_t num, den; };
-    std::vector<Case> cases = {
-        {"Rational[6,8]", 3, 4},
-        {"Rational[100,250]", 2, 5},
-        {"Rational[-10,20]", -1, 2},
-        {"Rational[  8 ,  12 ]", 2, 3}
     };
     for (const auto& c : cases) {
         auto expr = parse_expression(c.input);
@@ -52,8 +34,8 @@ TEST_CASE("Rational parsing: large values", "[parser][rational]") {
     REQUIRE(expr);
     REQUIRE(std::holds_alternative<Rational>(*expr));
     auto r = std::get<Rational>(*expr);
-    CHECK(r.numerator == 13717421);
-    CHECK(r.denominator == 109739369);
+    CHECK(r.numerator == 123456789);
+    CHECK(r.denominator == 987654321);
 }
 
 TEST_CASE("Rational parsing: invalid input", "[parser][rational]") {
@@ -136,22 +118,22 @@ TEST_CASE("Parser: rational expressions with all sign combinations and implicit 
         // Simple rationals
         {"2/3", 2, 3, "", false},           // Rational[2,3]
         {"-2/3", -2, 3, "", false},         // Rational[-2,3]
-        {"2/-3", -2, 3, "", false},         // Rational[-2,3]
+        {"2/-3", 2, -3, "", false},         // Rational[2,-3]
         {"-2/-3", 2, 3, "", false},         // Rational[2,3]
         // With variable, implicit multiplication
         {"2/3x", 2, 3, "x", false},         // Times[Rational[2,3], x]
         {"-2/3x", -2, 3, "x", false},       // Times[Rational[-2,3], x]
-        {"2/-3x", -2, 3, "x", false},       // Times[Rational[-2,3], x]
+        {"2/-3x", 2, -3, "x", false},       // Times[Rational[2,-3], x]
         {"-2/-3x", 2, 3, "x", false},       // Times[Rational[2,3], x]
         // With variable, explicit multiplication
         {"2/3*x", 2, 3, "x", false},        // Times[Rational[2,3], x]
         {"-2/3*x", -2, 3, "x", false},      // Times[Rational[-2,3], x]
-        {"2/-3*x", -2, 3, "x", false},      // Times[Rational[-2,3], x]
+        {"2/-3*x", 2, -3, "x", false},      // Times[Rational[2,-3], x]
         {"-2/-3*x", 2, 3, "x", false},      // Times[Rational[2,3], x]
         // Parentheses
         {"-(2/3)x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
         {"(-2/3)x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
-        {"(2/-3)x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
+        {"(2/-3)x", 2, -3, "x", false},     // Times[Rational[2,-3], x]
         {"(-2/-3)x", 2, 3, "x", false},     // Times[Rational[2,3], x]
         // Variable numerator/denominator (should parse as Divide)
         {"a/b", 0, 0, "", false},           // not a rational, skip check
@@ -232,4 +214,55 @@ TEST_CASE("Parser: rational expressions with all sign combinations and implicit 
             }
         }
     }
+}
+
+TEST_CASE("Parser: rational equality parses to Equal function", "[parser][rational][comparison]") {
+    auto expr = parse_expression("Rational[1,2] == Rational[2,4]");
+    REQUIRE(expr);
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+    const auto& f = std::get<FunctionCall>(*expr);
+    CHECK(f.head == "Equal");
+    REQUIRE(f.args.size() == 2);
+    REQUIRE(std::holds_alternative<Rational>(*f.args[0]));
+    REQUIRE(std::holds_alternative<Rational>(*f.args[1]));
+    auto r1 = std::get<Rational>(*f.args[0]);
+    auto r2 = std::get<Rational>(*f.args[1]);
+    CHECK(r1.numerator == 1);
+    CHECK(r1.denominator == 2);
+    CHECK(r2.numerator == 2);
+    CHECK(r2.denominator == 4);
+}
+
+TEST_CASE("Parser: rational less-than parses to Less function", "[parser][rational][comparison]") {
+    auto expr = parse_expression("Rational[1,3] < Rational[1,2]");
+    REQUIRE(expr);
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+    const auto& f = std::get<FunctionCall>(*expr);
+    CHECK(f.head == "Less");
+    REQUIRE(f.args.size() == 2);
+    REQUIRE(std::holds_alternative<Rational>(*f.args[0]));
+    REQUIRE(std::holds_alternative<Rational>(*f.args[1]));
+    auto r1 = std::get<Rational>(*f.args[0]);
+    auto r2 = std::get<Rational>(*f.args[1]);
+    CHECK(r1.numerator == 1);
+    CHECK(r1.denominator == 3);
+    CHECK(r2.numerator == 1);
+    CHECK(r2.denominator == 2);
+}
+
+TEST_CASE("Parser: rational greater-than parses to Greater function", "[parser][rational][comparison]") {
+    auto expr = parse_expression("Rational[3,4] > Rational[2,3]");
+    REQUIRE(expr);
+    REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+    const auto& f = std::get<FunctionCall>(*expr);
+    CHECK(f.head == "Greater");
+    REQUIRE(f.args.size() == 2);
+    REQUIRE(std::holds_alternative<Rational>(*f.args[0]));
+    REQUIRE(std::holds_alternative<Rational>(*f.args[1]));
+    auto r1 = std::get<Rational>(*f.args[0]);
+    auto r2 = std::get<Rational>(*f.args[1]);
+    CHECK(r1.numerator == 3);
+    CHECK(r1.denominator == 4);
+    CHECK(r2.numerator == 2);
+    CHECK(r2.denominator == 3);
 }

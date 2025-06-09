@@ -391,19 +391,23 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                 const auto& a = std::get<Rational>(*left);
                 const auto& b = std::get<Rational>(*right);
                 if (name == "Plus") {
-                    return make_expr<Rational>(a.numerator * b.denominator + b.numerator * a.denominator,
+                    auto [n, d] = normalize_rational(a.numerator * b.denominator + b.numerator * a.denominator,
                         a.denominator * b.denominator);
+                    return make_expr<Rational>(n, d);
                 }
                 if (name == "Minus") {
-                    return make_expr<Rational>(a.numerator * b.denominator - b.numerator * a.denominator,
+                    auto [n, d] = normalize_rational(a.numerator * b.denominator - b.numerator * a.denominator,
                         a.denominator * b.denominator);
+                    return make_expr<Rational>(n, d);
                 }
                 if (name == "Times") {
-                    return make_expr<Rational>(a.numerator * b.numerator, a.denominator * b.denominator);
+                    auto [n, d] = normalize_rational(a.numerator * b.numerator, a.denominator * b.denominator);
+                    return make_expr<Rational>(n, d);
                 }
                 if (name == "Divide") {
                     if (b.numerator == 0) throw std::runtime_error("Division by zero");
-                    return make_expr<Rational>(a.numerator * b.denominator, a.denominator * b.numerator);
+                    auto [n, d] = normalize_rational(a.numerator * b.denominator, a.denominator * b.numerator);
+                    return make_expr<Rational>(n, d);
                 }
                 // Power: only support integer exponents for now
                 if (name == "Power") {
@@ -505,7 +509,8 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
             return make_expr<Number>(num.value);
         },
         [](const Rational& r) -> ExprPtr {
-            return make_expr<Rational>(r.numerator, r.denominator);
+            auto [n, d] = normalize_rational(r.numerator, r.denominator);
+            return make_expr<Rational>(n, d);
         },
         [](const Boolean& boolean) -> ExprPtr {
             return make_expr<Boolean>(boolean.value);

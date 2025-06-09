@@ -3,18 +3,10 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
-#include <numeric>
 #include <stdexcept>
 
 namespace aleph3 {
     
-    Rational::Rational(int64_t n, int64_t d) {
-        if (d == 0) throw std::runtime_error("Denominator cannot be zero");
-        int64_t g = std::gcd(n, d);
-        numerator = d < 0 ? -n / g : n / g;
-        denominator = d < 0 ? -d / g : d / g;
-    }
-
     // Format numbers: show integers cleanly, floats with fixed precision
     inline std::string format_number(double value) {
         if (std::floor(value) == value) {

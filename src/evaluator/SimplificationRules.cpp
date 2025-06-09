@@ -3,23 +3,6 @@
 #include <cmath>
 
 namespace aleph3 {
-    // Helper for GCD and rational normalization
-    inline int64_t gcd(int64_t a, int64_t b) {
-        while (b != 0) {
-            int64_t t = b;
-            b = a % b;
-            a = t;
-        }
-        return std::abs(a);
-    }
-    inline std::pair<int64_t, int64_t> normalize_rational(int64_t num, int64_t den) {
-        if (den == 0) return {num, den};
-        int64_t sign = (den < 0) ? -1 : 1;
-        num *= sign;
-        den *= sign;
-        int64_t g = gcd(num, den);
-        return {num / g, den / g};
-    }
 
     const std::unordered_map<std::string, SimplifyRule> simplification_rules = {
     {"Plus", [](const std::vector<ExprPtr>& args, EvaluationContext& ctx,

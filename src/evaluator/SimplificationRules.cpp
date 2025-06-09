@@ -226,6 +226,21 @@ namespace aleph3 {
                 return make_expr<Number>(result);
             }
         }
+        if (std::holds_alternative<Rational>(*base) && std::holds_alternative<Rational>(*exp)) {
+            const auto& b = std::get<Rational>(*base);
+            const auto& r = std::get<Rational>(*exp);
+            double b_val = static_cast<double>(b.numerator) / b.denominator;
+            // Only handle positive denominator
+            if (r.denominator > 0) {
+                double root = std::pow(b_val, 1.0 / r.denominator);
+                double result = std::pow(root, r.numerator);
+                // If denominator is odd, allow negative base (real root)
+                if (b_val < 0 && r.denominator % 2 == 1) {
+                    result = -std::pow(-b_val, static_cast<double>(r.numerator) / r.denominator);
+                }
+                return make_expr<Number>(result);
+            }
+        }
         if (std::holds_alternative<Number>(*base) && std::holds_alternative<Number>(*exp)) {
             double b = get_number_value(base);
             double e = get_number_value(exp);

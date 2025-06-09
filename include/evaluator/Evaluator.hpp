@@ -19,11 +19,13 @@
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/FunctionRegistry.hpp"
 #include "evaluator/SimplificationRules.hpp"
+#include "normalizer/Normalizer.hpp"
 #include "util/Overloaded.hpp"
 #include "expr/ExprUtils.hpp"
 #include "transforms/Transforms.hpp"
 #include "ExtraMath.hpp"
 #include "Constants.hpp"
+#include "util/Logging.hpp"
 
 #include <stdexcept>
 #include <cmath>
@@ -35,94 +37,6 @@
 namespace aleph3 {
 
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
-
-inline ExprPtr normalize_expr(const ExprPtr& expr) {
-    return std::visit(overloaded{
-        [](const Number& num) -> ExprPtr {
-            return make_expr<Number>(num.value);
-        },
-        [](const Complex& c) -> ExprPtr {
-            return make_expr<Complex>(c.real, c.imag);
-        },
-        [](const Rational& r) -> ExprPtr {
-            return make_expr<Rational>(r.numerator, r.denominator);
-        },
-        [](const Boolean& boolean) -> ExprPtr {
-            return make_expr<Boolean>(boolean.value);
-        },
-        [](const String& str) -> ExprPtr {
-            return make_expr<String>(str.value);
-        },
-        [](const Infinity&) -> ExprPtr {
-            return make_expr<Infinity>();
-        },
-        [](const Indeterminate&) -> ExprPtr {
-            return make_expr<Indeterminate>();
-        },
-        [](const Symbol& sym) -> ExprPtr {
-            return make_expr<Symbol>(sym.name);
-        },
-        [](const FunctionCall& f) -> ExprPtr {
-            // Normalize Negate(x)
-            if (f.head == "Negate" && f.args.size() == 1) {
-                auto arg = normalize_expr(f.args[0]);
-                // If arg is Number, just negate it
-                if (auto num = std::get_if<Number>(arg.get())) {
-                    return make_expr<Number>(-num->value);
-                }
-                // If arg is already Times(-1, ...), flatten
-                if (auto inner = std::get_if<FunctionCall>(arg.get())) {
-                    if (inner->head == "Times" && !inner->args.empty()) {
-                        if (auto n = std::get_if<Number>(inner->args[0].get()); n && n->value == -1) {
-                            // Already normalized
-                            return arg;
-                        }
-                    }
-                }
-                // Otherwise, return Times(-1, arg)
-                return make_fcall("Times", { make_expr<Number>(-1), arg });
-            }
-            // Normalize Times
-            if (f.head == "Times") {
-                std::vector<ExprPtr> norm_args;
-                for (const auto& arg : f.args) {
-                    norm_args.push_back(normalize_expr(arg));
-                }
-                return make_fcall("Times", norm_args);
-            }
-            // Normalize Divide
-            if (f.head == "Divide" && f.args.size() == 2) {
-                return make_fcall("Divide", { normalize_expr(f.args[0]), normalize_expr(f.args[1]) });
-            }
-            // Normalize Power
-            if (f.head == "Power" && f.args.size() == 2) {
-                return make_fcall("Power", { normalize_expr(f.args[0]), normalize_expr(f.args[1]) });
-            }
-            // Default: normalize all arguments
-            std::vector<ExprPtr> norm_args;
-            for (const auto& arg : f.args) {
-                norm_args.push_back(normalize_expr(arg));
-            }
-            return make_fcall(f.head, norm_args);
-        },
-        [](const List& list) -> ExprPtr {
-            std::vector<ExprPtr> norm_elems;
-            for (const auto& elem : list.elements) {
-                norm_elems.push_back(normalize_expr(elem));
-            }
-            return std::make_shared<Expr>(List{norm_elems});
-        },
-        [](const FunctionDefinition& def) -> ExprPtr {
-            return make_expr<FunctionDefinition>(def.name, def.params, def.body, def.delayed);
-        },
-        [](const Assignment& assign) -> ExprPtr {
-            return make_expr<Assignment>(assign.name, assign.value);
-        },
-        [](const Rule& rule) -> ExprPtr {
-            return make_expr<Rule>(normalize_expr(rule.lhs), normalize_expr(rule.rhs));
-        }
-        }, *expr);
-}
 
 inline std::string expr_to_key(const ExprPtr& expr) {
     auto norm = normalize_expr(expr);
@@ -163,7 +77,22 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         if (std::holds_alternative<Number>(*arg)) {
             return make_expr<Number>(-get_number_value(arg));
         }
-        return make_expr<FunctionCall>("Times", std::vector{ make_expr<Number>(-1), arg });
+        // If arg is Complex, negate both real and imaginary parts
+        if (std::holds_alternative<Complex>(*arg)) {
+            const auto& c = std::get<Complex>(*arg);
+            return make_expr<Complex>(-c.real, -c.imag);
+        }
+        // If arg is already Times(-1, ...), flatten
+        if (auto inner = std::get_if<FunctionCall>(arg.get())) {
+            if (inner->head == "Times" && !inner->args.empty()) {
+                if (auto n = std::get_if<Number>(inner->args[0].get()); n && n->value == -1) {
+                    // Already normalized
+                    return arg;
+                }
+            }
+        }
+        // Otherwise, return Times(-1, arg)
+        return make_fcall("Times", { make_expr<Number>(-1), arg });
     }
 
     // 3. Built-in function maps
@@ -390,19 +319,76 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         }
     }
 
-    // 6. Centralized simplification for known functions
-    auto simp_it = simplification_rules.find(name);
-    if (simp_it != simplification_rules.end()) {
-        return simp_it->second(func.args, ctx, evaluate);
-    }
-
-    // 7. Built-in binary (with elementwise support)
+    // 6. Built-in binary (with elementwise support)
     if (nargs == 2) {
         auto it = binary_functions.find(name);
         if (it != binary_functions.end()) {
             auto left = evaluate(func.args[0], ctx);
             auto right = evaluate(func.args[1], ctx);
             if (auto ew = elementwise(name, left, right)) return ew;
+            // Complex ops
+            if ((name == "Plus" || name == "Minus") &&
+                std::holds_alternative<Number>(*left)) {
+                double real = std::get<Number>(*left).value;
+                int sign = (name == "Plus") ? 1 : -1;
+                if (auto* times = std::get_if<FunctionCall>(right.get())) {
+                    if (times->head == "Times" && times->args.size() == 2) {
+                        if (std::holds_alternative<Number>(*times->args[0]) &&
+                            std::holds_alternative<Complex>(*times->args[1])) {
+                            double imag = std::get<Number>(*times->args[0]).value;
+                            const auto& c = std::get<Complex>(*times->args[1]);
+                            if (c.real == 0.0 && c.imag == 1.0) {
+                                return make_expr<Complex>(real, sign * imag);
+                            }
+                        }
+                    }
+                }
+            }
+            // Complex + Complex
+            if (name == "Plus" &&
+                std::holds_alternative<Complex>(*left) &&
+                std::holds_alternative<Complex>(*right)) {
+                const auto& a = std::get<Complex>(*left);
+                const auto& b = std::get<Complex>(*right);
+                return make_expr<Complex>(a.real + b.real, a.imag + b.imag);
+            }
+            // Complex * Complex
+            if (name == "Times" &&
+                std::holds_alternative<Complex>(*left) &&
+                std::holds_alternative<Complex>(*right)) {
+                const auto& a = std::get<Complex>(*left);
+                const auto& b = std::get<Complex>(*right);
+                double real = a.real * b.real - a.imag * b.imag;
+                double imag = a.real * b.imag + a.imag * b.real;
+                return make_expr<Complex>(real, imag);
+            }
+            // Complex + Number or Number + Complex
+            if (name == "Plus") {
+                if (std::holds_alternative<Complex>(*left) && std::holds_alternative<Number>(*right)) {
+                    const auto& c = std::get<Complex>(*left);
+                    double n = std::get<Number>(*right).value;
+                    return make_expr<Complex>(c.real + n, c.imag);
+                }
+                if (std::holds_alternative<Number>(*left) && std::holds_alternative<Complex>(*right)) {
+                    double n = std::get<Number>(*left).value;
+                    const auto& c = std::get<Complex>(*right);
+                    return make_expr<Complex>(n + c.real, c.imag);
+                }
+            }
+
+            // Complex * Number or Number * Complex
+            if (name == "Times") {
+                if (std::holds_alternative<Complex>(*left) && std::holds_alternative<Number>(*right)) {
+                    const auto& c = std::get<Complex>(*left);
+                    double n = std::get<Number>(*right).value;
+                    return make_expr<Complex>(c.real * n, c.imag * n);
+                }
+                if (std::holds_alternative<Number>(*left) && std::holds_alternative<Complex>(*right)) {
+                    double n = std::get<Number>(*left).value;
+                    const auto& c = std::get<Complex>(*right);
+                    return make_expr<Complex>(n * c.real, n * c.imag);
+                }
+            }
             // Rational op Rational
             if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Rational>(*right)) {
                 const auto& a = std::get<Rational>(*left);
@@ -425,10 +411,6 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                     if (b.numerator == 0) throw std::runtime_error("Division by zero");
                     auto [n, d] = normalize_rational(a.numerator * b.denominator, a.denominator * b.numerator);
                     return make_expr<Rational>(n, d);
-                }
-                // Power: only support integer exponents for now
-                if (name == "Power") {
-                    return make_fcall(name, { left, right }); // fallback to symbolic
                 }
             }
             // Rational op Number
@@ -462,6 +444,15 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
                 double b = get_number_value(right);
                 return make_expr<Number>(it->second(a, b));
             }
+            // If we reach here, try the simplification rule for this operation
+            auto simp_it = simplification_rules.find(name);
+            if (simp_it != simplification_rules.end()) {
+                return simp_it->second({left, right}, ctx, evaluate);
+            }
+            ALEPH3_LOG("No numeric/special case for " << name << " with args: "
+                << to_string_raw(left) << ", " << to_string_raw(right)
+                << " (types: "
+                << left->index() << ", " << right->index() << ")");
             return make_fcall(name, { left, right });
         }
         // Comparison functions
@@ -510,6 +501,12 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
         }
     }
 
+    // 7. Centralized simplification for known functions
+    auto simp_it = simplification_rules.find(name);
+    if (simp_it != simplification_rules.end()) {
+        return simp_it->second(func.args, ctx, evaluate);
+    }
+
     // 8. User-defined functions
     auto user_it = ctx.user_functions.find(name);
     if (user_it != ctx.user_functions.end()) {
@@ -550,9 +547,9 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
     return make_expr<FunctionCall>(name, unevaluated_args);
 }
 
-inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx, 
-    std::unordered_set<std::string>& visited) {
-    return std::visit(overloaded{
+inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx, std::unordered_set<std::string>& visited) {
+    ALEPH3_LOG("evaluate: input = " << to_string_raw(expr));
+    auto result = std::visit(overloaded{
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
         },
@@ -682,11 +679,14 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx,
         },
         }, 
         *expr);
+        ALEPH3_LOG("evaluate: result = " << to_string_raw(result));
+        return result;
 }
 
 inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
+    ExprPtr norm = normalize_expr(expr);
     std::unordered_set<std::string> visited;
-    return evaluate(expr, ctx, visited);
+    return evaluate(norm, ctx, visited);
 }
 
 }

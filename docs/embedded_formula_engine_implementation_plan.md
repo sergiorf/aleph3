@@ -607,6 +607,23 @@ Acceptance criteria:
 
 - tests cover parser, evaluator, and host functions for the minimal subset
 
+### Task R2.7: Add Thin Rewrite Tooling CLI
+
+Files to add:
+
+- `src/tooling/rewrite_cli.cpp`
+
+Behavior:
+
+- consume the rewrite SDK and frontend as a developer test harness
+- expose `tokens`, `parse`, `validate`, and `compile` commands
+- print structured diagnostics for manual debugging
+
+Acceptance criteria:
+
+- the rewrite path can be exercised from the terminal without using the legacy CLI
+- the CLI does not depend on legacy parser or evaluator internals
+
 ## R3: Validation and Diagnostics
 
 ### Task R3.1: Implement Diagnostic Types
@@ -789,9 +806,10 @@ Acceptance criteria:
 
 1. Implement new lexer.
 2. Implement new parser.
-3. Implement new runtime value model.
-4. Implement new evaluator.
-5. Add trusted-core tests.
+3. Add thin rewrite tooling CLI.
+4. Implement new runtime value model.
+5. Implement new evaluator.
+6. Add trusted-core tests.
 
 ### Priority 2
 
@@ -863,10 +881,12 @@ Functionality unblocked:
 - implement lexer and parser
 - implement source spans and syntax diagnostics
 - add parser tests
+- add thin rewrite tooling CLI
 
 Functionality unblocked:
 
 - trustworthy syntax handling for the supported subset
+- fast manual SDK/frontend checks from the terminal
 
 ### Week 4
 

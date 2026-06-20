@@ -8,43 +8,106 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-include_directories(include)
+option(ALEPH3_BUILD_LEGACY "Build the legacy prototype engine and CLI." ON)
+option(ALEPH3_BUILD_REWRITE "Build the rewrite-path SDK targets." ON)
 
-file(GLOB_RECURSE LIB_SOURCES "src/*.cpp")
-list(REMOVE_ITEM LIB_SOURCES "${CMAKE_SOURCE_DIR}/src/main.cpp") # Exclude main.cpp
-file(GLOB_RECURSE HEADERS "include/*.hpp" "include/*.h")
+set(ALEPH3_PUBLIC_HEADERS
+    include/sdk/Engine.hpp
+    include/sdk/Policy.hpp
+    include/sdk/Schema.hpp
+    include/sdk/Types.hpp
+    include/ir/Node.hpp
+    include/frontend/Token.hpp
+    include/frontend/Lexer.hpp
+    include/frontend/Parser.hpp)
 
-# Create a library target for shared code
-add_library(${PROJECT_NAME}_lib ${LIB_SOURCES} ${HEADERS})
-target_include_directories(${PROJECT_NAME}_lib PRIVATE third_party/utf8cpp)
+if(ALEPH3_BUILD_REWRITE)
+    add_library(aleph3_runtime INTERFACE)
+    target_include_directories(aleph3_runtime INTERFACE include)
 
-add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
-target_include_directories(${PROJECT_NAME} PRIVATE third_party/utf8cpp)
+    add_library(aleph3_sdk
+        src/sdk/Engine.cpp
+        src/frontend/Lexer.cpp
+        src/frontend/Parser.cpp
+        ${ALEPH3_PUBLIC_HEADERS})
+    target_include_directories(aleph3_sdk PUBLIC include)
+    target_link_libraries(aleph3_sdk PUBLIC aleph3_runtime)
 
-# Fetch Catch2 for testing
-include(FetchContent)
-FetchContent_Declare(
-    Catch2
-    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG v3.4.0 # Use the latest stable version
-)
+    add_executable(aleph3_rewrite_cli src/tooling/rewrite_cli.cpp)
+    target_link_libraries(aleph3_rewrite_cli PRIVATE aleph3_sdk)
+endif()
 
-# Enable verbose output for FetchContent
-set(FETCHCONTENT_QUIET OFF)
+if(ALEPH3_BUILD_LEGACY)
+    file(GLOB LEGACY_ROOT_SOURCES "src/*.cpp")
+    list(REMOVE_ITEM LEGACY_ROOT_SOURCES "${CMAKE_SOURCE_DIR}/src/main.cpp")
+    file(GLOB LEGACY_COMPONENT_SOURCES
+        "src/algebra/*.cpp"
+        "src/evaluator/*.cpp"
+        "src/expr/*.cpp"
+        "src/transforms/*.cpp")
+    file(GLOB LEGACY_HEADERS
+        "include/*.hpp"
+        "include/*.h"
+        "include/algebra/*.hpp"
+        "include/evaluator/*.hpp"
+        "include/expr/*.hpp"
+        "include/help/*.hpp"
+        "include/normalizer/*.hpp"
+        "include/parser/*.hpp"
+        "include/transforms/*.hpp"
+        "include/util/*.hpp")
 
-FetchContent_MakeAvailable(Catch2)
+    add_library(aleph3_legacy
+        ${LEGACY_ROOT_SOURCES}
+        ${LEGACY_COMPONENT_SOURCES}
+        ${LEGACY_HEADERS})
+    add_library(${PROJECT_NAME}_lib ALIAS aleph3_legacy)
+    target_include_directories(aleph3_legacy PUBLIC include PRIVATE third_party/utf8cpp)
 
-# Add test executable
-file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp")
-add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
-target_link_libraries(${PROJECT_NAME}_tests PRIVATE ${PROJECT_NAME}_lib Catch2::Catch2WithMain)
-target_include_directories(${PROJECT_NAME}_tests PRIVATE third_party/utf8cpp)
-target_include_directories(${PROJECT_NAME}_tests PRIVATE tests)
+    add_executable(aleph3_cli_legacy src/main.cpp)
+    set_target_properties(aleph3_cli_legacy PROPERTIES OUTPUT_NAME aleph3)
+    target_link_libraries(aleph3_cli_legacy PRIVATE aleph3_legacy)
+    target_include_directories(aleph3_cli_legacy PRIVATE third_party/utf8cpp)
+endif()
 
-# Enable testing
 include(CTest)
-add_test(NAME ${PROJECT_NAME}_Tests COMMAND ${PROJECT_NAME}_tests)
+
+if(BUILD_TESTING)
+    include(FetchContent)
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.4.0
+    )
+
+    set(FETCHCONTENT_QUIET OFF)
+    FetchContent_MakeAvailable(Catch2)
+
+    if(ALEPH3_BUILD_LEGACY)
+        file(GLOB LEGACY_TEST_ROOT "tests/*.cpp")
+        file(GLOB LEGACY_TEST_SOURCES
+            "tests/algebra/*.cpp"
+            "tests/evaluator/*.cpp"
+            "tests/parser/*.cpp")
+
+        add_executable(aleph3_legacy_tests ${LEGACY_TEST_ROOT} ${LEGACY_TEST_SOURCES})
+        target_link_libraries(aleph3_legacy_tests PRIVATE aleph3_legacy Catch2::Catch2WithMain)
+        target_include_directories(aleph3_legacy_tests PRIVATE third_party/utf8cpp tests)
+        add_test(NAME aleph3_legacy_tests COMMAND aleph3_legacy_tests)
+    endif()
+
+    if(ALEPH3_BUILD_REWRITE)
+        file(GLOB REWRITE_TEST_SOURCES
+            "tests/frontend/*.cpp"
+            "tests/ir/*.cpp"
+            "tests/sdk/*.cpp")
+
+        add_executable(aleph3_sdk_tests ${REWRITE_TEST_SOURCES})
+        target_link_libraries(aleph3_sdk_tests PRIVATE aleph3_sdk Catch2::Catch2WithMain)
+        target_include_directories(aleph3_sdk_tests PRIVATE tests)
+        add_test(NAME aleph3_sdk_tests COMMAND aleph3_sdk_tests)
+    endif()
+endif()
 
 # Add compile definitions for versioning
 add_compile_definitions(${PROJECT_NAME}_VERSION="0.1.0")

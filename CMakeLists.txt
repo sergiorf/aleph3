@@ -19,7 +19,9 @@ set(ALEPH3_PUBLIC_HEADERS
     include/ir/Node.hpp
     include/frontend/Token.hpp
     include/frontend/Lexer.hpp
-    include/frontend/Parser.hpp)
+    include/frontend/Parser.hpp
+    include/semantics/Validator.hpp
+    include/runtime/Evaluator.hpp)
 
 if(ALEPH3_BUILD_REWRITE)
     add_library(aleph3_runtime INTERFACE)
@@ -29,6 +31,8 @@ if(ALEPH3_BUILD_REWRITE)
         src/sdk/Engine.cpp
         src/frontend/Lexer.cpp
         src/frontend/Parser.cpp
+        src/semantics/Validator.cpp
+        src/runtime/Evaluator.cpp
         ${ALEPH3_PUBLIC_HEADERS})
     target_include_directories(aleph3_sdk PUBLIC include)
     target_link_libraries(aleph3_sdk PUBLIC aleph3_runtime)
@@ -100,6 +104,8 @@ if(BUILD_TESTING)
         file(GLOB REWRITE_TEST_SOURCES
             "tests/frontend/*.cpp"
             "tests/ir/*.cpp"
+            "tests/runtime/*.cpp"
+            "tests/semantics/*.cpp"
             "tests/sdk/*.cpp")
 
         add_executable(aleph3_sdk_tests ${REWRITE_TEST_SOURCES})

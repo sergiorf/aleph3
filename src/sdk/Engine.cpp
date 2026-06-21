@@ -1,5 +1,10 @@
 #include "sdk/Engine.hpp"
 
+#include "frontend/Parser.hpp"
+#include "ir/Node.hpp"
+#include "runtime/Evaluator.hpp"
+#include "semantics/Validator.hpp"
+
 #include <cctype>
 #include <mutex>
 #include <stdexcept>
@@ -35,7 +40,48 @@ RuntimeError make_runtime_error(std::string code, std::string message) {
     return error;
 }
 
+struct FrontendPassResult {
+    ir::NodePtr root;
+    std::vector<Diagnostic> diagnostics;
+
+    [[nodiscard]] bool ok() const noexcept {
+        return root != nullptr && diagnostics.empty();
+    }
+};
+
+FrontendPassResult parse_and_validate(
+    std::string_view source,
+    const Schema& schema,
+    const Policy& policy) {
+    FrontendPassResult result;
+
+    frontend::Parser parser(source);
+    auto parse_result = parser.parse();
+    if (!parse_result.ok()) {
+        result.diagnostics = std::move(parse_result.diagnostics);
+        return result;
+    }
+
+    semantics::Validator validator(schema, policy);
+    auto summary = validator.validate(parse_result.root);
+    if (!summary.ok()) {
+        result.diagnostics = std::move(summary.diagnostics);
+        return result;
+    }
+
+    result.root = std::move(parse_result.root);
+    return result;
+}
+
 }  // namespace
+
+namespace sdk_detail {
+struct CompiledFormulaData {
+    ir::NodePtr root;
+    Policy policy;
+    std::string source;
+};
+}  // namespace sdk_detail
 
 struct Engine::State {
     explicit State(EngineOptions engine_options) : options(std::move(engine_options)) {}
@@ -61,8 +107,8 @@ void Engine::register_function(HostFunctionSpec spec) {
 
 CompileResult Engine::compile(
     std::string_view source,
-    const Schema&,
-    const Policy&) const {
+    const Schema& schema,
+    const Policy& policy) const {
     CompileResult result;
 
     if (is_blank(source)) {
@@ -71,17 +117,27 @@ CompileResult Engine::compile(
         return result;
     }
 
-    result.diagnostics.push_back(
-        make_error(
-            "sdk.compile.not_implemented",
-            "Formula compilation for the rewrite path is not implemented yet."));
+    auto frontend_result = parse_and_validate(source, schema, policy);
+    if (!frontend_result.ok()) {
+        result.diagnostics = std::move(frontend_result.diagnostics);
+        return result;
+    }
+
+    auto state = std::make_shared<sdk_detail::CompiledFormulaData>();
+    state->root = std::move(frontend_result.root);
+    state->policy = policy;
+    if (state_->options.retain_source_text) {
+        state->source = std::string(source);
+    }
+
+    result.formula = CompiledFormula(std::move(state));
     return result;
 }
 
 ValidationResult Engine::validate(
     std::string_view source,
-    const Schema&,
-    const Policy&) const {
+    const Schema& schema,
+    const Policy& policy) const {
     ValidationResult result;
 
     if (is_blank(source)) {
@@ -91,30 +147,36 @@ ValidationResult Engine::validate(
         return result;
     }
 
-    result.ok = false;
-    result.diagnostics.push_back(
-        make_error(
-            "sdk.validate.not_implemented",
-            "Formula validation for the rewrite path is not implemented yet."));
+    auto frontend_result = parse_and_validate(source, schema, policy);
+    if (!frontend_result.ok()) {
+        result.ok = false;
+        result.diagnostics = std::move(frontend_result.diagnostics);
+        return result;
+    }
+
+    result.ok = true;
     return result;
 }
 
 EvaluationResult Engine::evaluate(
     const CompiledFormula& formula,
-    const Bindings&) const {
-    EvaluationResult result;
-
+    const Bindings& bindings) const {
     if (formula.empty()) {
+        EvaluationResult result;
         result.error = make_runtime_error(
             "sdk.formula.empty",
             "Cannot evaluate an empty compiled formula.");
         return result;
     }
 
-    result.error = make_runtime_error(
-        "sdk.evaluate.not_implemented",
-        "Formula evaluation for the rewrite path is not implemented yet.");
-    return result;
+    std::unordered_map<std::string, HostFunctionSpec> host_functions;
+    {
+        std::lock_guard<std::mutex> lock(state_->mutex);
+        host_functions = state_->host_functions;
+    }
+
+    runtime::Evaluator evaluator({bindings, host_functions, formula.state_->policy});
+    return evaluator.evaluate(formula.state_->root);
 }
 
 }  // namespace aleph3

@@ -8,6 +8,9 @@ rewrite easier to navigate as the SDK-first implementation grows.
 
 - Public SDK headers under `include/sdk/`
 - Minimal trusted-subset IR in `include/ir/Node.hpp`
+- Rewrite lexer, parser, and first-pass validator
+- Reusable `CompiledFormula` creation through `Engine::compile()`
+- Trusted-subset runtime evaluation through `Engine::evaluate()`
 - Rewrite build target split in `CMakeLists.txt`
 - Rewrite tooling CLI target `aleph3_rewrite_cli`
 - Rewrite REPL and built-in help/examples in `aleph3_rewrite_cli`
@@ -15,9 +18,8 @@ rewrite easier to navigate as the SDK-first implementation grows.
 
 ## What Is Not Stable Yet
 
-- Frontend parser and lexer
-- Validation semantics
-- Runtime evaluator behavior
+- Rich validation semantics beyond allowlists and basic policy checks
+- Broader host-function and CLI binding support
 - Packaging and final target names
 
 ## Document Map

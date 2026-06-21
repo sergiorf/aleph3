@@ -512,6 +512,12 @@ Acceptance criteria:
 
 - external code can link against the SDK surface before full implementation
 
+Current status:
+
+- completed and extended beyond a pure stub
+- `validate` now runs parser + validator
+- `compile` now returns reusable opaque `CompiledFormula` handles on success
+
 ### Task R1.4: Split Build Targets Around Rewrite
 
 Files:
@@ -584,6 +590,13 @@ Acceptance criteria:
 - no global function registry
 - deterministic result tests pass
 
+Current status:
+
+- implemented as a trusted-subset tree interpreter
+- covers literals, bindings, unary/binary operators, comparisons, `If`, and
+  basic function dispatch
+- runtime still needs richer binding/CLI support and broader host-function work
+
 ### Task R2.5: Implement Host Function Dispatch
 
 Files to add:
@@ -594,6 +607,12 @@ Files to add:
 Acceptance criteria:
 
 - host can register per-engine functions with arity metadata
+
+Current status:
+
+- engine-scoped host functions are callable during runtime evaluation
+- broader registration ergonomics and richer type/arity enforcement remain
+  future work
 
 ### Task R2.6: Add Trusted-Core Tests
 
@@ -665,6 +684,12 @@ Acceptance criteria:
 
 - validator traverses minimal IR
 - detects unknown variables, unknown functions, disallowed features
+
+Current status:
+
+- first pass implemented for schema allowlists, known arity checks, basic
+  feature gates, and AST node/depth limits
+- deeper type reasoning and runtime-facing validation remain future work
 
 ### Task R3.4: Add Validation Tests
 

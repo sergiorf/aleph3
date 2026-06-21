@@ -17,15 +17,50 @@ TEST_CASE("Engine compile rejects blank source with structured diagnostics", "[s
     REQUIRE(result.diagnostics.front().code == "sdk.source.empty");
 }
 
-TEST_CASE("Engine validate returns a rewrite-path placeholder diagnostic", "[sdk][engine]") {
+TEST_CASE("Engine compile produces reusable compiled formulas for valid input", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+    schema.allow_variable({"x", ValueType::number, true});
+
+    const auto result = engine.compile("x + 1", schema);
+
+    REQUIRE(result.ok());
+    REQUIRE(result.formula.has_value());
+    REQUIRE_FALSE(result.formula->empty());
+    REQUIRE(result.diagnostics.empty());
+
+    const auto second_result = engine.compile("x + 1", schema);
+    REQUIRE(second_result.ok());
+    REQUIRE(second_result.formula.has_value());
+    REQUIRE_FALSE(second_result.formula->empty());
+}
+
+TEST_CASE("Engine compile reports parser and validator failures", "[sdk][engine]") {
     Engine engine;
     Schema schema;
 
+    const auto parse_failure = engine.compile("1 + (2 * 3", schema);
+    REQUIRE_FALSE(parse_failure.ok());
+    REQUIRE_FALSE(parse_failure.formula.has_value());
+    REQUIRE(parse_failure.diagnostics.size() == 1);
+    REQUIRE(parse_failure.diagnostics.front().code == "frontend.parser.expected_right_paren");
+
+    const auto validation_failure = engine.compile("x + 1", schema);
+    REQUIRE_FALSE(validation_failure.ok());
+    REQUIRE_FALSE(validation_failure.formula.has_value());
+    REQUIRE(validation_failure.diagnostics.size() == 1);
+    REQUIRE(validation_failure.diagnostics.front().code == "semantics.validator.unknown_variable");
+}
+
+TEST_CASE("Engine validate returns a rewrite-path placeholder diagnostic", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+    schema.allow_variable({"x", ValueType::number, true});
+
     const auto result = engine.validate("x + 1", schema);
 
-    REQUIRE_FALSE(result.ok);
-    REQUIRE(result.diagnostics.size() == 1);
-    REQUIRE(result.diagnostics.front().code == "sdk.validate.not_implemented");
+    REQUIRE(result.ok);
+    REQUIRE(result.diagnostics.empty());
 }
 
 TEST_CASE("Engine evaluate rejects empty compiled formulas", "[sdk][engine]") {
@@ -37,6 +72,67 @@ TEST_CASE("Engine evaluate rejects empty compiled formulas", "[sdk][engine]") {
     REQUIRE_FALSE(result.ok());
     REQUIRE(result.error.has_value());
     REQUIRE(result.error->code == "sdk.formula.empty");
+}
+
+TEST_CASE("Engine evaluate accepts compiled formulas even before runtime exists", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+    schema.allow_variable({"x", ValueType::number, true});
+
+    const auto compile_result = engine.compile("x + 1", schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto result = engine.evaluate(*compile_result.formula, {{"x", Value(2.0)}});
+    REQUIRE(result.ok());
+    REQUIRE(result.value.has_value());
+    REQUIRE(result.value->as_number() != nullptr);
+    REQUIRE(*result.value->as_number() == 3.0);
+}
+
+TEST_CASE("Engine evaluate reports runtime errors for compiled formulas", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+    schema.allow_variable({"x", ValueType::number, true});
+
+    const auto unknown_binding_formula = engine.compile("x + 1", schema);
+    REQUIRE(unknown_binding_formula.ok());
+    const auto unknown_binding_result = engine.evaluate(*unknown_binding_formula.formula, {});
+    REQUIRE_FALSE(unknown_binding_result.ok());
+    REQUIRE(unknown_binding_result.error.has_value());
+    REQUIRE(unknown_binding_result.error->code == "runtime.unknown_binding");
+
+    const auto division_formula = engine.compile("1 / 0", schema);
+    REQUIRE(division_formula.ok());
+    const auto division_result = engine.evaluate(*division_formula.formula, {});
+    REQUIRE_FALSE(division_result.ok());
+    REQUIRE(division_result.error.has_value());
+    REQUIRE(division_result.error->code == "runtime.division_by_zero");
+}
+
+TEST_CASE("Engine validate reports schema and policy failures with structured diagnostics", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+    Policy policy = Policy::default_policy();
+
+    auto unknown_variable = engine.validate("x + 1", schema, policy);
+    REQUIRE_FALSE(unknown_variable.ok);
+    REQUIRE(unknown_variable.diagnostics.size() == 1);
+    REQUIRE(unknown_variable.diagnostics.front().code == "semantics.validator.unknown_variable");
+
+    schema.allow_variable({"x", ValueType::number, true});
+    schema.allow_function({"Clamp", FunctionArity::exact(3), {}, ValueType::number, true});
+
+    auto invalid_arity = engine.validate("Clamp[x]", schema, policy);
+    REQUIRE_FALSE(invalid_arity.ok);
+    REQUIRE(invalid_arity.diagnostics.size() == 1);
+    REQUIRE(invalid_arity.diagnostics.front().code == "semantics.validator.invalid_arity");
+
+    policy.set_enable_arithmetic(false);
+    auto arithmetic_disabled = engine.validate("x + 1", schema, policy);
+    REQUIRE_FALSE(arithmetic_disabled.ok);
+    REQUIRE(arithmetic_disabled.diagnostics.size() == 1);
+    REQUIRE(arithmetic_disabled.diagnostics.front().code == "semantics.validator.arithmetic_disabled");
 }
 
 TEST_CASE("Engine register_function validates the stable host function contract", "[sdk][engine]") {

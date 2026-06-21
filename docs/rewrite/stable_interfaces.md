@@ -10,8 +10,11 @@ boundary. They are stable enough to build against, but not yet feature-complete.
 | `sdk/Types.hpp` | provisional stable | Public value model, diagnostics, opaque `CompiledFormula`, host function metadata |
 | `sdk/Schema.hpp` | provisional stable | Host allowlists for variables, functions, and constants |
 | `sdk/Policy.hpp` | provisional stable | Structural/runtime limits and feature flags |
-| `sdk/Engine.hpp` | provisional stable | Main facade; methods link and return structured placeholders |
+| `sdk/Engine.hpp` | provisional stable | Main facade; `validate`, `compile`, and trusted-subset `evaluate` are live |
 | `ir/Node.hpp` | internal stable | Trusted-subset IR for parser, validation, and runtime work |
+| `frontend/Lexer.hpp` + `frontend/Parser.hpp` | internal stable | Trusted-subset syntax frontend with structured diagnostics |
+| `semantics/Validator.hpp` | internal stable | Schema/policy validation for the current rewrite subset |
+| `runtime/Evaluator.hpp` | internal stable | Trusted-subset tree interpreter with bindings, `If`, comparisons, and host dispatch |
 
 ## Public SDK Boundary
 
@@ -58,12 +61,12 @@ classDiagram
 
 - SDK headers compile independently of legacy headers.
 - The engine facade links with a concrete implementation.
-- Placeholder diagnostics and runtime errors are structured and predictable.
+- Validation produces structured diagnostics for syntax, schema, arity, and basic policy failures.
+- Compile produces reusable opaque `CompiledFormula` handles on successful parse + validation.
+- Evaluate executes the trusted subset for literals, bindings, arithmetic, comparisons, `If`, and registered host calls.
 - The IR only models the trusted subset, not the full prototype language.
 
 ## Known Gaps
 
-- No parser or validator implementation yet.
-- No compiled-formula production path yet.
-- No runtime evaluation path yet.
 - No explicit source canonicalization or serialization yet.
+- CLI evaluation currently uses empty bindings only.

@@ -184,12 +184,15 @@ void print_help() {
         << "  repl                 Start an interactive prompt\n"
         << "  tokens <formula>     Lex a formula and print the token stream\n"
         << "  parse <formula>      Parse a formula and print the rewrite IR tree\n"
-        << "  validate <formula>   Run the SDK validate entry point\n"
-        << "  compile <formula>    Run the SDK compile entry point\n"
+        << "  validate <formula>   Run lexer -> parser -> schema/policy validation\n"
+        << "  compile <formula>    Build a reusable compiled formula handle\n"
+        << "  evaluate <formula>   Compile and evaluate a formula with empty bindings\n"
         << "\n"
         << "Notes:\n"
-        << "  validate and compile still return placeholder diagnostics until\n"
-        << "  the validation and compilation layers are implemented.\n"
+        << "  validate is live, but with the default empty schema it will reject\n"
+        << "  unknown variables and functions.\n"
+        << "  evaluate currently uses empty bindings in the CLI, so formulas with\n"
+        << "  variables still need SDK-level tests or future CLI binding support.\n"
         << "  In the REPL on Unix-like terminals, up/down arrows walk command history,\n"
         << "  left/right arrows move the cursor, and Tab completes command names.\n";
 }
@@ -200,16 +203,18 @@ void print_examples() {
         << "\n"
         << "  aleph3_rewrite_cli tokens \"If[x >= 1, \\\"ok\\\", False]\"\n"
         << "  aleph3_rewrite_cli parse \"2 + 3 * (x + 1)\"\n"
-        << "  aleph3_rewrite_cli validate \"If[temp > 0, temp, 0]\"\n"
-        << "  aleph3_rewrite_cli compile \"Clamp[x, 0, 1]\"\n"
+        << "  aleph3_rewrite_cli validate \"1 + 2\"\n"
+        << "  aleph3_rewrite_cli compile \"1 + 2\"\n"
+        << "  aleph3_rewrite_cli evaluate \"If[3 < 4, 10, 20]\"\n"
         << "\n"
         << "REPL examples\n"
         << "  > help\n"
         << "  > examples\n"
         << "  > tokens If[x >= 1, \\\"ok\\\", False]\n"
         << "  > parse 2 + 3 * (x + 1)\n"
-        << "  > validate x + 1\n"
-        << "  > compile x + 1\n"
+        << "  > validate 1 + 2\n"
+        << "  > compile 1 + 2\n"
+        << "  > evaluate If[3 < 4, 10, 20]\n"
         << "  > quit\n";
 }
 
@@ -221,6 +226,7 @@ const std::vector<std::string>& repl_commands() {
         "parse",
         "validate",
         "compile",
+        "evaluate",
         "quit",
         "exit"
     };
@@ -506,6 +512,9 @@ int run_command(std::string_view command, std::string_view formula) {
         for (const auto& diagnostic : result.diagnostics) {
             print_diagnostic(diagnostic);
         }
+        if (result.ok) {
+            std::cout << "validation ok\n";
+        }
         return result.ok ? 0 : 2;
     }
 
@@ -514,7 +523,43 @@ int run_command(std::string_view command, std::string_view formula) {
         for (const auto& diagnostic : result.diagnostics) {
             print_diagnostic(diagnostic);
         }
+        if (result.ok()) {
+            std::cout << "compile ok\n";
+        }
         return result.ok() ? 0 : 2;
+    }
+
+    if (command == "evaluate") {
+        const auto compile_result = engine.compile(formula, schema);
+        for (const auto& diagnostic : compile_result.diagnostics) {
+            print_diagnostic(diagnostic);
+        }
+        if (!compile_result.ok()) {
+            return 2;
+        }
+
+        const auto evaluation_result = engine.evaluate(*compile_result.formula, {});
+        if (!evaluation_result.ok()) {
+            if (evaluation_result.error.has_value()) {
+                std::cerr << evaluation_result.error->code << ": " << evaluation_result.error->message;
+                if (evaluation_result.error->span.has_value()) {
+                    std::cerr << " at " << span_to_string(*evaluation_result.error->span);
+                }
+                std::cerr << '\n';
+            }
+            return 2;
+        }
+
+        if (const auto* number = evaluation_result.value->as_number()) {
+            std::cout << *number << '\n';
+        } else if (const auto* boolean = evaluation_result.value->as_boolean()) {
+            std::cout << (*boolean ? "True" : "False") << '\n';
+        } else if (const auto* string = evaluation_result.value->as_string()) {
+            std::cout << *string << '\n';
+        } else {
+            std::cout << "<value>\n";
+        }
+        return 0;
     }
 
     std::cerr << "Unknown command: " << command << '\n';
@@ -557,7 +602,7 @@ int run_repl() {
         const std::string command = split == std::string::npos ? line : line.substr(0, split);
         const std::string formula = split == std::string::npos ? "" : trim(line.substr(split + 1));
 
-        if ((command == "tokens" || command == "parse" || command == "validate" || command == "compile") &&
+        if ((command == "tokens" || command == "parse" || command == "validate" || command == "compile" || command == "evaluate") &&
             formula.empty()) {
             std::cerr << "A formula is required for `" << command << "`.\n";
             continue;
@@ -565,9 +610,6 @@ int run_repl() {
 
         const int exit_code = run_command(command, formula);
         if (exit_code != 0) {
-            if (command == "compile" || command == "validate") {
-                std::cerr << "This command is wired into the SDK, but the corresponding rewrite layer is not implemented yet.\n";
-            }
             std::cerr << "(command failed with exit code " << exit_code << ")\n";
         }
     }

@@ -36,6 +36,7 @@ flowchart TD
 
 - Use `ALEPH3_BUILD_REWRITE=ON` to work on the new embedded-engine path.
 - Use `aleph3_rewrite_cli` for fast manual checks while parser, validator, and runtime are still under construction.
+- `validate` in the rewrite CLI now exercises the real lexer/parser/validator path.
 - Use `ALEPH3_BUILD_LEGACY=ON` only while mining the prototype for reference behavior.
 - Use `BUILD_TESTING=OFF` for offline or dependency-restricted compile checks.
 - Keep new rewrite components linked only through rewrite targets unless a legacy dependency is explicitly justified.

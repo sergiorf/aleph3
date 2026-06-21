@@ -40,6 +40,16 @@ RuntimeError make_runtime_error(std::string code, std::string message) {
     return error;
 }
 
+std::size_t required_parameter_count(const HostFunctionSpec& spec) noexcept {
+    std::size_t required = 0;
+    for (const auto& parameter : spec.parameters) {
+        if (parameter.required) {
+            ++required;
+        }
+    }
+    return required;
+}
+
 struct FrontendPassResult {
     ir::NodePtr root;
     std::vector<Diagnostic> diagnostics;
@@ -99,6 +109,29 @@ void Engine::register_function(HostFunctionSpec spec) {
     }
     if (!spec.callback) {
         throw std::invalid_argument("Host function callback must be set.");
+    }
+    if (spec.arity.min_arguments > spec.arity.max_arguments) {
+        throw std::invalid_argument("Host function arity range must be valid.");
+    }
+    if (!spec.parameters.empty()) {
+        const std::size_t required_parameters = required_parameter_count(spec);
+        if (required_parameters < spec.arity.min_arguments ||
+            spec.parameters.size() > spec.arity.max_arguments) {
+            throw std::invalid_argument(
+                "Host function parameter metadata must fit within the declared arity.");
+        }
+        bool optional_seen = false;
+        for (const auto& parameter : spec.parameters) {
+            if (parameter.name.empty()) {
+                throw std::invalid_argument("Host function parameter names must not be empty.");
+            }
+            if (!parameter.required) {
+                optional_seen = true;
+            } else if (optional_seen) {
+                throw std::invalid_argument(
+                    "Required host function parameters must not follow optional parameters.");
+            }
+        }
     }
 
     std::lock_guard<std::mutex> lock(state_->mutex);

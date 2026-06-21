@@ -2,6 +2,8 @@
 #include "frontend/Parser.hpp"
 #include "ir/Node.hpp"
 #include "sdk/Engine.hpp"
+#include "tooling/DemoHostFunctions.hpp"
+#include "tooling/RewriteCliSupport.hpp"
 
 #include <cctype>
 #include <cstddef>
@@ -160,7 +162,9 @@ void print_usage() {
         << "  aleph3_rewrite_cli tokens <formula>\n"
         << "  aleph3_rewrite_cli parse <formula>\n"
         << "  aleph3_rewrite_cli validate <formula>\n"
-        << "  aleph3_rewrite_cli compile <formula>\n";
+        << "  aleph3_rewrite_cli compile <formula>\n"
+        << "  aleph3_rewrite_cli evaluate [--var name=value]... <formula>\n"
+        << "  aleph3_rewrite_cli evaluate-host [--var name=value]... <formula>\n";
 }
 
 std::string join_formula_args(int argc, char** argv, int start_index) {
@@ -186,13 +190,17 @@ void print_help() {
         << "  parse <formula>      Parse a formula and print the rewrite IR tree\n"
         << "  validate <formula>   Run lexer -> parser -> schema/policy validation\n"
         << "  compile <formula>    Build a reusable compiled formula handle\n"
-        << "  evaluate <formula>   Compile and evaluate a formula with empty bindings\n"
+        << "  evaluate [--var name=value]... <formula>\n"
+        << "                       Compile and evaluate a formula with CLI bindings\n"
+        << "  evaluate-host [--var name=value]... <formula>\n"
+        << "                       Evaluate using demo registered host functions\n"
         << "\n"
         << "Notes:\n"
         << "  validate is live, but with the default empty schema it will reject\n"
         << "  unknown variables and functions.\n"
-        << "  evaluate currently uses empty bindings in the CLI, so formulas with\n"
-        << "  variables still need SDK-level tests or future CLI binding support.\n"
+        << "  evaluate automatically allows variables passed through --var.\n"
+        << "  Binding values support numbers, True, False, and quoted/unquoted strings.\n"
+        << "  evaluate-host registers demo functions: Clamp, ScaleAdd, PickLabel.\n"
         << "  In the REPL on Unix-like terminals, up/down arrows walk command history,\n"
         << "  left/right arrows move the cursor, and Tab completes command names.\n";
 }
@@ -205,7 +213,10 @@ void print_examples() {
         << "  aleph3_rewrite_cli parse \"2 + 3 * (x + 1)\"\n"
         << "  aleph3_rewrite_cli validate \"1 + 2\"\n"
         << "  aleph3_rewrite_cli compile \"1 + 2\"\n"
+        << "  aleph3_rewrite_cli evaluate --var x=3 \"x + 1\"\n"
         << "  aleph3_rewrite_cli evaluate \"If[3 < 4, 10, 20]\"\n"
+        << "  aleph3_rewrite_cli evaluate-host --var x=12 \"Clamp[x, 0, 10]\"\n"
+        << "  aleph3_rewrite_cli evaluate-host --var flag=True \"PickLabel[flag, \\\"ok\\\", \\\"fail\\\"]\"\n"
         << "\n"
         << "REPL examples\n"
         << "  > help\n"
@@ -214,7 +225,9 @@ void print_examples() {
         << "  > parse 2 + 3 * (x + 1)\n"
         << "  > validate 1 + 2\n"
         << "  > compile 1 + 2\n"
+        << "  > evaluate --var x=3 x + 1\n"
         << "  > evaluate If[3 < 4, 10, 20]\n"
+        << "  > evaluate-host --var x=12 Clamp[x, 0, 10]\n"
         << "  > quit\n";
 }
 
@@ -227,6 +240,7 @@ const std::vector<std::string>& repl_commands() {
         "validate",
         "compile",
         "evaluate",
+        "evaluate-host",
         "quit",
         "exit"
     };
@@ -240,6 +254,87 @@ std::string trim(std::string text) {
     }
     const auto last = text.find_last_not_of(" \t\r\n");
     return text.substr(first, last - first + 1);
+}
+
+int run_evaluate_command(const aleph3::tooling::EvaluateCommandOptions& options) {
+    aleph3::Engine engine;
+    aleph3::Schema schema;
+
+    for (const auto& [name, value] : options.bindings) {
+        schema.allow_variable({name, aleph3::tooling::infer_value_type(value), true});
+    }
+
+    const auto compile_result = engine.compile(options.formula, schema);
+    for (const auto& diagnostic : compile_result.diagnostics) {
+        print_diagnostic(diagnostic);
+    }
+    if (!compile_result.ok()) {
+        return 2;
+    }
+
+    const auto evaluation_result = engine.evaluate(*compile_result.formula, options.bindings);
+    if (!evaluation_result.ok()) {
+        if (evaluation_result.error.has_value()) {
+            std::cerr << evaluation_result.error->code << ": " << evaluation_result.error->message;
+            if (evaluation_result.error->span.has_value()) {
+                std::cerr << " at " << span_to_string(*evaluation_result.error->span);
+            }
+            std::cerr << '\n';
+        }
+        return 2;
+    }
+
+    if (const auto* number = evaluation_result.value->as_number()) {
+        std::cout << *number << '\n';
+    } else if (const auto* boolean = evaluation_result.value->as_boolean()) {
+        std::cout << (*boolean ? "True" : "False") << '\n';
+    } else if (const auto* string = evaluation_result.value->as_string()) {
+        std::cout << *string << '\n';
+    } else {
+        std::cout << "<value>\n";
+    }
+    return 0;
+}
+
+int run_host_evaluate_command(const aleph3::tooling::EvaluateCommandOptions& options) {
+    aleph3::Engine engine;
+    aleph3::Schema schema;
+    aleph3::tooling::register_demo_host_functions(engine, schema);
+
+    for (const auto& [name, value] : options.bindings) {
+        schema.allow_variable({name, aleph3::tooling::infer_value_type(value), true});
+    }
+
+    const auto compile_result = engine.compile(options.formula, schema);
+    for (const auto& diagnostic : compile_result.diagnostics) {
+        print_diagnostic(diagnostic);
+    }
+    if (!compile_result.ok()) {
+        return 2;
+    }
+
+    const auto evaluation_result = engine.evaluate(*compile_result.formula, options.bindings);
+    if (!evaluation_result.ok()) {
+        if (evaluation_result.error.has_value()) {
+            std::cerr << evaluation_result.error->code << ": " << evaluation_result.error->message;
+            if (evaluation_result.error->span.has_value()) {
+                std::cerr << " at " << span_to_string(*evaluation_result.error->span);
+            }
+            std::cerr << '\n';
+        }
+        return 2;
+    }
+
+    if (const auto* number = evaluation_result.value->as_number()) {
+        std::cout << *number << '\n';
+    } else if (const auto* boolean = evaluation_result.value->as_boolean()) {
+        std::cout << (*boolean ? "True" : "False") << '\n';
+    } else if (const auto* string = evaluation_result.value->as_string()) {
+        std::cout << *string << '\n';
+    } else {
+        std::cout << "<value>\n";
+    }
+    return 0;
 }
 
 #if !defined(_WIN32)
@@ -530,36 +625,21 @@ int run_command(std::string_view command, std::string_view formula) {
     }
 
     if (command == "evaluate") {
-        const auto compile_result = engine.compile(formula, schema);
-        for (const auto& diagnostic : compile_result.diagnostics) {
-            print_diagnostic(diagnostic);
-        }
-        if (!compile_result.ok()) {
+        const auto evaluate_options = aleph3::tooling::parse_evaluate_repl_arguments(formula);
+        if (!evaluate_options.ok()) {
+            std::cerr << evaluate_options.error_message << '\n';
             return 2;
         }
+        return run_evaluate_command(evaluate_options.options);
+    }
 
-        const auto evaluation_result = engine.evaluate(*compile_result.formula, {});
-        if (!evaluation_result.ok()) {
-            if (evaluation_result.error.has_value()) {
-                std::cerr << evaluation_result.error->code << ": " << evaluation_result.error->message;
-                if (evaluation_result.error->span.has_value()) {
-                    std::cerr << " at " << span_to_string(*evaluation_result.error->span);
-                }
-                std::cerr << '\n';
-            }
+    if (command == "evaluate-host") {
+        const auto evaluate_options = aleph3::tooling::parse_formula_repl_arguments("evaluate-host", formula);
+        if (!evaluate_options.ok()) {
+            std::cerr << evaluate_options.error_message << '\n';
             return 2;
         }
-
-        if (const auto* number = evaluation_result.value->as_number()) {
-            std::cout << *number << '\n';
-        } else if (const auto* boolean = evaluation_result.value->as_boolean()) {
-            std::cout << (*boolean ? "True" : "False") << '\n';
-        } else if (const auto* string = evaluation_result.value->as_string()) {
-            std::cout << *string << '\n';
-        } else {
-            std::cout << "<value>\n";
-        }
-        return 0;
+        return run_host_evaluate_command(evaluate_options.options);
     }
 
     std::cerr << "Unknown command: " << command << '\n';
@@ -602,7 +682,8 @@ int run_repl() {
         const std::string command = split == std::string::npos ? line : line.substr(0, split);
         const std::string formula = split == std::string::npos ? "" : trim(line.substr(split + 1));
 
-        if ((command == "tokens" || command == "parse" || command == "validate" || command == "compile" || command == "evaluate") &&
+        if ((command == "tokens" || command == "parse" || command == "validate" || command == "compile" ||
+             command == "evaluate" || command == "evaluate-host") &&
             formula.empty()) {
             std::cerr << "A formula is required for `" << command << "`.\n";
             continue;
@@ -634,6 +715,36 @@ int main(int argc, char** argv) {
     }
     if (command == "repl") {
         return run_repl();
+    }
+
+    if (command == "evaluate") {
+        std::vector<std::string_view> arguments;
+        arguments.reserve(static_cast<std::size_t>(argc - 2));
+        for (int i = 2; i < argc; ++i) {
+            arguments.emplace_back(argv[i]);
+        }
+
+        const auto evaluate_options = aleph3::tooling::parse_evaluate_cli_arguments(arguments);
+        if (!evaluate_options.ok()) {
+            std::cerr << evaluate_options.error_message << '\n';
+            return 2;
+        }
+        return run_evaluate_command(evaluate_options.options);
+    }
+
+    if (command == "evaluate-host") {
+        std::vector<std::string_view> arguments;
+        arguments.reserve(static_cast<std::size_t>(argc - 2));
+        for (int i = 2; i < argc; ++i) {
+            arguments.emplace_back(argv[i]);
+        }
+
+        const auto evaluate_options = aleph3::tooling::parse_formula_cli_arguments("evaluate-host", arguments);
+        if (!evaluate_options.ok()) {
+            std::cerr << evaluate_options.error_message << '\n';
+            return 2;
+        }
+        return run_host_evaluate_command(evaluate_options.options);
     }
 
     if (argc < 3) {

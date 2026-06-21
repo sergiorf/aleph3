@@ -27,7 +27,7 @@ flowchart TD
 - `tests/semantics/ValidatorTests.cpp`
   Verifies unknown-symbol, arity, feature-gate, and structural-limit checks.
 - `tests/runtime/EvaluatorTests.cpp`
-  Verifies arithmetic, comparisons, conditionals, bindings, host functions, and runtime failures.
+  Verifies arithmetic, comparisons, conditionals, bindings, host function contracts, and runtime failures.
 
 ## What Legacy Tests Still Mean
 
@@ -40,6 +40,8 @@ flowchart TD
 1. Blank or malformed source must produce structured diagnostics.
 2. Unsupported syntax must fail intentionally rather than degrade into symbolic fallback.
 3. Schema checks for variable and function allowlists must be deterministic.
-4. Compiled formulas must be reusable opaque handles rather than reparsed SDK state.
-5. Engine-scoped function registration must avoid global mutable behavior.
-6. Evaluation budgets must fail with structured runtime errors.
+4. Obvious type errors should fail during validation instead of waiting for runtime.
+5. Compiled formulas must be reusable opaque handles rather than reparsed SDK state.
+6. Engine-scoped function registration must avoid global mutable behavior.
+7. Evaluation budgets must fail with structured runtime errors.
+8. CLI binding parsing must stay deterministic enough for manual SDK checks.

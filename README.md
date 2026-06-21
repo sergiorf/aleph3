@@ -16,8 +16,10 @@ host-controlled evaluation.
 - Legacy prototype engine: broad parser/evaluator behavior used as reference material
 - Rewrite path: public SDK under `include/sdk/` and trusted-subset IR under `include/ir/`
 - Rewrite tooling CLI: `aleph3_rewrite_cli` for manual lexer/parser/SDK checks
-- Rewrite validation and compile path: `validate` is live and `compile` now creates reusable formula handles
+- Rewrite validation and compile path: `validate` is live with schema/arity/type checks and `compile` now creates reusable formula handles
 - Rewrite runtime path: `evaluate` now runs the trusted-subset tree interpreter
+- Rewrite host function contract: engine-scoped registration now enforces callback metadata at registration and runtime
+- Rewrite host-function tooling: `evaluate-host` and `aleph3_rewrite_sdk_example` exercise embedded callbacks end-to-end
 - Rewrite docs index: [docs/rewrite/README.md](docs/rewrite/README.md)
 
 ## Getting Started
@@ -43,12 +45,15 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    ./build/bin/aleph3_rewrite_cli parse "2 + 3 * (x + 1)"
    ./build/bin/aleph3_rewrite_cli validate "1 + 2"
    ./build/bin/aleph3_rewrite_cli compile "1 + 2"
+   ./build/bin/aleph3_rewrite_cli evaluate --var x=3 "x + 1"
    ./build/bin/aleph3_rewrite_cli evaluate "If[3 < 4, 10, 20]"
+   ./build/bin/aleph3_rewrite_cli evaluate-host --var x=12 "Clamp[x, 0, 10]"
+   ./build/bin/aleph3_rewrite_sdk_example
    ./build/bin/aleph3_rewrite_cli repl
    ```
 
    Running `./build/bin/aleph3_rewrite_cli` with no arguments starts the interactive REPL.
-   `validate`, `compile`, and trusted-subset `evaluate` are now live on the rewrite path.
+   `validate`, `compile`, trusted-subset `evaluate`, and demo host-function checks are now live on the rewrite path.
 
 3. Build the legacy CLI and tests when you need the prototype path:
    ```bash

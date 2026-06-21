@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -33,6 +34,54 @@ EvaluationResult make_failure(std::string code, std::string message, std::option
     EvaluationResult result;
     result.error = make_error(std::move(code), std::move(message), std::move(span));
     return result;
+}
+
+std::string value_type_name(ValueType type) {
+    switch (type) {
+        case ValueType::any:
+            return "any";
+        case ValueType::number:
+            return "number";
+        case ValueType::boolean:
+            return "boolean";
+        case ValueType::string:
+            return "string";
+        case ValueType::list:
+            return "list";
+    }
+    return "any";
+}
+
+std::string value_type_name(const Value& value) {
+    if (value.is_number()) {
+        return "number";
+    }
+    if (value.is_boolean()) {
+        return "boolean";
+    }
+    if (value.is_string()) {
+        return "string";
+    }
+    if (value.is_list()) {
+        return "list";
+    }
+    return "null";
+}
+
+bool matches_value_type(const Value& value, ValueType expected) noexcept {
+    switch (expected) {
+        case ValueType::any:
+            return true;
+        case ValueType::number:
+            return value.is_number();
+        case ValueType::boolean:
+            return value.is_boolean();
+        case ValueType::string:
+            return value.is_string();
+        case ValueType::list:
+            return value.is_list();
+    }
+    return false;
 }
 
 bool values_equal(const Value& left, const Value& right) {
@@ -291,9 +340,45 @@ private:
                 span);
         }
 
-        auto callback_result = host_function->second.callback(arguments);
+        const auto& spec = host_function->second;
+        if (!spec.arity.allows(arguments.size())) {
+            return make_failure(
+                "runtime.invalid_call",
+                "Host function `" + call.callee + "` was called with an invalid arity.",
+                span);
+        }
+
+        const std::size_t checked_parameters = std::min(spec.parameters.size(), arguments.size());
+        for (std::size_t index = 0; index < checked_parameters; ++index) {
+            if (!matches_value_type(arguments[index], spec.parameters[index].type)) {
+                return make_failure(
+                    "runtime.invalid_argument_type",
+                    "Host function `" + call.callee + "` expects argument " +
+                        std::to_string(index + 1) + " to be `" +
+                        value_type_name(spec.parameters[index].type) + "`, but found `" +
+                        value_type_name(arguments[index]) + "`.",
+                    call.arguments[index] != nullptr ? call.arguments[index]->span : span);
+            }
+        }
+
+        auto callback_result = spec.callback(arguments);
+        if (callback_result.value.has_value() == callback_result.error.has_value()) {
+            return make_failure(
+                "runtime.invalid_host_result",
+                "Host function `" + call.callee + "` returned an invalid evaluation result.",
+                span);
+        }
         if (!callback_result.ok() && callback_result.error && !callback_result.error->span.has_value()) {
             callback_result.error->span = span;
+        }
+        if (callback_result.ok() && spec.return_type.has_value() &&
+            !matches_value_type(*callback_result.value, *spec.return_type)) {
+            return make_failure(
+                "runtime.invalid_host_result",
+                "Host function `" + call.callee + "` declared return type `" +
+                    value_type_name(*spec.return_type) + "`, but returned `" +
+                    value_type_name(*callback_result.value) + "`.",
+                span);
         }
         return callback_result;
     }

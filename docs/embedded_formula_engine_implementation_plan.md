@@ -595,7 +595,8 @@ Current status:
 - implemented as a trusted-subset tree interpreter
 - covers literals, bindings, unary/binary operators, comparisons, `If`, and
   basic function dispatch
-- runtime still needs richer binding/CLI support and broader host-function work
+- runtime still needs richer binding/CLI support, but registered host functions
+  now enforce argument and return contracts
 
 ### Task R2.5: Implement Host Function Dispatch
 
@@ -611,8 +612,9 @@ Acceptance criteria:
 Current status:
 
 - engine-scoped host functions are callable during runtime evaluation
-- broader registration ergonomics and richer type/arity enforcement remain
-  future work
+- registration now validates arity/parameter metadata consistency, and runtime
+  checks host argument and return contracts
+- broader registration ergonomics remain future work
 
 ### Task R2.6: Add Trusted-Core Tests
 
@@ -635,13 +637,22 @@ Files to add:
 Behavior:
 
 - consume the rewrite SDK and frontend as a developer test harness
-- expose `tokens`, `parse`, `validate`, and `compile` commands
+- expose `tokens`, `parse`, `validate`, `compile`, `evaluate`, and host-function demo commands
 - print structured diagnostics for manual debugging
 
 Acceptance criteria:
 
 - the rewrite path can be exercised from the terminal without using the legacy CLI
 - the CLI does not depend on legacy parser or evaluator internals
+
+Current status:
+
+- implemented with REPL, history/editing support, command completion, help/examples,
+  trusted-subset `evaluate`, and demo host-function evaluation
+- `evaluate` now accepts `--var name=value` bindings so variable-driven formulas
+  can be exercised without writing host code first
+- `evaluate-host` registers a fixed demo host-function bundle, and
+  `aleph3_rewrite_sdk_example` provides a compiled embedding reference
 
 ## R3: Validation and Diagnostics
 
@@ -688,8 +699,9 @@ Acceptance criteria:
 Current status:
 
 - first pass implemented for schema allowlists, known arity checks, basic
-  feature gates, and AST node/depth limits
-- deeper type reasoning and runtime-facing validation remain future work
+  feature gates, AST node/depth limits, and obvious type mismatches
+- deeper type reasoning, flow-sensitive inference, and richer runtime-facing
+  validation still remain future work
 
 ### Task R3.4: Add Validation Tests
 

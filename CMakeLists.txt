@@ -21,7 +21,9 @@ set(ALEPH3_PUBLIC_HEADERS
     include/frontend/Lexer.hpp
     include/frontend/Parser.hpp
     include/semantics/Validator.hpp
-    include/runtime/Evaluator.hpp)
+    include/runtime/Evaluator.hpp
+    include/tooling/RewriteCliSupport.hpp
+    include/tooling/DemoHostFunctions.hpp)
 
 if(ALEPH3_BUILD_REWRITE)
     add_library(aleph3_runtime INTERFACE)
@@ -33,12 +35,17 @@ if(ALEPH3_BUILD_REWRITE)
         src/frontend/Parser.cpp
         src/semantics/Validator.cpp
         src/runtime/Evaluator.cpp
+        src/tooling/RewriteCliSupport.cpp
+        src/tooling/DemoHostFunctions.cpp
         ${ALEPH3_PUBLIC_HEADERS})
     target_include_directories(aleph3_sdk PUBLIC include)
     target_link_libraries(aleph3_sdk PUBLIC aleph3_runtime)
 
     add_executable(aleph3_rewrite_cli src/tooling/rewrite_cli.cpp)
     target_link_libraries(aleph3_rewrite_cli PRIVATE aleph3_sdk)
+
+    add_executable(aleph3_rewrite_sdk_example examples/rewrite_sdk_host_example.cpp)
+    target_link_libraries(aleph3_rewrite_sdk_example PRIVATE aleph3_sdk)
 endif()
 
 if(ALEPH3_BUILD_LEGACY)
@@ -106,7 +113,8 @@ if(BUILD_TESTING)
             "tests/ir/*.cpp"
             "tests/runtime/*.cpp"
             "tests/semantics/*.cpp"
-            "tests/sdk/*.cpp")
+            "tests/sdk/*.cpp"
+            "tests/tooling/*.cpp")
 
         add_executable(aleph3_sdk_tests ${REWRITE_TEST_SOURCES})
         target_link_libraries(aleph3_sdk_tests PRIVATE aleph3_sdk Catch2::Catch2WithMain)

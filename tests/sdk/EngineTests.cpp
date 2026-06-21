@@ -133,6 +133,12 @@ TEST_CASE("Engine validate reports schema and policy failures with structured di
     REQUIRE_FALSE(arithmetic_disabled.ok);
     REQUIRE(arithmetic_disabled.diagnostics.size() == 1);
     REQUIRE(arithmetic_disabled.diagnostics.front().code == "semantics.validator.arithmetic_disabled");
+
+    schema.allow_variable({"label", ValueType::string, true});
+    auto type_mismatch = engine.validate("label + 1", schema, Policy::default_policy());
+    REQUIRE_FALSE(type_mismatch.ok);
+    REQUIRE(type_mismatch.diagnostics.size() == 1);
+    REQUIRE(type_mismatch.diagnostics.front().code == "semantics.validator.type_mismatch");
 }
 
 TEST_CASE("Engine register_function validates the stable host function contract", "[sdk][engine]") {
@@ -156,4 +162,38 @@ TEST_CASE("Engine register_function validates the stable host function contract"
     HostFunctionSpec missing_callback = valid_spec;
     missing_callback.callback = {};
     REQUIRE_THROWS_AS(engine.register_function(missing_callback), std::invalid_argument);
+
+    HostFunctionSpec bad_metadata = valid_spec;
+    bad_metadata.parameters = {
+        {"value", ValueType::number, false},
+        {"other", ValueType::number, true}
+    };
+    REQUIRE_THROWS_AS(engine.register_function(bad_metadata), std::invalid_argument);
+}
+
+TEST_CASE("Engine evaluate enforces registered host function contracts", "[sdk][engine]") {
+    Engine engine;
+
+    HostFunctionSpec as_text;
+    as_text.name = "AsText";
+    as_text.arity = FunctionArity::exact(1);
+    as_text.parameters = {{"value", ValueType::number, true}};
+    as_text.return_type = ValueType::number;
+    as_text.callback = [](std::span<const Value>) {
+        EvaluationResult result;
+        result.value = Value("wrong");
+        return result;
+    };
+    engine.register_function(as_text);
+
+    Schema schema;
+    schema.allow_function({"AsText", FunctionArity::exact(1), {ValueType::number}, ValueType::number, true});
+
+    const auto compile_result = engine.compile("AsText[1]", schema);
+    REQUIRE(compile_result.ok());
+
+    const auto evaluation_result = engine.evaluate(*compile_result.formula, {});
+    REQUIRE_FALSE(evaluation_result.ok());
+    REQUIRE(evaluation_result.error.has_value());
+    REQUIRE(evaluation_result.error->code == "runtime.invalid_host_result");
 }

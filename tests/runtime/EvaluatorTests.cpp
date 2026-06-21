@@ -53,6 +53,12 @@ TEST_CASE("Runtime evaluator resolves bindings and host functions", "[runtime][e
     HostFunctionSpec clamp;
     clamp.name = "Clamp";
     clamp.arity = FunctionArity::exact(3);
+    clamp.parameters = {
+        {"value", ValueType::number, true},
+        {"low", ValueType::number, true},
+        {"high", ValueType::number, true}
+    };
+    clamp.return_type = ValueType::number;
     clamp.callback = [](std::span<const Value> args) {
         const double value = *args[0].as_number();
         const double low = *args[1].as_number();
@@ -73,6 +79,66 @@ TEST_CASE("Runtime evaluator resolves bindings and host functions", "[runtime][e
     const auto host_result = evaluator.evaluate(host_call);
     REQUIRE(host_result.ok());
     REQUIRE(*host_result.value->as_number() == 10.0);
+}
+
+TEST_CASE("Runtime evaluator enforces host function argument and return contracts", "[runtime][evaluator]") {
+    const auto wrong_argument = parse_root("Clamp[label, 0, 10]");
+    const auto wrong_return = parse_root("AsText[1]");
+    const auto invalid_result = parse_root("Broken[1]");
+
+    Bindings bindings = {{"label", Value("hello")}};
+    std::unordered_map<std::string, HostFunctionSpec> host_functions;
+
+    HostFunctionSpec clamp;
+    clamp.name = "Clamp";
+    clamp.arity = FunctionArity::exact(3);
+    clamp.parameters = {
+        {"value", ValueType::number, true},
+        {"low", ValueType::number, true},
+        {"high", ValueType::number, true}
+    };
+    clamp.return_type = ValueType::number;
+    clamp.callback = [](std::span<const Value>) {
+        EvaluationResult result;
+        result.value = Value(0.0);
+        return result;
+    };
+    host_functions.emplace(clamp.name, clamp);
+
+    HostFunctionSpec as_text;
+    as_text.name = "AsText";
+    as_text.arity = FunctionArity::exact(1);
+    as_text.parameters = {{"value", ValueType::number, true}};
+    as_text.return_type = ValueType::number;
+    as_text.callback = [](std::span<const Value>) {
+        EvaluationResult result;
+        result.value = Value("not a number");
+        return result;
+    };
+    host_functions.emplace(as_text.name, as_text);
+
+    HostFunctionSpec broken;
+    broken.name = "Broken";
+    broken.arity = FunctionArity::exact(1);
+    broken.callback = [](std::span<const Value>) {
+        return EvaluationResult{};
+    };
+    host_functions.emplace(broken.name, broken);
+
+    const Policy policy = Policy::default_policy();
+    runtime::Evaluator evaluator({bindings, host_functions, policy});
+
+    const auto argument_result = evaluator.evaluate(wrong_argument);
+    REQUIRE_FALSE(argument_result.ok());
+    REQUIRE(argument_result.error->code == "runtime.invalid_argument_type");
+
+    const auto return_result = evaluator.evaluate(wrong_return);
+    REQUIRE_FALSE(return_result.ok());
+    REQUIRE(return_result.error->code == "runtime.invalid_host_result");
+
+    const auto invalid_result_output = evaluator.evaluate(invalid_result);
+    REQUIRE_FALSE(invalid_result_output.ok());
+    REQUIRE(invalid_result_output.error->code == "runtime.invalid_host_result");
 }
 
 TEST_CASE("Runtime evaluator reports runtime failures deterministically", "[runtime][evaluator]") {

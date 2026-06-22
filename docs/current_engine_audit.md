@@ -340,7 +340,7 @@ Decision:
 
 Files:
 
-- [src/main.cpp](/home/sergio/dev/aleph3/src/main.cpp)
+- removed legacy CLI entrypoint (`src/main.cpp`)
 
 Classification:
 
@@ -355,13 +355,13 @@ What is risky:
 
 - The CLI currently carries product identity weight that should belong to the
   SDK.
-- It directly reflects legacy engine semantics and special cases.
+- It directly reflected symbolic-engine semantics and special cases.
 - It is not the right architectural center for an embedding-first product.
 
 Decision:
 
-- Keep as legacy tooling or future demo tooling.
-- Do not use it as the implementation center of the rewrite.
+- Keep SDK tooling centered on [src/tooling/aleph3_cli.cpp](/home/sergio/dev/aleph3/src/tooling/aleph3_cli.cpp).
+- Do not reintroduce the removed prototype CLI as the implementation center of the rewrite.
 
 ## 10. Tests
 
@@ -384,7 +384,7 @@ What is risky:
 - Many tests validate current behavior, not necessarily correct product
   contracts.
 - The test suite spans many features outside the embedded v1 scope.
-- Some tests are about the legacy language breadth that the rewrite should
+- Some tests are about the broader symbolic language breadth that the rewrite should
   intentionally avoid.
 
 Decision:
@@ -455,9 +455,10 @@ Do not use it as the trusted product path.
 
 The next tasks should be:
 
-1. harden the SDK validation path, especially deeper branch-sensitive checks
-   and end-to-end contract coverage
+1. harden the SDK validation path beyond the current constant-condition,
+   schema-constant, and constant-runtime-trap checks, with end-to-end contract
+   coverage
 2. keep narrowing product-facing docs and examples around the SDK path, not the
-   legacy prototype
+   previous prototype
 3. finish packaging and naming cleanup once the SDK contracts are stable enough
    to freeze

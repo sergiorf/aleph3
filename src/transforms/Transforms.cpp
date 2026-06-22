@@ -8,6 +8,28 @@
 
 namespace aleph3 {
 
+    namespace {
+
+    bool is_numeric_zero(const ExprPtr& expr) {
+        return std::holds_alternative<Number>(*expr) && get_number_value(expr) == 0.0;
+    }
+
+    bool is_numeric_one(const ExprPtr& expr) {
+        return std::holds_alternative<Number>(*expr) && get_number_value(expr) == 1.0;
+    }
+
+    ExprPtr make_symbol_term(const std::string& symbol, double coefficient) {
+        if (coefficient == 0.0) {
+            return make_number(0);
+        }
+        if (coefficient == 1.0) {
+            return make_expr<Symbol>(symbol);
+        }
+        return make_times(make_number(coefficient), make_expr<Symbol>(symbol));
+    }
+
+    }  // namespace
+
     ExprPtr simplify_relational(const std::string& head, const ExprPtr& left, const ExprPtr& right) {
         auto simplified_left = simplify(left);
         auto simplified_right = simplify(right);
@@ -53,6 +75,9 @@ namespace aleph3 {
                     auto simplified_arg = simplify(arg); // recursively simplify
                     if (auto num = std::get_if<Number>(simplified_arg.get())) {
                         coefficient *= num->value;
+                        if (coefficient == 0.0) {
+                            return make_number(0);
+                        }
                     }
                     else if (auto sym = std::get_if<Symbol>(simplified_arg.get())) {
                         symbol_counts[sym->name] += 1;
@@ -69,11 +94,17 @@ namespace aleph3 {
                         others.push_back(simplified_arg);
                     }
                     else {
+                        if (is_numeric_zero(simplified_arg)) {
+                            return make_number(0);
+                        }
                         others.push_back(simplified_arg);
                     }
                 }
 
                 std::vector<ExprPtr> result;
+                if (coefficient == 0.0) {
+                    return make_number(0);
+                }
                 if (coefficient != 1.0 || (symbol_counts.empty() && others.empty())) {
                     result.push_back(make_number(coefficient));
                 }
@@ -98,17 +129,26 @@ namespace aleph3 {
 
                 result.insert(result.end(), others.begin(), others.end());
 
+                if (result.empty()) {
+                    return make_number(1);
+                }
                 if (result.size() == 1) return result[0];
                 return make_expr<FunctionCall>("Times", result);
             }
 
             if (f->head == "Power") {
-                auto base = f->args[0];
-                auto exponent = f->args[1];
+                auto base = simplify(f->args[0]);
+                auto exponent = simplify(f->args[1]);
 
                 // Simplify 1^n → 1
                 if (is_one(base)) {
                     return make_number(1);
+                }
+
+                if (auto num = std::get_if<Number>(exponent.get())) {
+                    if (num->value == 0.0) {
+                        return make_number(1);
+                    }
                 }
 
                 // Simplify x^1 → x
@@ -135,12 +175,19 @@ namespace aleph3 {
                         return simplify(make_expr<FunctionCall>("Times", expanded_terms));
                     }
                 }
+
+                return make_expr<FunctionCall>("Power", std::vector<ExprPtr>{base, exponent});
             }
 
             if (f->head == "Plus") {
                 std::vector<ExprPtr> simplified_args;
                 for (const auto& arg : f->args) {
-                    simplified_args.push_back(simplify(arg));
+                    auto simplified_arg = simplify(arg);
+                    if (auto plus = std::get_if<FunctionCall>(simplified_arg.get()); plus && plus->head == "Plus") {
+                        simplified_args.insert(simplified_args.end(), plus->args.begin(), plus->args.end());
+                    } else {
+                        simplified_args.push_back(simplified_arg);
+                    }
                 }
 
                 // Combine like terms (e.g., 2 * x + 3 * x → 5 * x)
@@ -168,8 +215,11 @@ namespace aleph3 {
                 }
 
                 for (const auto& [symbol, coeff] : term_coefficients) {
+                    if (coeff == 0.0) {
+                        continue;
+                    }
                     if (!symbol.empty()) {
-                        non_numeric_terms.push_back(make_times(make_number(coeff), make_expr<Symbol>(symbol)));
+                        non_numeric_terms.push_back(make_symbol_term(symbol, coeff));
                     } else {
                         non_numeric_terms.push_back(make_number(coeff));
                     }
@@ -215,6 +265,12 @@ namespace aleph3 {
                     return to_string(a) < to_string(b); // tie-breaker: lex order
                 });
 
+                if (non_numeric_terms.empty()) {
+                    return make_number(0);
+                }
+                if (non_numeric_terms.size() == 1) {
+                    return non_numeric_terms[0];
+                }
                 return make_expr<FunctionCall>("Plus", non_numeric_terms);
             }
 

@@ -322,6 +322,14 @@ These examples should be rejected in v1:
 - `{1, 2, 3}` unless lists are explicitly promoted into scope
 - `x && y`
 
+These exclusions are about v1 scope control, not permanent product direction.
+Likely post-v1 candidates include:
+
+- more built-in functions with explicit contracts
+- improved polynomial manipulation
+- symbolic differentiation
+- carefully scoped integral support
+
 ## Parser Simplicity Rules
 
 To keep the trusted core small, parser design should follow these rules:

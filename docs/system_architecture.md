@@ -12,7 +12,7 @@ It answers four questions:
 3. how data flows from source text to evaluated result
 4. whether the system should have an IR and eventually a VM
 
-This architecture is for the controlled rewrite, not for the legacy prototype.
+This architecture is for the controlled rewrite, not for the old pre-SDK implementation model.
 
 ## Architectural Goals
 

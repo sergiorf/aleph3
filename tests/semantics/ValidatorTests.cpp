@@ -20,7 +20,7 @@ bool contains_diagnostic_code(
 
 }  // namespace
 
-TEST_CASE("Validator rejects unknown variables and functions by default", "[semantics][validator]") {
+TEST_CASE("Validator rejects unknown variables and disabled built-ins by default", "[semantics][validator]") {
     frontend::Parser parser("Clamp[x, 0, 1]");
     const auto parse_result = parser.parse();
 
@@ -33,7 +33,7 @@ TEST_CASE("Validator rejects unknown variables and functions by default", "[sema
 
     REQUIRE_FALSE(summary.ok());
     REQUIRE(summary.diagnostics.size() == 2);
-    REQUIRE(summary.diagnostics[0].code == "semantics.validator.unknown_function");
+    REQUIRE(summary.diagnostics[0].code == "semantics.validator.optional_builtin_disabled");
     REQUIRE(summary.diagnostics[1].code == "semantics.validator.unknown_variable");
 }
 
@@ -138,6 +138,20 @@ TEST_CASE("Validator rejects obvious type mismatches before runtime", "[semantic
     REQUIRE(equality_summary.diagnostics[0].code == "semantics.validator.type_mismatch");
 }
 
+TEST_CASE("Validator rejects constant division by zero before runtime", "[semantics][validator]") {
+    frontend::Parser parser("1 / 0");
+    const auto parse_result = parser.parse();
+    REQUIRE(parse_result.ok());
+
+    Schema schema;
+    semantics::Validator validator(schema, Policy::default_policy());
+    const auto summary = validator.validate(parse_result.root);
+
+    REQUIRE_FALSE(summary.ok());
+    REQUIRE(summary.diagnostics.size() == 1);
+    REQUIRE(summary.diagnostics[0].code == "semantics.validator.division_by_zero");
+}
+
 TEST_CASE("Validator checks function argument types from schema metadata", "[semantics][validator]") {
     frontend::Parser parser("Clamp[label, 0, 1]");
     const auto parse_result = parser.parse();
@@ -177,6 +191,39 @@ TEST_CASE("Validator checks optional built-in argument types", "[semantics][vali
     REQUIRE(summary.diagnostics[0].code == "semantics.validator.invalid_argument_type");
 }
 
+TEST_CASE("Validator recognizes SDK numeric built-ins behind the optional-builtins gate", "[semantics][validator]") {
+    frontend::Parser parser("Clamp[Sqrt[9], Floor[2.7], Ceil[3.2]]");
+    const auto parse_result = parser.parse();
+    REQUIRE(parse_result.ok());
+
+    Schema schema;
+    Policy policy = Policy::default_policy();
+    policy.set_enable_optional_builtins(true);
+
+    semantics::Validator validator(schema, policy);
+    const auto summary = validator.validate(parse_result.root);
+
+    REQUIRE(summary.ok());
+    REQUIRE(summary.diagnostics.empty());
+}
+
+TEST_CASE("Validator enforces SDK numeric built-in arity", "[semantics][validator]") {
+    frontend::Parser parser("Clamp[1, 2]");
+    const auto parse_result = parser.parse();
+    REQUIRE(parse_result.ok());
+
+    Schema schema;
+    Policy policy = Policy::default_policy();
+    policy.set_enable_optional_builtins(true);
+
+    semantics::Validator validator(schema, policy);
+    const auto summary = validator.validate(parse_result.root);
+
+    REQUIRE_FALSE(summary.ok());
+    REQUIRE(summary.diagnostics.size() == 1);
+    REQUIRE(summary.diagnostics[0].code == "semantics.validator.invalid_arity");
+}
+
 TEST_CASE("Validator rejects incompatible If branch result types", "[semantics][validator]") {
     Schema schema;
     schema.allow_variable({"flag", ValueType::boolean, true});
@@ -197,6 +244,50 @@ TEST_CASE("Validator prunes unreachable literal If branches", "[semantics][valid
     Schema schema;
 
     frontend::Parser parser(R"(If[True, 1, missing + 1])");
+    const auto parse_result = parser.parse();
+    REQUIRE(parse_result.ok());
+
+    semantics::Validator validator(schema, Policy::default_policy());
+    const auto summary = validator.validate(parse_result.root);
+
+    REQUIRE(summary.ok());
+    REQUIRE(summary.diagnostics.empty());
+}
+
+TEST_CASE("Validator prunes unreachable constant-condition If branches", "[semantics][validator]") {
+    Schema schema;
+
+    frontend::Parser parser(R"(If[1 + 1 == 2, 7, missing + 1])");
+    const auto parse_result = parser.parse();
+    REQUIRE(parse_result.ok());
+
+    semantics::Validator validator(schema, Policy::default_policy());
+    const auto summary = validator.validate(parse_result.root);
+
+    REQUIRE(summary.ok());
+    REQUIRE(summary.diagnostics.empty());
+}
+
+TEST_CASE("Validator uses schema-valued constants as compile-time facts", "[semantics][validator]") {
+    Schema schema;
+    schema.allow_constant({"FeatureEnabled", Value(true)});
+    schema.allow_constant({"Threshold", Value(2.0)});
+
+    frontend::Parser parser("If[FeatureEnabled, Threshold + 1, missing + 1]");
+    const auto parse_result = parser.parse();
+    REQUIRE(parse_result.ok());
+
+    semantics::Validator validator(schema, Policy::default_policy());
+    const auto summary = validator.validate(parse_result.root);
+
+    REQUIRE(summary.ok());
+    REQUIRE(summary.diagnostics.empty());
+}
+
+TEST_CASE("Validator ignores constant division by zero in unreachable branches", "[semantics][validator]") {
+    Schema schema;
+
+    frontend::Parser parser("If[False, 1 / 0, 9]");
     const auto parse_result = parser.parse();
     REQUIRE(parse_result.ok());
 

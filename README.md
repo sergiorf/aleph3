@@ -73,7 +73,6 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
 - Delivery plan: [docs/embedded_formula_engine_implementation_plan.md](docs/embedded_formula_engine_implementation_plan.md)
 - System architecture: [docs/system_architecture.md](docs/system_architecture.md)
 - Trusted subset scope: [docs/trusted_subset_v1.md](docs/trusted_subset_v1.md)
-- Style guide: [docs/style_guide.md](docs/style_guide.md)
 
 ## License
 [MIT License](LICENSE)

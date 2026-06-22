@@ -25,6 +25,11 @@ struct FunctionSchema {
     bool host_function = true;
 };
 
+struct ConstantSchema {
+    std::string name;
+    std::optional<Value> value;
+};
+
 class Schema {
 public:
     Schema() = default;
@@ -44,6 +49,16 @@ public:
         return *this;
     }
 
+    Schema& allow_constant(ConstantSchema constant) {
+        constants_.insert(constant.name);
+        if (constant.value.has_value()) {
+            constant_values_[constant.name] = std::move(*constant.value);
+        } else {
+            constant_values_.erase(constant.name);
+        }
+        return *this;
+    }
+
     [[nodiscard]] const std::unordered_map<std::string, VariableSchema>& variables() const noexcept {
         return variables_;
     }
@@ -54,6 +69,10 @@ public:
 
     [[nodiscard]] const std::unordered_set<std::string>& constants() const noexcept {
         return constants_;
+    }
+
+    [[nodiscard]] const std::unordered_map<std::string, Value>& constant_values() const noexcept {
+        return constant_values_;
     }
 
     [[nodiscard]] bool allows_unknown_variables() const noexcept {
@@ -76,6 +95,7 @@ private:
     std::unordered_map<std::string, VariableSchema> variables_;
     std::unordered_map<std::string, FunctionSchema> functions_;
     std::unordered_set<std::string> constants_;
+    std::unordered_map<std::string, Value> constant_values_;
     bool allow_unknown_variables_ = false;
     bool allow_unknown_functions_ = false;
 };

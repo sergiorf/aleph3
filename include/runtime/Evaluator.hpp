@@ -12,6 +12,7 @@ namespace aleph3::runtime {
 
 struct EvaluationContext {
     const Bindings& bindings;
+    const Bindings& constants;
     const std::unordered_map<std::string, HostFunctionSpec>& host_functions;
     const Policy& policy;
 };

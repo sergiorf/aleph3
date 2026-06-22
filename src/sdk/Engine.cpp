@@ -89,6 +89,7 @@ namespace sdk_detail {
 struct CompiledFormulaData {
     ir::NodePtr root;
     Policy policy;
+    Bindings constants;
     std::string source;
 };
 }  // namespace sdk_detail
@@ -159,6 +160,7 @@ CompileResult Engine::compile(
     auto state = std::make_shared<sdk_detail::CompiledFormulaData>();
     state->root = std::move(frontend_result.root);
     state->policy = policy;
+    state->constants = schema.constant_values();
     if (state_->options.retain_source_text) {
         state->source = std::string(source);
     }
@@ -208,7 +210,7 @@ EvaluationResult Engine::evaluate(
         host_functions = state_->host_functions;
     }
 
-    runtime::Evaluator evaluator({bindings, host_functions, formula.state_->policy});
+    runtime::Evaluator evaluator({bindings, formula.state_->constants, host_functions, formula.state_->policy});
     return evaluator.evaluate(formula.state_->root);
 }
 

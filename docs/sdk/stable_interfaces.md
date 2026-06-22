@@ -8,7 +8,7 @@ boundary. They are stable enough to build against, but not yet feature-complete.
 | Surface | Status | Notes |
 | --- | --- | --- |
 | `sdk/Types.hpp` | provisional stable | Public value model, diagnostics, opaque `CompiledFormula`, and host function metadata/contracts |
-| `sdk/Schema.hpp` | provisional stable | Host allowlists for variables, functions, and constants |
+| `sdk/Schema.hpp` | provisional stable | Host allowlists for variables, functions, and constants, including optional constant values |
 | `sdk/Policy.hpp` | provisional stable | Structural/runtime limits and feature flags |
 | `sdk/Engine.hpp` | provisional stable | Main facade; `validate`, `compile`, and trusted-subset `evaluate` are live |
 | `ir/Node.hpp` | internal stable | Trusted-subset IR for parser, validation, and runtime work |
@@ -61,9 +61,17 @@ classDiagram
 
 - SDK headers compile independently of legacy headers.
 - The engine facade links with a concrete implementation.
-- Validation produces structured diagnostics for syntax, schema, arity, feature-gate, branch compatibility, and obvious type failures.
+- Validation produces structured diagnostics for syntax, schema, arity, feature-gates, branch compatibility, schema-valued constants, constant runtime traps, and obvious type failures.
 - Compile produces reusable opaque `CompiledFormula` handles on successful parse + validation.
 - Evaluate executes the trusted subset for literals, bindings, arithmetic, comparisons, `If`, and registered host calls.
+- Optional built-ins can be enabled by policy for `Abs`, `Min`, `Max`, `Clamp`, `Floor`, `Ceil`/`Ceiling`, `Round`, and `Sqrt`.
+- Schema-valued constants can participate in validation and runtime evaluation without host bindings.
+- Non-finite numeric arithmetic inputs/results fail with structured runtime errors instead of leaking raw floating-point behavior.
+- Numeric equality and ordering reject non-finite inputs instead of exposing raw floating-point comparison behavior.
+- Invalid numeric power domains such as `0 ^ 0` and negative-base fractional powers fail with structured runtime errors.
+- Built-in numeric domain failures such as `Sqrt[-1]` or `Clamp[x, high, low]` fail with structured runtime errors.
+- Zero-valued numeric results are canonicalized to positive zero for deterministic output behavior.
+- Equality comparisons require comparable concrete value types and reject mixed-type equality.
 - Registered host functions enforce arity/parameter metadata at registration and argument/return contracts at runtime.
 - The IR only models the trusted subset, not the full prototype language.
 

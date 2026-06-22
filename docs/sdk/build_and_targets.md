@@ -1,24 +1,24 @@
 # Build And Targets
 
-The build now distinguishes the legacy prototype from the primary SDK path so
-the new engine can compile without pulling in old parser/evaluator internals.
+The build now distinguishes the symbolic engine from the primary SDK path so
+the new engine can compile without pulling in the broader symbolic parser and
+evaluator internals.
 
 ## Targets
 
 | Target | Type | Purpose |
 | --- | --- | --- |
-| `aleph3_legacy` | library | Existing prototype engine |
-| `aleph3_cli_legacy` | executable | Existing CLI built on the legacy engine |
+| `aleph3_symbolic` | library | Symbolic engine core |
 | `aleph3_runtime` | interface library | Runtime-facing include boundary placeholder |
 | `aleph3_sdk` | library | Public SDK facade |
 | `aleph3_cli` | executable | Thin SDK tooling CLI for manual parser/validator/runtime checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
-| `aleph3_legacy_tests` | executable | Existing prototype tests |
+| `aleph3_symbolic_tests` | executable | Symbolic engine tests |
 | `aleph3_sdk_tests` | executable | Rewrite SDK and IR tests |
 
 ## Build Options
 
-- `ALEPH3_BUILD_LEGACY=ON|OFF`
+- `ALEPH3_BUILD_SYMBOLIC_ENGINE=ON|OFF`
 - `ALEPH3_BUILD_SDK=ON|OFF`
 - `BUILD_TESTING=ON|OFF`
 
@@ -26,8 +26,7 @@ the new engine can compile without pulling in old parser/evaluator internals.
 
 ```mermaid
 flowchart TD
-    Legacy["aleph3_legacy"] --> LegacyCli["aleph3_cli_legacy"]
-    Legacy --> LegacyTests["aleph3_legacy_tests"]
+    Symbolic["aleph3_symbolic"] --> SymbolicTests["aleph3_symbolic_tests"]
     Runtime["aleph3_runtime"] --> Sdk["aleph3_sdk"]
     Sdk --> SdkTests["aleph3_sdk_tests"]
     Sdk --> Cli["aleph3_cli"]
@@ -42,6 +41,6 @@ flowchart TD
 - `evaluate` in the CLI now accepts `--var name=value` bindings for basic runtime checks.
 - `evaluate-host` in the CLI registers demo host functions for end-to-end SDK checks.
 - `aleph3_sdk_example` is the smallest compiled host-app integration reference in the repo.
-- Use `ALEPH3_BUILD_LEGACY=ON` only while mining the prototype for reference behavior.
+- Use `ALEPH3_BUILD_SYMBOLIC_ENGINE=ON` when working on the symbolic engine core.
 - Use `BUILD_TESTING=OFF` for offline or dependency-restricted compile checks.
-- Keep new SDK components linked only through SDK targets unless a legacy dependency is explicitly justified.
+- Keep new SDK components linked only through SDK targets unless a symbolic-engine dependency is explicitly justified.

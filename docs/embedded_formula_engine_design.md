@@ -367,10 +367,10 @@ embedding-first engine. The main work items are below.
 
 ### 1. Separate Public SDK From CLI
 
-Today the CLI in `src/main.cpp` is a primary entry point. The product should
-move toward:
+Today the product should treat the SDK tooling CLI as the primary command-line
+entry point. The product should move toward:
 
-- `aleph3_core`
+- `aleph3_symbolic`
 - `aleph3_sdk`
 - `aleph3_cli`
 
@@ -575,7 +575,7 @@ Advantages:
 
 - Publish embedded-engine design
 - Define supported feature subset
-- Rename docs still referring to Mathix
+- Remove obsolete Mathix-era docs and naming
 - Split CLI concerns from engine concerns
 
 ### Phase 1: SDK Foundation
@@ -602,6 +602,11 @@ Advantages:
 
 ### Phase 4: Expansion
 
+- Add a broader built-in function catalog with explicit contracts and tests
+- Add a reliable polynomial layer instead of carrying forward prototype behavior
+- Add symbolic differentiation for a documented supported subset
+- Explore symbolic or partially symbolic integration only after derivative and
+  polynomial semantics are stable
 - Add code generation
 - Add richer type system
 - Add units and dimensions

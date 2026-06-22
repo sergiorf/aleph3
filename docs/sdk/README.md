@@ -9,11 +9,19 @@ make the production path easier to navigate as the SDK-first implementation grow
 - Public SDK headers under `include/sdk/`
 - Minimal trusted-subset IR in `include/ir/Node.hpp`
 - SDK lexer, parser with focused function-call coverage, and composed-expression-aware validator
-- Literal-branch pruning for `If[True, ...]` and `If[False, ...]` during validation
+- Constant-condition branch pruning for `If[...]` when the condition reduces to a trusted constant boolean during validation
+- Constant runtime-trap detection for obvious cases such as division by a constant zero denominator
+- Schema-valued constants flowing through validation and runtime evaluation
+- Non-finite numeric arithmetic results rejected with structured runtime errors
+- Explicit power-domain failures for `0 ^ 0` and negative-base fractional powers
+- Signed-zero numeric results normalized to positive zero
+- Mixed-type equality rejected as a type error
+- Numeric comparisons reject `NaN` and infinities with structured runtime errors
+- Optional SDK numeric built-ins: `Abs`, `Min`, `Max`, `Clamp`, `Floor`, `Ceil`/`Ceiling`, `Round`, `Sqrt`
 - Reusable `CompiledFormula` creation through `Engine::compile()`
 - Trusted-subset runtime evaluation through `Engine::evaluate()`
 - Engine-scoped host function contracts with runtime argument/return enforcement
-- SDK/legacy build target split in `CMakeLists.txt`
+- SDK/symbolic-engine build target split in `CMakeLists.txt`
 - Aleph3 CLI target `aleph3_cli`
 - Aleph3 CLI REPL, built-in help/examples, `host-functions`, `evaluate --var ...`, and `evaluate-host`
 - SDK example target `aleph3_sdk_example` for host-app embedding
@@ -21,7 +29,7 @@ make the production path easier to navigate as the SDK-first implementation grow
 
 ## What Is Not Stable Yet
 
-- Deeper flow-sensitive validation beyond literal-branch pruning and the current branch/type/return checks
+- Deeper flow-sensitive validation beyond current constant-condition pruning, schema-valued constant reasoning, constant runtime-trap detection, and branch/type/return checks
 - Custom host-function injection into the CLI beyond the built-in demo bundle
 - Packaging and final target names
 
@@ -31,6 +39,7 @@ make the production path easier to navigate as the SDK-first implementation grow
 - [Build And Targets](build_and_targets.md)
 - [Testing Strategy](testing_strategy.md)
 - [Migration Notes](migration_notes.md)
+- [Math Core Audit](math_core_audit.md)
 
 ## SDK Layer Diagram
 
@@ -49,8 +58,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Legacy["aleph3_legacy"] --> LegacyCli["aleph3_cli_legacy"]
+    Symbolic["aleph3_symbolic"] --> SymbolicTests["aleph3_symbolic_tests"]
     Runtime["aleph3_runtime"] --> Sdk["aleph3_sdk"]
     Sdk --> SdkTests["aleph3_sdk_tests"]
-    Legacy --> LegacyTests["aleph3_legacy_tests"]
 ```

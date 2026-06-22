@@ -1,6 +1,8 @@
 #include "sdk/Engine.hpp"
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
+#include <limits>
 #include <stdexcept>
 
 using namespace aleph3;
@@ -88,6 +90,15 @@ TEST_CASE("Engine evaluate accepts compiled formulas even before runtime exists"
     REQUIRE(result.value.has_value());
     REQUIRE(result.value->as_number() != nullptr);
     REQUIRE(*result.value->as_number() == 3.0);
+
+    const auto zero_formula = engine.compile("-0", schema);
+    REQUIRE(zero_formula.ok());
+    const auto zero_result = engine.evaluate(*zero_formula.formula, {});
+    REQUIRE(zero_result.ok());
+    REQUIRE(zero_result.value.has_value());
+    REQUIRE(zero_result.value->as_number() != nullptr);
+    REQUIRE(*zero_result.value->as_number() == 0.0);
+    REQUIRE_FALSE(std::signbit(*zero_result.value->as_number()));
 }
 
 TEST_CASE("Engine evaluate reports runtime errors for compiled formulas", "[sdk][engine]") {
@@ -102,12 +113,53 @@ TEST_CASE("Engine evaluate reports runtime errors for compiled formulas", "[sdk]
     REQUIRE(unknown_binding_result.error.has_value());
     REQUIRE(unknown_binding_result.error->code == "runtime.unknown_binding");
 
-    const auto division_formula = engine.compile("1 / 0", schema);
+    Schema flexible_schema;
+    flexible_schema.set_allow_unknown_variables(true);
+    const auto mixed_equality_formula = engine.compile("x == y", flexible_schema);
+    REQUIRE(mixed_equality_formula.ok());
+    const auto mixed_equality_result = engine.evaluate(
+        *mixed_equality_formula.formula,
+        {{"x", Value(1.0)}, {"y", Value("1")}});
+    REQUIRE_FALSE(mixed_equality_result.ok());
+    REQUIRE(mixed_equality_result.error.has_value());
+    REQUIRE(mixed_equality_result.error->code == "runtime.type_mismatch");
+
+    const auto non_finite_equality_formula = engine.compile("x == y", flexible_schema);
+    REQUIRE(non_finite_equality_formula.ok());
+    const auto non_finite_equality_result = engine.evaluate(
+        *non_finite_equality_formula.formula,
+        {{"x", Value(std::numeric_limits<double>::infinity())}, {"y", Value(1.0)}});
+    REQUIRE_FALSE(non_finite_equality_result.ok());
+    REQUIRE(non_finite_equality_result.error.has_value());
+    REQUIRE(non_finite_equality_result.error->code == "runtime.non_finite_number");
+
+    const auto division_formula = engine.compile("1 / x", schema);
     REQUIRE(division_formula.ok());
-    const auto division_result = engine.evaluate(*division_formula.formula, {});
+    const auto division_result = engine.evaluate(*division_formula.formula, {{"x", Value(0.0)}});
     REQUIRE_FALSE(division_result.ok());
     REQUIRE(division_result.error.has_value());
     REQUIRE(division_result.error->code == "runtime.division_by_zero");
+
+    const auto zero_to_zero_formula = engine.compile("0 ^ 0", schema);
+    REQUIRE(zero_to_zero_formula.ok());
+    const auto zero_to_zero_result = engine.evaluate(*zero_to_zero_formula.formula, {});
+    REQUIRE_FALSE(zero_to_zero_result.ok());
+    REQUIRE(zero_to_zero_result.error.has_value());
+    REQUIRE(zero_to_zero_result.error->code == "runtime.invalid_power_domain");
+
+    const auto invalid_power_formula = engine.compile("(-1) ^ 0.5", schema);
+    REQUIRE(invalid_power_formula.ok());
+    const auto invalid_power_result = engine.evaluate(*invalid_power_formula.formula, {});
+    REQUIRE_FALSE(invalid_power_result.ok());
+    REQUIRE(invalid_power_result.error.has_value());
+    REQUIRE(invalid_power_result.error->code == "runtime.invalid_power_domain");
+
+    const auto overflow_power_formula = engine.compile("10 ^ 1000", schema);
+    REQUIRE(overflow_power_formula.ok());
+    const auto overflow_power_result = engine.evaluate(*overflow_power_formula.formula, {});
+    REQUIRE_FALSE(overflow_power_result.ok());
+    REQUIRE(overflow_power_result.error.has_value());
+    REQUIRE(overflow_power_result.error->code == "runtime.invalid_numeric_result");
 }
 
 TEST_CASE("Engine validate reports schema and policy failures with structured diagnostics", "[sdk][engine]") {
@@ -151,6 +203,11 @@ TEST_CASE("Engine validate reports schema and policy failures with structured di
     REQUIRE_FALSE(bad_host_composition.ok);
     REQUIRE(bad_host_composition.diagnostics.size() == 1);
     REQUIRE(bad_host_composition.diagnostics.front().code == "semantics.validator.type_mismatch");
+
+    auto constant_division_by_zero = engine.validate("1 / 0", schema, Policy::default_policy());
+    REQUIRE_FALSE(constant_division_by_zero.ok);
+    REQUIRE(constant_division_by_zero.diagnostics.size() == 1);
+    REQUIRE(constant_division_by_zero.diagnostics.front().code == "semantics.validator.division_by_zero");
 }
 
 TEST_CASE("Engine compile and evaluate honor literal If branch pruning", "[sdk][engine]") {
@@ -166,6 +223,86 @@ TEST_CASE("Engine compile and evaluate honor literal If branch pruning", "[sdk][
     REQUIRE(evaluation_result.value.has_value());
     REQUIRE(evaluation_result.value->as_number() != nullptr);
     REQUIRE(*evaluation_result.value->as_number() == 1.0);
+}
+
+TEST_CASE("Engine compile and evaluate honor constant-condition If branch pruning", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+
+    const auto compile_result = engine.compile("If[2 * 3 > 5, 11, missing + 1]", schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto evaluation_result = engine.evaluate(*compile_result.formula, {});
+    REQUIRE(evaluation_result.ok());
+    REQUIRE(evaluation_result.value.has_value());
+    REQUIRE(evaluation_result.value->as_number() != nullptr);
+    REQUIRE(*evaluation_result.value->as_number() == 11.0);
+}
+
+TEST_CASE("Engine compile and evaluate use schema-valued constants", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+    schema.allow_constant({"FeatureEnabled", Value(true)});
+    schema.allow_constant({"Offset", Value(2.5)});
+
+    const auto compile_result = engine.compile("If[FeatureEnabled, Offset + 1, missing + 1]", schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto evaluation_result = engine.evaluate(*compile_result.formula, {});
+    REQUIRE(evaluation_result.ok());
+    REQUIRE(evaluation_result.value.has_value());
+    REQUIRE(evaluation_result.value->as_number() != nullptr);
+    REQUIRE(*evaluation_result.value->as_number() == 3.5);
+}
+
+TEST_CASE("Engine compile and evaluate SDK numeric built-ins behind policy gating", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+    Policy policy = Policy::default_policy();
+    policy.set_enable_optional_builtins(true);
+
+    const auto compile_result = engine.compile(
+        "Clamp[Sqrt[9] + Floor[2.7], 0, Round[4.4]]",
+        schema,
+        policy);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto evaluation_result = engine.evaluate(*compile_result.formula, {});
+    REQUIRE(evaluation_result.ok());
+    REQUIRE(evaluation_result.value.has_value());
+    REQUIRE(evaluation_result.value->as_number() != nullptr);
+    REQUIRE(*evaluation_result.value->as_number() == 4.0);
+
+    const auto ceiling_alias = engine.compile("Ceiling[-3.2]", schema, policy);
+    REQUIRE(ceiling_alias.ok());
+    const auto ceiling_result = engine.evaluate(*ceiling_alias.formula, {});
+    REQUIRE(ceiling_result.ok());
+    REQUIRE(ceiling_result.value.has_value());
+    REQUIRE(*ceiling_result.value->as_number() == -3.0);
+}
+
+TEST_CASE("Engine reports SDK numeric built-in contract violations", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+    Policy policy = Policy::default_policy();
+    policy.set_enable_optional_builtins(true);
+
+    const auto invalid_sqrt = engine.compile("Sqrt[-1]", schema, policy);
+    REQUIRE(invalid_sqrt.ok());
+    const auto invalid_sqrt_result = engine.evaluate(*invalid_sqrt.formula, {});
+    REQUIRE_FALSE(invalid_sqrt_result.ok());
+    REQUIRE(invalid_sqrt_result.error.has_value());
+    REQUIRE(invalid_sqrt_result.error->code == "runtime.invalid_numeric_domain");
+
+    const auto invalid_clamp = engine.compile("Clamp[1, 5, 2]", schema, policy);
+    REQUIRE(invalid_clamp.ok());
+    const auto invalid_clamp_result = engine.evaluate(*invalid_clamp.formula, {});
+    REQUIRE_FALSE(invalid_clamp_result.ok());
+    REQUIRE(invalid_clamp_result.error.has_value());
+    REQUIRE(invalid_clamp_result.error->code == "runtime.invalid_numeric_domain");
 }
 
 TEST_CASE("Engine register_function validates the stable host function contract", "[sdk][engine]") {

@@ -1,6 +1,7 @@
 #include "semantics/Validator.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -36,12 +37,18 @@ Diagnostic make_error(std::string code, std::string message, SourceSpan span) {
 }
 
 bool is_optional_builtin(std::string_view name) noexcept {
-    return name == "Min" || name == "Max" || name == "Abs";
+    return name == "Min" || name == "Max" || name == "Abs" ||
+           name == "Clamp" || name == "Floor" || name == "Ceil" ||
+           name == "Ceiling" || name == "Round" || name == "Sqrt";
 }
 
 FunctionArity optional_builtin_arity(std::string_view name) noexcept {
-    if (name == "Abs") {
+    if (name == "Abs" || name == "Floor" || name == "Ceil" ||
+        name == "Ceiling" || name == "Round" || name == "Sqrt") {
         return FunctionArity::exact(1);
+    }
+    if (name == "Clamp") {
+        return FunctionArity::exact(3);
     }
     return FunctionArity{1, static_cast<std::size_t>(-1)};
 }
@@ -139,7 +146,9 @@ bool branch_types_are_incompatible(InferredType left, InferredType right) noexce
 }
 
 std::optional<InferredType> optional_builtin_return_type(std::string_view name) noexcept {
-    if (name == "Abs" || name == "Min" || name == "Max") {
+    if (name == "Abs" || name == "Min" || name == "Max" ||
+        name == "Clamp" || name == "Floor" || name == "Ceil" ||
+        name == "Ceiling" || name == "Round" || name == "Sqrt") {
         return InferredType::number;
     }
     return std::nullopt;
@@ -151,6 +160,163 @@ std::optional<bool> boolean_literal_value(const ir::NodePtr& node) noexcept {
     }
     if (const auto* boolean = node->as<ir::BooleanLiteralNode>()) {
         return boolean->value;
+    }
+    return std::nullopt;
+}
+
+std::optional<const Value*> schema_constant_value(const Schema& schema, const ir::NodePtr& node) {
+    if (node == nullptr) {
+        return std::nullopt;
+    }
+    const auto* variable = node->as<ir::VariableNode>();
+    if (variable == nullptr) {
+        return std::nullopt;
+    }
+    const auto constant = schema.constant_values().find(variable->name);
+    if (constant == schema.constant_values().end()) {
+        return std::nullopt;
+    }
+    return &constant->second;
+}
+
+std::optional<std::string> constant_string_value(const Schema& schema, const ir::NodePtr& node) {
+    if (node == nullptr) {
+        return std::nullopt;
+    }
+    if (const auto* string = node->as<ir::StringLiteralNode>()) {
+        return string->value;
+    }
+    if (const auto constant = schema_constant_value(schema, node)) {
+        if (const auto* string = (*constant)->as_string()) {
+            return *string;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<double> constant_numeric_value(const Schema& schema, const ir::NodePtr& node) {
+    if (node == nullptr) {
+        return std::nullopt;
+    }
+
+    if (const auto* number = node->as<ir::NumberLiteralNode>()) {
+        return number->value;
+    }
+    if (const auto constant = schema_constant_value(schema, node)) {
+        if (const auto* number = (*constant)->as_number()) {
+            return *number;
+        }
+        return std::nullopt;
+    }
+    if (const auto* unary = node->as<ir::UnaryOpNode>()) {
+        const auto operand = constant_numeric_value(schema, unary->operand);
+        if (!operand.has_value()) {
+            return std::nullopt;
+        }
+        return unary->op == ir::UnaryOperator::plus ? *operand : -*operand;
+    }
+    if (const auto* binary = node->as<ir::BinaryOpNode>()) {
+        if (!is_arithmetic_operator(binary->op)) {
+            return std::nullopt;
+        }
+
+        const auto left = constant_numeric_value(schema, binary->left);
+        const auto right = constant_numeric_value(schema, binary->right);
+        if (!left.has_value() || !right.has_value()) {
+            return std::nullopt;
+        }
+
+        switch (binary->op) {
+            case ir::BinaryOperator::add:
+                return *left + *right;
+            case ir::BinaryOperator::subtract:
+                return *left - *right;
+            case ir::BinaryOperator::multiply:
+                return *left * *right;
+            case ir::BinaryOperator::divide:
+                if (*right == 0.0) {
+                    return std::nullopt;
+                }
+                return *left / *right;
+            case ir::BinaryOperator::power:
+                return std::pow(*left, *right);
+            default:
+                return std::nullopt;
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::optional<bool> constant_boolean_value(const Schema& schema, const ir::NodePtr& node) {
+    if (const auto literal = boolean_literal_value(node)) {
+        return literal;
+    }
+    if (node == nullptr) {
+        return std::nullopt;
+    }
+    if (const auto constant = schema_constant_value(schema, node)) {
+        if (const auto* boolean = (*constant)->as_boolean()) {
+            return *boolean;
+        }
+        return std::nullopt;
+    }
+    if (const auto* binary = node->as<ir::BinaryOpNode>()) {
+        if (binary->op == ir::BinaryOperator::equal || binary->op == ir::BinaryOperator::not_equal) {
+            if (const auto left_boolean = boolean_literal_value(binary->left)) {
+                if (const auto right_boolean = boolean_literal_value(binary->right)) {
+                    const bool equal = *left_boolean == *right_boolean;
+                    return binary->op == ir::BinaryOperator::equal ? equal : !equal;
+                }
+            }
+            if (const auto left_boolean = constant_boolean_value(schema, binary->left)) {
+                if (const auto right_boolean = constant_boolean_value(schema, binary->right)) {
+                    const bool equal = *left_boolean == *right_boolean;
+                    return binary->op == ir::BinaryOperator::equal ? equal : !equal;
+                }
+            }
+            if (const auto left_number = constant_numeric_value(schema, binary->left)) {
+                if (const auto right_number = constant_numeric_value(schema, binary->right)) {
+                    const bool equal = *left_number == *right_number;
+                    return binary->op == ir::BinaryOperator::equal ? equal : !equal;
+                }
+            }
+            if (const auto left_string = constant_string_value(schema, binary->left)) {
+                if (const auto right_string = constant_string_value(schema, binary->right)) {
+                    const bool equal = *left_string == *right_string;
+                    return binary->op == ir::BinaryOperator::equal ? equal : !equal;
+                }
+            }
+            return std::nullopt;
+        }
+
+        if (is_comparison_operator(binary->op)) {
+            const auto left = constant_numeric_value(schema, binary->left);
+            const auto right = constant_numeric_value(schema, binary->right);
+            if (!left.has_value() || !right.has_value()) {
+                return std::nullopt;
+            }
+
+            switch (binary->op) {
+                case ir::BinaryOperator::less:
+                    return *left < *right;
+                case ir::BinaryOperator::less_equal:
+                    return *left <= *right;
+                case ir::BinaryOperator::greater:
+                    return *left > *right;
+                case ir::BinaryOperator::greater_equal:
+                    return *left >= *right;
+                default:
+                    return std::nullopt;
+            }
+        }
+    }
+    if (const auto* if_node = node->as<ir::IfNode>()) {
+        const auto condition = constant_boolean_value(schema, if_node->condition);
+        if (!condition.has_value()) {
+            return std::nullopt;
+        }
+        return constant_boolean_value(schema, *condition ? if_node->then_branch : if_node->else_branch);
     }
     return std::nullopt;
 }
@@ -229,6 +395,23 @@ private:
                 return inferred_type_from_value_type(variable_it->second.type);
             }
 
+            if (const auto constant = schema_.constant_values().find(variable->name);
+                constant != schema_.constant_values().end()) {
+                if (constant->second.is_number()) {
+                    return InferredType::number;
+                }
+                if (constant->second.is_boolean()) {
+                    return InferredType::boolean;
+                }
+                if (constant->second.is_string()) {
+                    return InferredType::string;
+                }
+                if (constant->second.is_list()) {
+                    return InferredType::list;
+                }
+                return InferredType::any;
+            }
+
             if (schema_.constants().contains(variable->name)) {
                 return InferredType::any;
             }
@@ -281,6 +464,17 @@ private:
             const auto right_type = validate_node(binary->right, depth + 1, traversal, diagnostics);
 
             if (is_arithmetic_operator(binary->op)) {
+                const auto denominator = binary->op == ir::BinaryOperator::divide
+                    ? constant_numeric_value(schema_, binary->right)
+                    : std::optional<double>{};
+                const bool constant_zero_denominator =
+                    denominator.has_value() && *denominator == 0.0;
+                if (constant_zero_denominator) {
+                    diagnostics.push_back(make_error(
+                        "semantics.validator.division_by_zero",
+                        "Division by a constant zero denominator is not allowed.",
+                        binary->right != nullptr ? binary->right->span : node->span));
+                }
                 if (is_known_non_numeric(left_type)) {
                     diagnostics.push_back(make_error(
                         "semantics.validator.type_mismatch",
@@ -295,6 +489,9 @@ private:
                 }
                 if (left_type == InferredType::invalid || right_type == InferredType::invalid ||
                     is_known_non_numeric(left_type) || is_known_non_numeric(right_type)) {
+                    return InferredType::invalid;
+                }
+                if (constant_zero_denominator) {
                     return InferredType::invalid;
                 }
                 return InferredType::number;
@@ -338,7 +535,7 @@ private:
         if (const auto* call = node->as<ir::CallNode>()) {
             const auto function_it = schema_.functions().find(call->callee);
             const bool schema_allows = function_it != schema_.functions().end();
-            const bool optional_builtin = is_optional_builtin(call->callee);
+            const bool optional_builtin = !schema_allows && is_optional_builtin(call->callee);
             std::vector<InferredType> argument_types;
             argument_types.reserve(call->arguments.size());
 
@@ -428,10 +625,6 @@ private:
             }
             const auto condition_type =
                 validate_node(if_node->condition, depth + 1, traversal, diagnostics);
-            const auto then_type =
-                validate_node(if_node->then_branch, depth + 1, traversal, diagnostics);
-            const auto else_type =
-                validate_node(if_node->else_branch, depth + 1, traversal, diagnostics);
 
             if (condition_type != InferredType::unknown &&
                 condition_type != InferredType::any &&
@@ -443,16 +636,29 @@ private:
                     if_node->condition != nullptr ? if_node->condition->span : node->span));
             }
 
-            // A literal boolean condition gives the validator a trustworthy
+            // A constant boolean condition gives the validator a trustworthy
             // branch choice, so only the reachable branch should affect
             // semantic success and inferred result type.
-            if (const auto literal_condition = boolean_literal_value(if_node->condition)) {
-                const auto reachable_type = *literal_condition ? then_type : else_type;
+            if (const auto constant_condition = constant_boolean_value(schema_, if_node->condition)) {
+                std::vector<Diagnostic> discarded_diagnostics;
+                const auto reachable_type = *constant_condition
+                    ? validate_node(if_node->then_branch, depth + 1, traversal, diagnostics)
+                    : validate_node(if_node->else_branch, depth + 1, traversal, diagnostics);
+                const auto unreachable_type = *constant_condition
+                    ? validate_node(if_node->else_branch, depth + 1, traversal, discarded_diagnostics)
+                    : validate_node(if_node->then_branch, depth + 1, traversal, discarded_diagnostics);
+
                 if (reachable_type == InferredType::invalid) {
                     return InferredType::invalid;
                 }
+                (void)unreachable_type;
                 return reachable_type;
             }
+
+            const auto then_type =
+                validate_node(if_node->then_branch, depth + 1, traversal, diagnostics);
+            const auto else_type =
+                validate_node(if_node->else_branch, depth + 1, traversal, diagnostics);
 
             if (then_type == InferredType::invalid || else_type == InferredType::invalid) {
                 return InferredType::invalid;

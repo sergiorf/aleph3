@@ -80,15 +80,14 @@ These assets are useful now:
 - some expression ideas from [include/expr/Expr.hpp](/home/sergio/dev/aleph3/include/expr/Expr.hpp)
 - the current tests as reference material, not as binding truth
 
-## Archive As Legacy Prototype
+## Archive As Pre-SDK Symbolic Engine
 
-These should be treated as legacy unless later proven worth salvaging:
+These should be treated as outside the trusted SDK path unless later proven worth salvaging:
 
 - [include/parser/Parser.hpp](/home/sergio/dev/aleph3/include/parser/Parser.hpp)
 - [include/evaluator/Evaluator.hpp](/home/sergio/dev/aleph3/include/evaluator/Evaluator.hpp)
 - [src/evaluator/Evaluator.cpp](/home/sergio/dev/aleph3/src/evaluator/Evaluator.cpp)
 - [include/evaluator/FunctionRegistry.hpp](/home/sergio/dev/aleph3/include/evaluator/FunctionRegistry.hpp)
-- [src/main.cpp](/home/sergio/dev/aleph3/src/main.cpp)
 - current transform and polynomial paths for the v1 embedded core
 
 Archive here does not mean delete immediately. It means:
@@ -113,7 +112,7 @@ These areas should be rebuilt as new product code:
 ## Proposed New Architecture
 
 The new implementation should use a clean split between trusted product code
-and legacy prototype code.
+and the broader symbolic engine code.
 
 ### New Top-Level Layers
 
@@ -476,7 +475,7 @@ Files to add:
 
 Acceptance criteria:
 
-- host-facing API compiles independently of legacy engine headers
+- host-facing API compiles independently of symbolic-engine headers
 
 ### Task R1.2: Create Minimal IR
 
@@ -518,7 +517,7 @@ Current status:
 - `validate` now runs parser + validator
 - `compile` now returns reusable opaque `CompiledFormula` handles on success
 
-### Task R1.4: Split Build Targets Around SDK And Legacy
+### Task R1.4: Split Build Targets Around SDK And Symbolic Engine
 
 Files:
 
@@ -527,18 +526,18 @@ Files:
 Changes:
 
 - add new targets for the SDK path
-- keep legacy target separate
+- keep symbolic-engine target separate
 - allow both to coexist during transition
 
 Suggested targets:
 
 - `aleph3_runtime`
 - `aleph3_sdk`
-- `aleph3_cli_legacy`
+- `aleph3_symbolic`
 
 Acceptance criteria:
 
-- SDK path can be built without relying on legacy engine internals
+- SDK path can be built without relying on symbolic-engine internals
 
 ## R2: Trusted Subset Parser and Evaluator
 
@@ -642,8 +641,8 @@ Behavior:
 
 Acceptance criteria:
 
-- the SDK path can be exercised from the terminal without using the legacy CLI
-- the CLI does not depend on legacy parser or evaluator internals
+- the SDK path can be exercised from the terminal without relying on a separate symbolic-engine CLI
+- the CLI does not depend on symbolic parser or evaluator internals
 
 Current status:
 
@@ -700,8 +699,11 @@ Current status:
 
 - first pass implemented for schema allowlists, known arity checks, basic
   feature gates, AST node/depth limits, obvious type mismatches, incompatible
-  `If` branch shapes, and host-function return-type composition checks
-- deeper type reasoning, flow-sensitive inference, and richer runtime-facing
+  `If` branch shapes, constant-condition branch pruning, schema-valued
+  constants, constant zero-denominator checks, and host-function return-type
+  composition checks
+- deeper type reasoning, flow-sensitive inference beyond current constant
+  pruning/schema-constant/runtime-trap checks, and richer runtime-facing
   validation still remain future work
 
 ### Task R3.4: Add Validation Tests
@@ -875,7 +877,7 @@ Acceptance criteria:
 
 The controlled rewrite is successful when:
 
-- the trusted engine path no longer depends on legacy parser/evaluator code
+- the trusted engine path no longer depends on symbolic parser/evaluator code
 - a host app can compile, validate, and evaluate formulas through the SDK only
 - diagnostics are structured and source-aware
 - execution is bounded and engine-scoped
@@ -885,7 +887,7 @@ The controlled rewrite is successful when:
 
 The rewrite is failing if:
 
-- more and more legacy internals leak into the new SDK path
+- more and more symbolic-engine internals leak into the new SDK path
 - unsupported language features keep being added to "help compatibility"
 - tests merely mirror legacy behavior instead of asserting product contracts
 - the trusted subset keeps expanding before becoming stable
@@ -961,10 +963,34 @@ product-critical path onto the smaller, cleaner, explicitly trusted engine.
 
 The next phase should focus on:
 
-- hardening SDK validation and runtime contract coverage
+- finishing numeric-contract hardening and keeping its tests/docs explicit
+- keeping the new SDK-grade numeric built-in tier explicit, bounded, and well-tested
+- reducing ad hoc constant reasoning into a clearer folding boundary
 - tightening product-facing docs, examples, and target naming around the SDK
-- leaving legacy code available for reference without letting it shape the
+- leaving symbolic-engine code available for reference without letting it shape the
   trusted public surface
+
+For math-core direction, see [docs/sdk/math_core_audit.md](/home/sergio/dev/aleph3/docs/sdk/math_core_audit.md).
+The near-term recommendation there is to harden the numeric contract and add a
+small commercially useful numeric built-in tier before revisiting broader
+algebra ambitions.
+
+After that core work, the roadmap should explicitly reopen engine-expansion
+work as a separate track, not as scope creep inside trusted-subset v1.
+
+Post-core engine expansion candidates:
+
+- a broader built-in function set with explicit contracts, tests, and policy
+  controls
+- a better polynomial layer, including clearer normal forms and more reliable
+  symbolic polynomial operations
+- symbolic differentiation support with narrow, documented rules before any
+  broad CAS ambitions
+- symbolic or partially symbolic integration only after derivative and
+  polynomial semantics are trustworthy enough to support it
+
+These should be treated as deliberate future milestones, not as assumptions of
+the current trusted subset.
 
 The win condition is not "Aleph3 still supports everything it used to." The win
 condition is "Aleph3 has a small embedded core that is trustworthy enough to

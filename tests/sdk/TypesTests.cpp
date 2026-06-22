@@ -34,10 +34,19 @@ TEST_CASE("Schema tracks allowed variables, functions, and constants", "[sdk][sc
     schema.allow_variable({"x", ValueType::number, true});
     schema.allow_function({"Clamp", FunctionArity::exact(3), {ValueType::number, ValueType::number, ValueType::number}, ValueType::number, true});
     schema.allow_constant("Pi");
+    schema.allow_constant({"FeatureEnabled", Value(true)});
+    schema.allow_constant({"Offset", Value(1.5)});
 
     REQUIRE(schema.variables().contains("x"));
     REQUIRE(schema.functions().contains("Clamp"));
     REQUIRE(schema.constants().contains("Pi"));
+    REQUIRE(schema.constants().contains("FeatureEnabled"));
+    REQUIRE(schema.constant_values().contains("FeatureEnabled"));
+    REQUIRE(schema.constant_values().contains("Offset"));
+    REQUIRE(schema.constant_values().at("FeatureEnabled").as_boolean() != nullptr);
+    REQUIRE(*schema.constant_values().at("FeatureEnabled").as_boolean());
+    REQUIRE(schema.constant_values().at("Offset").as_number() != nullptr);
+    REQUIRE(*schema.constant_values().at("Offset").as_number() == 1.5);
 
     schema.set_allow_unknown_variables(true);
     schema.set_allow_unknown_functions(true);

@@ -36,6 +36,55 @@ EvaluationResult make_failure(std::string code, std::string message, std::option
     return result;
 }
 
+bool is_finite_number(double value) noexcept {
+    return std::isfinite(value);
+}
+
+bool is_integer_value(double value) noexcept {
+    return std::floor(value) == value;
+}
+
+EvaluationResult make_non_finite_input_error(const SourceSpan& span) {
+    return make_failure(
+        "runtime.non_finite_number",
+        "Numeric operations require finite input values.",
+        span);
+}
+
+EvaluationResult make_non_finite_result_error(const SourceSpan& span) {
+    return make_failure(
+        "runtime.invalid_numeric_result",
+        "Numeric evaluation produced a non-finite result.",
+        span);
+}
+
+EvaluationResult make_invalid_power_domain_error(const SourceSpan& span) {
+    return make_failure(
+        "runtime.invalid_power_domain",
+        "Power is undefined for the given numeric inputs.",
+        span);
+}
+
+EvaluationResult make_invalid_numeric_domain_error(
+    const std::string& function_name,
+    const std::string& message,
+    const SourceSpan& span) {
+    return make_failure(
+        "runtime.invalid_numeric_domain",
+        function_name + " " + message,
+        span);
+}
+
+EvaluationResult make_finite_numeric_success(double value, const SourceSpan& span) {
+    if (!is_finite_number(value)) {
+        return make_non_finite_result_error(span);
+    }
+    if (value == 0.0) {
+        value = std::fabs(value);
+    }
+    return make_success(Value(value));
+}
+
 std::string value_type_name(ValueType type) {
     switch (type) {
         case ValueType::any:
@@ -84,29 +133,43 @@ bool matches_value_type(const Value& value, ValueType expected) noexcept {
     return false;
 }
 
-bool values_equal(const Value& left, const Value& right) {
+enum class EqualityResultKind {
+    equal,
+    incomparable_types,
+    non_finite_numeric_input,
+};
+
+struct EqualityResult {
+    EqualityResultKind kind;
+    bool value = false;
+};
+
+EqualityResult values_equal(const Value& left, const Value& right) {
     if (const auto* left_number = left.as_number()) {
         if (const auto* right_number = right.as_number()) {
-            return *left_number == *right_number;
+            if (!is_finite_number(*left_number) || !is_finite_number(*right_number)) {
+                return {EqualityResultKind::non_finite_numeric_input};
+            }
+            return {EqualityResultKind::equal, *left_number == *right_number};
         }
-        return false;
+        return {EqualityResultKind::incomparable_types};
     }
     if (const auto* left_boolean = left.as_boolean()) {
         if (const auto* right_boolean = right.as_boolean()) {
-            return *left_boolean == *right_boolean;
+            return {EqualityResultKind::equal, *left_boolean == *right_boolean};
         }
-        return false;
+        return {EqualityResultKind::incomparable_types};
     }
     if (const auto* left_string = left.as_string()) {
         if (const auto* right_string = right.as_string()) {
-            return *left_string == *right_string;
+            return {EqualityResultKind::equal, *left_string == *right_string};
         }
-        return false;
+        return {EqualityResultKind::incomparable_types};
     }
     if (left.is_null() && right.is_null()) {
-        return true;
+        return {EqualityResultKind::equal, true};
     }
-    return false;
+    return {EqualityResultKind::incomparable_types};
 }
 
 class EvaluatorImpl {
@@ -148,13 +211,19 @@ private:
         }
         if (const auto* variable = node->as<ir::VariableNode>()) {
             const auto binding = context_.bindings.find(variable->name);
-            if (binding == context_.bindings.end()) {
-                return make_failure(
-                    "runtime.unknown_binding",
-                    "No binding was provided for variable `" + variable->name + "`.",
-                    node->span);
+            if (binding != context_.bindings.end()) {
+                return make_success(binding->second);
             }
-            return make_success(binding->second);
+
+            const auto constant = context_.constants.find(variable->name);
+            if (constant != context_.constants.end()) {
+                return make_success(constant->second);
+            }
+
+            return make_failure(
+                "runtime.unknown_binding",
+                "No binding was provided for variable `" + variable->name + "`.",
+                node->span);
         }
         if (const auto* unary = node->as<ir::UnaryOpNode>()) {
             auto operand = evaluate_node(unary->operand);
@@ -168,7 +237,12 @@ private:
                     "Unary arithmetic operators require numeric values.",
                     node->span);
             }
-            return make_success(Value(unary->op == ir::UnaryOperator::plus ? *number : -*number));
+            if (!is_finite_number(*number)) {
+                return make_non_finite_input_error(node->span);
+            }
+            return make_finite_numeric_success(
+                unary->op == ir::UnaryOperator::plus ? *number : -*number,
+                node->span);
         }
         if (const auto* binary = node->as<ir::BinaryOpNode>()) {
             auto left = evaluate_node(binary->left);
@@ -215,9 +289,20 @@ private:
             case ir::BinaryOperator::power:
                 return evaluate_numeric_binary(binary.op, left, right, span);
             case ir::BinaryOperator::equal:
-                return make_success(Value(values_equal(left, right)));
-            case ir::BinaryOperator::not_equal:
-                return make_success(Value(!values_equal(left, right)));
+            case ir::BinaryOperator::not_equal: {
+                const auto equal = values_equal(left, right);
+                if (equal.kind == EqualityResultKind::non_finite_numeric_input) {
+                    return make_non_finite_input_error(span);
+                }
+                if (equal.kind == EqualityResultKind::incomparable_types) {
+                    return make_failure(
+                        "runtime.type_mismatch",
+                        "Equality comparisons require comparable value types.",
+                        span);
+                }
+                return make_success(Value(
+                    binary.op == ir::BinaryOperator::equal ? equal.value : !equal.value));
+            }
             case ir::BinaryOperator::less:
             case ir::BinaryOperator::less_equal:
             case ir::BinaryOperator::greater:
@@ -240,21 +325,30 @@ private:
                 "Arithmetic operators require numeric values.",
                 span);
         }
+        if (!is_finite_number(*left_number) || !is_finite_number(*right_number)) {
+            return make_non_finite_input_error(span);
+        }
 
         switch (op) {
             case ir::BinaryOperator::add:
-                return make_success(Value(*left_number + *right_number));
+                return make_finite_numeric_success(*left_number + *right_number, span);
             case ir::BinaryOperator::subtract:
-                return make_success(Value(*left_number - *right_number));
+                return make_finite_numeric_success(*left_number - *right_number, span);
             case ir::BinaryOperator::multiply:
-                return make_success(Value(*left_number * *right_number));
+                return make_finite_numeric_success(*left_number * *right_number, span);
             case ir::BinaryOperator::divide:
                 if (*right_number == 0.0) {
                     return make_failure("runtime.division_by_zero", "Division by zero is not allowed.", span);
                 }
-                return make_success(Value(*left_number / *right_number));
+                return make_finite_numeric_success(*left_number / *right_number, span);
             case ir::BinaryOperator::power:
-                return make_success(Value(std::pow(*left_number, *right_number)));
+                if (*left_number == 0.0 && *right_number == 0.0) {
+                    return make_invalid_power_domain_error(span);
+                }
+                if (*left_number < 0.0 && !is_integer_value(*right_number)) {
+                    return make_invalid_power_domain_error(span);
+                }
+                return make_finite_numeric_success(std::pow(*left_number, *right_number), span);
             default:
                 break;
         }
@@ -274,6 +368,9 @@ private:
                 "runtime.type_mismatch",
                 "Comparison operators currently require numeric values.",
                 span);
+        }
+        if (!is_finite_number(*left_number) || !is_finite_number(*right_number)) {
+            return make_non_finite_input_error(span);
         }
 
         switch (op) {
@@ -303,11 +400,112 @@ private:
             arguments.push_back(std::move(*argument.value));
         }
 
+        const auto host_function = context_.host_functions.find(call.callee);
+        if (host_function != context_.host_functions.end()) {
+            const auto& spec = host_function->second;
+            if (!spec.arity.allows(arguments.size())) {
+                return make_failure(
+                    "runtime.invalid_call",
+                    "Host function `" + call.callee + "` was called with an invalid arity.",
+                    span);
+            }
+
+            const std::size_t checked_parameters = std::min(spec.parameters.size(), arguments.size());
+            for (std::size_t index = 0; index < checked_parameters; ++index) {
+                if (!matches_value_type(arguments[index], spec.parameters[index].type)) {
+                    return make_failure(
+                        "runtime.invalid_argument_type",
+                        "Host function `" + call.callee + "` expects argument " +
+                            std::to_string(index + 1) + " to be `" +
+                            value_type_name(spec.parameters[index].type) + "`, but found `" +
+                            value_type_name(arguments[index]) + "`.",
+                        call.arguments[index] != nullptr ? call.arguments[index]->span : span);
+                }
+            }
+
+            auto callback_result = spec.callback(arguments);
+            if (callback_result.value.has_value() == callback_result.error.has_value()) {
+                return make_failure(
+                    "runtime.invalid_host_result",
+                    "Host function `" + call.callee + "` returned an invalid evaluation result.",
+                    span);
+            }
+            if (!callback_result.ok() && callback_result.error && !callback_result.error->span.has_value()) {
+                callback_result.error->span = span;
+            }
+            if (callback_result.ok() && spec.return_type.has_value() &&
+                !matches_value_type(*callback_result.value, *spec.return_type)) {
+                return make_failure(
+                    "runtime.invalid_host_result",
+                    "Host function `" + call.callee + "` declared return type `" +
+                        value_type_name(*spec.return_type) + "`, but returned `" +
+                        value_type_name(*callback_result.value) + "`.",
+                    span);
+            }
+            return callback_result;
+        }
+
         if (call.callee == "Abs") {
             if (arguments.size() != 1 || !arguments[0].is_number()) {
                 return make_failure("runtime.invalid_call", "Abs expects one numeric argument.", span);
             }
-            return make_success(Value(std::abs(*arguments[0].as_number())));
+            if (!is_finite_number(*arguments[0].as_number())) {
+                return make_non_finite_input_error(span);
+            }
+            return make_finite_numeric_success(std::abs(*arguments[0].as_number()), span);
+        }
+        if (call.callee == "Clamp") {
+            if (arguments.size() != 3 || !arguments[0].is_number() || !arguments[1].is_number() ||
+                !arguments[2].is_number()) {
+                return make_failure(
+                    "runtime.invalid_call",
+                    "Clamp expects three numeric arguments.",
+                    span);
+            }
+
+            const double value = *arguments[0].as_number();
+            const double low = *arguments[1].as_number();
+            const double high = *arguments[2].as_number();
+            if (!is_finite_number(value) || !is_finite_number(low) || !is_finite_number(high)) {
+                return make_non_finite_input_error(span);
+            }
+            if (low > high) {
+                return make_invalid_numeric_domain_error(
+                    "Clamp",
+                    "requires the lower bound to be less than or equal to the upper bound.",
+                    span);
+            }
+            return make_finite_numeric_success(std::clamp(value, low, high), span);
+        }
+        if (call.callee == "Floor" || call.callee == "Ceil" || call.callee == "Ceiling" ||
+            call.callee == "Round" || call.callee == "Sqrt") {
+            if (arguments.size() != 1 || !arguments[0].is_number()) {
+                return make_failure(
+                    "runtime.invalid_call",
+                    call.callee + " expects one numeric argument.",
+                    span);
+            }
+
+            const double value = *arguments[0].as_number();
+            if (!is_finite_number(value)) {
+                return make_non_finite_input_error(span);
+            }
+            if (call.callee == "Floor") {
+                return make_finite_numeric_success(std::floor(value), span);
+            }
+            if (call.callee == "Ceil" || call.callee == "Ceiling") {
+                return make_finite_numeric_success(std::ceil(value), span);
+            }
+            if (call.callee == "Round") {
+                return make_finite_numeric_success(std::round(value), span);
+            }
+            if (value < 0.0) {
+                return make_invalid_numeric_domain_error(
+                    "Sqrt",
+                    "is undefined for negative inputs.",
+                    span);
+            }
+            return make_finite_numeric_success(std::sqrt(value), span);
         }
         if (call.callee == "Min" || call.callee == "Max") {
             if (arguments.empty()) {
@@ -320,6 +518,9 @@ private:
                 if (number == nullptr) {
                     return make_failure("runtime.invalid_call", call.callee + " expects numeric arguments.", span);
                 }
+                if (!is_finite_number(*number)) {
+                    return make_non_finite_input_error(span);
+                }
                 if (first) {
                     result = *number;
                     first = false;
@@ -329,58 +530,13 @@ private:
                     result = std::max(result, *number);
                 }
             }
-            return make_success(Value(result));
+            return make_finite_numeric_success(result, span);
         }
 
-        const auto host_function = context_.host_functions.find(call.callee);
-        if (host_function == context_.host_functions.end()) {
-            return make_failure(
-                "runtime.unknown_function",
-                "No runtime function implementation is registered for `" + call.callee + "`.",
-                span);
-        }
-
-        const auto& spec = host_function->second;
-        if (!spec.arity.allows(arguments.size())) {
-            return make_failure(
-                "runtime.invalid_call",
-                "Host function `" + call.callee + "` was called with an invalid arity.",
-                span);
-        }
-
-        const std::size_t checked_parameters = std::min(spec.parameters.size(), arguments.size());
-        for (std::size_t index = 0; index < checked_parameters; ++index) {
-            if (!matches_value_type(arguments[index], spec.parameters[index].type)) {
-                return make_failure(
-                    "runtime.invalid_argument_type",
-                    "Host function `" + call.callee + "` expects argument " +
-                        std::to_string(index + 1) + " to be `" +
-                        value_type_name(spec.parameters[index].type) + "`, but found `" +
-                        value_type_name(arguments[index]) + "`.",
-                    call.arguments[index] != nullptr ? call.arguments[index]->span : span);
-            }
-        }
-
-        auto callback_result = spec.callback(arguments);
-        if (callback_result.value.has_value() == callback_result.error.has_value()) {
-            return make_failure(
-                "runtime.invalid_host_result",
-                "Host function `" + call.callee + "` returned an invalid evaluation result.",
-                span);
-        }
-        if (!callback_result.ok() && callback_result.error && !callback_result.error->span.has_value()) {
-            callback_result.error->span = span;
-        }
-        if (callback_result.ok() && spec.return_type.has_value() &&
-            !matches_value_type(*callback_result.value, *spec.return_type)) {
-            return make_failure(
-                "runtime.invalid_host_result",
-                "Host function `" + call.callee + "` declared return type `" +
-                    value_type_name(*spec.return_type) + "`, but returned `" +
-                    value_type_name(*callback_result.value) + "`.",
-                span);
-        }
-        return callback_result;
+        return make_failure(
+            "runtime.unknown_function",
+            "No runtime function implementation is registered for `" + call.callee + "`.",
+            span);
     }
 
     EvaluationContext context_;

@@ -17,7 +17,7 @@ flowchart TD
 - `tests/sdk/EngineTests.cpp`
   Confirms the SDK facade links, validates formulas, compiles reusable formula handles, and returns structured errors.
 - `tests/sdk/TypesTests.cpp`
-  Verifies stable public value, schema, and policy behavior.
+  Verifies stable public value, schema constant/value behavior, and policy behavior.
 - `tests/frontend/LexerTests.cpp`
   Verifies tokenization, spans, and lexer diagnostics.
 - `tests/frontend/ParserTests.cpp`
@@ -25,7 +25,7 @@ flowchart TD
 - `tests/ir/NodeTests.cpp`
   Verifies the trusted-subset IR shape and construction helpers.
 - `tests/semantics/ValidatorTests.cpp`
-  Verifies unknown-symbol, arity, feature-gate, structural-limit, branch-compatibility, and composed-type checks.
+  Verifies unknown-symbol, arity, feature-gate, structural-limit, constant-condition branch pruning, schema-valued constant reasoning, constant runtime-trap detection, branch-compatibility, and composed-type checks.
 - `tests/runtime/EvaluatorTests.cpp`
   Verifies arithmetic, comparisons, conditionals, bindings, host function contracts, and runtime failures.
 
@@ -39,8 +39,8 @@ flowchart TD
 
 1. Blank or malformed source must produce structured diagnostics.
 2. Unsupported syntax must fail intentionally rather than degrade into symbolic fallback.
-3. Schema checks for variable and function allowlists must be deterministic.
-4. Obvious type errors and incompatible `If` result shapes should fail during validation instead of waiting for runtime.
+3. Schema checks for variable/function allowlists and schema-valued constants must be deterministic.
+4. Obvious type errors, incompatible `If` result shapes, and constant runtime traps should fail during validation instead of waiting for runtime.
 5. Compiled formulas must be reusable opaque handles rather than reparsed SDK state.
 6. Engine-scoped function registration must avoid global mutable behavior.
 7. Evaluation budgets must fail with structured runtime errors.

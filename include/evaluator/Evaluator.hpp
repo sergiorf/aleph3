@@ -16,36 +16,25 @@
 #pragma once
 
 #include "expr/Expr.hpp"
+#include "evaluator/EvaluatorAlgebra.hpp"
+#include "evaluator/EvaluatorBuiltins.hpp"
 #include "evaluator/EvaluationContext.hpp"
+#include "evaluator/EvaluatorSpecialForms.hpp"
 #include "evaluator/FunctionRegistry.hpp"
 #include "evaluator/SimplificationRules.hpp"
 #include "normalizer/Normalizer.hpp"
 #include "util/Overloaded.hpp"
+#include "util/Logging.hpp"
 #include "expr/ExprUtils.hpp"
 #include "transforms/Transforms.hpp"
 #include "ExtraMath.hpp"
-#include "Constants.hpp"
-#include "util/Logging.hpp"
-
-#include <stdexcept>
-#include <cmath>
-#include <unordered_map>
-#include <functional>
 #include <algorithm>
+#include <stdexcept>
 #include <unordered_set>
 
 namespace aleph3 {
 
 ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx);
-
-ExprPtr evaluate_polynomial_function(const FunctionCall& func, EvaluationContext& ctx);
-
-inline bool is_polynomial_function(const std::string& name) {
-    static const std::unordered_set<std::string> poly_functions = {
-        "Expand", "Factor", "Collect", "GCD", "PolynomialQuotient"
-    };
-    return poly_functions.count(name) > 0;
-}
 
 inline std::string expr_to_key(const ExprPtr& expr) {
     auto norm = normalize_expr(expr);
@@ -56,7 +45,6 @@ inline std::string expr_to_key(const ExprPtr& expr) {
 
 inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
     const std::string& name = func.head;
-    size_t nargs = func.args.size();
 
     // 1. Try FunctionRegistry (for extensible built-ins)
     auto& registry = FunctionRegistry::instance();
@@ -66,457 +54,15 @@ inline ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ct
     }
 
     // 2. Special forms
-    if (name == "If") {
-        if (nargs != 3) throw std::runtime_error("If expects exactly 3 arguments");
-        auto condition = evaluate(func.args[0], ctx);
-        if (std::holds_alternative<Boolean>(*condition)) {
-            bool cond = std::get<Boolean>(*condition).value;
-            return cond ? evaluate(func.args[1], ctx) : evaluate(func.args[2], ctx);
-        }
-        return make_expr<FunctionCall>(name, func.args);
+    if (is_special_form_function(name)) {
+        return evaluate_special_form(func, ctx);
     }
-    if (name == "Expand") {
-        if (nargs != 1) throw std::runtime_error("Expand expects exactly one argument");
-        auto arg = evaluate(func.args[0], ctx);
-        return expand(arg);
-    }
-    if (name == "Negate") {
-        if (nargs != 1) throw std::runtime_error("Negate expects exactly 1 argument");
-        auto arg = evaluate(func.args[0], ctx);
-        if (std::holds_alternative<Number>(*arg)) {
-            return make_expr<Number>(-get_number_value(arg));
-        }
-        // If arg is Complex, negate both real and imaginary parts
-        if (std::holds_alternative<Complex>(*arg)) {
-            const auto& c = std::get<Complex>(*arg);
-            return make_expr<Complex>(-c.real, -c.imag);
-        }
-        // If arg is already Times(-1, ...), flatten
-        if (auto inner = std::get_if<FunctionCall>(arg.get())) {
-            if (inner->head == "Times" && !inner->args.empty()) {
-                if (auto n = std::get_if<Number>(inner->args[0].get()); n && n->value == -1) {
-                    // Already normalized
-                    return arg;
-                }
-            }
-        }
-        // Otherwise, return Times(-1, arg)
-        return make_fcall("Times", { make_expr<Number>(-1), arg });
+    // 3. Built-ins
+    if (auto builtin_result = evaluate_builtin_function(func, ctx)) {
+        return builtin_result;
     }
 
-    // 3. Built-in function maps
-    static const std::unordered_map<std::string, std::function<double(double)>> unary_functions = {
-        {"Sin",   [](double x) { return std::sin(x); }},
-        {"Cos",   [](double x) { return std::cos(x); }},
-        {"Tan",   [](double x) { return std::tan(x); }},
-        {"Csc",   [](double x) { return csc(x); }},
-        {"Sec",   [](double x) { return sec(x); }},
-        {"Sinh",  [](double x) { return std::sinh(x); }},
-        {"Cosh",  [](double x) { return std::cosh(x); }},
-        {"Tanh",  [](double x) { return std::tanh(x); }},
-        {"Coth",  [](double x) { return coth(x); }},
-        {"Sech",  [](double x) { return sech(x); }},
-        {"Csch",  [](double x) { return csch(x); }},
-        {"Cot",   [](double x) { return cot(x); }},
-        {"Abs",   [](double x) { return std::fabs(x); }},
-        {"Sqrt",  [](double x) { return std::sqrt(x); }},
-        {"Exp",   [](double x) { return std::exp(x); }},
-        {"Log",   [](double x) { return std::log(x); }},
-        {"Floor", [](double x) { return std::floor(x); }},
-        {"Ceiling",[](double x) { return std::ceil(x); }},
-        {"Round", [](double x) { return std::round(x); }},
-        {"ArcSin",[](double x) { return std::asin(x); }},
-        {"ArcCos",[](double x) { return std::acos(x); }},
-        {"ArcTan",[](double x) { return std::atan(x); }},
-        {"Gamma", [](double x) { return std::tgamma(x); }}
-    };
-    static const std::unordered_map<std::string, std::function<double(double, double)>> binary_functions = {
-        {"Plus",   [](double a, double b) { return a + b; }},
-        {"Minus",  [](double a, double b) { return a - b; }},
-        {"Times",  [](double a, double b) { return a * b; }},
-        {"Divide", [](double a, double b) { return a / b; }},
-        {"Power",  [](double a, double b) { return std::pow(a, b); }},
-        {"Log",    [](double b, double x) { return std::log(x) / std::log(b); }},
-        {"ArcTan", [](double x, double y) { return std::atan2(y, x); }}
-    };
-    static const std::unordered_map<std::string, std::function<bool(double, double)>> comparison_functions = {
-        {"Equal",         [](double a, double b) { return a == b; }},
-        {"NotEqual",      [](double a, double b) { return a != b; }},
-        {"Less",          [](double a, double b) { return a < b; }},
-        {"Greater",       [](double a, double b) { return a > b; }},
-        {"LessEqual",     [](double a, double b) { return a <= b; }},
-        {"GreaterEqual",  [](double a, double b) { return a >= b; }}
-    };
-
-    static const std::unordered_map<std::string, std::unordered_map<std::string, ExprPtr>> known_symbolic_unary = {
-        {"Sin", {
-            {"0", make_expr<Number>(0.0)},
-            {"Pi", make_expr<Number>(0.0)},
-            {"2*Pi", make_expr<Number>(0.0)},
-            {"-1*Pi", make_expr<Number>(0.0)},
-            {"Pi/2", make_expr<Number>(1.0)},
-            {"-1*Pi/2", make_expr<Number>(-1.0)},
-            {"Pi/4", make_expr<Number>(std::sqrt(2.0) / 2.0)},
-            {"-1*Pi/4", make_expr<Number>(-std::sqrt(2.0) / 2.0)},
-            {"3*Pi/2", make_expr<Number>(-1.0)},
-            {"-1*3*Pi/2", make_expr<Number>(1.0)}
-        }},
-        {"Cos", {
-            {"0", make_expr<Number>(1.0)},
-            {"Pi", make_expr<Number>(-1.0)},
-            {"2*Pi", make_expr<Number>(1.0)},
-            {"-1*Pi", make_expr<Number>(-1.0)},
-            {"Pi/2", make_expr<Number>(0.0)},
-            {"-1*Pi/2", make_expr<Number>(0.0)},
-            {"Pi/4", make_expr<Number>(std::sqrt(2.0) / 2.0)},
-            {"-1*Pi/4", make_expr<Number>(std::sqrt(2.0) / 2.0)},
-            {"3*Pi/2", make_expr<Number>(0.0)},
-            {"-1*3*Pi/2", make_expr<Number>(0.0)}
-        }},
-        {"Tan", {
-            {"0", make_expr<Number>(0.0)},
-            {"Pi", make_expr<Number>(0.0)},
-            {"2*Pi", make_expr<Number>(0.0)},
-            {"-1*Pi", make_expr<Number>(0.0)},
-            {"Pi/4", make_expr<Number>(1.0)},
-            {"-1*Pi/4", make_expr<Number>(-1.0)},
-            {"Pi/6", make_expr<Number>(std::tan(PI / 6))},
-            {"-1*Pi/6", make_expr<Number>(std::tan(-PI / 6))},
-            {"Pi/3", make_expr<Number>(std::tan(PI / 3))},
-            {"-1*Pi/3", make_expr<Number>(std::tan(-PI / 3))}
-        }},
-        {"Sinc", {
-            {"0", make_expr<Number>(1.0)},
-            {"Pi", make_expr<Number>(std::sin(PI) / PI)},
-            {"-1*Pi", make_expr<Number>(std::sin(-PI) / -PI)},
-            {"2*Pi", make_expr<Number>(std::sin(2 * PI) / (2 * PI))},
-            {"-1*2*Pi", make_expr<Number>(std::sin(-2 * PI) / (-2 * PI))}
-        }},
-        {"Cot", {
-            {"0", make_expr<Infinity>()},
-            {"Pi/4", make_expr<Number>(1.0)},
-            {"-1*Pi/4", make_expr<Number>(-1.0)},
-            {"Pi/2", make_expr<Number>(0.0)},
-            {"-1*Pi/2", make_expr<Number>(0.0)},
-            {"Pi", make_expr<Infinity>()},
-            {"-1*Pi", make_expr<Infinity>()}
-        }},
-        {"Csc", {
-            {"0", make_expr<Infinity>()},
-            {"Pi/2", make_expr<Number>(1.0)},
-            {"-1*Pi/2", make_expr<Number>(-1.0)},
-            {"Pi", make_expr<Infinity>()},
-            {"-1*Pi", make_expr<Infinity>()},
-            {"Pi/6", make_expr<Number>(2.0)},
-            {"-1*Pi/6", make_expr<Number>(-2.0)}
-        }}
-    };
-
-    static const std::unordered_map<std::string, std::function<bool(double)>> unary_real_domains = {
-        // Inverse trig
-        {"ArcSin", [](double x) { return x >= -1.0 && x <= 1.0; }},
-        {"ArcCos", [](double x) { return x >= -1.0 && x <= 1.0; }},
-        {"ArcTan", [](double) { return true; }},
-
-        // Logarithm
-        {"Log",    [](double x) { return x > 0.0; }},
-        {"Ln",     [](double x) { return x > 0.0; }},
-
-        // Square root and roots
-        {"Sqrt",   [](double x) { return x >= 0.0; }},
-        {"Root",   [](double x) { return x >= 0.0; }}, // for even roots
-
-        // Reciprocal trig
-        {"ArcSec", [](double x) { return std::abs(x) >= 1.0; }},
-        {"ArcCsc", [](double x) { return std::abs(x) >= 1.0; }},
-        {"ArcCot", [](double) { return true; }},
-
-        // Factorial/Gamma
-        {"Gamma",  [](double x) { return x > 0.0; }}, // real-valued for x > 0
-    };
-
-    static const std::unordered_map<std::string, std::string> inverse_unary_pairs = {
-        {"Sin", "ArcSin"},
-        {"Cos", "ArcCos"},
-        {"Tan", "ArcTan"},
-        {"Exp", "Log"},
-        {"Log", "Exp"},
-        {"Abs", "Abs"},
-        {"ArcSin", "Sin"},
-        {"ArcCos", "Cos"},
-        {"ArcTan", "Tan"}
-    };
-
-    // 4. Elementwise/broadcasted binary operations
-    auto elementwise = [&ctx](const std::string& op, const ExprPtr& a, const ExprPtr& b) -> ExprPtr {
-        if (std::holds_alternative<List>(*a) && std::holds_alternative<List>(*b)) {
-            const auto& l1 = std::get<List>(*a).elements;
-            const auto& l2 = std::get<List>(*b).elements;
-            if (l1.size() != l2.size())
-                throw std::runtime_error("List sizes must match for elementwise operation");
-            std::vector<ExprPtr> result;
-            for (size_t i = 0; i < l1.size(); ++i) {
-                result.push_back(evaluate(make_fcall(op, { l1[i], l2[i] }), ctx));
-            }
-            return std::make_shared<Expr>(List{ result });
-        }
-        if (std::holds_alternative<List>(*a)) {
-            const auto& l1 = std::get<List>(*a).elements;
-            std::vector<ExprPtr> result;
-            for (const auto& elem : l1) {
-                result.push_back(evaluate(make_fcall(op, { elem, b }), ctx));
-            }
-            return std::make_shared<Expr>(List{ result });
-        }
-        if (std::holds_alternative<List>(*b)) {
-            const auto& l2 = std::get<List>(*b).elements;
-            std::vector<ExprPtr> result;
-            for (const auto& elem : l2) {
-                result.push_back(evaluate(make_fcall(op, { a, elem }), ctx));
-            }
-            return std::make_shared<Expr>(List{ result });
-        }
-        return nullptr;
-        };
-
-    // 5. Built-in unary
-    if (nargs == 1) {
-        auto it = unary_functions.find(name);
-        if (it != unary_functions.end()) {
-            auto arg_eval = evaluate(func.args[0], ctx);
-
-            // 5.1 Inverse function simplification (table-driven)
-            auto inv_it = inverse_unary_pairs.find(name);
-            if (inv_it != inverse_unary_pairs.end()) {
-                auto* inner_call = std::get_if<FunctionCall>(arg_eval.get());
-                if (inner_call && inner_call->head == inv_it->second && inner_call->args.size() == 1) {
-                    return evaluate(inner_call->args[0], ctx);
-                }
-            }
-
-            // 5.2 Check for known symbolic values
-            auto known_func = known_symbolic_unary.find(name);
-            if (known_func != known_symbolic_unary.end()) {
-                std::string key = expr_to_key(arg_eval);
-                auto val_it = known_func->second.find(key);
-                if (val_it != known_func->second.end()) {
-                    return val_it->second;
-                }
-            }
-
-            // 5.3 If argument is a known constant symbol, convert to number for numeric evaluation
-            if (std::holds_alternative<Symbol>(*arg_eval)) {
-                const auto& sym = std::get<Symbol>(*arg_eval);
-                if (sym.name == "E") arg_eval = make_expr<Number>(E);
-                else if (sym.name == "Pi") arg_eval = make_expr<Number>(PI);
-                else if (sym.name == "Degree") arg_eval = make_expr<Number>(PI / 180.0);
-            }
-
-            // 5.4 Numeric evaluation if argument is now a number
-            if (std::holds_alternative<Number>(*arg_eval)) {
-                double arg = get_number_value(arg_eval);
-                auto domain_it = unary_real_domains.find(name);
-                if (domain_it != unary_real_domains.end() && !domain_it->second(arg)) {
-                    // Out of domain, return symbolic
-                    return make_fcall(name, { arg_eval });
-                }
-                return make_expr<Number>(it->second(arg));
-            }
-
-            // 5.5 Fallback: symbolic
-            return make_fcall(name, { arg_eval });
-        }
-    }
-
-    // 6. Built-in binary (with elementwise support)
-    if (nargs == 2) {
-        auto it = binary_functions.find(name);
-        if (it != binary_functions.end()) {
-            auto left = evaluate(func.args[0], ctx);
-            auto right = evaluate(func.args[1], ctx);
-            if (auto ew = elementwise(name, left, right)) return ew;
-            // Complex ops
-            if ((name == "Plus" || name == "Minus") &&
-                std::holds_alternative<Number>(*left)) {
-                double real = std::get<Number>(*left).value;
-                int sign = (name == "Plus") ? 1 : -1;
-                if (auto* times = std::get_if<FunctionCall>(right.get())) {
-                    if (times->head == "Times" && times->args.size() == 2) {
-                        if (std::holds_alternative<Number>(*times->args[0]) &&
-                            std::holds_alternative<Complex>(*times->args[1])) {
-                            double imag = std::get<Number>(*times->args[0]).value;
-                            const auto& c = std::get<Complex>(*times->args[1]);
-                            if (c.real == 0.0 && c.imag == 1.0) {
-                                return make_expr<Complex>(real, sign * imag);
-                            }
-                        }
-                    }
-                }
-            }
-            // Complex + Complex
-            if (name == "Plus" &&
-                std::holds_alternative<Complex>(*left) &&
-                std::holds_alternative<Complex>(*right)) {
-                const auto& a = std::get<Complex>(*left);
-                const auto& b = std::get<Complex>(*right);
-                return make_expr<Complex>(a.real + b.real, a.imag + b.imag);
-            }
-            // Complex * Complex
-            if (name == "Times" &&
-                std::holds_alternative<Complex>(*left) &&
-                std::holds_alternative<Complex>(*right)) {
-                const auto& a = std::get<Complex>(*left);
-                const auto& b = std::get<Complex>(*right);
-                double real = a.real * b.real - a.imag * b.imag;
-                double imag = a.real * b.imag + a.imag * b.real;
-                return make_expr<Complex>(real, imag);
-            }
-            // Complex + Number or Number + Complex
-            if (name == "Plus") {
-                if (std::holds_alternative<Complex>(*left) && std::holds_alternative<Number>(*right)) {
-                    const auto& c = std::get<Complex>(*left);
-                    double n = std::get<Number>(*right).value;
-                    return make_expr<Complex>(c.real + n, c.imag);
-                }
-                if (std::holds_alternative<Number>(*left) && std::holds_alternative<Complex>(*right)) {
-                    double n = std::get<Number>(*left).value;
-                    const auto& c = std::get<Complex>(*right);
-                    return make_expr<Complex>(n + c.real, c.imag);
-                }
-            }
-
-            // Complex * Number or Number * Complex
-            if (name == "Times") {
-                if (std::holds_alternative<Complex>(*left) && std::holds_alternative<Number>(*right)) {
-                    const auto& c = std::get<Complex>(*left);
-                    double n = std::get<Number>(*right).value;
-                    return make_expr<Complex>(c.real * n, c.imag * n);
-                }
-                if (std::holds_alternative<Number>(*left) && std::holds_alternative<Complex>(*right)) {
-                    double n = std::get<Number>(*left).value;
-                    const auto& c = std::get<Complex>(*right);
-                    return make_expr<Complex>(n * c.real, n * c.imag);
-                }
-            }
-            // Rational op Rational
-            if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Rational>(*right)) {
-                const auto& a = std::get<Rational>(*left);
-                const auto& b = std::get<Rational>(*right);
-                if (name == "Plus") {
-                    auto [n, d] = normalize_rational(a.numerator * b.denominator + b.numerator * a.denominator,
-                        a.denominator * b.denominator);
-                    return make_expr<Rational>(n, d);
-                }
-                if (name == "Minus") {
-                    auto [n, d] = normalize_rational(a.numerator * b.denominator - b.numerator * a.denominator,
-                        a.denominator * b.denominator);
-                    return make_expr<Rational>(n, d);
-                }
-                if (name == "Times") {
-                    auto [n, d] = normalize_rational(a.numerator * b.numerator, a.denominator * b.denominator);
-                    return make_expr<Rational>(n, d);
-                }
-                if (name == "Divide") {
-                    if (b.numerator == 0) throw std::runtime_error("Division by zero");
-                    auto [n, d] = normalize_rational(a.numerator * b.denominator, a.denominator * b.numerator);
-                    return make_expr<Rational>(n, d);
-                }
-            }
-            // Rational op Number
-            if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Number>(*right)) {
-                const auto& a = std::get<Rational>(*left);
-                double b = std::get<Number>(*right).value;
-                if (std::floor(b) == b) {
-                    auto b_rat = Rational(static_cast<int64_t>(b), 1);
-                    return evaluate(make_fcall(name, { left, make_expr<Rational>(b_rat.numerator, b_rat.denominator) }), ctx);
-                }
-                else {
-                    double a_val = static_cast<double>(a.numerator) / a.denominator;
-                    return make_expr<Number>(it->second(a_val, b));
-                }
-            }
-            // Number op Rational
-            if (std::holds_alternative<Number>(*left) && std::holds_alternative<Rational>(*right)) {
-                double a = std::get<Number>(*left).value;
-                const auto& b = std::get<Rational>(*right);
-                if (std::floor(a) == a) {
-                    auto a_rat = Rational(static_cast<int64_t>(a), 1);
-                    return evaluate(make_fcall(name, { make_expr<Rational>(a_rat.numerator, a_rat.denominator), right }), ctx);
-                }
-                else {
-                    double b_val = static_cast<double>(b.numerator) / b.denominator;
-                    return make_expr<Number>(it->second(a, b_val));
-                }
-            }
-            if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
-                double a = get_number_value(left);
-                double b = get_number_value(right);
-                return make_expr<Number>(it->second(a, b));
-            }
-            // If we reach here, try the simplification rule for this operation
-            auto simp_it = simplification_rules.find(name);
-            if (simp_it != simplification_rules.end()) {
-                return simp_it->second({left, right}, ctx, evaluate);
-            }
-            ALEPH3_LOG("No numeric/special case for " << name << " with args: "
-                << to_string_raw(left) << ", " << to_string_raw(right)
-                << " (types: "
-                << left->index() << ", " << right->index() << ")");
-            return make_fcall(name, { left, right });
-        }
-        // Comparison functions
-        auto cmp = comparison_functions.find(name);
-        if (cmp != comparison_functions.end()) {
-            auto left = evaluate(func.args[0], ctx);
-            auto right = evaluate(func.args[1], ctx);
-            if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
-                double arg1 = get_number_value(left);
-                double arg2 = get_number_value(right);
-                return make_expr<Boolean>(cmp->second(arg1, arg2));
-            }
-            // Rational op Rational
-            if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Rational>(*right)) {
-                const auto& a = std::get<Rational>(*left);
-                const auto& b = std::get<Rational>(*right);
-                if (name == "Equal")
-                    return make_expr<Boolean>(a.numerator == b.numerator && a.denominator == b.denominator);
-                if (name == "NotEqual")
-                    return make_expr<Boolean>(a.numerator != b.numerator || a.denominator != b.denominator);
-                if (name == "Less")
-                    return make_expr<Boolean>(a.numerator * b.denominator < b.numerator * a.denominator);
-                if (name == "Greater")
-                    return make_expr<Boolean>(a.numerator * b.denominator > b.numerator * a.denominator);
-                if (name == "LessEqual")
-                    return make_expr<Boolean>(a.numerator * b.denominator <= b.numerator * a.denominator);
-                if (name == "GreaterEqual")
-                    return make_expr<Boolean>(a.numerator * b.denominator >= b.numerator * a.denominator);
-            }
-            // Rational op Number
-            if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Number>(*right)) {
-                const auto& a = std::get<Rational>(*left);
-                double b = std::get<Number>(*right).value;
-                double a_val = static_cast<double>(a.numerator) / a.denominator;
-                return make_expr<Boolean>(cmp->second(a_val, b));
-            }
-            // Number op Rational
-            if (std::holds_alternative<Number>(*left) && std::holds_alternative<Rational>(*right)) {
-                double a = std::get<Number>(*left).value;
-                const auto& b = std::get<Rational>(*right);
-                double b_val = static_cast<double>(b.numerator) / b.denominator;
-                return make_expr<Boolean>(cmp->second(a, b_val));
-            }
-            // Return unevaluated symbolic comparison if not both numbers
-            return make_fcall(name, { left, right });
-        }
-    }
-
-    // 7. Centralized simplification for known functions
-    auto simp_it = simplification_rules.find(name);
-    if (simp_it != simplification_rules.end()) {
-        return simp_it->second(func.args, ctx, evaluate);
-    }
-
-    // 8. User-defined functions
+    // 4. User-defined functions
     auto user_it = ctx.user_functions.find(name);
     if (user_it != ctx.user_functions.end()) {
         const FunctionDefinition& def = user_it->second;
@@ -590,8 +136,8 @@ inline ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx, std::unorde
             return result;
         },
         [&ctx](const FunctionCall& func) -> ExprPtr {
-            if (is_polynomial_function(func.head)) {
-                return evaluate_polynomial_function(func, ctx);
+            if (is_symbolic_algebra_function(func.head)) {
+                return evaluate_algebra_function(func, ctx);
             }
             // Special case: List
             if (func.head == "List") {

@@ -13,6 +13,20 @@ The objective is to take the current evaluator path and make it:
 - easier to test
 - ready for new symbolic capabilities such as differentiation
 
+## Status
+
+Completed:
+
+- Phase 0. Freeze The Current Contract
+- Phase 1. Add Evaluator Contract Tests
+- Phase 2. Extract Algebra Dispatch
+- Phase 3. Extract Special Forms
+- Phase 4. Extract Built-In Dispatch
+
+Next:
+
+- Phase 5. Extract User-Defined Function Dispatch
+
 The main debt today is concentrated in:
 
 - [include/evaluator/Evaluator.hpp](/home/sergio/dev/aleph3/include/evaluator/Evaluator.hpp)

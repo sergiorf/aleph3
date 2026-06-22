@@ -24,10 +24,81 @@
 
 namespace {
 
+enum class ReplMode {
+    sdk,
+    symbolic
+};
+
 using aleph3::Diagnostic;
 using aleph3::SourceSpan;
 using aleph3::frontend::Token;
 using aleph3::frontend::TokenKind;
+
+struct CliPalette {
+    bool color_stdout = false;
+    bool color_stderr = false;
+    std::string accent;
+    std::string accent_soft;
+    std::string highlight;
+    std::string success;
+    std::string warning;
+    std::string error;
+    std::string dim;
+    std::string reset;
+};
+
+const CliPalette& cli_palette() {
+    static const CliPalette palette = [] {
+        CliPalette value;
+#if !defined(_WIN32)
+        value.color_stdout = ::isatty(STDOUT_FILENO) != 0;
+        value.color_stderr = ::isatty(STDERR_FILENO) != 0;
+#endif
+        if (value.color_stdout || value.color_stderr) {
+            value.accent = "\033[38;5;45m";
+            value.accent_soft = "\033[38;5;81m";
+            value.highlight = "\033[1;38;5;223m";
+            value.success = "\033[38;5;84m";
+            value.warning = "\033[38;5;215m";
+            value.error = "\033[38;5;203m";
+            value.dim = "\033[38;5;244m";
+            value.reset = "\033[0m";
+        }
+        return value;
+    }();
+    return palette;
+}
+
+std::string style_stdout(std::string_view text, const std::string& color) {
+    const auto& palette = cli_palette();
+    if (!palette.color_stdout || color.empty()) {
+        return std::string(text);
+    }
+    return color + std::string(text) + palette.reset;
+}
+
+std::string style_stderr(std::string_view text, const std::string& color) {
+    const auto& palette = cli_palette();
+    if (!palette.color_stderr || color.empty()) {
+        return std::string(text);
+    }
+    return color + std::string(text) + palette.reset;
+}
+
+void print_cli_logo(bool compact = false) {
+    const auto& palette = cli_palette();
+    const auto title = style_stdout("ℵ3 aleph3", palette.highlight);
+
+    if (compact) {
+        std::cout << title << ' ' << style_stdout("symbolic sdk + math core", palette.dim) << "\n\n";
+        return;
+    }
+
+    std::cout
+        << "              " << style_stdout("ℵ", palette.accent) << '\n'
+        << "           " << style_stdout("aleph-three", palette.accent_soft) << '\n'
+        << "  " << title << "  " << style_stdout("symbolic sdk + embeddable math engine", palette.dim) << "\n\n";
+}
 
 std::string span_to_string(const SourceSpan& span) {
     std::ostringstream out;
@@ -156,9 +227,9 @@ void print_ir(const aleph3::ir::NodePtr& node, int depth = 0) {
 }
 
 void print_usage() {
+    print_cli_logo(true);
     std::cout
-        << "aleph3 CLI\n"
-        << "usage:\n"
+        << style_stdout("Usage", cli_palette().accent) << '\n'
         << "  aleph3_cli help\n"
         << "  aleph3_cli examples\n"
         << "  aleph3_cli repl\n"
@@ -175,6 +246,8 @@ void print_usage() {
         << "  aleph3_cli symbolic-simplify <expr>\n"
         << "  aleph3_cli symbolic-fullform <expr>\n";
 #endif
+    std::cout << '\n'
+              << style_stdout("Tip", cli_palette().highlight) << ": run `aleph3_cli help` for the full command guide.\n";
 }
 
 std::string join_formula_args(int argc, char** argv, int start_index) {
@@ -189,10 +262,9 @@ std::string join_formula_args(int argc, char** argv, int start_index) {
 }
 
 void print_help() {
+    print_cli_logo();
     std::cout
-        << "Aleph3 CLI help\n"
-        << "\n"
-        << "Commands:\n"
+        << style_stdout("Commands", cli_palette().accent) << '\n'
         << "  help                 Show this help text\n"
         << "  examples             Show example formulas and commands\n"
         << "  repl                 Start an interactive prompt\n"
@@ -214,7 +286,7 @@ void print_help() {
         << "                       Print the symbolic expression in FullForm\n"
 #endif
         << "\n"
-        << "Notes:\n"
+        << style_stdout("Notes", cli_palette().accent) << '\n'
         << "  validate is live, but with the default empty schema it will reject\n"
         << "  unknown variables and functions.\n"
         << "  evaluate automatically allows variables passed through --var.\n"
@@ -226,14 +298,23 @@ void print_help() {
         << "  Factor currently supports common-content extraction and integer-coefficient\n"
         << "  univariate rational-root factorization in the supported subset.\n"
 #endif
+        << "  In the REPL, bare input evaluates as an expression.\n"
+        << "  Prefix shell/meta commands with `:` such as `:help`, `:parse`, or `:quit`.\n"
+        << "  Use `:mode` to inspect the active evaluator, or `:mode symbolic` / `:mode sdk`\n"
+        << "  to switch the bare-expression backend.\n"
         << "  In the REPL on Unix-like terminals, up/down arrows walk command history,\n"
-        << "  left/right arrows move the cursor, and Tab completes command names.\n";
+        << "  left/right arrows move the cursor, and Tab completes command names.\n"
+        << "\n"
+        << style_stdout("Quick Start", cli_palette().accent) << '\n'
+        << "  aleph3_cli repl\n"
+        << "  aleph3_cli symbolic-evaluate \"Factor[x^2 - 1]\"\n"
+        << "  aleph3_cli evaluate-host --var x=12 \"Clamp[x, 0, 10]\"\n";
 }
 
 void print_host_functions() {
+    print_cli_logo(true);
     std::cout
-        << "Demo Host Functions\n"
-        << "\n"
+        << style_stdout("Demo Host Functions", cli_palette().accent) << '\n'
         << "These are registered by `evaluate-host` and by the SDK example.\n"
         << '\n';
 
@@ -248,10 +329,11 @@ void print_host_functions() {
 }
 
 void print_examples() {
+    print_cli_logo(true);
     std::cout
-        << "Examples\n"
+        << style_stdout("Examples", cli_palette().accent) << '\n'
         << "\n"
-        << "CLI overview\n"
+        << style_stdout("CLI overview", cli_palette().highlight) << '\n'
         << "  aleph3_cli help\n"
         << "  aleph3_cli host-functions\n"
         << "  aleph3_cli tokens \"If[x >= 1, \\\"ok\\\", False]\"\n"
@@ -268,7 +350,7 @@ void print_examples() {
         << "  aleph3_cli symbolic-evaluate \"PolynomialQuotient[x^2 - 1, x - 1, x]\"\n"
 #endif
         << "\n"
-        << "Host function examples\n";
+        << style_stdout("Host function examples", cli_palette().highlight) << '\n';
 
     for (const auto& function : aleph3::tooling::demo_host_function_docs()) {
         std::cout << "  " << function.cli_example << '\n';
@@ -276,44 +358,104 @@ void print_examples() {
 
     std::cout
         << "\n"
-        << "REPL examples\n"
-        << "  > help\n"
-        << "  > examples\n"
-        << "  > host-functions\n"
-        << "  > tokens If[x >= 1, \\\"ok\\\", False]\n"
-        << "  > parse 2 + 3 * (x + 1)\n"
-        << "  > validate 1 + 2\n"
-        << "  > validate If[True, 1, \"no\"]\n"
-        << "  > compile 1 + 2\n"
-        << "  > evaluate --var x=3 x + 1\n"
-        << "  > evaluate --var label=hello label + 1\n"
-        << "  > evaluate If[3 < 4, 10, 20]\n"
-        << "  > evaluate-host --var x=12 Clamp[x, 0, 10]\n"
-        << "  > evaluate-host --var x=4 ScaleAdd[x, 1.5, 2]\n"
-        << "  > evaluate-host --var flag=True PickLabel[flag, \"ok\", \"fail\"]\n"
-        << "  > quit\n";
+        << style_stdout("REPL examples", cli_palette().highlight) << '\n'
+        << "  > 1 + 1\n"
+        << "  > Factor[x^2 - 1]\n"
+        << "  > :mode\n"
+        << "  > :mode sdk\n"
+        << "  > :help\n"
+        << "  > :examples\n"
+        << "  > :host-functions\n"
+        << "  > :tokens If[x >= 1, \\\"ok\\\", False]\n"
+        << "  > :parse 2 + 3 * (x + 1)\n"
+        << "  > :validate 1 + 2\n"
+        << "  > :compile 1 + 2\n"
+        << "  > :evaluate --var x=3 x + 1\n"
+        << "  > :evaluate-host --var x=12 Clamp[x, 0, 10]\n"
+        << "  > :quit\n";
 }
 
 const std::vector<std::string>& repl_commands() {
     static const std::vector<std::string> commands = {
-        "help",
-        "examples",
-        "host-functions",
-        "tokens",
-        "parse",
-        "validate",
-        "compile",
-        "evaluate",
-        "evaluate-host",
+        ":help",
+        ":examples",
+        ":host-functions",
+        ":mode",
+        ":tokens",
+        ":parse",
+        ":validate",
+        ":compile",
+        ":evaluate",
+        ":evaluate-host",
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
-        "symbolic-evaluate",
-        "symbolic-simplify",
-        "symbolic-fullform",
+        ":symbolic-evaluate",
+        ":symbolic-simplify",
+        ":symbolic-fullform",
 #endif
-        "quit",
-        "exit"
+        ":quit",
+        ":exit"
     };
     return commands;
+}
+
+bool is_known_repl_command(std::string_view command) {
+    const auto& commands = repl_commands();
+    return std::find(commands.begin(), commands.end(), command) != commands.end();
+}
+
+bool is_known_cli_command(std::string_view command) {
+    return command == "help" || command == "--help" || command == "-h" ||
+           command == "examples" || command == "host-functions" || command == "repl" ||
+           command == "tokens" || command == "parse" || command == "validate" ||
+           command == "compile" || command == "evaluate" || command == "evaluate-host"
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+           || command == "symbolic-evaluate" || command == "symbolic-simplify" ||
+              command == "symbolic-fullform"
+#endif
+        ;
+}
+
+std::string_view strip_repl_command_prefix(std::string_view command) {
+    if (!command.empty() && command.front() == ':') {
+        command.remove_prefix(1);
+    }
+    return command;
+}
+
+ReplMode default_repl_mode() {
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+    return ReplMode::symbolic;
+#else
+    return ReplMode::sdk;
+#endif
+}
+
+std::string_view repl_mode_name(ReplMode mode) {
+    switch (mode) {
+        case ReplMode::sdk:
+            return "sdk";
+        case ReplMode::symbolic:
+            return "symbolic";
+    }
+    return "unknown";
+}
+
+std::string_view repl_mode_short_name(ReplMode mode) {
+    switch (mode) {
+        case ReplMode::sdk:
+            return "sdk";
+        case ReplMode::symbolic:
+            return "sym";
+    }
+    return "?";
+}
+
+std::string make_repl_prompt(ReplMode mode) {
+    return style_stdout("ℵ3", cli_palette().highlight) +
+           style_stdout("[", cli_palette().dim) +
+           style_stdout(repl_mode_short_name(mode), cli_palette().accent_soft) +
+           style_stdout("]", cli_palette().dim) +
+           style_stdout(" >", cli_palette().accent) + " ";
 }
 
 std::string trim(std::string text) {
@@ -489,7 +631,7 @@ std::string common_prefix(const std::vector<std::string>& values) {
 void print_completion_choices(const std::vector<std::string>& matches) {
     std::cout << '\n';
     for (const auto& match : matches) {
-        std::cout << match << '\n';
+        std::cout << style_stdout("  " + match, cli_palette().accent_soft) << '\n';
     }
 }
 
@@ -641,12 +783,36 @@ bool read_repl_line(const std::string& prompt, std::vector<std::string>& history
 #endif
 }
 
+int run_default_expression(std::string_view input, ReplMode mode = default_repl_mode()) {
+    if (mode == ReplMode::sdk) {
+        const auto evaluate_options = aleph3::tooling::parse_evaluate_repl_arguments(input);
+        if (!evaluate_options.ok()) {
+            std::cerr << style_stderr(evaluate_options.error_message, cli_palette().error) << '\n';
+            return 2;
+        }
+        return run_evaluate_command(evaluate_options.options);
+    }
+
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+    const auto result = aleph3::tooling::symbolic_evaluate_expression(input);
+    if (!result.ok) {
+        std::cerr << style_stderr(result.error_message, cli_palette().error) << '\n';
+        return 2;
+    }
+    std::cout << result.output << '\n';
+    return 0;
+#else
+    std::cerr << style_stderr("Symbolic mode is not available in this build.", cli_palette().error) << '\n';
+    return 2;
+#endif
+}
+
 int run_command(std::string_view command, std::string_view formula) {
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
     if (command == "symbolic-evaluate") {
         const auto result = aleph3::tooling::symbolic_evaluate_expression(formula);
         if (!result.ok) {
-            std::cerr << result.error_message << '\n';
+            std::cerr << style_stderr(result.error_message, cli_palette().error) << '\n';
             return 2;
         }
         std::cout << result.output << '\n';
@@ -656,7 +822,7 @@ int run_command(std::string_view command, std::string_view formula) {
     if (command == "symbolic-simplify") {
         const auto result = aleph3::tooling::symbolic_simplify_expression(formula);
         if (!result.ok) {
-            std::cerr << result.error_message << '\n';
+            std::cerr << style_stderr(result.error_message, cli_palette().error) << '\n';
             return 2;
         }
         std::cout << result.output << '\n';
@@ -666,7 +832,7 @@ int run_command(std::string_view command, std::string_view formula) {
     if (command == "symbolic-fullform") {
         const auto result = aleph3::tooling::symbolic_fullform_expression(formula);
         if (!result.ok) {
-            std::cerr << result.error_message << '\n';
+            std::cerr << style_stderr(result.error_message, cli_palette().error) << '\n';
             return 2;
         }
         std::cout << result.output << '\n';
@@ -714,7 +880,7 @@ int run_command(std::string_view command, std::string_view formula) {
             print_diagnostic(diagnostic);
         }
         if (result.ok) {
-            std::cout << "validation ok\n";
+            std::cout << style_stdout("validation ok", cli_palette().success) << '\n';
         }
         return result.ok ? 0 : 2;
     }
@@ -725,7 +891,7 @@ int run_command(std::string_view command, std::string_view formula) {
             print_diagnostic(diagnostic);
         }
         if (result.ok()) {
-            std::cout << "compile ok\n";
+            std::cout << style_stdout("compile ok", cli_palette().success) << '\n';
         }
         return result.ok() ? 0 : 2;
     }
@@ -733,7 +899,7 @@ int run_command(std::string_view command, std::string_view formula) {
     if (command == "evaluate") {
         const auto evaluate_options = aleph3::tooling::parse_evaluate_repl_arguments(formula);
         if (!evaluate_options.ok()) {
-            std::cerr << evaluate_options.error_message << '\n';
+            std::cerr << style_stderr(evaluate_options.error_message, cli_palette().error) << '\n';
             return 2;
         }
         return run_evaluate_command(evaluate_options.options);
@@ -742,25 +908,29 @@ int run_command(std::string_view command, std::string_view formula) {
     if (command == "evaluate-host") {
         const auto evaluate_options = aleph3::tooling::parse_formula_repl_arguments("evaluate-host", formula);
         if (!evaluate_options.ok()) {
-            std::cerr << evaluate_options.error_message << '\n';
+            std::cerr << style_stderr(evaluate_options.error_message, cli_palette().error) << '\n';
             return 2;
         }
         return run_host_evaluate_command(evaluate_options.options);
     }
 
-    std::cerr << "Unknown command: " << command << '\n';
-    return 1;
+    return run_default_expression(command);
 }
 
 int run_repl() {
-    std::cout << "Aleph3 REPL\n";
-    std::cout << "Type `help` for commands, `quit` to exit. Use arrows for history/editing and Tab for command completion.\n";
+    print_cli_logo();
+    ReplMode repl_mode = default_repl_mode();
+    std::cout
+        << style_stdout("Interactive REPL", cli_palette().accent) << '\n'
+        << "Type expressions directly. Use `:help` for commands and `:quit` to exit.\n"
+        << "Use arrows for history/editing and Tab for command completion.\n"
+        << "Default mode: " << repl_mode_name(repl_mode) << "\n\n";
 
     std::string line;
     std::vector<std::string> history;
-    constexpr std::string_view prompt = "> ";
     while (true) {
-        if (!read_repl_line(std::string(prompt), history, line)) {
+        const std::string prompt = make_repl_prompt(repl_mode);
+        if (!read_repl_line(prompt, history, line)) {
             std::cout << '\n';
             return 0;
         }
@@ -772,19 +942,13 @@ int run_repl() {
 
         history.push_back(line);
 
-        if (line == "quit" || line == "exit") {
-            return 0;
-        }
-        if (line == "help") {
-            print_help();
-            continue;
-        }
-        if (line == "examples") {
-            print_examples();
-            continue;
-        }
-        if (line == "host-functions") {
-            print_host_functions();
+        if (line.empty() || line.front() != ':') {
+            const int exit_code = run_default_expression(line, repl_mode);
+            if (exit_code != 0) {
+                std::cerr << style_stderr("(expression failed with exit code " + std::to_string(exit_code) + ")",
+                                          cli_palette().warning)
+                          << '\n';
+            }
             continue;
         }
 
@@ -792,20 +956,69 @@ int run_repl() {
         const std::string command = split == std::string::npos ? line : line.substr(0, split);
         const std::string formula = split == std::string::npos ? "" : trim(line.substr(split + 1));
 
-        if ((command == "tokens" || command == "parse" || command == "validate" || command == "compile" ||
-             command == "evaluate" || command == "evaluate-host"
-#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
-             || command == "symbolic-evaluate" || command == "symbolic-simplify" || command == "symbolic-fullform"
-#endif
-             ) &&
-            formula.empty()) {
-            std::cerr << "A formula is required for `" << command << "`.\n";
+        if (!is_known_repl_command(command)) {
+            std::cerr << style_stderr("Unknown REPL command", cli_palette().error) << ": " << command << '\n';
             continue;
         }
 
-        const int exit_code = run_command(command, formula);
+        const std::string normalized_command(strip_repl_command_prefix(command));
+
+        if (normalized_command == "quit" || normalized_command == "exit") {
+            return 0;
+        }
+        if (normalized_command == "help") {
+            print_help();
+            continue;
+        }
+        if (normalized_command == "mode") {
+            if (formula.empty()) {
+                std::cout << repl_mode_name(repl_mode) << '\n';
+                continue;
+            }
+
+            if (formula == "sdk") {
+                repl_mode = ReplMode::sdk;
+                std::cout << style_stdout("mode set to sdk", cli_palette().success) << '\n';
+                continue;
+            }
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+            if (formula == "symbolic") {
+                repl_mode = ReplMode::symbolic;
+                std::cout << style_stdout("mode set to symbolic", cli_palette().success) << '\n';
+                continue;
+            }
+#endif
+            std::cerr << style_stderr("Unknown mode", cli_palette().error) << ": " << formula << '\n';
+            continue;
+        }
+        if (normalized_command == "examples") {
+            print_examples();
+            continue;
+        }
+        if (normalized_command == "host-functions") {
+            print_host_functions();
+            continue;
+        }
+
+        if ((normalized_command == "tokens" || normalized_command == "parse" || normalized_command == "validate" ||
+             normalized_command == "compile" || normalized_command == "evaluate" ||
+             normalized_command == "evaluate-host"
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+             || normalized_command == "symbolic-evaluate" || normalized_command == "symbolic-simplify" ||
+                normalized_command == "symbolic-fullform"
+#endif
+             ) &&
+            formula.empty()) {
+            std::cerr << style_stderr("A formula is required", cli_palette().warning)
+                      << " for `" << command << "`.\n";
+            continue;
+        }
+
+        const int exit_code = run_command(normalized_command, formula);
         if (exit_code != 0) {
-            std::cerr << "(command failed with exit code " << exit_code << ")\n";
+            std::cerr << style_stderr("(command failed with exit code " + std::to_string(exit_code) + ")",
+                                      cli_palette().warning)
+                      << '\n';
         }
     }
 }
@@ -818,6 +1031,10 @@ int main(int argc, char** argv) {
     }
 
     const std::string_view command = argv[1];
+
+    if (!is_known_cli_command(command)) {
+        return run_default_expression(join_formula_args(argc, argv, 1));
+    }
 
     if (command == "help" || command == "--help" || command == "-h") {
         print_help();

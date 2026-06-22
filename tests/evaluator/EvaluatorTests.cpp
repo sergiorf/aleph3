@@ -249,6 +249,38 @@ TEST_CASE("Evaluator contract keeps If lazy and symbolic when required", "[evalu
     REQUIRE(to_string(symbolic_result) == "If[x, 1, 2]");
 }
 
+TEST_CASE("Evaluator special forms preserve nested branch laziness", "[evaluator][special-forms]") {
+    EvaluationContext ctx;
+
+    auto nested_true = parse_expression("If[True, If[False, 1/0, 9], 1/0]");
+    auto nested_true_result = evaluate(nested_true, ctx);
+    REQUIRE(std::holds_alternative<Number>(*nested_true_result));
+    REQUIRE(get_number_value(nested_true_result) == 9.0);
+
+    auto nested_false = parse_expression("If[False, 1/0, If[True, 7, 1/0]]");
+    auto nested_false_result = evaluate(nested_false, ctx);
+    REQUIRE(std::holds_alternative<Number>(*nested_false_result));
+    REQUIRE(get_number_value(nested_false_result) == 7.0);
+}
+
+TEST_CASE("Evaluator special forms reject bad If arity", "[evaluator][special-forms]") {
+    EvaluationContext ctx;
+
+    const auto too_few =
+        make_expr<FunctionCall>("If", std::vector<ExprPtr>{make_expr<Boolean>(true), make_expr<Number>(1.0)});
+    REQUIRE_THROWS_AS(evaluate(too_few, ctx), std::runtime_error);
+
+    const auto too_many = make_expr<FunctionCall>(
+        "If",
+        std::vector<ExprPtr>{
+            make_expr<Boolean>(true),
+            make_expr<Number>(1.0),
+            make_expr<Number>(2.0),
+            make_expr<Number>(3.0)
+        });
+    REQUIRE_THROWS_AS(evaluate(too_many, ctx), std::runtime_error);
+}
+
 TEST_CASE("Evaluator contract preserves unresolved symbolic calls", "[evaluator][contract]") {
     EvaluationContext ctx;
 
@@ -260,6 +292,73 @@ TEST_CASE("Evaluator contract preserves unresolved symbolic calls", "[evaluator]
     REQUIRE(call.head == "mystery");
     REQUIRE(call.args.size() == 1);
     REQUIRE(to_string(result) == "mystery[2 + 3]");
+}
+
+TEST_CASE("Evaluator builtins preserve symbolic fallback and exact comparisons", "[evaluator][builtins][contract]") {
+    EvaluationContext ctx;
+
+    const auto domain_fallback = evaluate(parse_expression("ArcSin[2]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*domain_fallback));
+    REQUIRE(to_string(domain_fallback) == "ArcSin[2]");
+
+    const auto symbolic_angle = evaluate(parse_expression("Sin[Pi/7]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*symbolic_angle));
+    REQUIRE(to_string(symbolic_angle) == "Sin[Pi / 7]");
+
+    const auto rational_comparison = evaluate(parse_expression("1/2 < 3/4"), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*rational_comparison));
+    REQUIRE(std::get<Boolean>(*rational_comparison).value);
+
+    const auto mixed_numeric_exact = evaluate(parse_expression("1/2 + 2"), ctx);
+    REQUIRE(std::holds_alternative<Rational>(*mixed_numeric_exact));
+    const auto& rational = std::get<Rational>(*mixed_numeric_exact);
+    REQUIRE(rational.numerator == 5);
+    REQUIRE(rational.denominator == 2);
+}
+
+TEST_CASE("Evaluator builtins cover forgotten aliases and inverse trig variants", "[evaluator][builtins]") {
+    EvaluationContext ctx;
+
+    const auto ln_result = evaluate(parse_expression("Ln[E]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*ln_result));
+    REQUIRE(std::abs(get_number_value(ln_result) - 1.0) < 1e-12);
+
+    const auto ceil_alias = evaluate(parse_expression("Ceil[2.1]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*ceil_alias));
+    REQUIRE(std::abs(get_number_value(ceil_alias) - 3.0) < 1e-12);
+
+    const auto sinc_zero = evaluate(parse_expression("Sinc[0]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*sinc_zero));
+    REQUIRE(std::abs(get_number_value(sinc_zero) - 1.0) < 1e-12);
+
+    const auto arcsec = evaluate(parse_expression("ArcSec[2]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*arcsec));
+    REQUIRE(std::abs(get_number_value(arcsec) - std::acos(0.5)) < 1e-12);
+
+    const auto arccsc_domain = evaluate(parse_expression("ArcCsc[0]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*arccsc_domain));
+    REQUIRE(to_string(arccsc_domain) == "ArcCsc[0]");
+}
+
+TEST_CASE("Evaluator simplification rules flatten, cancel, and combine symbolic structure", "[evaluator][simplification]") {
+    EvaluationContext ctx;
+
+    const auto nested_plus = evaluate(parse_expression("x + (y + 2) + 3"), ctx);
+    REQUIRE(to_string(nested_plus) == "5 + x + y");
+
+    const auto cancelled_sum = evaluate(parse_expression("x + (-1 * x)"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*cancelled_sum));
+    REQUIRE(get_number_value(cancelled_sum) == 0.0);
+
+    const auto merged_product = evaluate(parse_expression("x * x * y"), ctx);
+    REQUIRE(to_string(merged_product) == "x^2 * y");
+
+    const auto collapsed_power = evaluate(parse_expression("(x^2)^3"), ctx);
+    REQUIRE(to_string(collapsed_power) == "x^6");
+
+    const auto divided_identity = evaluate(parse_expression("(x + 1) / (x + 1)"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*divided_identity));
+    REQUIRE(get_number_value(divided_identity) == 1.0);
 }
 
 TEST_CASE("Evaluator handles variable assignments", "[evaluator]") {

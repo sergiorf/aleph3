@@ -19,9 +19,13 @@ namespace aleph3 {
             {"ArcSin", "ArcSin[x]: Inverse sine of x", "Trigonometric"},
             {"ArcCos", "ArcCos[x]: Inverse cosine of x", "Trigonometric"},
             {"ArcTan", "ArcTan[x]: Inverse tangent of x", "Trigonometric"},
+            {"ArcSec", "ArcSec[x]: Inverse secant of x", "Trigonometric"},
+            {"ArcCsc", "ArcCsc[x]: Inverse cosecant of x", "Trigonometric"},
+            {"ArcCot", "ArcCot[x]: Inverse cotangent of x", "Trigonometric"},
             {"Csc", "Csc[x]: Cosecant of x (1/sin(x))", "Trigonometric"},
             {"Sec", "Sec[x]: Secant of x (1/cos(x))", "Trigonometric"},
             {"Cot", "Cot[x]: Cotangent of x (1/tan(x))", "Trigonometric"},
+            {"Sinc", "Sinc[x]: Normalized sinc function sin(x)/x with Sinc[0] = 1", "Trigonometric"},
 
             // Arithmetic (binary)
             {"Plus", "Plus[a, b]: a + b (addition)", "Arithmetic"},
@@ -42,10 +46,12 @@ namespace aleph3 {
 
             // Exponential/Logarithmic
             {"Exp", "Exp[x]: Exponential function e^x", "Exponential/Logarithmic"},
+            {"Ln", "Ln[x]: Natural logarithm of x", "Exponential/Logarithmic"},
             {"Log", "Log[x]: Natural logarithm of x", "Exponential/Logarithmic"},
 
             // Other math
             {"Abs", "Abs[x]: Absolute value of x", "Other"},
+            {"Ceil", "Ceil[x]: Alias for Ceiling[x]", "Other"},
             {"Floor", "Floor[x]: Greatest integer <= x", "Other"},
             {"Ceiling", "Ceiling[x]: Smallest integer >= x", "Other"},
             {"Sqrt", "Sqrt[x]: Square root of x", "Other"},

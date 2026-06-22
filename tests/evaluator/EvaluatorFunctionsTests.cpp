@@ -259,10 +259,13 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         // ArcCos
         {"ArcCos[0]", PI / 2, "ArcCos[0] is Pi/2."},
         {"ArcCos[1]", 0.0, "ArcCos[1] is 0.0."},
+        {"ArcCsc[2]", std::asin(0.5), "ArcCsc[2] is arcsin(1/2)."},
+        {"ArcCot[1]", PI / 4, "ArcCot[1] is Pi/4."},
 
         // ArcSin
         {"ArcSin[0]", 0.0, "ArcSin[0] is 0.0."},
         {"ArcSin[1]", PI / 2, "ArcSin[1] is Pi/2."},
+        {"ArcSec[2]", std::acos(0.5), "ArcSec[2] is arccos(1/2)."},
 
         // ArcTan
         {"ArcTan[0]", 0.0, "ArcTan[0] is 0.0."},
@@ -271,6 +274,7 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         {"ArcTan[1, 1]", PI / 4, "ArcTan[1,1] is Pi/4."},
 
         // Ceiling
+        {"Ceil[2.1]", 3.0, "Ceil[2.1] is 3.0."},
         {"Ceiling[2.1]", 3.0, "Ceiling[2.1] is 3.0."},
 
         // Cos
@@ -304,6 +308,7 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         {"Gamma[6]", 120.0, "Gamma[6] = 5! = 120."},
 
         // Log
+        {"Ln[E]", 1.0, "Ln[E] is 1.0."},
         {"Log[1]", 0.0, "Log[1] is 0.0."},
         {"Log[E]", 1.0, "Log[E] is 1.0."},
         {"Log[10, 100]", 2.0, "Log base 10 of 100 is 2."},
@@ -347,6 +352,10 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         {"Sin[Pi/4]", std::sqrt(2.0) / 2.0, "Sin[Pi/4] is sqrt(2)/2."},
         {"Sin[-Pi/2]", -1.0, "Sin[-Pi/2] is -1.0."},
 
+        // Sinc
+        {"Sinc[0]", 1.0, "Sinc[0] is 1.0."},
+        {"Sinc[Pi]", std::sin(PI) / PI, "Sinc[Pi] evaluates numerically."},
+
         // Sinh
         {"Sinh[0]", 0.0, "Sinh[0] is 0.0."},
         {"Sinh[1]", std::sinh(1.0), "Sinh[1] is sinh(1)."},
@@ -371,8 +380,12 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
     // Symbolic cases: argument is symbolic or out of domain, so result is symbolic
     std::vector<SymbolicCase> symbolic_cases = {
         {"Sin[Pi/7]", "Sin", "Pi/7 is not a known special angle, so Sin[Pi/7] remains symbolic."},
+        {"Sinc[x]", "Sinc", "Sinc[x] remains symbolic for non-numeric x."},
         {"Cot[Pi/7]", "Cot", "Pi/7 is not a known special angle, so Cot[Pi/7] remains symbolic."},
         {"ArcSin[2]", "ArcSin", "ArcSin[2] is out of domain (|x|>1), so remains symbolic."},
+        {"ArcSec[0]", "ArcSec", "ArcSec[0] is out of domain (|x|<1), so remains symbolic."},
+        {"ArcCsc[0]", "ArcCsc", "ArcCsc[0] is out of domain (|x|<1), so remains symbolic."},
+        {"Ln[-1]", "Ln", "Ln[-1] is not a real number, so remains symbolic."},
         {"Log[-1]", "Log", "Log[-1] is not a real number, so remains symbolic."},
         {"Degree", "Degree", "Degree is a symbol."},
         {"Pi", "Pi", "Pi is a symbol."}

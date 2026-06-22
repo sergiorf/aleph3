@@ -1,26 +1,27 @@
-# Rewrite Docs
+# SDK Docs
 
-This directory is the working index for the embedded-engine rewrite. The older
-top-level documents remain the detailed source material; these subdocs make the
-rewrite easier to navigate as the SDK-first implementation grows.
+This directory is the working index for the Aleph3 SDK and primary engine.
+The older top-level documents remain the detailed source material; these subdocs
+make the production path easier to navigate as the SDK-first implementation grows.
 
 ## What Is Stable Now
 
 - Public SDK headers under `include/sdk/`
 - Minimal trusted-subset IR in `include/ir/Node.hpp`
-- Rewrite lexer, parser, and type-aware validator
+- SDK lexer, parser with focused function-call coverage, and composed-expression-aware validator
+- Literal-branch pruning for `If[True, ...]` and `If[False, ...]` during validation
 - Reusable `CompiledFormula` creation through `Engine::compile()`
 - Trusted-subset runtime evaluation through `Engine::evaluate()`
 - Engine-scoped host function contracts with runtime argument/return enforcement
-- Rewrite build target split in `CMakeLists.txt`
-- Rewrite tooling CLI target `aleph3_rewrite_cli`
-- Rewrite REPL, built-in help/examples, `evaluate --var ...`, and `evaluate-host` support in `aleph3_rewrite_cli`
-- Rewrite example target `aleph3_rewrite_sdk_example` for host-app embedding
-- Contract direction defined by the top-level rewrite docs
+- SDK/legacy build target split in `CMakeLists.txt`
+- Aleph3 CLI target `aleph3_cli`
+- Aleph3 CLI REPL, built-in help/examples, `host-functions`, `evaluate --var ...`, and `evaluate-host`
+- SDK example target `aleph3_sdk_example` for host-app embedding
+- Contract direction defined by the top-level SDK docs
 
 ## What Is Not Stable Yet
 
-- Broader static validation beyond the current numeric/boolean/function checks
+- Deeper flow-sensitive validation beyond literal-branch pruning and the current branch/type/return checks
 - Custom host-function injection into the CLI beyond the built-in demo bundle
 - Packaging and final target names
 
@@ -31,7 +32,7 @@ rewrite easier to navigate as the SDK-first implementation grows.
 - [Testing Strategy](testing_strategy.md)
 - [Migration Notes](migration_notes.md)
 
-## Rewrite Layer Diagram
+## SDK Layer Diagram
 
 ```mermaid
 flowchart LR
@@ -44,12 +45,12 @@ flowchart LR
     Tooling["tooling\nCLI / examples / tests"] --> SDK
 ```
 
-## Rewrite Build Diagram
+## Build Diagram
 
 ```mermaid
 flowchart TD
     Legacy["aleph3_legacy"] --> LegacyCli["aleph3_cli_legacy"]
-    RewriteRuntime["aleph3_runtime"] --> RewriteSdk["aleph3_sdk"]
-    RewriteSdk --> RewriteTests["aleph3_sdk_tests"]
+    Runtime["aleph3_runtime"] --> Sdk["aleph3_sdk"]
+    Sdk --> SdkTests["aleph3_sdk_tests"]
     Legacy --> LegacyTests["aleph3_legacy_tests"]
 ```

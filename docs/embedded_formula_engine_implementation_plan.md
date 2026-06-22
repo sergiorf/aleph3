@@ -518,7 +518,7 @@ Current status:
 - `validate` now runs parser + validator
 - `compile` now returns reusable opaque `CompiledFormula` handles on success
 
-### Task R1.4: Split Build Targets Around Rewrite
+### Task R1.4: Split Build Targets Around SDK And Legacy
 
 Files:
 
@@ -526,7 +526,7 @@ Files:
 
 Changes:
 
-- add new targets for the rewrite path
+- add new targets for the SDK path
 - keep legacy target separate
 - allow both to coexist during transition
 
@@ -538,7 +538,7 @@ Suggested targets:
 
 Acceptance criteria:
 
-- rewrite path can be built without relying on legacy engine internals
+- SDK path can be built without relying on legacy engine internals
 
 ## R2: Trusted Subset Parser and Evaluator
 
@@ -628,21 +628,21 @@ Acceptance criteria:
 
 - tests cover parser, evaluator, and host functions for the minimal subset
 
-### Task R2.7: Add Thin Rewrite Tooling CLI
+### Task R2.7: Add Thin SDK Tooling CLI
 
 Files to add:
 
-- `src/tooling/rewrite_cli.cpp`
+- `src/tooling/aleph3_cli.cpp`
 
 Behavior:
 
-- consume the rewrite SDK and frontend as a developer test harness
+- consume the SDK and frontend as a developer test harness
 - expose `tokens`, `parse`, `validate`, `compile`, `evaluate`, and host-function demo commands
 - print structured diagnostics for manual debugging
 
 Acceptance criteria:
 
-- the rewrite path can be exercised from the terminal without using the legacy CLI
+- the SDK path can be exercised from the terminal without using the legacy CLI
 - the CLI does not depend on legacy parser or evaluator internals
 
 Current status:
@@ -652,7 +652,7 @@ Current status:
 - `evaluate` now accepts `--var name=value` bindings so variable-driven formulas
   can be exercised without writing host code first
 - `evaluate-host` registers a fixed demo host-function bundle, and
-  `aleph3_rewrite_sdk_example` provides a compiled embedding reference
+  `aleph3_sdk_example` provides a compiled embedding reference
 
 ## R3: Validation and Diagnostics
 
@@ -699,7 +699,8 @@ Acceptance criteria:
 Current status:
 
 - first pass implemented for schema allowlists, known arity checks, basic
-  feature gates, AST node/depth limits, and obvious type mismatches
+  feature gates, AST node/depth limits, obvious type mismatches, incompatible
+  `If` branch shapes, and host-function return-type composition checks
 - deeper type reasoning, flow-sensitive inference, and richer runtime-facing
   validation still remain future work
 
@@ -889,14 +890,27 @@ The rewrite is failing if:
 - tests merely mirror legacy behavior instead of asserting product contracts
 - the trusted subset keeps expanding before becoming stable
 
-## Recommended First 4 Weeks
+## Status Snapshot
+
+The initial rewrite kickoff work described below has largely been completed in
+this repository state:
+
+- the trusted subset and contract matrix documents exist
+- the SDK, IR, runtime, and tooling layers are present
+- the SDK path compiles, validates, and evaluates the trusted subset
+- the primary remaining work is hardening, packaging, and contract cleanup
+
+The first four-week plan remains useful as historical sequencing, but it should
+no longer be read as the live task list for this branch.
+
+## Original First 4 Weeks
 
 ### Week 1
 
 - write `current_engine_audit.md`
 - write `contract_test_matrix.md`
 - write `trusted_subset_v1.md`
-- split build targets between legacy and rewrite paths
+- split build targets between legacy and SDK paths
 
 Functionality unblocked:
 
@@ -938,11 +952,19 @@ Functionality unblocked:
 
 ## Recommendation
 
-Do the controlled rewrite.
+The controlled rewrite is now underway and the SDK path is the primary product
+path in this branch.
 
 Do not spend the next phase trying to prove the old engine is good enough for a
-commercial embedded product. Treat it as reference material and move the
-product-critical path onto a smaller, cleaner, explicitly trusted engine.
+commercial embedded product. Treat it as reference material and keep moving the
+product-critical path onto the smaller, cleaner, explicitly trusted engine.
+
+The next phase should focus on:
+
+- hardening SDK validation and runtime contract coverage
+- tightening product-facing docs, examples, and target naming around the SDK
+- leaving legacy code available for reference without letting it shape the
+  trusted public surface
 
 The win condition is not "Aleph3 still supports everything it used to." The win
 condition is "Aleph3 has a small embedded core that is trustworthy enough to

@@ -45,7 +45,7 @@ TEST_CASE("Schema tracks allowed variables, functions, and constants", "[sdk][sc
     REQUIRE(schema.allows_unknown_functions());
 }
 
-TEST_CASE("Policy profiles keep the rewrite boundary deterministic", "[sdk][policy]") {
+TEST_CASE("Policy profiles keep the SDK boundary deterministic", "[sdk][policy]") {
     const auto default_policy = Policy::default_policy();
     const auto strict_policy = Policy::strict_numeric();
 

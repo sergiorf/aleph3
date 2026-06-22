@@ -154,17 +154,18 @@ void print_ir(const aleph3::ir::NodePtr& node, int depth = 0) {
 
 void print_usage() {
     std::cout
-        << "aleph3 rewrite CLI\n"
+        << "aleph3 CLI\n"
         << "usage:\n"
-        << "  aleph3_rewrite_cli help\n"
-        << "  aleph3_rewrite_cli examples\n"
-        << "  aleph3_rewrite_cli repl\n"
-        << "  aleph3_rewrite_cli tokens <formula>\n"
-        << "  aleph3_rewrite_cli parse <formula>\n"
-        << "  aleph3_rewrite_cli validate <formula>\n"
-        << "  aleph3_rewrite_cli compile <formula>\n"
-        << "  aleph3_rewrite_cli evaluate [--var name=value]... <formula>\n"
-        << "  aleph3_rewrite_cli evaluate-host [--var name=value]... <formula>\n";
+        << "  aleph3_cli help\n"
+        << "  aleph3_cli examples\n"
+        << "  aleph3_cli repl\n"
+        << "  aleph3_cli host-functions\n"
+        << "  aleph3_cli tokens <formula>\n"
+        << "  aleph3_cli parse <formula>\n"
+        << "  aleph3_cli validate <formula>\n"
+        << "  aleph3_cli compile <formula>\n"
+        << "  aleph3_cli evaluate [--var name=value]... <formula>\n"
+        << "  aleph3_cli evaluate-host [--var name=value]... <formula>\n";
 }
 
 std::string join_formula_args(int argc, char** argv, int start_index) {
@@ -180,14 +181,15 @@ std::string join_formula_args(int argc, char** argv, int start_index) {
 
 void print_help() {
     std::cout
-        << "Aleph3 rewrite CLI help\n"
+        << "Aleph3 CLI help\n"
         << "\n"
         << "Commands:\n"
         << "  help                 Show this help text\n"
         << "  examples             Show example formulas and commands\n"
         << "  repl                 Start an interactive prompt\n"
+        << "  host-functions       List the demo registered host functions\n"
         << "  tokens <formula>     Lex a formula and print the token stream\n"
-        << "  parse <formula>      Parse a formula and print the rewrite IR tree\n"
+        << "  parse <formula>      Parse a formula and print the SDK IR tree\n"
         << "  validate <formula>   Run lexer -> parser -> schema/policy validation\n"
         << "  compile <formula>    Build a reusable compiled formula handle\n"
         << "  evaluate [--var name=value]... <formula>\n"
@@ -200,34 +202,67 @@ void print_help() {
         << "  unknown variables and functions.\n"
         << "  evaluate automatically allows variables passed through --var.\n"
         << "  Binding values support numbers, True, False, and quoted/unquoted strings.\n"
-        << "  evaluate-host registers demo functions: Clamp, ScaleAdd, PickLabel.\n"
+        << "  evaluate-host registers the demo host bundle shown by host-functions.\n"
         << "  In the REPL on Unix-like terminals, up/down arrows walk command history,\n"
         << "  left/right arrows move the cursor, and Tab completes command names.\n";
+}
+
+void print_host_functions() {
+    std::cout
+        << "Demo Host Functions\n"
+        << "\n"
+        << "These are registered by `evaluate-host` and by the SDK example.\n"
+        << '\n';
+
+    for (const auto& function : aleph3::tooling::demo_host_function_docs()) {
+        std::cout
+            << function.signature << '\n'
+            << "  " << function.description << '\n'
+            << "  CLI:  " << function.cli_example << '\n'
+            << "  REPL: " << function.repl_example << '\n'
+            << '\n';
+    }
 }
 
 void print_examples() {
     std::cout
         << "Examples\n"
         << "\n"
-        << "  aleph3_rewrite_cli tokens \"If[x >= 1, \\\"ok\\\", False]\"\n"
-        << "  aleph3_rewrite_cli parse \"2 + 3 * (x + 1)\"\n"
-        << "  aleph3_rewrite_cli validate \"1 + 2\"\n"
-        << "  aleph3_rewrite_cli compile \"1 + 2\"\n"
-        << "  aleph3_rewrite_cli evaluate --var x=3 \"x + 1\"\n"
-        << "  aleph3_rewrite_cli evaluate \"If[3 < 4, 10, 20]\"\n"
-        << "  aleph3_rewrite_cli evaluate-host --var x=12 \"Clamp[x, 0, 10]\"\n"
-        << "  aleph3_rewrite_cli evaluate-host --var flag=True \"PickLabel[flag, \\\"ok\\\", \\\"fail\\\"]\"\n"
+        << "CLI overview\n"
+        << "  aleph3_cli help\n"
+        << "  aleph3_cli host-functions\n"
+        << "  aleph3_cli tokens \"If[x >= 1, \\\"ok\\\", False]\"\n"
+        << "  aleph3_cli parse \"2 + 3 * (x + 1)\"\n"
+        << "  aleph3_cli validate \"1 + 2\"\n"
+        << "  aleph3_cli validate \"If[True, 1, \\\"no\\\"]\"\n"
+        << "  aleph3_cli compile \"1 + 2\"\n"
+        << "  aleph3_cli evaluate --var x=3 \"x + 1\"\n"
+        << "  aleph3_cli evaluate --var label=hello \"label + 1\"\n"
+        << "  aleph3_cli evaluate \"If[3 < 4, 10, 20]\"\n"
+        << "\n"
+        << "Host function examples\n";
+
+    for (const auto& function : aleph3::tooling::demo_host_function_docs()) {
+        std::cout << "  " << function.cli_example << '\n';
+    }
+
+    std::cout
         << "\n"
         << "REPL examples\n"
         << "  > help\n"
         << "  > examples\n"
+        << "  > host-functions\n"
         << "  > tokens If[x >= 1, \\\"ok\\\", False]\n"
         << "  > parse 2 + 3 * (x + 1)\n"
         << "  > validate 1 + 2\n"
+        << "  > validate If[True, 1, \"no\"]\n"
         << "  > compile 1 + 2\n"
         << "  > evaluate --var x=3 x + 1\n"
+        << "  > evaluate --var label=hello label + 1\n"
         << "  > evaluate If[3 < 4, 10, 20]\n"
         << "  > evaluate-host --var x=12 Clamp[x, 0, 10]\n"
+        << "  > evaluate-host --var x=4 ScaleAdd[x, 1.5, 2]\n"
+        << "  > evaluate-host --var flag=True PickLabel[flag, \"ok\", \"fail\"]\n"
         << "  > quit\n";
 }
 
@@ -235,6 +270,7 @@ const std::vector<std::string>& repl_commands() {
     static const std::vector<std::string> commands = {
         "help",
         "examples",
+        "host-functions",
         "tokens",
         "parse",
         "validate",
@@ -599,6 +635,11 @@ int run_command(std::string_view command, std::string_view formula) {
         return 0;
     }
 
+    if (command == "host-functions") {
+        print_host_functions();
+        return 0;
+    }
+
     aleph3::Engine engine;
     aleph3::Schema schema;
 
@@ -647,7 +688,7 @@ int run_command(std::string_view command, std::string_view formula) {
 }
 
 int run_repl() {
-    std::cout << "Aleph3 rewrite REPL\n";
+    std::cout << "Aleph3 REPL\n";
     std::cout << "Type `help` for commands, `quit` to exit. Use arrows for history/editing and Tab for command completion.\n";
 
     std::string line;
@@ -675,6 +716,10 @@ int run_repl() {
         }
         if (line == "examples") {
             print_examples();
+            continue;
+        }
+        if (line == "host-functions") {
+            print_host_functions();
             continue;
         }
 
@@ -711,6 +756,10 @@ int main(int argc, char** argv) {
     }
     if (command == "examples") {
         print_examples();
+        return 0;
+    }
+    if (command == "host-functions") {
+        print_host_functions();
         return 0;
     }
     if (command == "repl") {

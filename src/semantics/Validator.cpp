@@ -132,9 +132,25 @@ bool is_known_concrete_type(InferredType type) noexcept {
            type == InferredType::list;
 }
 
+bool branch_types_are_incompatible(InferredType left, InferredType right) noexcept {
+    return is_known_concrete_type(left) &&
+           is_known_concrete_type(right) &&
+           left != right;
+}
+
 std::optional<InferredType> optional_builtin_return_type(std::string_view name) noexcept {
     if (name == "Abs" || name == "Min" || name == "Max") {
         return InferredType::number;
+    }
+    return std::nullopt;
+}
+
+std::optional<bool> boolean_literal_value(const ir::NodePtr& node) noexcept {
+    if (node == nullptr) {
+        return std::nullopt;
+    }
+    if (const auto* boolean = node->as<ir::BooleanLiteralNode>()) {
+        return boolean->value;
     }
     return std::nullopt;
 }
@@ -427,11 +443,30 @@ private:
                     if_node->condition != nullptr ? if_node->condition->span : node->span));
             }
 
+            // A literal boolean condition gives the validator a trustworthy
+            // branch choice, so only the reachable branch should affect
+            // semantic success and inferred result type.
+            if (const auto literal_condition = boolean_literal_value(if_node->condition)) {
+                const auto reachable_type = *literal_condition ? then_type : else_type;
+                if (reachable_type == InferredType::invalid) {
+                    return InferredType::invalid;
+                }
+                return reachable_type;
+            }
+
             if (then_type == InferredType::invalid || else_type == InferredType::invalid) {
                 return InferredType::invalid;
             }
             if (then_type == else_type) {
                 return then_type;
+            }
+            if (branch_types_are_incompatible(then_type, else_type)) {
+                diagnostics.push_back(make_error(
+                    "semantics.validator.incompatible_branch_types",
+                    "If branches must resolve to compatible result types, but found `" +
+                        type_name(then_type) + "` and `" + type_name(else_type) + "`.",
+                    node->span));
+                return InferredType::invalid;
             }
             if (then_type == InferredType::unknown || else_type == InferredType::unknown) {
                 return InferredType::unknown;

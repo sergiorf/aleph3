@@ -19,7 +19,7 @@ TEST_CASE("IR node factory maps payloads to the trusted subset node kinds", "[ir
     REQUIRE(number->span.start_offset == 3);
 }
 
-TEST_CASE("IR nodes preserve payload access for structural rewrite operations", "[ir]") {
+TEST_CASE("IR nodes preserve payload access for structural SDK operations", "[ir]") {
     const auto left = ir::make_node({}, ir::VariableNode{"x"});
     const auto right = ir::make_node({}, ir::NumberLiteralNode{1.0});
     const auto binary = ir::make_node(

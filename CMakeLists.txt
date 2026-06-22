@@ -9,7 +9,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 option(ALEPH3_BUILD_LEGACY "Build the legacy prototype engine and CLI." ON)
-option(ALEPH3_BUILD_REWRITE "Build the rewrite-path SDK targets." ON)
+option(ALEPH3_BUILD_SDK "Build the SDK and primary engine targets." ON)
+
+if(DEFINED ALEPH3_BUILD_REWRITE AND NOT DEFINED ALEPH3_BUILD_SDK)
+    set(ALEPH3_BUILD_SDK "${ALEPH3_BUILD_REWRITE}" CACHE BOOL "Build the SDK and primary engine targets." FORCE)
+endif()
 
 set(ALEPH3_PUBLIC_HEADERS
     include/sdk/Engine.hpp
@@ -25,7 +29,7 @@ set(ALEPH3_PUBLIC_HEADERS
     include/tooling/RewriteCliSupport.hpp
     include/tooling/DemoHostFunctions.hpp)
 
-if(ALEPH3_BUILD_REWRITE)
+if(ALEPH3_BUILD_SDK)
     add_library(aleph3_runtime INTERFACE)
     target_include_directories(aleph3_runtime INTERFACE include)
 
@@ -41,11 +45,11 @@ if(ALEPH3_BUILD_REWRITE)
     target_include_directories(aleph3_sdk PUBLIC include)
     target_link_libraries(aleph3_sdk PUBLIC aleph3_runtime)
 
-    add_executable(aleph3_rewrite_cli src/tooling/rewrite_cli.cpp)
-    target_link_libraries(aleph3_rewrite_cli PRIVATE aleph3_sdk)
+    add_executable(aleph3_cli src/tooling/aleph3_cli.cpp)
+    target_link_libraries(aleph3_cli PRIVATE aleph3_sdk)
 
-    add_executable(aleph3_rewrite_sdk_example examples/rewrite_sdk_host_example.cpp)
-    target_link_libraries(aleph3_rewrite_sdk_example PRIVATE aleph3_sdk)
+    add_executable(aleph3_sdk_example examples/sdk_host_example.cpp)
+    target_link_libraries(aleph3_sdk_example PRIVATE aleph3_sdk)
 endif()
 
 if(ALEPH3_BUILD_LEGACY)
@@ -107,7 +111,7 @@ if(BUILD_TESTING)
         add_test(NAME aleph3_legacy_tests COMMAND aleph3_legacy_tests)
     endif()
 
-    if(ALEPH3_BUILD_REWRITE)
+    if(ALEPH3_BUILD_SDK)
         file(GLOB REWRITE_TEST_SOURCES
             "tests/frontend/*.cpp"
             "tests/ir/*.cpp"

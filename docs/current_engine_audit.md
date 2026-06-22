@@ -455,7 +455,9 @@ Do not use it as the trusted product path.
 
 The next tasks should be:
 
-1. define the trusted subset in `trusted_subset_v1.md`
-2. define the rewrite contracts in `contract_test_matrix.md`
-3. start the new SDK and minimal IR without coupling to legacy parser or
-   evaluator code
+1. harden the SDK validation path, especially deeper branch-sensitive checks
+   and end-to-end contract coverage
+2. keep narrowing product-facing docs and examples around the SDK path, not the
+   legacy prototype
+3. finish packaging and naming cleanup once the SDK contracts are stable enough
+   to freeze

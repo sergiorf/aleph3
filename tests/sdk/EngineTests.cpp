@@ -52,7 +52,7 @@ TEST_CASE("Engine compile reports parser and validator failures", "[sdk][engine]
     REQUIRE(validation_failure.diagnostics.front().code == "semantics.validator.unknown_variable");
 }
 
-TEST_CASE("Engine validate returns a rewrite-path placeholder diagnostic", "[sdk][engine]") {
+TEST_CASE("Engine validate accepts valid SDK formulas without diagnostics", "[sdk][engine]") {
     Engine engine;
     Schema schema;
     schema.allow_variable({"x", ValueType::number, true});
@@ -139,6 +139,33 @@ TEST_CASE("Engine validate reports schema and policy failures with structured di
     REQUIRE_FALSE(type_mismatch.ok);
     REQUIRE(type_mismatch.diagnostics.size() == 1);
     REQUIRE(type_mismatch.diagnostics.front().code == "semantics.validator.type_mismatch");
+
+    schema.allow_variable({"flag", ValueType::boolean, true});
+    auto incompatible_if = engine.validate(R"(If[flag, 1, "no"])", schema, Policy::default_policy());
+    REQUIRE_FALSE(incompatible_if.ok);
+    REQUIRE(incompatible_if.diagnostics.size() == 1);
+    REQUIRE(incompatible_if.diagnostics.front().code == "semantics.validator.incompatible_branch_types");
+
+    schema.allow_function({"AsText", FunctionArity::exact(1), {ValueType::number}, ValueType::string, true});
+    auto bad_host_composition = engine.validate("AsText[1] + 2", schema, Policy::default_policy());
+    REQUIRE_FALSE(bad_host_composition.ok);
+    REQUIRE(bad_host_composition.diagnostics.size() == 1);
+    REQUIRE(bad_host_composition.diagnostics.front().code == "semantics.validator.type_mismatch");
+}
+
+TEST_CASE("Engine compile and evaluate honor literal If branch pruning", "[sdk][engine]") {
+    Engine engine;
+    Schema schema;
+
+    const auto compile_result = engine.compile("If[True, 1, missing + 1]", schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto evaluation_result = engine.evaluate(*compile_result.formula, {});
+    REQUIRE(evaluation_result.ok());
+    REQUIRE(evaluation_result.value.has_value());
+    REQUIRE(evaluation_result.value->as_number() != nullptr);
+    REQUIRE(*evaluation_result.value->as_number() == 1.0);
 }
 
 TEST_CASE("Engine register_function validates the stable host function contract", "[sdk][engine]") {

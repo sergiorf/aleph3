@@ -5,6 +5,21 @@
 
 using namespace aleph3;
 
+namespace {
+
+bool contains_diagnostic_code(
+    const std::vector<Diagnostic>& diagnostics,
+    std::string_view code) {
+    for (const auto& diagnostic : diagnostics) {
+        if (diagnostic.code == code) {
+            return true;
+        }
+    }
+    return false;
+}
+
+}  // namespace
+
 TEST_CASE("Validator rejects unknown variables and functions by default", "[semantics][validator]") {
     frontend::Parser parser("Clamp[x, 0, 1]");
     const auto parse_result = parser.parse();
@@ -104,8 +119,7 @@ TEST_CASE("Validator rejects obvious type mismatches before runtime", "[semantic
     REQUIRE(arithmetic_parse_result.ok());
     const auto arithmetic_summary = validator.validate(arithmetic_parse_result.root);
     REQUIRE_FALSE(arithmetic_summary.ok());
-    REQUIRE(arithmetic_summary.diagnostics.size() == 1);
-    REQUIRE(arithmetic_summary.diagnostics[0].code == "semantics.validator.type_mismatch");
+    REQUIRE(contains_diagnostic_code(arithmetic_summary.diagnostics, "semantics.validator.type_mismatch"));
 
     frontend::Parser conditional_parser("If[1, x, 0]");
     const auto conditional_parse_result = conditional_parser.parse();
@@ -161,4 +175,66 @@ TEST_CASE("Validator checks optional built-in argument types", "[semantics][vali
     REQUIRE_FALSE(summary.ok());
     REQUIRE(summary.diagnostics.size() == 1);
     REQUIRE(summary.diagnostics[0].code == "semantics.validator.invalid_argument_type");
+}
+
+TEST_CASE("Validator rejects incompatible If branch result types", "[semantics][validator]") {
+    Schema schema;
+    schema.allow_variable({"flag", ValueType::boolean, true});
+
+    frontend::Parser parser(R"(If[flag, 1, "no"])");
+    const auto parse_result = parser.parse();
+    REQUIRE(parse_result.ok());
+
+    semantics::Validator validator(schema, Policy::default_policy());
+    const auto summary = validator.validate(parse_result.root);
+
+    REQUIRE_FALSE(summary.ok());
+    REQUIRE(summary.diagnostics.size() == 1);
+    REQUIRE(summary.diagnostics[0].code == "semantics.validator.incompatible_branch_types");
+}
+
+TEST_CASE("Validator prunes unreachable literal If branches", "[semantics][validator]") {
+    Schema schema;
+
+    frontend::Parser parser(R"(If[True, 1, missing + 1])");
+    const auto parse_result = parser.parse();
+    REQUIRE(parse_result.ok());
+
+    semantics::Validator validator(schema, Policy::default_policy());
+    const auto summary = validator.validate(parse_result.root);
+
+    REQUIRE(summary.ok());
+    REQUIRE(summary.diagnostics.empty());
+}
+
+TEST_CASE("Validator propagates host function return types into surrounding expressions", "[semantics][validator]") {
+    Schema schema;
+    schema.allow_function({
+        "AsText",
+        FunctionArity::exact(1),
+        {ValueType::number},
+        ValueType::string,
+        true});
+    schema.allow_function({
+        "IsReady",
+        FunctionArity::exact(1),
+        {ValueType::number},
+        ValueType::boolean,
+        true});
+
+    semantics::Validator validator(schema, Policy::default_policy());
+
+    frontend::Parser arithmetic_parser("AsText[1] + 2");
+    const auto arithmetic_parse_result = arithmetic_parser.parse();
+    REQUIRE(arithmetic_parse_result.ok());
+    const auto arithmetic_summary = validator.validate(arithmetic_parse_result.root);
+    REQUIRE_FALSE(arithmetic_summary.ok());
+    REQUIRE(contains_diagnostic_code(arithmetic_summary.diagnostics, "semantics.validator.type_mismatch"));
+
+    frontend::Parser comparison_parser("IsReady[1] < 2");
+    const auto comparison_parse_result = comparison_parser.parse();
+    REQUIRE(comparison_parse_result.ok());
+    const auto comparison_summary = validator.validate(comparison_parse_result.root);
+    REQUIRE_FALSE(comparison_summary.ok());
+    REQUIRE(contains_diagnostic_code(comparison_summary.diagnostics, "semantics.validator.type_mismatch"));
 }

@@ -1,6 +1,6 @@
 # Testing Strategy
 
-The rewrite needs a smaller and stricter test strategy than the prototype.
+The SDK path needs a smaller and stricter test strategy than the prototype.
 Legacy tests remain useful as reference material, but they do not define truth
 for the new embedded engine.
 
@@ -21,11 +21,11 @@ flowchart TD
 - `tests/frontend/LexerTests.cpp`
   Verifies tokenization, spans, and lexer diagnostics.
 - `tests/frontend/ParserTests.cpp`
-  Verifies precedence, grouping, calls, `If`, and parse failures.
+  Verifies precedence, grouping, nested/mixed function calls, `If`, and parse failures including malformed call syntax.
 - `tests/ir/NodeTests.cpp`
   Verifies the trusted-subset IR shape and construction helpers.
 - `tests/semantics/ValidatorTests.cpp`
-  Verifies unknown-symbol, arity, feature-gate, and structural-limit checks.
+  Verifies unknown-symbol, arity, feature-gate, structural-limit, branch-compatibility, and composed-type checks.
 - `tests/runtime/EvaluatorTests.cpp`
   Verifies arithmetic, comparisons, conditionals, bindings, host function contracts, and runtime failures.
 
@@ -33,14 +33,14 @@ flowchart TD
 
 - They provide examples and edge cases worth auditing.
 - They do not force compatibility with the broad prototype language.
-- They should be promoted into rewrite contract tests only after feature review.
+- They should be promoted into SDK contract tests only after feature review.
 
 ## Near-Term Contract Priorities
 
 1. Blank or malformed source must produce structured diagnostics.
 2. Unsupported syntax must fail intentionally rather than degrade into symbolic fallback.
 3. Schema checks for variable and function allowlists must be deterministic.
-4. Obvious type errors should fail during validation instead of waiting for runtime.
+4. Obvious type errors and incompatible `If` result shapes should fail during validation instead of waiting for runtime.
 5. Compiled formulas must be reusable opaque handles rather than reparsed SDK state.
 6. Engine-scoped function registration must avoid global mutable behavior.
 7. Evaluation budgets must fail with structured runtime errors.

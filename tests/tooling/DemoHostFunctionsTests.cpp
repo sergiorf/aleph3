@@ -27,3 +27,19 @@ TEST_CASE("Demo host functions can be registered and evaluated through the SDK",
     REQUIRE(label_result.value->as_string() != nullptr);
     REQUIRE(*label_result.value->as_string() == "fail");
 }
+
+TEST_CASE("Demo host function docs stay aligned with the registered demo bundle", "[tooling][host]") {
+    const auto names = tooling::demo_host_function_names();
+    const auto docs = tooling::demo_host_function_docs();
+
+    REQUIRE(names.size() == docs.size());
+    REQUIRE_FALSE(docs.empty());
+
+    for (std::size_t i = 0; i < docs.size(); ++i) {
+        REQUIRE(docs[i].name == names[i]);
+        REQUIRE_FALSE(docs[i].signature.empty());
+        REQUIRE_FALSE(docs[i].description.empty());
+        REQUIRE_FALSE(docs[i].cli_example.empty());
+        REQUIRE_FALSE(docs[i].repl_example.empty());
+    }
+}

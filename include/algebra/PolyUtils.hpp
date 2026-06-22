@@ -20,7 +20,6 @@ namespace aleph3 {
 
     // Low-level API: operate directly on Polynomial objects
     Polynomial expand(const Polynomial& poly);
-    Polynomial factor(const Polynomial& poly);
     Polynomial collect(const Polynomial& poly, const std::vector<std::string>& variables);
     Polynomial gcd(const Polynomial& a, const Polynomial& b, const std::vector<std::string>& variables);
     std::pair<Polynomial, Polynomial> divide(const Polynomial& dividend, const Polynomial& divisor, const std::vector<std::string>& variables);

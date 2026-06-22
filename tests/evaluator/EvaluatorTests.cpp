@@ -228,6 +228,40 @@ TEST_CASE("Simplify Times[2, 3, 0] to 0", "[evaluator][simplification]") {
     REQUIRE(get_number_value(result) == 0.0);
 }
 
+TEST_CASE("Evaluator contract keeps If lazy and symbolic when required", "[evaluator][contract]") {
+    EvaluationContext ctx;
+
+    auto true_branch_only = parse_expression("If[True, 1, 1/0]");
+    auto true_result = evaluate(true_branch_only, ctx);
+    REQUIRE(std::holds_alternative<Number>(*true_result));
+    REQUIRE(get_number_value(true_result) == 1.0);
+
+    auto false_branch_only = parse_expression("If[False, 1/0, 2]");
+    auto false_result = evaluate(false_branch_only, ctx);
+    REQUIRE(std::holds_alternative<Number>(*false_result));
+    REQUIRE(get_number_value(false_result) == 2.0);
+
+    auto symbolic_if = parse_expression("If[x, 1, 2]");
+    auto symbolic_result = evaluate(symbolic_if, ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*symbolic_result));
+    const auto& if_call = std::get<FunctionCall>(*symbolic_result);
+    REQUIRE(if_call.head == "If");
+    REQUIRE(to_string(symbolic_result) == "If[x, 1, 2]");
+}
+
+TEST_CASE("Evaluator contract preserves unresolved symbolic calls", "[evaluator][contract]") {
+    EvaluationContext ctx;
+
+    auto unknown_call = parse_expression("mystery[2 + 3]");
+    auto result = evaluate(unknown_call, ctx);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    const auto& call = std::get<FunctionCall>(*result);
+    REQUIRE(call.head == "mystery");
+    REQUIRE(call.args.size() == 1);
+    REQUIRE(to_string(result) == "mystery[2 + 3]");
+}
+
 TEST_CASE("Evaluator handles variable assignments", "[evaluator]") {
     EvaluationContext ctx;
 

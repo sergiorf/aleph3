@@ -6,9 +6,527 @@
 #include <utility>
 #include <set>
 #include <algorithm>
+#include <cmath>
 #include <functional>
+#include <numeric>
+#include <optional>
 
 namespace aleph3 {
+
+    namespace {
+
+    constexpr double EPSILON = 1e-10;
+
+    bool contains_variable(
+        const std::vector<std::string>& variables,
+        const std::string& name) {
+        return std::find(variables.begin(), variables.end(), name) != variables.end();
+    }
+
+    int total_degree(const Monomial& mono) {
+        int degree = 0;
+        for (const auto& [_, exponent] : mono) {
+            degree += exponent;
+        }
+        return degree;
+    }
+
+    bool is_near_zero(double value) {
+        return std::abs(value) < EPSILON;
+    }
+
+    bool is_near_integer(double value) {
+        return std::abs(value - std::round(value)) < EPSILON;
+    }
+
+    long long rounded_integer(double value) {
+        return static_cast<long long>(std::llround(value));
+    }
+
+    struct RationalRoot {
+        int64_t numerator = 0;
+        int64_t denominator = 1;
+    };
+
+    std::vector<std::string> infer_variables(const ExprPtr& expr) {
+        std::set<std::string> vars;
+        std::function<void(const ExprPtr&)> visit = [&](const ExprPtr& e) {
+            if (!e) return;
+            if (auto sym = std::get_if<Symbol>(&(*e))) {
+                vars.insert(sym->name);
+            }
+            else if (auto func = std::get_if<FunctionCall>(&(*e))) {
+                for (const auto& arg : func->args) {
+                    visit(arg);
+                }
+            }
+        };
+        visit(expr);
+        return {vars.begin(), vars.end()};
+    }
+
+    std::vector<std::string> infer_variables(const Polynomial& poly) {
+        std::set<std::string> vars;
+        for (const auto& [mono, coeff] : poly.terms) {
+            if (is_near_zero(coeff)) continue;
+            for (const auto& [var, exponent] : mono) {
+                if (exponent != 0) {
+                    vars.insert(var);
+                }
+            }
+        }
+        return {vars.begin(), vars.end()};
+    }
+
+    Polynomial make_polynomial_term(double coefficient, const Monomial& mono) {
+        return Polynomial({{mono, coefficient}});
+    }
+
+    ExprPtr monomial_to_expr(double coefficient, const Monomial& mono) {
+        return polynomial_to_expr(make_polynomial_term(coefficient, mono));
+    }
+
+    bool monomial_precedes(const Monomial& left, const Monomial& right) {
+        const int left_degree = total_degree(left);
+        const int right_degree = total_degree(right);
+        if (left_degree != right_degree) {
+            return left_degree > right_degree;
+        }
+        return left < right;
+    }
+
+    bool is_constant_one(const Polynomial& poly) {
+        return poly.terms.size() == 1
+            && poly.terms.begin()->first.empty()
+            && std::abs(poly.terms.begin()->second - 1.0) < EPSILON;
+    }
+
+    bool is_constant_zero(const Polynomial& poly) {
+        return poly.terms.size() == 1
+            && poly.terms.begin()->first.empty()
+            && is_near_zero(poly.terms.begin()->second);
+    }
+
+    struct PolynomialContent {
+        double coefficient = 1.0;
+        Monomial monomial;
+        Polynomial primitive;
+    };
+
+    PolynomialContent split_content(const Polynomial& poly) {
+        PolynomialContent content;
+        content.primitive = poly;
+
+        if (is_constant_zero(poly)) {
+            content.coefficient = 0.0;
+            return content;
+        }
+
+        bool all_integer_coefficients = true;
+        long long coefficient_gcd = 0;
+        bool first_term = true;
+
+        for (const auto& [mono, coeff] : poly.terms) {
+            if (is_near_zero(coeff)) continue;
+
+            if (first_term) {
+                content.monomial = mono;
+                first_term = false;
+            } else {
+                for (auto it = content.monomial.begin(); it != content.monomial.end(); ) {
+                    const auto mono_it = mono.find(it->first);
+                    if (mono_it == mono.end()) {
+                        it = content.monomial.erase(it);
+                    } else {
+                        it->second = std::min(it->second, mono_it->second);
+                        if (it->second == 0) {
+                            it = content.monomial.erase(it);
+                        } else {
+                            ++it;
+                        }
+                    }
+                }
+            }
+
+            if (!is_near_integer(coeff)) {
+                all_integer_coefficients = false;
+            } else {
+                const long long abs_coeff = std::llabs(rounded_integer(coeff));
+                coefficient_gcd = coefficient_gcd == 0 ? abs_coeff : std::gcd(coefficient_gcd, abs_coeff);
+            }
+        }
+
+        if (first_term) {
+            return content;
+        }
+
+        if (!all_integer_coefficients || coefficient_gcd == 0) {
+            coefficient_gcd = 1;
+        }
+
+        bool leading_negative = false;
+        for (const auto& [_, coeff] : poly.terms) {
+            if (!is_near_zero(coeff)) {
+                leading_negative = coeff < 0.0;
+                break;
+            }
+        }
+        content.coefficient = static_cast<double>(coefficient_gcd) * (leading_negative ? -1.0 : 1.0);
+
+        Polynomial primitive;
+        for (const auto& [mono, coeff] : poly.terms) {
+            Monomial reduced = mono;
+            for (const auto& [var, exponent] : content.monomial) {
+                auto reduced_it = reduced.find(var);
+                if (reduced_it != reduced.end()) {
+                    reduced_it->second -= exponent;
+                    if (reduced_it->second == 0) {
+                        reduced.erase(reduced_it);
+                    }
+                }
+            }
+            primitive.terms[reduced] += coeff / content.coefficient;
+        }
+        primitive.normalize();
+
+        auto leading_it = primitive.terms.end();
+        for (auto it = primitive.terms.begin(); it != primitive.terms.end(); ++it) {
+            if (is_near_zero(it->second)) continue;
+            if (leading_it == primitive.terms.end()
+                || monomial_precedes(it->first, leading_it->first)) {
+                leading_it = it;
+            }
+        }
+        if (leading_it != primitive.terms.end() && leading_it->second < 0.0) {
+            for (auto& [_, coeff] : primitive.terms) {
+                coeff = -coeff;
+            }
+            primitive.normalize();
+            content.coefficient = -content.coefficient;
+        }
+
+        content.primitive = primitive;
+        return content;
+    }
+
+    bool is_univariate_in(const Polynomial& poly, const std::string& var) {
+        for (const auto& [mono, coeff] : poly.terms) {
+            if (is_near_zero(coeff)) continue;
+            for (const auto& [mono_var, exponent] : mono) {
+                if (mono_var != var && exponent != 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    int degree_in_variable(const Polynomial& poly, const std::string& var) {
+        int degree = 0;
+        for (const auto& [mono, coeff] : poly.terms) {
+            if (is_near_zero(coeff)) continue;
+            auto it = mono.find(var);
+            if (it != mono.end()) {
+                degree = std::max(degree, it->second);
+            }
+        }
+        return degree;
+    }
+
+    std::vector<long long> univariate_coefficients(const Polynomial& poly, const std::string& var) {
+        const int degree = degree_in_variable(poly, var);
+        std::vector<long long> coefficients(static_cast<size_t>(degree) + 1, 0);
+        for (const auto& [mono, coeff] : poly.terms) {
+            if (!is_near_integer(coeff)) {
+                throw std::runtime_error("Polynomial factorization currently requires integer coefficients");
+            }
+            int exponent = 0;
+            auto it = mono.find(var);
+            if (it != mono.end()) {
+                exponent = it->second;
+            }
+            coefficients[static_cast<size_t>(degree - exponent)] = rounded_integer(coeff);
+        }
+        return coefficients;
+    }
+
+    std::vector<long long> positive_divisors(long long value) {
+        value = std::llabs(value);
+        if (value == 0) {
+            return {0};
+        }
+        std::vector<long long> divisors;
+        for (long long candidate = 1; candidate <= value; ++candidate) {
+            if (value % candidate == 0) {
+                divisors.push_back(candidate);
+            }
+        }
+        return divisors;
+    }
+
+    std::vector<RationalRoot> rational_root_candidates(const std::vector<long long>& coefficients) {
+        if (coefficients.empty()) return {};
+
+        const long long leading = coefficients.front();
+        const long long constant = coefficients.back();
+        if (leading == 0) return {};
+
+        std::vector<RationalRoot> candidates;
+        std::set<std::pair<int64_t, int64_t>> seen;
+        for (const auto numerator : positive_divisors(constant)) {
+            for (const auto denominator : positive_divisors(leading)) {
+                if (denominator == 0) continue;
+                auto [positive_n, positive_d] = normalize_rational(numerator, denominator);
+                auto [negative_n, negative_d] = normalize_rational(-numerator, denominator);
+                if (seen.insert({positive_n, positive_d}).second) {
+                    candidates.push_back(RationalRoot{positive_n, positive_d});
+                }
+                if (seen.insert({negative_n, negative_d}).second) {
+                    candidates.push_back(RationalRoot{negative_n, negative_d});
+                }
+            }
+        }
+        return candidates;
+    }
+
+    double evaluate_univariate_coefficients(
+        const std::vector<long long>& coefficients,
+        const RationalRoot& root) {
+        const double x =
+            static_cast<double>(root.numerator) / static_cast<double>(root.denominator);
+        double value = 0.0;
+        for (const auto coefficient : coefficients) {
+            value = value * x + static_cast<double>(coefficient);
+        }
+        return value;
+    }
+
+    std::optional<std::vector<long long>> synthetic_divide(
+        const std::vector<long long>& coefficients,
+        const RationalRoot& root) {
+        const double root_value =
+            static_cast<double>(root.numerator) / static_cast<double>(root.denominator);
+        std::vector<double> quotient(coefficients.size() - 1, 0.0);
+        double carry = static_cast<double>(coefficients.front());
+        quotient.front() = carry;
+        for (size_t i = 1; i + 1 < coefficients.size(); ++i) {
+            carry = carry * root_value + static_cast<double>(coefficients[i]);
+            quotient[i] = carry;
+        }
+        const double remainder =
+            carry * root_value + static_cast<double>(coefficients.back());
+        if (!is_near_zero(remainder)) {
+            return std::nullopt;
+        }
+
+        std::vector<long long> quotient_ints;
+        quotient_ints.reserve(quotient.size());
+        for (const auto value : quotient) {
+            if (!is_near_integer(value)) {
+                return std::nullopt;
+            }
+            quotient_ints.push_back(rounded_integer(value));
+        }
+        return quotient_ints;
+    }
+
+    Polynomial coefficients_to_polynomial(
+        const std::vector<long long>& coefficients,
+        const std::string& var) {
+        const int degree = static_cast<int>(coefficients.size()) - 1;
+        Polynomial poly;
+        for (size_t i = 0; i < coefficients.size(); ++i) {
+            const auto coeff = coefficients[i];
+            if (coeff == 0) continue;
+            const int exponent = degree - static_cast<int>(i);
+            Monomial mono;
+            if (exponent > 0) {
+                mono[var] = exponent;
+            }
+            poly.terms[mono] += static_cast<double>(coeff);
+        }
+        poly.normalize();
+        return poly;
+    }
+
+    ExprPtr monic_linear_factor_expr(
+        const std::string& var,
+        const RationalRoot& root) {
+        auto variable_term = make_expr<Symbol>(var);
+        if (root.denominator == 1) {
+            if (root.numerator < 0) {
+                return make_plus(
+                    variable_term,
+                    make_expr<Number>(static_cast<double>(std::abs(root.numerator))));
+            }
+            return make_expr<FunctionCall>(
+                "Minus",
+                std::vector<ExprPtr>{
+                    variable_term,
+                    make_expr<Number>(static_cast<double>(root.numerator))
+                });
+        }
+
+        ExprPtr constant_term = make_expr<Rational>(std::abs(root.numerator), root.denominator);
+        if (root.numerator < 0) {
+            return make_plus(variable_term, constant_term);
+        }
+        return make_expr<FunctionCall>(
+            "Minus",
+            std::vector<ExprPtr>{variable_term, constant_term});
+    }
+
+    ExprPtr linear_polynomial_to_expr(
+        double coefficient,
+        const std::string& var,
+        const RationalRoot& root) {
+        if (is_near_zero(coefficient - 1.0)) {
+            return monic_linear_factor_expr(var, root);
+        }
+
+        auto variable_term = make_times({
+            make_expr<Number>(coefficient),
+            make_expr<Symbol>(var)
+        });
+
+        ExprPtr constant_term = nullptr;
+        const double constant_value =
+            coefficient * static_cast<double>(root.numerator)
+            / static_cast<double>(root.denominator);
+
+        if (is_near_integer(constant_value)) {
+            constant_term =
+                make_expr<Number>(static_cast<double>(std::abs(rounded_integer(constant_value))));
+        } else {
+            const auto scaled_numerator =
+                static_cast<int64_t>(std::llround(coefficient * root.numerator));
+            auto [n, d] = normalize_rational(std::llabs(scaled_numerator), root.denominator);
+            constant_term = make_expr<Rational>(n, d);
+        }
+
+        if (root.numerator < 0) {
+            return make_plus(variable_term, constant_term);
+        }
+        return make_expr<FunctionCall>(
+            "Minus",
+            std::vector<ExprPtr>{variable_term, constant_term});
+    }
+
+    ExprPtr polynomial_linear_expr(
+        const Polynomial& poly,
+        const std::string& var) {
+        double variable_coefficient = 0.0;
+        double constant_term = 0.0;
+
+        for (const auto& [mono, coeff] : poly.terms) {
+            if (is_near_zero(coeff)) continue;
+
+            if (mono.empty()) {
+                constant_term += coeff;
+                continue;
+            }
+
+            auto it = mono.find(var);
+            if (it != mono.end() && it->second == 1 && mono.size() == 1) {
+                variable_coefficient += coeff;
+                continue;
+            }
+
+            return polynomial_to_expr(poly);
+        }
+
+        if (is_near_zero(variable_coefficient)) {
+            return make_expr<Number>(constant_term);
+        }
+
+        auto scaled_numerator = rounded_integer(-constant_term);
+        auto scaled_denominator = rounded_integer(variable_coefficient);
+        auto [n, d] = normalize_rational(scaled_numerator, scaled_denominator);
+        return linear_polynomial_to_expr(variable_coefficient, var, RationalRoot{n, d});
+    }
+
+    std::vector<ExprPtr> factor_univariate_polynomial(
+        const Polynomial& poly,
+        const std::string& var) {
+        std::vector<std::pair<RationalRoot, ExprPtr>> linear_factors;
+        std::vector<ExprPtr> factors;
+        if (poly.degree() <= 1) {
+            factors.push_back(polynomial_linear_expr(poly, var));
+            return factors;
+        }
+
+        auto coefficients = univariate_coefficients(poly, var);
+        while (coefficients.size() > 2) {
+            bool found_root = false;
+            for (const auto candidate : rational_root_candidates(coefficients)) {
+                if (!is_near_zero(evaluate_univariate_coefficients(coefficients, candidate))) {
+                    continue;
+                }
+                const auto quotient = synthetic_divide(coefficients, candidate);
+                if (!quotient.has_value()) {
+                    continue;
+                }
+
+                linear_factors.emplace_back(
+                    candidate,
+                    monic_linear_factor_expr(var, candidate));
+                coefficients = *quotient;
+                found_root = true;
+                break;
+            }
+            if (!found_root) {
+                break;
+            }
+        }
+
+        const auto remainder = coefficients_to_polynomial(coefficients, var);
+        if (remainder.degree() == 1) {
+            double constant_term = 0.0;
+            auto it = remainder.terms.find(Monomial{});
+            if (it != remainder.terms.end()) {
+                constant_term = it->second;
+            }
+            double variable_coefficient = 0.0;
+            auto variable_it = remainder.terms.find(Monomial{{var, 1}});
+            if (variable_it != remainder.terms.end()) {
+                variable_coefficient = variable_it->second;
+            }
+            if (!is_near_zero(variable_coefficient)) {
+                auto [n, d] = normalize_rational(
+                    rounded_integer(-constant_term),
+                    rounded_integer(variable_coefficient));
+                linear_factors.emplace_back(
+                    RationalRoot{n, d},
+                    polynomial_linear_expr(remainder, var));
+            } else if (!is_constant_one(remainder)) {
+                factors.push_back(polynomial_to_expr(remainder));
+            }
+        } else if (!is_constant_one(remainder)) {
+            factors.push_back(polynomial_to_expr(remainder));
+        }
+
+        std::sort(
+            linear_factors.begin(),
+            linear_factors.end(),
+            [](const auto& left, const auto& right) {
+                const double left_value =
+                    static_cast<double>(left.first.numerator) / left.first.denominator;
+                const double right_value =
+                    static_cast<double>(right.first.numerator) / right.first.denominator;
+                if (!is_near_zero(left_value - right_value)) {
+                    return left_value > right_value;
+                }
+                return to_string(*left.second) < to_string(*right.second);
+            });
+
+        for (const auto& [_, factor] : linear_factors) {
+            factors.push_back(factor);
+        }
+
+        return factors;
+    }
+
+    }  // namespace
 
     // --- Conversion utilities ---
 
@@ -33,6 +551,11 @@ namespace aleph3 {
                 return Polynomial(static_cast<double>(num->value));
             }
             if (auto sym = std::get_if<Symbol>(&(*e))) {
+                if (!contains_variable(variables, sym->name)) {
+                    throw std::runtime_error(
+                        "expr_to_polynomial: Symbol `" + sym->name +
+                        "` is not in the selected polynomial variable set");
+                }
                 std::map<std::string, int> exps;
                 exps[sym->name] = 1;
                 return Polynomial({ {make_monomial(exps), 1.0} });
@@ -43,6 +566,16 @@ namespace aleph3 {
                     result = result + recur(arg);
                 }
                 return result;
+            }
+            if (auto minus = std::get_if<FunctionCall>(&(*e)); minus && minus->head == "Minus") {
+                if (minus->args.size() == 2) {
+                    return recur(minus->args[0]) - recur(minus->args[1]);
+                }
+            }
+            if (auto negate = std::get_if<FunctionCall>(&(*e)); negate && negate->head == "Negate") {
+                if (negate->args.size() == 1) {
+                    return Polynomial(0.0) - recur(negate->args[0]);
+                }
             }
             if (auto times = std::get_if<FunctionCall>(&(*e)); times && times->head == "Times") {
                 Polynomial result(1.0);
@@ -57,8 +590,18 @@ namespace aleph3 {
                     auto exp = pow->args[1];
                     if (auto s = std::get_if<Symbol>(&(*base))) {
                         if (auto n = std::get_if<Number>(&(*exp))) {
+                            const double exponent = n->value;
+                            if (!contains_variable(variables, s->name)) {
+                                throw std::runtime_error(
+                                    "expr_to_polynomial: Symbol `" + s->name +
+                                    "` is not in the selected polynomial variable set");
+                            }
+                            if (std::floor(exponent) != exponent || exponent < 0.0) {
+                                throw std::runtime_error(
+                                    "expr_to_polynomial: Polynomial powers require non-negative integer exponents");
+                            }
                             std::map<std::string, int> exps;
-                            exps[s->name] = static_cast<int>(n->value);
+                            exps[s->name] = static_cast<int>(exponent);
                             return Polynomial({ {make_monomial(exps), 1.0} });
                         }
                     }
@@ -72,19 +615,47 @@ namespace aleph3 {
 
     // Convert Polynomial to ExprPtr (sum of terms, supports multivariate)
     ExprPtr polynomial_to_expr(const Polynomial& poly) {
-        std::vector<ExprPtr> terms;
+        std::vector<std::pair<Monomial, double>> ordered_terms;
+        ordered_terms.reserve(poly.terms.size());
         for (const auto& [mono, coeff] : poly.terms) {
             if (std::abs(coeff) < 1e-10) continue;
-            ExprPtr term = make_expr<Number>(coeff);
+            ordered_terms.emplace_back(mono, coeff);
+        }
+
+        std::sort(
+            ordered_terms.begin(),
+            ordered_terms.end(),
+            [](const auto& left, const auto& right) {
+                const int left_degree = total_degree(left.first);
+                const int right_degree = total_degree(right.first);
+                if (left_degree != right_degree) {
+                    return left_degree > right_degree;
+                }
+                return left.first < right.first;
+            });
+
+        std::vector<ExprPtr> terms;
+        for (const auto& [mono, coeff] : ordered_terms) {
+            if (mono.empty()) {
+                terms.push_back(make_expr<Number>(coeff));
+                continue;
+            }
+
+            std::vector<ExprPtr> factors;
+            if (coeff != 1.0) {
+                factors.push_back(make_expr<Number>(coeff));
+            }
             for (const auto& [var, exp] : mono) {
                 ExprPtr v = make_expr<Symbol>(var);
                 if (exp == 1) {
-                    term = make_fcall("Times", { term, v });
+                    factors.push_back(v);
                 }
                 else {
-                    term = make_fcall("Times", { term, make_fcall("Power", {v, make_expr<Number>(static_cast<double>(exp))}) });
+                    factors.push_back(
+                        make_fcall("Power", {v, make_expr<Number>(static_cast<double>(exp))}));
                 }
             }
+            ExprPtr term = factors.size() == 1 ? factors.front() : make_times(factors);
             terms.push_back(term);
         }
         if (terms.empty()) return make_expr<Number>(0.0);
@@ -95,42 +666,49 @@ namespace aleph3 {
     // --- High-level API ---
 
     ExprPtr expand_polynomial(const ExprPtr& expr, EvaluationContext& ctx) {
-        // Try to infer variables from expr (collect all symbols)
-        std::set<std::string> vars;
-        std::function<void(const ExprPtr&)> visit = [&](const ExprPtr& e) {
-            if (!e) return;
-            if (auto sym = std::get_if<Symbol>(&(*e))) {
-                vars.insert(sym->name);
-            }
-            else if (auto func = std::get_if<FunctionCall>(&(*e))) {
-                for (const auto& arg : func->args) visit(arg);
-            }
-            };
-        visit(expr);
-        std::vector<std::string> variables(vars.begin(), vars.end());
-
+        const std::vector<std::string> variables = infer_variables(expr);
         Polynomial poly = expr_to_polynomial(expr, variables);
         Polynomial expanded = expand(poly);
         return polynomial_to_expr(expanded);
     }
 
     ExprPtr factor_polynomial(const ExprPtr& expr, EvaluationContext& ctx) {
-        std::set<std::string> vars;
-        std::function<void(const ExprPtr&)> visit = [&](const ExprPtr& e) {
-            if (!e) return;
-            if (auto sym = std::get_if<Symbol>(&(*e))) {
-                vars.insert(sym->name);
-            }
-            else if (auto func = std::get_if<FunctionCall>(&(*e))) {
-                for (const auto& arg : func->args) visit(arg);
-            }
-            };
-        visit(expr);
-        std::vector<std::string> variables(vars.begin(), vars.end());
-
+        const std::vector<std::string> variables = infer_variables(expr);
         Polynomial poly = expr_to_polynomial(expr, variables);
-        Polynomial factored = factor(poly);
-        return polynomial_to_expr(factored);
+        if (is_constant_zero(poly)) {
+            return polynomial_to_expr(poly);
+        }
+
+        const auto content = split_content(poly);
+        std::vector<ExprPtr> factors;
+
+        if (!is_near_zero(content.coefficient - 1.0)
+            || !content.monomial.empty()) {
+            factors.push_back(monomial_to_expr(content.coefficient, content.monomial));
+        }
+
+        Polynomial remaining = content.primitive;
+        const auto remaining_variables = infer_variables(remaining);
+        if (remaining_variables.size() == 1
+            && is_univariate_in(remaining, remaining_variables.front())
+            && remaining.degree() > 1) {
+            auto univariate_factors =
+                factor_univariate_polynomial(remaining, remaining_variables.front());
+            factors.insert(
+                factors.end(),
+                univariate_factors.begin(),
+                univariate_factors.end());
+        } else if (!is_constant_one(remaining)) {
+            factors.push_back(polynomial_to_expr(remaining));
+        }
+
+        if (factors.empty()) {
+            return polynomial_to_expr(remaining);
+        }
+        if (factors.size() == 1) {
+            return factors.front();
+        }
+        return make_times(factors);
     }
 
     ExprPtr collect_polynomial(const ExprPtr& expr, const std::vector<std::string>& variables, EvaluationContext& ctx) {
@@ -157,11 +735,6 @@ namespace aleph3 {
 
     Polynomial expand(const Polynomial& poly) {
         // Already expanded in this representation
-        return poly;
-    }
-
-    Polynomial factor(const Polynomial& poly) {
-        // Placeholder: no actual factorization
         return poly;
     }
 

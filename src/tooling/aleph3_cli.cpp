@@ -4,6 +4,9 @@
 #include "sdk/Engine.hpp"
 #include "tooling/DemoHostFunctions.hpp"
 #include "tooling/RewriteCliSupport.hpp"
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+#include "tooling/SymbolicCliSupport.hpp"
+#endif
 
 #include <cctype>
 #include <cstddef>
@@ -166,6 +169,12 @@ void print_usage() {
         << "  aleph3_cli compile <formula>\n"
         << "  aleph3_cli evaluate [--var name=value]... <formula>\n"
         << "  aleph3_cli evaluate-host [--var name=value]... <formula>\n";
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+    std::cout
+        << "  aleph3_cli symbolic-evaluate <expr>\n"
+        << "  aleph3_cli symbolic-simplify <expr>\n"
+        << "  aleph3_cli symbolic-fullform <expr>\n";
+#endif
 }
 
 std::string join_formula_args(int argc, char** argv, int start_index) {
@@ -196,6 +205,14 @@ void print_help() {
         << "                       Compile and evaluate a formula with CLI bindings\n"
         << "  evaluate-host [--var name=value]... <formula>\n"
         << "                       Evaluate using demo registered host functions\n"
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+        << "  symbolic-evaluate <expr>\n"
+        << "                       Evaluate through the symbolic engine surface\n"
+        << "  symbolic-simplify <expr>\n"
+        << "                       Evaluate and simplify through the symbolic engine\n"
+        << "  symbolic-fullform <expr>\n"
+        << "                       Print the symbolic expression in FullForm\n"
+#endif
         << "\n"
         << "Notes:\n"
         << "  validate is live, but with the default empty schema it will reject\n"
@@ -203,6 +220,12 @@ void print_help() {
         << "  evaluate automatically allows variables passed through --var.\n"
         << "  Binding values support numbers, True, False, and quoted/unquoted strings.\n"
         << "  evaluate-host registers the demo host bundle shown by host-functions.\n"
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+        << "  symbolic-* commands use the broader symbolic engine, including\n"
+        << "  polynomial functions such as Expand, Factor, Collect, GCD, and PolynomialQuotient.\n"
+        << "  Factor currently supports common-content extraction and integer-coefficient\n"
+        << "  univariate rational-root factorization in the supported subset.\n"
+#endif
         << "  In the REPL on Unix-like terminals, up/down arrows walk command history,\n"
         << "  left/right arrows move the cursor, and Tab completes command names.\n";
 }
@@ -239,6 +262,11 @@ void print_examples() {
         << "  aleph3_cli evaluate --var x=3 \"x + 1\"\n"
         << "  aleph3_cli evaluate --var label=hello \"label + 1\"\n"
         << "  aleph3_cli evaluate \"If[3 < 4, 10, 20]\"\n"
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+        << "  aleph3_cli symbolic-evaluate \"Expand[(x + 1) * (x + 2)]\"\n"
+        << "  aleph3_cli symbolic-simplify \"0 + (1 * x)\"\n"
+        << "  aleph3_cli symbolic-evaluate \"PolynomialQuotient[x^2 - 1, x - 1, x]\"\n"
+#endif
         << "\n"
         << "Host function examples\n";
 
@@ -277,6 +305,11 @@ const std::vector<std::string>& repl_commands() {
         "compile",
         "evaluate",
         "evaluate-host",
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+        "symbolic-evaluate",
+        "symbolic-simplify",
+        "symbolic-fullform",
+#endif
         "quit",
         "exit"
     };
@@ -609,6 +642,38 @@ bool read_repl_line(const std::string& prompt, std::vector<std::string>& history
 }
 
 int run_command(std::string_view command, std::string_view formula) {
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+    if (command == "symbolic-evaluate") {
+        const auto result = aleph3::tooling::symbolic_evaluate_expression(formula);
+        if (!result.ok) {
+            std::cerr << result.error_message << '\n';
+            return 2;
+        }
+        std::cout << result.output << '\n';
+        return 0;
+    }
+
+    if (command == "symbolic-simplify") {
+        const auto result = aleph3::tooling::symbolic_simplify_expression(formula);
+        if (!result.ok) {
+            std::cerr << result.error_message << '\n';
+            return 2;
+        }
+        std::cout << result.output << '\n';
+        return 0;
+    }
+
+    if (command == "symbolic-fullform") {
+        const auto result = aleph3::tooling::symbolic_fullform_expression(formula);
+        if (!result.ok) {
+            std::cerr << result.error_message << '\n';
+            return 2;
+        }
+        std::cout << result.output << '\n';
+        return 0;
+    }
+#endif
+
     if (command == "tokens") {
         aleph3::frontend::Lexer lexer(formula);
         const auto result = lexer.tokenize();
@@ -728,7 +793,11 @@ int run_repl() {
         const std::string formula = split == std::string::npos ? "" : trim(line.substr(split + 1));
 
         if ((command == "tokens" || command == "parse" || command == "validate" || command == "compile" ||
-             command == "evaluate" || command == "evaluate-host") &&
+             command == "evaluate" || command == "evaluate-host"
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+             || command == "symbolic-evaluate" || command == "symbolic-simplify" || command == "symbolic-fullform"
+#endif
+             ) &&
             formula.empty()) {
             std::cerr << "A formula is required for `" << command << "`.\n";
             continue;

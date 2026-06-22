@@ -18,6 +18,10 @@ This plan focuses on two things:
 - what the symbolic engine should become as product-grade core technology
 - where current test coverage and capability coverage are still weak
 
+Related implementation plan:
+
+- [Symbolic Evaluator Cleanup Plan](symbolic_evaluator_cleanup_plan.md)
+
 ## Product Position
 
 Aleph3 now has two related but distinct product layers:
@@ -39,6 +43,15 @@ Aleph3 now has two related but distinct product layers:
 
 The symbolic engine should not be treated as deprecated. It should be treated
 as a first-class core that needs its own contracts, tests, and roadmap.
+
+The current product-facing CLI surface for this layer is now:
+
+- `aleph3_cli symbolic-evaluate <expr>`
+- `aleph3_cli symbolic-simplify <expr>`
+- `aleph3_cli symbolic-fullform <expr>`
+
+This makes selected symbolic and polynomial capabilities directly usable without
+reintroducing a separate old-style symbolic REPL binary.
 
 ## Current Symbolic Surface
 
@@ -66,8 +79,38 @@ Current implemented areas include:
 - simplification and expansion helpers
 - exact rational arithmetic
 - basic complex arithmetic
-- polynomial arithmetic and some polynomial functions such as `Expand`,
-  `Factor`, `Collect`, `GCD`, and `PolynomialQuotient`
+- polynomial arithmetic and polynomial functions such as `Expand`, `Factor`,
+  `Collect`, `GCD`, and `PolynomialQuotient`
+
+## Current Evaluator Contract
+
+The current symbolic evaluator contract should be treated as product behavior
+for the existing symbolic surface until the evaluator cleanup changes it
+intentionally.
+
+Today, `evaluate(expr, ctx)` is expected to follow these rules:
+
+- numeric and exact arithmetic reduce when the operator/function has enough
+  concrete information to do so
+- built-in symbolic polynomial functions may evaluate through the algebra layer
+  when their supported preconditions are met
+- `If[cond, then, else]` evaluates only the selected branch when `cond`
+  reduces to a boolean
+- `If[cond, then, else]` remains symbolic when `cond` does not reduce to a
+  boolean
+- unresolved symbolic calls remain symbolic rather than forcing a partial
+  pseudo-result
+- unknown function calls preserve their original symbolic arguments instead of
+  eagerly reducing them through the generic evaluator path
+- algebra entrypoints that require symbolic selectors, such as `Collect`, fail
+  explicitly on invalid selector arguments
+
+The current evaluator should not yet be treated as guaranteeing:
+
+- a fully documented eager-vs-lazy policy for every built-in
+- broad canonicalization across all symbolic outputs
+- structured error categories beyond stable failure behavior and message shape
+- clean separation of evaluation and simplification internals
 
 ## What Exists Today
 
@@ -297,7 +340,7 @@ What exists:
 What is missing:
 
 - canonical-form contract for multivariate polynomials
-- product tests for `Factor`, `Collect`, `GCD`, and `PolynomialQuotient`
+- broader product tests for sparse/high-degree and negative-path factoring
 - explicit conversion tests between `Expr` and polynomial form
 - hard edge cases for sparse/high-degree/multivariate operations
 - reliable non-happy-path behavior and error diagnostics
@@ -370,6 +413,30 @@ Needed outcomes:
 - define supported polynomial domains and limitations
 - harden conversion, operations, and canonical forms
 - expand tests around `Factor`, `Collect`, `GCD`, `PolynomialQuotient`
+
+Current near-term polynomial contract should be:
+
+- `Expand[expr]` returns an expanded polynomial form for expressions that can be
+  converted into the current polynomial representation
+- `expr_to_polynomial(expr, variables)` rejects symbols outside the declared
+  variable set instead of silently treating them as constants
+- polynomial conversion only accepts non-negative integer powers on declared
+  polynomial variables
+- `Collect[expr, x]` collects using the symbolic selector argument, not any
+  runtime binding currently assigned to `x`
+- `GCD[a, b, x]` and `PolynomialQuotient[a, b, x]` support explicit univariate
+  variable selection
+- `Factor[expr]` supports common-content extraction and univariate rational-root
+  factorization for integer-coefficient polynomials in the supported subset
+- `Factor[0]` and `Factor[c]` preserve zero/constant forms, and sparse
+  higher-degree univariate polynomials may factor through repeated zero and
+  rational roots when they stay inside that same integer-coefficient subset
+- univariate division and GCD are supported
+- multivariate GCD and polynomial division are not yet supported
+- multivariate factoring is currently limited to extracting shared monomial and
+  integer content before any univariate remainder factoring
+- non-integer-coefficient univariate factorization is rejected rather than
+  silently returning misleading partial symbolic factorizations
 
 ## P3. Exact Arithmetic Contract
 

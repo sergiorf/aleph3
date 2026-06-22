@@ -62,7 +62,8 @@ if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
         "src/algebra/*.cpp"
         "src/evaluator/*.cpp"
         "src/expr/*.cpp"
-        "src/transforms/*.cpp")
+        "src/transforms/*.cpp"
+        "src/tooling/SymbolicCliSupport.cpp")
     file(GLOB SYMBOLIC_HEADERS
         "include/*.hpp"
         "include/*.h"
@@ -72,6 +73,7 @@ if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
         "include/help/*.hpp"
         "include/normalizer/*.hpp"
         "include/parser/*.hpp"
+        "include/tooling/*.hpp"
         "include/transforms/*.hpp"
         "include/util/*.hpp")
 
@@ -81,6 +83,11 @@ if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
         ${SYMBOLIC_HEADERS})
     add_library(${PROJECT_NAME}_lib ALIAS aleph3_symbolic)
     target_include_directories(aleph3_symbolic PUBLIC include PRIVATE third_party/utf8cpp)
+
+    if(ALEPH3_BUILD_SDK)
+        target_link_libraries(aleph3_cli PRIVATE aleph3_symbolic)
+        target_compile_definitions(aleph3_cli PRIVATE ALEPH3_HAS_SYMBOLIC_ENGINE=1)
+    endif()
 endif()
 
 include(CTest)

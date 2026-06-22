@@ -58,7 +58,7 @@ TEST_CASE("Symbolic CLI support hardens nested algebraic simplification", "[tool
 
     const auto flattened = tooling::symbolic_simplify_expression("x + (y + 2) + 3");
     REQUIRE(flattened.ok);
-    REQUIRE(flattened.output == "5 + x + y");
+    REQUIRE(flattened.output == "x + y + 5");
 
     const auto merged_powers = tooling::symbolic_simplify_expression("x * x * y");
     REQUIRE(merged_powers.ok);

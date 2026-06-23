@@ -1,10 +1,10 @@
 #pragma once
 
 #include "expr/Expr.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include <unordered_map>
 #include <functional>
-#include <stdexcept>
 
 namespace aleph3 {
 
@@ -26,7 +26,7 @@ public:
         if (it != handlers.end()) {
             return it->second;
         }
-        throw std::runtime_error("Unknown function: " + name);
+        throw_unsupported_construct("Unknown function: " + name);
     }
 
     bool has_function(const std::string& name) const {

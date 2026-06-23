@@ -1,6 +1,8 @@
 #include "evaluator/FunctionRegistry.hpp"
 #include "evaluator/Evaluator.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
+#include "util/Overloaded.hpp"
 #include "Constants.hpp"
 #include <cmath>
 
@@ -98,7 +100,7 @@ namespace aleph3 {
                     result += std::get<String>(*evaluated_arg).value;
                 }
                 else {
-                    throw std::runtime_error("StringJoin expects string arguments");
+                    throw_invalid_form("StringJoin expects string arguments");
                 }
             }
             return make_expr<String>(result);
@@ -106,20 +108,20 @@ namespace aleph3 {
 
         registry.register_function("StringLength", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             if (func.args.size() != 1) {
-                throw std::runtime_error("StringLength expects exactly 1 argument");
+                throw_invalid_arity_exact("StringLength", 1);
             }
             auto evaluated_arg = evaluate(func.args[0], ctx);
             if (std::holds_alternative<String>(*evaluated_arg)) {
                 return make_expr<Number>(static_cast<double>(std::get<String>(*evaluated_arg).value.size()));
             }
             else {
-                throw std::runtime_error("StringLength expects a string argument");
+                throw_invalid_form("StringLength expects a string argument");
             }
             });
 
         registry.register_function("StringReplace", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             if (func.args.size() != 2) {
-                throw std::runtime_error("StringReplace expects exactly 2 arguments");
+                throw_invalid_arity_exact("StringReplace", 2);
             }
             auto str_arg = evaluate(func.args[0], ctx);
             auto rule_arg = evaluate(func.args[1], ctx);
@@ -148,11 +150,11 @@ namespace aleph3 {
 
         registry.register_function("StringTake", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             if (func.args.size() != 2) {
-                throw std::runtime_error("StringTake expects exactly 2 arguments");
+                throw_invalid_arity_exact("StringTake", 2);
             }
             auto str_arg = evaluate(func.args[0], ctx);
             if (!std::holds_alternative<String>(*str_arg)) {
-                throw std::runtime_error("StringTake expects the first argument to be a string");
+                throw_invalid_form("StringTake expects the first argument to be a string");
             }
             const std::string& str = std::get<String>(*str_arg).value;
 
@@ -162,7 +164,7 @@ namespace aleph3 {
             if (std::holds_alternative<Number>(*idx_arg)) {
                 int n = static_cast<int>(std::get<Number>(*idx_arg).value);
                 if (n == 0 || std::abs(n) > static_cast<int>(str.size())) {
-                    throw std::runtime_error("StringTake expects a valid index or range");
+                    throw_invalid_form("StringTake expects a valid index or range");
                 }
                 if (n > 0) {
                     return make_expr<String>(str.substr(0, n));
@@ -182,7 +184,7 @@ namespace aleph3 {
                         int start = static_cast<int>(start_num->value);
                         int end = static_cast<int>(end_num->value);
                         if (start < 1 || end < start || end > static_cast<int>(str.size())) {
-                            throw std::runtime_error("StringTake expects a valid index or range");
+                            throw_invalid_form("StringTake expects a valid index or range");
                         }
                         // Convert to 0-based index
                         return make_expr<String>(str.substr(start - 1, end - start + 1));
@@ -190,24 +192,24 @@ namespace aleph3 {
                 }
             }
 
-            throw std::runtime_error("StringTake expects a valid index or range");
+            throw_invalid_form("StringTake expects a valid index or range");
             });
 
         registry.register_function("Length", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             if (func.args.size() != 1) {
-                throw std::runtime_error("Length expects exactly 1 argument");
+                throw_invalid_arity_exact("Length", 1);
             }
             auto arg = evaluate(func.args[0], ctx);
             if (std::holds_alternative<List>(*arg)) {
                 const auto& list = std::get<List>(*arg);
                 return make_expr<Number>(static_cast<double>(list.elements.size()));
             }
-            throw std::runtime_error("Length expects a list argument");
+            throw_invalid_form("Length expects a list argument");
             });
 
         registry.register_function("N", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             if (func.args.size() != 1) {
-                throw std::runtime_error("N expects exactly 1 argument");
+                throw_invalid_arity_exact("N", 1);
             }
             auto arg = evaluate(func.args[0], ctx);
             auto num_arg = numeric_eval(arg);

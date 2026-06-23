@@ -2,107 +2,76 @@
 
 ## Purpose
 
-This plan turns the symbolic evaluator cleanup into concrete repository work.
+This plan tracks the evaluator and semantic-stability work needed to move
+Aleph3 toward a production-grade symbolic engine inspired by Mathematica.
 
-The objective is not to redesign the symbolic engine from scratch.
-The objective is to take the current evaluator path and make it:
+This is not only a refactor plan. It is a semantic hardening plan for the core
+engine that future SDK surfaces, hosted services, and niche products will
+depend on.
 
-- readable
-- modular
-- contract-driven
-- easier to test
-- ready for new symbolic capabilities such as differentiation
+Aleph3 should have a clear layered architecture:
+
+1. `aleph3_symbolic`
+   The core symbolic math engine:
+   - expression model
+   - parser
+   - symbolic evaluation
+   - simplification and transforms
+   - polynomial and algebra utilities
+
+2. `aleph3_sdk`
+   The host-facing embedding layer built on top of the symbolic core:
+   - validation
+   - runtime policy
+   - stable host API
+   - host-function integration
+
+3. Future products
+   Additional commercial surfaces built on the same symbolic semantics:
+   - vertical applications
+   - hosted APIs
+   - interactive tooling
+   - future higher-level math products
+
+The main rule for this plan is simple: runtime machinery should follow stable
+symbolic semantics, not compensate for unstable semantics.
 
 ## Status
 
 Completed:
 
-- Phase 0. Freeze The Current Contract
-- Phase 1. Add Evaluator Contract Tests
-- Phase 2. Extract Algebra Dispatch
-- Phase 3. Extract Special Forms
-- Phase 4. Extract Built-In Dispatch
+- Freeze evaluator contract
+- Add evaluator contract tests
+- Extract algebra dispatch
+- Extract special forms
+- Extract built-in dispatch
+- Extract user-defined function dispatch
 
-Next:
+Active:
 
-- Phase 5. Extract User-Defined Function Dispatch
+- Phase 6. Standardize evaluator error helpers
+- Phase 7. Canonical forms and normalization contracts
+- Phase 8. Evaluation-control semantics and attributes
+- Phase 9. Simplification and rewrite-system contract
+- Phase 10. Algebra capability hardening
+- Phase 11. Documentation pass
 
-The main debt today is concentrated in:
+## Core Risks Still Open
 
-- [include/evaluator/Evaluator.hpp](/home/sergio/dev/aleph3/include/evaluator/Evaluator.hpp)
-- [src/evaluator/Evaluator.cpp](/home/sergio/dev/aleph3/src/evaluator/Evaluator.cpp)
+The main remaining fragilities are not just code-organization issues.
 
-## Current Problems
+- symbolic fallback is not yet defined sharply enough
+- canonical forms are not yet stable product behavior
+- simplification is useful but not governed by a clear contract
+- error behavior is still too ad hoc
+- algebra capability is too narrow for a production symbolic-core story
+- evaluator control semantics are still too limited for a Mathematica-inspired
+  engine
 
-### 1. The main evaluator mixes too many responsibilities
+## Architecture Target
 
-The current symbolic evaluator path combines:
-
-- expression traversal
-- special-form semantics
-- built-in math dispatch
-- symbolic fallback behavior
-- user-defined function evaluation
-- registry dispatch
-- normalization-sensitive behavior
-- algebra-specific dispatch
-
-That makes it hard to reason about semantic boundaries.
-
-### 2. Most behavior is encoded as condition-heavy branching
-
-The implementation is effective but structurally fragile.
-
-The evaluator is not yet organized around explicit semantic categories.
-Instead, much of the behavior is driven by large clusters of `if`/`else`
-checks and tables living close to the main evaluation entrypoint.
-
-### 3. Evaluate and simplify boundaries are not crisp enough
-
-The symbolic product needs a clearer rule for:
-
-- what `evaluate` owns
-- what `simplify` owns
-- what should stay symbolic when reduction is incomplete
-
-Without that split, new features will keep increasing semantic overlap.
-
-### 4. Error construction is too ad hoc
-
-The symbolic path still leans on direct `std::runtime_error` creation with
-scattered message strings.
-
-That makes error behavior:
-
-- harder to keep consistent
-- harder to test
-- harder to evolve later into structured diagnostics
-
-### 5. Algebra dispatch is not isolated enough
-
-The polynomial tier has improved, but evaluator-level routing still knows too
-much about algebra-specific behavior and argument handling.
-
-That needs a clearer boundary before differentiation or deeper CAS features
-are added.
-
-## Cleanup Goal
-
-After this cleanup, the symbolic evaluator should look like an orchestrator.
-
-The main entrypoint should do only a few things:
-
-1. inspect the expression kind
-2. route to the right semantic subsystem
-3. rebuild symbolic output when no rule applies
-4. surface consistent errors
-
-The main entrypoint should not remain the place where all evaluation logic
-lives.
-
-## Target Architecture
-
-The symbolic evaluator should be split into the following internal areas.
+The evaluator should be an orchestrator, not the place where all semantics
+accumulate. Each behavior class should have a clear home.
 
 ### Evaluator Core
 
@@ -112,36 +81,37 @@ Owns:
 - expression-kind dispatch
 - symbolic fallback and reconstruction
 
-Recommended files:
+Files:
 
-- `include/evaluator/Evaluator.hpp`
-- `src/evaluator/EvaluatorCore.cpp`
+- [include/evaluator/Evaluator.hpp](/home/sergio/dev/aleph3/include/evaluator/Evaluator.hpp)
+- [src/evaluator/Evaluator.cpp](/home/sergio/dev/aleph3/src/evaluator/Evaluator.cpp)
 
-### Special Forms
+### Special Forms And Evaluation Control
 
 Owns:
 
 - `If`
-- any future lazy or non-standard-evaluation constructs
+- future lazy or non-standard-evaluation constructs
+- evaluation-control behavior for special cases
 
-Recommended files:
+Files:
 
-- `include/evaluator/EvaluatorSpecialForms.hpp`
-- `src/evaluator/EvaluatorSpecialForms.cpp`
+- [include/evaluator/EvaluatorSpecialForms.hpp](/home/sergio/dev/aleph3/include/evaluator/EvaluatorSpecialForms.hpp)
+- [src/evaluator/EvaluatorSpecialForms.cpp](/home/sergio/dev/aleph3/src/evaluator/EvaluatorSpecialForms.cpp)
 
-### Built-In Numeric And Symbolic Functions
+### Built-In Functions
 
 Owns:
 
-- unary/binary numeric built-ins
-- comparison dispatch
-- known symbolic constants and identity cases
-- domain checks that belong to built-in evaluation
+- unary and binary numeric built-ins
+- comparisons
+- symbolic constants and identity cases
+- built-in domain checks
 
-Recommended files:
+Files:
 
-- `include/evaluator/EvaluatorBuiltins.hpp`
-- `src/evaluator/EvaluatorBuiltins.cpp`
+- [include/evaluator/EvaluatorBuiltins.hpp](/home/sergio/dev/aleph3/include/evaluator/EvaluatorBuiltins.hpp)
+- [src/evaluator/EvaluatorBuiltins.cpp](/home/sergio/dev/aleph3/src/evaluator/EvaluatorBuiltins.cpp)
 
 ### Algebra Dispatch
 
@@ -151,307 +121,227 @@ Owns:
 - symbolic argument policy for algebra functions
 - variable selector handling
 
-Recommended files:
+Files:
 
-- `include/evaluator/EvaluatorAlgebra.hpp`
-- `src/evaluator/EvaluatorAlgebra.cpp`
-
-This can wrap the current polynomial implementation in:
-
-- [include/algebra/PolyUtils.hpp](/home/sergio/dev/aleph3/include/algebra/PolyUtils.hpp)
-- [src/algebra/PolyUtils.cpp](/home/sergio/dev/aleph3/src/algebra/PolyUtils.cpp)
+- [include/evaluator/EvaluatorAlgebra.hpp](/home/sergio/dev/aleph3/include/evaluator/EvaluatorAlgebra.hpp)
+- [src/evaluator/EvaluatorAlgebra.cpp](/home/sergio/dev/aleph3/src/evaluator/EvaluatorAlgebra.cpp)
 
 ### User-Defined Function Dispatch
 
 Owns:
 
 - argument binding
-- delayed vs immediate evaluation semantics
-- arity validation
-- recursive/self-referential behavior boundaries
+- default argument handling
+- delayed vs immediate definition semantics
+- local call context creation
+- recursion boundaries
 
-Recommended files:
+Files:
 
-- `include/evaluator/EvaluatorFunctions.hpp`
-- `src/evaluator/EvaluatorFunctions.cpp`
+- [include/evaluator/EvaluatorFunctions.hpp](/home/sergio/dev/aleph3/include/evaluator/EvaluatorFunctions.hpp)
+- [src/evaluator/EvaluatorFunctions.cpp](/home/sergio/dev/aleph3/src/evaluator/EvaluatorFunctions.cpp)
 
 ### Evaluator Error Helpers
 
 Owns:
 
-- standardized evaluator error creation
-- centralized message wording
-- optional future error categorization
+- centralized evaluator error construction
+- consistent message wording
+- future error categorization
 
 Recommended files:
 
 - `include/evaluator/EvaluatorErrors.hpp`
 - `src/evaluator/EvaluatorErrors.cpp`
 
-## Refactor Phases
+## Remaining Phases
 
-## Phase 0. Freeze The Current Contract
+## Phase 6. Standardize Evaluator Error Helpers
 
-Before moving logic, define the current intended product behavior.
+Goal:
 
-Deliverables:
-
-- a short evaluator contract section added to
-  [docs/symbolic_engine_product_plan.md](/home/sergio/dev/aleph3/docs/symbolic_engine_product_plan.md)
-  or a companion contract doc
-- explicit rules for:
-  - when evaluation reduces numerically
-  - when evaluation returns a symbolic form
-  - which functions evaluate arguments eagerly
-  - which functions preserve raw symbolic arguments
-  - when runtime errors are expected
-
-Test gate:
-
-- add focused regression tests for the current symbolic product surface before
-  structural extraction starts
-
-## Phase 1. Add Evaluator Contract Tests
-
-This phase exists to make the later refactor safe.
-
-Add or strengthen tests in:
-
-- [tests/evaluator/EvaluatorTests.cpp](/home/sergio/dev/aleph3/tests/evaluator/EvaluatorTests.cpp)
-- [tests/evaluator/EvaluatorFunctionsTests.cpp](/home/sergio/dev/aleph3/tests/evaluator/EvaluatorFunctionsTests.cpp)
-- [tests/SimplifyTests.cpp](/home/sergio/dev/aleph3/tests/SimplifyTests.cpp)
-- [tests/SymbolicCliSupportTests.cpp](/home/sergio/dev/aleph3/tests/SymbolicCliSupportTests.cpp)
-
-Required contract cases:
-
-- numeric arithmetic still reduces correctly
-- `If` evaluates only the selected branch when the condition is boolean
-- unresolved symbolic function calls remain symbolic instead of collapsing
-- polynomial functions use symbolic arguments where required
-- invalid variable selectors and bad arity paths fail consistently
-- boolean and comparison behavior stays stable
-- CLI symbolic commands preserve current product-facing behavior
-
-Success condition:
-
-- there is a compact evaluator regression net covering product behavior rather
-  than only incidental examples
-
-## Phase 2. Extract Algebra Dispatch
-
-This is the safest first extraction because the product boundary is already
-partly visible.
+- remove ad hoc evaluator error construction
+- make failure behavior stable enough to test intentionally
+- separate symbolic fallback from true failure states
 
 Work:
 
-- move algebra-specific evaluator routing out of the generic evaluator path
-- keep [src/evaluator/Evaluator.cpp](/home/sergio/dev/aleph3/src/evaluator/Evaluator.cpp)
-  focused on dispatch, not polynomial semantics
-- formalize helpers like variable extraction and argument policy inside the
-  algebra dispatch layer
-
-Likely moves:
-
-- current `evaluate_polynomial_function(...)`
-- current variable-selector helpers
-- current polynomial function name checks
+- centralize evaluator error creation
+- define consistent wording for arity, invalid symbolic usage, and domain
+  failures
+- introduce explicit error categories for:
+  - invalid form
+  - invalid arity
+  - domain violation
+  - unsupported construct
+  - internal inconsistency
+- keep algebra-specific errors and generic evaluator errors clearly separated
 
 Success condition:
 
-- algebra routing is isolated behind one narrow evaluator-facing interface
+- evaluator modules stop constructing scattered message strings inline
+- error-path tests can target shared wording and behavior
+- unevaluated symbolic results are clearly distinct from actual evaluator
+  failures
 
-## Phase 3. Extract Special Forms
+## Phase 7. Canonical Forms And Normalization Contracts
+
+Goal:
+
+- make canonical representation a product contract rather than incidental output
 
 Work:
 
-- move `If` handling and any other special-case non-eager evaluation behavior
-  out of the main evaluator path
-- define a clear lazy-evaluation policy per special form
+- define canonical ordering for commutative forms
+- define normalization rules for algebraically equivalent expressions where the
+  engine intends canonical output
+- document when `evaluate`, `simplify`, and algebra routines may change form
+- add idempotence expectations for normalization-sensitive operations
+
+Required tests:
+
+- canonical ordering for `Plus` and `Times`
+- stable handling of negation and rational normalization
+- idempotence for repeated normalization
+- stable output for semantically equivalent input forms
 
 Success condition:
 
-- the core evaluator no longer contains special-form semantics inline
+- canonical output behavior is documented and tested for the supported subset
+- equivalent expressions stop drifting across repeated operations
 
-## Phase 4. Extract Built-In Dispatch
+## Phase 8. Evaluation-Control Semantics And Attributes
+
+Goal:
+
+- define the evaluation model beyond the current hardcoded special cases
 
 Work:
 
-- move unary/binary built-in tables and comparison dispatch out of the main
-  evaluator header
-- separate:
-  - numeric built-ins
-  - comparison built-ins
-  - symbolic identity tables
-  - domain checking
+- decide which Mathematica-inspired evaluation controls are part of the target
+  subset
+- define attribute-like behavior for supported functions where needed
+- document eager, lazy, and symbolic-preserving behavior by category
+- keep unsupported evaluation-control features explicit rather than accidental
 
-Important constraint:
+Initial scope candidates:
 
-- this phase must not casually change built-in semantics
+- hold-style behavior where required
+- orderless/flat semantics where intended
+- listability if adopted
+- numeric-function classification where intended
 
 Success condition:
 
-- built-in function logic is no longer mixed into the top-level evaluator entry
+- evaluation behavior is driven by explicit semantic rules rather than ad hoc
+  branching alone
+- product docs state which evaluation controls are supported and which are not
 
-## Phase 5. Extract User-Defined Function Dispatch
+## Phase 9. Simplification And Rewrite-System Contract
+
+Goal:
+
+- turn simplification from a cluster of useful transforms into a defined product
+  subsystem
 
 Work:
 
-- move user-function application and binding logic into its own module
-- centralize delayed/immediate argument semantics
-- centralize arity failures
+- define what `simplify` is allowed to do
+- define boundaries between `evaluate`, `simplify`, and algebra transforms
+- document termination and idempotence expectations for supported rewrite paths
+- introduce targeted rewrite tests for cross-feature interaction
+
+Required tests:
+
+- idempotence for supported simplifications
+- no unintended evaluation through simplification-only paths
+- consistent handling of nested sums, products, powers, and rationals
+- interaction tests between simplification and symbolic fallback
 
 Success condition:
 
-- user-defined function behavior has one implementation home instead of being
-  spread across evaluator control flow
+- simplification behavior is intentional, documented, and regression-tested
 
-## Phase 6. Centralize Error Construction
+## Phase 10. Algebra Capability Hardening
+
+Goal:
+
+- strengthen the algebra layer so it is credible as part of a production-grade
+  symbolic core
 
 Work:
 
-- replace scattered evaluator `runtime_error` strings with internal error
-  helper functions
-- normalize wording for:
-  - bad arity
-  - bad variable selectors
-  - unsupported domains
-  - unknown function and unsupported symbolic cases where applicable
+- harden multivariate polynomial behavior
+- define canonical-form expectations for supported algebra outputs
+- improve selector and variable-policy rules
+- add differentiation as a planned algebra capability
+- identify which algebra features are in the supported product subset now
+  versus later
+
+Required tests:
+
+- multivariate polynomial edge cases
+- canonical algebra output checks
+- negative/error behavior for invalid selectors and unsupported cases
+- differentiation contract tests once introduced
 
 Success condition:
 
-- evaluator failures can be updated consistently and tested by category
+- algebra behavior is documented as a supported product surface rather than a
+  best-effort helper layer
 
-## Phase 7. Shrink The Core Entry Point
+## Phase 11. Documentation Pass
 
-Once extraction is complete:
+Goal:
 
-- reduce the top-level `evaluate` implementation to orchestration only
-- delete duplicated helper logic that became redundant during extraction
-- move any remaining internal-only helpers into the right module
+- simplify engine-facing docs
+- remove outdated transitional wording
+- make the symbolic-core-first architecture explicit
+
+Work:
+
+- align the README and symbolic planning docs around the architecture:
+  symbolic engine core, SDK on top, future products above that
+- remove text that still frames the symbolic engine as legacy or background-only
+- document the evaluator, simplification, and algebra subsystem boundaries
+- document the supported subset and explicitly unsupported areas
 
 Success condition:
 
-- `evaluate` becomes short enough that a reader can understand the dispatch
-  model in one pass
+- docs describe the current architecture and semantic boundaries clearly
+- readers can understand what the engine guarantees today and what remains on
+  the roadmap
 
-## Concrete File Plan
+## Future Track: Aleph3 VM
 
-### Existing Files To Keep
+This is a future architecture track, not a current blocking phase.
 
-- [include/evaluator/Evaluator.hpp](/home/sergio/dev/aleph3/include/evaluator/Evaluator.hpp)
-- [src/evaluator/Evaluator.cpp](/home/sergio/dev/aleph3/src/evaluator/Evaluator.cpp)
-- [include/evaluator/EvaluationContext.hpp](/home/sergio/dev/aleph3/include/evaluator/EvaluationContext.hpp)
+Purpose:
 
-### New Files To Add
+- run Aleph3 programs efficiently
+- support reusable compiled artifacts
+- reduce repeated evaluation overhead
+- enable richer embedding and execution models
 
-- `include/evaluator/EvaluatorAlgebra.hpp`
-- `src/evaluator/EvaluatorAlgebra.cpp`
-- `include/evaluator/EvaluatorSpecialForms.hpp`
-- `src/evaluator/EvaluatorSpecialForms.cpp`
-- `include/evaluator/EvaluatorBuiltins.hpp`
-- `src/evaluator/EvaluatorBuiltins.cpp`
-- `include/evaluator/EvaluatorFunctions.hpp`
-- `src/evaluator/EvaluatorFunctions.cpp`
-- `include/evaluator/EvaluatorErrors.hpp`
-- `src/evaluator/EvaluatorErrors.cpp`
+Possible scope:
 
-These names are recommended, not mandatory.
-The real rule is one semantic responsibility per module.
+- a lowered IR for executable Aleph3 programs
+- a bytecode or instruction format
+- a runtime for variables, calls, and control flow
+- host-function bridging at the VM boundary
 
-## Test Strategy
+Prerequisites:
 
-Each phase should end with a test pass.
+- stable symbolic semantics for the supported subset
+- stable normalization and evaluation rules
+- clearer function and program model
+- a defined executable IR boundary
 
-Minimum required command after each phase:
+Risk rule:
 
-```bash
-ctest --test-dir build --output-on-failure -R aleph3_symbolic_tests
-```
+- do not build VM machinery to paper over unresolved symbolic semantics
 
-Recommended test additions by area:
+Exit condition for starting the VM track:
 
-### Core Evaluator
-
-- symbolic fallback reconstruction
-- numbers, rationals, booleans, and symbols
-- stable handling of unknown calls
-
-### Special Forms
-
-- `If[True, a, b]`
-- `If[False, a, b]`
-- symbolic `If` condition fallback
-- branch non-evaluation where applicable
-
-### Built-Ins
-
-- numeric unary/binary happy paths
-- domain failures
-- comparison behavior across numeric and exact forms
-- known symbolic constant reductions
-
-### Algebra
-
-- `Expand`
-- `Factor`
-- `Collect`
-- `GCD`
-- `PolynomialQuotient`
-- bad variable selectors
-- unsupported multivariate paths
-
-### User-Defined Functions
-
-- arity mismatch
-- delayed definitions
-- immediate definitions
-- symbolic argument preservation where intended
-
-## Risks And Constraints
-
-### Do not change product behavior casually
-
-The cleanup is structural first.
-Semantic changes should happen only when:
-
-- the current behavior is clearly wrong, or
-- the contract is being intentionally tightened with tests and docs
-
-### Do not merge SDK concerns back into the symbolic evaluator
-
-The symbolic evaluator cleanup should improve the symbolic layer.
-It should not pull SDK runtime constraints into the older symbolic path unless
-that is an intentional shared abstraction.
-
-### Do not let differentiation start before extraction
-
-Differentiation will touch:
-
-- special forms
-- built-ins
-- symbolic fallback
-- algebra interaction
-
-If it lands before cleanup, it will make the evaluator tangle worse.
-
-## Recommended Immediate Next Tasks
-
-1. Add this plan to the symbolic product docs index.
-2. Write a short evaluator contract section in the symbolic product plan.
-3. Add evaluator contract regression tests for:
-   - special forms
-   - symbolic fallback
-   - algebra dispatch
-4. Start Phase 2 by extracting algebra dispatch first.
-
-## Definition Of Done
-
-The symbolic evaluator cleanup is done when all of the following are true:
-
-- evaluator semantics are documented in product terms
-- main evaluator flow is orchestration rather than implementation
-- algebra, special forms, built-ins, and user-function handling are isolated
-- evaluator errors are centralized enough to be tested consistently
-- symbolic regression tests protect the cleaned structure
-- the project is ready to add symbolic differentiation without expanding a
-  monolithic evaluator further
+- the supported symbolic subset is stable enough that execution can be lowered
+  without semantic churn invalidating the runtime model

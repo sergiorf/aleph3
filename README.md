@@ -6,21 +6,25 @@
 </p>
 
 # Aleph3
-Aleph3 is transitioning from a broad CAS prototype toward a smaller,
-embeddable formula engine for native applications. The legacy parser/evaluator
-still exist in this repository, but the current product direction is SDK-first:
-stable public types, a narrow trusted-subset IR, structured diagnostics, and
-host-controlled evaluation.
+Aleph3 is organized as a layered math system with a symbolic core and product
+surfaces built on top of it.
+
+The architecture is:
+
+- `aleph3_symbolic`: the core symbolic math engine
+- `aleph3_sdk`: the host-facing embedding layer built on top of that core
+- future products: additional tooling and services that reuse the same
+  symbolic semantics
 
 ## Current Repository Tracks
-- Legacy prototype engine: broad parser/evaluator behavior used as reference material
-- Rewrite path: public SDK under `include/sdk/` and trusted-subset IR under `include/ir/`
-- Aleph3 CLI: `aleph3_cli` for manual lexer/parser/SDK checks
-- SDK validation and compile path: `validate` is live with schema/arity/type checks and `compile` now creates reusable formula handles
-- SDK runtime path: `evaluate` now runs the trusted-subset tree interpreter
-- Host function contract: engine-scoped registration now enforces callback metadata at registration and runtime
+- Symbolic core: parser, evaluator, transforms, and polynomial utilities
+- SDK layer: public API under `include/sdk/` and trusted-subset IR under `include/ir/`
+- CLI surface: `aleph3_cli` for symbolic and SDK checks
+- SDK validation and compile path: `validate` performs schema/arity/type checks and `compile` creates reusable formula handles
+- SDK runtime path: `evaluate` runs the trusted-subset tree interpreter
+- Host function contract: engine-scoped registration enforces callback metadata at registration and runtime
 - Host-function tooling: `evaluate-host` and `aleph3_sdk_example` exercise embedded callbacks end-to-end
-- SDK docs index: [docs/sdk/README.md](docs/sdk/README.md)
+- Docs index: [docs/sdk/README.md](docs/sdk/README.md)
 
 ## Getting Started
 To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler installed. Follow these steps:
@@ -69,6 +73,8 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    ```
 
 ## Documentation
+- Symbolic engine product plan: [docs/symbolic_engine_product_plan.md](docs/symbolic_engine_product_plan.md)
+- Symbolic evaluator cleanup plan: [docs/symbolic_evaluator_cleanup_plan.md](docs/symbolic_evaluator_cleanup_plan.md)
 - SDK overview: [docs/sdk/README.md](docs/sdk/README.md)
 - Delivery plan: [docs/embedded_formula_engine_implementation_plan.md](docs/embedded_formula_engine_implementation_plan.md)
 - System architecture: [docs/system_architecture.md](docs/system_architecture.md)

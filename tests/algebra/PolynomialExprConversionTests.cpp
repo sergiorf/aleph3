@@ -1,4 +1,5 @@
 #include "algebra/PolyUtils.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "expr/Expr.hpp"
 #include "expr/ExprUtils.hpp"
 #include "parser/Parser.hpp"
@@ -42,6 +43,13 @@ TEST_CASE("expr_to_polynomial rejects unsupported symbolic calls", "[algebra][co
     REQUIRE_THROWS_AS(
         expr_to_polynomial(parse_expression("Sin[x]"), {"x"}),
         std::runtime_error);
+
+    try {
+        static_cast<void>(expr_to_polynomial(parse_expression("Sin[x]"), {"x"}));
+        FAIL("Expected unsupported-construct error");
+    } catch (const EvaluatorError& err) {
+        REQUIRE(err.kind() == EvaluatorErrorKind::unsupported_construct);
+    }
 }
 
 TEST_CASE("expr_to_polynomial rejects symbols outside the selected variable set", "[algebra][conversion]") {
@@ -112,4 +120,11 @@ TEST_CASE("low-level polynomial gcd and divide reject multivariate selectors", "
 
     REQUIRE_THROWS_AS(gcd(left, right, {"x", "y"}), std::runtime_error);
     REQUIRE_THROWS_AS(divide(left, right, {"x", "y"}), std::runtime_error);
+
+    try {
+        static_cast<void>(gcd(left, right, {"x", "y"}));
+        FAIL("Expected unsupported-construct error");
+    } catch (const EvaluatorError& err) {
+        REQUIRE(err.kind() == EvaluatorErrorKind::unsupported_construct);
+    }
 }

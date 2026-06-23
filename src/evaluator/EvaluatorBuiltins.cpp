@@ -3,6 +3,7 @@
 #include "Constants.hpp"
 #include "ExtraMath.hpp"
 #include "evaluator/Evaluator.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/SimplificationRules.hpp"
 #include "expr/ExprUtils.hpp"
 #include "util/Logging.hpp"
@@ -11,7 +12,6 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
-#include <stdexcept>
 #include <unordered_map>
 
 namespace aleph3 {
@@ -186,7 +186,7 @@ ExprPtr evaluate_elementwise_binary(
         const auto& l1 = std::get<List>(*a).elements;
         const auto& l2 = std::get<List>(*b).elements;
         if (l1.size() != l2.size()) {
-            throw std::runtime_error("List sizes must match for elementwise operation");
+            throw_invalid_form("List sizes must match for elementwise operation");
         }
         std::vector<ExprPtr> result;
         for (size_t i = 0; i < l1.size(); ++i) {
@@ -348,7 +348,7 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
             return make_expr<Rational>(n, d);
         }
         if (func.head == "Divide") {
-            if (b.numerator == 0) throw std::runtime_error("Division by zero");
+            if (b.numerator == 0) throw_domain_violation("Division by zero");
             auto [n, d] = normalize_rational(a.numerator * b.denominator, a.denominator * b.numerator);
             return make_expr<Rational>(n, d);
         }
@@ -444,7 +444,7 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
 
 ExprPtr evaluate_builtin_function(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.head == "Negate") {
-        if (func.args.size() != 1) throw std::runtime_error("Negate expects exactly 1 argument");
+        if (func.args.size() != 1) throw_invalid_arity_exact("Negate", 1);
         auto arg = evaluate(func.args[0], ctx);
         if (std::holds_alternative<Number>(*arg)) {
             return make_expr<Number>(-get_number_value(arg));

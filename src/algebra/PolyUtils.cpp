@@ -1,8 +1,8 @@
 #include "algebra/PolyUtils.hpp"
 #include "algebra/Polynomial.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "expr/Expr.hpp"
 #include "expr/ExprUtils.hpp"
-#include <stdexcept>
 #include <utility>
 #include <set>
 #include <algorithm>
@@ -238,7 +238,7 @@ namespace aleph3 {
         std::vector<long long> coefficients(static_cast<size_t>(degree) + 1, 0);
         for (const auto& [mono, coeff] : poly.terms) {
             if (!is_near_integer(coeff)) {
-                throw std::runtime_error("Polynomial factorization currently requires integer coefficients");
+                throw_unsupported_construct("Polynomial factorization currently requires integer coefficients");
             }
             int exponent = 0;
             auto it = mono.find(var);
@@ -532,7 +532,7 @@ namespace aleph3 {
 
     // Convert ExprPtr to Polynomial (supports multivariate, basic Plus/Times/Power/Number/Symbol)
     Polynomial expr_to_polynomial(const ExprPtr& expr, const std::vector<std::string>& variables) {
-        if (!expr) throw std::runtime_error("Null expression");
+        if (!expr) throw_internal_inconsistency("Null expression");
 
         // Helper: build a monomial from a variable->exponent map
         auto make_monomial = [&](const std::map<std::string, int>& exps) -> Monomial {
@@ -552,7 +552,7 @@ namespace aleph3 {
             }
             if (auto sym = std::get_if<Symbol>(&(*e))) {
                 if (!contains_variable(variables, sym->name)) {
-                    throw std::runtime_error(
+                    throw_invalid_form(
                         "expr_to_polynomial: Symbol `" + sym->name +
                         "` is not in the selected polynomial variable set");
                 }
@@ -592,12 +592,12 @@ namespace aleph3 {
                         if (auto n = std::get_if<Number>(&(*exp))) {
                             const double exponent = n->value;
                             if (!contains_variable(variables, s->name)) {
-                                throw std::runtime_error(
+                                throw_invalid_form(
                                     "expr_to_polynomial: Symbol `" + s->name +
                                     "` is not in the selected polynomial variable set");
                             }
                             if (std::floor(exponent) != exponent || exponent < 0.0) {
-                                throw std::runtime_error(
+                                throw_invalid_form(
                                     "expr_to_polynomial: Polynomial powers require non-negative integer exponents");
                             }
                             std::map<std::string, int> exps;
@@ -607,7 +607,7 @@ namespace aleph3 {
                     }
                 }
             }
-            throw std::runtime_error("expr_to_polynomial: Not implemented for this expression");
+            throw_unsupported_construct("expr_to_polynomial: Not implemented for this expression");
             };
 
         return recur(expr);
@@ -746,14 +746,14 @@ namespace aleph3 {
     Polynomial gcd(const Polynomial& a, const Polynomial& b, const std::vector<std::string>& variables) {
         // Only supports univariate GCD for now
         if (variables.size() != 1)
-            throw std::runtime_error("gcd: only univariate GCD is implemented");
+            throw_unsupported_construct("gcd: only univariate GCD is implemented");
         return Polynomial::gcd(a, b, variables[0]);
     }
 
     std::pair<Polynomial, Polynomial> divide(const Polynomial& dividend, const Polynomial& divisor, const std::vector<std::string>& variables) {
         // Only supports univariate division for now
         if (variables.size() != 1)
-            throw std::runtime_error("divide: only univariate division is implemented");
+            throw_unsupported_construct("divide: only univariate division is implemented");
         return dividend.divide(divisor);
     }
 

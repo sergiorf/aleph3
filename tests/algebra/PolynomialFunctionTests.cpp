@@ -2,6 +2,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "expr/Expr.hpp"
 #include "parser/Parser.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "transforms/Transforms.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -136,7 +137,8 @@ TEST_CASE("Polynomial factor rejects unsupported non integer univariate coeffici
     try {
         static_cast<void>(evaluate_source("Factor[0.5*x^2 + 1.5*x + 1]", ctx));
         FAIL("Expected factorization to reject non-integer coefficients");
-    } catch (const std::runtime_error& ex) {
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
         REQUIRE(std::string(ex.what()) == "Polynomial factorization currently requires integer coefficients");
     }
 }

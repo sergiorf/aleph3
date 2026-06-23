@@ -1,4 +1,5 @@
 #include "evaluator/SimplificationRules.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
 #include <cmath>
 #include <cstdint>
@@ -131,7 +132,7 @@ namespace aleph3 {
             const auto& l1 = std::get<List>(*flat_args[0]).elements;
             const auto& l2 = std::get<List>(*flat_args[1]).elements;
             if (l1.size() != l2.size())
-                throw std::runtime_error("List sizes must match for elementwise Plus");
+                throw_invalid_form("List sizes must match for elementwise Plus");
             std::vector<ExprPtr> result;
             for (size_t i = 0; i < l1.size(); ++i) {
                 result.push_back(eval(make_fcall("Plus", { l1[i], l2[i] }), ctx));
@@ -288,7 +289,7 @@ namespace aleph3 {
             const auto& l1 = std::get<List>(*flat_args[0]).elements;
             const auto& l2 = std::get<List>(*flat_args[1]).elements;
             if (l1.size() != l2.size())
-                throw std::runtime_error("List sizes must match for elementwise Times");
+                throw_invalid_form("List sizes must match for elementwise Times");
             std::vector<ExprPtr> result;
             for (size_t i = 0; i < l1.size(); ++i) {
                 result.push_back(eval(make_fcall("Times", { l1[i], l2[i] }), ctx));

@@ -57,14 +57,14 @@ if(ALEPH3_BUILD_SDK)
 endif()
 
 if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
-    file(GLOB SYMBOLIC_ROOT_SOURCES "src/*.cpp")
-    file(GLOB SYMBOLIC_COMPONENT_SOURCES
+    file(GLOB SYMBOLIC_ROOT_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+    file(GLOB SYMBOLIC_COMPONENT_SOURCES CONFIGURE_DEPENDS
         "src/algebra/*.cpp"
         "src/evaluator/*.cpp"
         "src/expr/*.cpp"
         "src/transforms/*.cpp"
         "src/tooling/SymbolicCliSupport.cpp")
-    file(GLOB SYMBOLIC_HEADERS
+    file(GLOB SYMBOLIC_HEADERS CONFIGURE_DEPENDS
         "include/*.hpp"
         "include/*.h"
         "include/algebra/*.hpp"
@@ -104,8 +104,8 @@ if(BUILD_TESTING)
     FetchContent_MakeAvailable(Catch2)
 
     if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
-        file(GLOB SYMBOLIC_TEST_ROOT "tests/*.cpp")
-        file(GLOB SYMBOLIC_TEST_SOURCES
+        file(GLOB SYMBOLIC_TEST_ROOT CONFIGURE_DEPENDS "tests/*.cpp")
+        file(GLOB SYMBOLIC_TEST_SOURCES CONFIGURE_DEPENDS
             "tests/algebra/*.cpp"
             "tests/evaluator/*.cpp"
             "tests/parser/*.cpp")
@@ -117,7 +117,7 @@ if(BUILD_TESTING)
     endif()
 
     if(ALEPH3_BUILD_SDK)
-        file(GLOB REWRITE_TEST_SOURCES
+        file(GLOB REWRITE_TEST_SOURCES CONFIGURE_DEPENDS
             "tests/frontend/*.cpp"
             "tests/ir/*.cpp"
             "tests/runtime/*.cpp"

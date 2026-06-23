@@ -1,8 +1,8 @@
 #include "evaluator/EvaluatorSpecialForms.hpp"
 
+#include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/Evaluator.hpp"
 
-#include <stdexcept>
 #include <unordered_set>
 
 namespace aleph3 {
@@ -17,7 +17,7 @@ ExprPtr evaluate_special_form(const FunctionCall& func, EvaluationContext& ctx) 
 
     if (name == "If") {
         if (nargs != 3) {
-            throw std::runtime_error("If expects exactly 3 arguments");
+            throw_invalid_arity_exact("If", 3);
         }
 
         auto condition = evaluate(func.args[0], ctx);
@@ -28,7 +28,7 @@ ExprPtr evaluate_special_form(const FunctionCall& func, EvaluationContext& ctx) 
         return make_expr<FunctionCall>(name, func.args);
     }
 
-    throw std::runtime_error("Unknown special form: " + name);
+    throw_unsupported_construct("Unknown special form: " + name);
 }
 
 }  // namespace aleph3

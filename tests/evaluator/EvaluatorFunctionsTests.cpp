@@ -1,5 +1,6 @@
 #include "parser/Parser.hpp"
 #include "evaluator/Evaluator.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "expr/Expr.hpp"
 #include "Constants.hpp"
 #include "evaluator/EvaluationContext.hpp"
@@ -190,6 +191,44 @@ TEST_CASE("Evaluator handles delayed function definitions", "[evaluator][functio
     REQUIRE(stored_func_def.params.size() == 1);
     REQUIRE(stored_func_def.params[0].name == "a");
     REQUIRE(stored_func_def.delayed == true);
+}
+
+TEST_CASE("Evaluator validates user-defined function arity", "[evaluator][functions]") {
+    EvaluationContext ctx;
+    evaluate(parse_expression("add[x_, y_] := x + y"), ctx);
+
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("add[1]"), ctx),
+        "Function add expects at least 2 arguments, got 1");
+
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("add[1, 2, 3]"), ctx),
+        "Function add expects at most 2 arguments, got 3");
+
+    try {
+        evaluate(parse_expression("add[1]"), ctx);
+        FAIL("Expected invalid arity error");
+    }
+    catch (const EvaluatorError& err) {
+        REQUIRE(err.kind() == EvaluatorErrorKind::invalid_arity);
+    }
+}
+
+TEST_CASE("Evaluator resolves default arguments at call time", "[evaluator][functions]") {
+    EvaluationContext ctx;
+    ctx.variables["offset"] = make_expr<Number>(2);
+
+    evaluate(parse_expression("shift[x_, y_:offset] := x + y"), ctx);
+
+    auto first = evaluate(parse_expression("shift[3]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*first));
+    REQUIRE(std::get<Number>(*first).value == 5.0);
+
+    ctx.variables["offset"] = make_expr<Number>(10);
+
+    auto second = evaluate(parse_expression("shift[3]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*second));
+    REQUIRE(std::get<Number>(*second).value == 13.0);
 }
 
 void check_builtin_eval(const std::string& expr_str, double expected, double tol = 1e-12) {

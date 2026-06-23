@@ -1,5 +1,6 @@
 #include "parser/Parser.hpp"
 #include "evaluator/Evaluator.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include <catch2/catch_test_macros.hpp>
@@ -731,6 +732,28 @@ TEST_CASE("Evaluator throws on mismatched list sizes", "[evaluator][lists]") {
     EvaluationContext ctx;
     auto expr = parse_expression("{1, 2} + {3, 4, 5}");
     REQUIRE_THROWS_WITH(evaluate(expr, ctx), "List sizes must match for elementwise operation");
+}
+
+TEST_CASE("Evaluator errors expose stable categories", "[evaluator][errors]") {
+    EvaluationContext ctx;
+
+    try {
+        evaluate(make_fcall("If", {make_expr<Boolean>(true), make_expr<Number>(1)}), ctx);
+        FAIL("Expected invalid arity error");
+    }
+    catch (const EvaluatorError& err) {
+        REQUIRE(err.kind() == EvaluatorErrorKind::invalid_arity);
+        REQUIRE(std::string(err.what()) == "If expects exactly 3 arguments");
+    }
+
+    try {
+        evaluate(parse_expression("{1, 2} + {3, 4, 5}"), ctx);
+        FAIL("Expected invalid form error");
+    }
+    catch (const EvaluatorError& err) {
+        REQUIRE(err.kind() == EvaluatorErrorKind::invalid_form);
+        REQUIRE(std::string(err.what()) == "List sizes must match for elementwise operation");
+    }
 }
 
 TEST_CASE("Evaluator handles lists with symbolic elements", "[evaluator][lists]") {

@@ -44,10 +44,10 @@ TEST_CASE("Polynomial GCD supports an explicit variable selector", "[algebra][fu
     EvaluationContext ctx;
 
     const auto gcd_result = evaluate_source("GCD[x^2 - 1, x - 1, x]", ctx);
-    REQUIRE(simplify_string(gcd_result) == "x + -1");
+    REQUIRE(simplify_string(gcd_result) == "x - 1");
 
     const auto inferred_gcd_result = evaluate_source("GCD[x^2 - 1, x - 1]", ctx);
-    REQUIRE(simplify_string(inferred_gcd_result) == "x + -1");
+    REQUIRE(simplify_string(inferred_gcd_result) == "x - 1");
 }
 
 TEST_CASE("Polynomial quotient returns quotient and remainder", "[algebra][functions]") {
@@ -77,7 +77,7 @@ TEST_CASE("Polynomial quotient preserves nonzero remainders", "[algebra][functio
 
     const auto& result_list = std::get<List>(*quotient_result);
     REQUIRE(result_list.elements.size() == 2);
-    REQUIRE(simplify_string(result_list.elements[0]) == "x + -1");
+    REQUIRE(simplify_string(result_list.elements[0]) == "x - 1");
     REQUIRE(simplify_string(result_list.elements[1]) == "2");
 }
 

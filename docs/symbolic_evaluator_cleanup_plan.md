@@ -190,6 +190,22 @@ Goal:
 
 - make canonical representation a product contract rather than incidental output
 
+Initial supported contract:
+
+- normalize rationals to a sign-on-numerator form with positive denominators
+- lower `Minus[a, b]` and `Negate[x]` into the canonical additive/multiplicative
+  forms used by the engine
+- flatten nested `Plus` and `Times`
+- sort commutative `Plus` and `Times` forms deterministically
+- place algebraic symbols, powers, and monomial-like products ahead of opaque
+  function calls in canonical commutative order
+- ignore leading numeric coefficients when ordering symbolic monomials
+- render negative additive terms consistently as subtraction at the string
+  presentation boundary while preserving canonical internal structure
+- keep normalization structural rather than using it as a general arithmetic
+  simplifier
+- require normalization to be idempotent for the supported subset
+
 Work:
 
 - define canonical ordering for commutative forms

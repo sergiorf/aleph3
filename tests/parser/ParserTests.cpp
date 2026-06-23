@@ -17,11 +17,11 @@ TEST_CASE("Parser correctly parses negative numbers in basic expressions", "[par
 
     expr = parse_expression("2 + -3");
     REQUIRE(expr != nullptr);
-    REQUIRE(to_string(expr) == "2 + -3");
+    REQUIRE(to_string(expr) == "2 - 3");
 
     expr = parse_expression("-2 + -3");
     REQUIRE(expr != nullptr);
-    REQUIRE(to_string(expr) == "-2 + -3");
+    REQUIRE(to_string(expr) == "-2 - 3");
 }
 
 TEST_CASE("Variables are parsed correctly", "[parser]") {

@@ -75,7 +75,7 @@ TEST_CASE("polynomial_to_expr preserves zero constant and multivariate forms", "
         {Monomial{{"x", 2}, {"y", 1}}, 3.0},
         {Monomial{}, -1.0}
     });
-    REQUIRE(simplify_string(polynomial_to_expr(multivariate)) == "3 * x^2 * y + -1");
+    REQUIRE(simplify_string(polynomial_to_expr(multivariate)) == "3 * x^2 * y - 1");
 }
 
 TEST_CASE("polynomial conversion round-trips to a stable canonical form", "[algebra][conversion]") {
@@ -107,7 +107,7 @@ TEST_CASE("low-level polynomial gcd and divide honor explicit variable selection
     const auto right = expr_to_polynomial(parse_expression("x - 1"), {"x"});
 
     const auto divisor_gcd = gcd(left, right, {"x"});
-    REQUIRE(simplify_string(polynomial_to_expr(divisor_gcd)) == "x + -1");
+    REQUIRE(simplify_string(polynomial_to_expr(divisor_gcd)) == "x - 1");
 
     const auto [quotient, remainder] = divide(left, right, {"x"});
     REQUIRE(simplify_string(polynomial_to_expr(quotient)) == "x + 1");

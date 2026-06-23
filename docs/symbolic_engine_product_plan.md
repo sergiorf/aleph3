@@ -143,6 +143,15 @@ Current limitations:
 - structured symbolic diagnostics are not complete
 - algebra support is still narrow relative to the long-term goal
 
+Current Phase 7 normalization scope:
+
+- rationals are normalized into a stable sign convention
+- subtraction is lowered into canonical additive form
+- nested commutative `Plus` and `Times` forms are flattened
+- commutative `Plus` and `Times` arguments are ordered deterministically
+- normalization is intended to be structural and idempotent, not a substitute
+  for simplification
+
 ## Main Product Gaps
 
 Current status by area:

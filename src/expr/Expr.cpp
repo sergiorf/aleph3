@@ -52,6 +52,54 @@ namespace aleph3 {
         return to_string(*e);
     }
 
+    bool try_format_positive_subtraction_term(const ExprPtr& expr, std::string& formatted) {
+        if (const auto* num = std::get_if<Number>(expr.get()); num && num->value < 0) {
+            formatted = format_number(-num->value);
+            return true;
+        }
+
+        if (const auto* rational = std::get_if<Rational>(expr.get()); rational && rational->numerator < 0) {
+            formatted = to_string(Rational{-rational->numerator, rational->denominator});
+            return true;
+        }
+
+        const auto* call = std::get_if<FunctionCall>(expr.get());
+        if (call == nullptr) {
+            return false;
+        }
+
+        if (call->head == "Negate" && call->args.size() == 1) {
+            formatted = to_string_with_parens(call->args[0], get_precedence("Plus"));
+            return true;
+        }
+
+        if (call->head != "Times" || call->args.empty()) {
+            return false;
+        }
+
+        std::vector<ExprPtr> positive_args = call->args;
+        if (const auto* first_num = std::get_if<Number>(positive_args.front().get()); first_num && first_num->value < 0) {
+            positive_args.front() = make_expr<Number>(-first_num->value);
+            if (positive_args.size() == 2 &&
+                std::holds_alternative<Number>(*positive_args.front()) &&
+                std::get<Number>(*positive_args.front()).value == 1.0) {
+                formatted = to_string_with_parens(positive_args[1], get_precedence("Plus"));
+            } else {
+                formatted = to_string_with_parens(make_expr<FunctionCall>("Times", positive_args), get_precedence("Plus"));
+            }
+            return true;
+        }
+
+        if (const auto* first_rational = std::get_if<Rational>(positive_args.front().get());
+            first_rational && first_rational->numerator < 0) {
+            positive_args.front() = make_expr<Rational>(-first_rational->numerator, first_rational->denominator);
+            formatted = to_string_with_parens(make_expr<FunctionCall>("Times", positive_args), get_precedence("Plus"));
+            return true;
+        }
+
+        return false;
+    }
+
     std::string to_string(const Expr& expr) {
         return std::visit(overloaded{
 
@@ -89,6 +137,12 @@ namespace aleph3 {
                 if (f.head == "Plus") {
                     std::string result;
                     for (size_t i = 0; i < args.size(); ++i) {
+                        std::string subtraction_term;
+                        if (i > 0 && try_format_positive_subtraction_term(args[i], subtraction_term)) {
+                            result += " - ";
+                            result += subtraction_term;
+                            continue;
+                        }
                         if (i > 0) result += " + ";
                         result += to_string_with_parens(args[i], get_precedence("Plus"));
                     }

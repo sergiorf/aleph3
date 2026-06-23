@@ -2,8 +2,8 @@
 
 ## Purpose
 
-This document defines the exact feature subset the rewritten Aleph3 embedded
-engine must support in its first trustworthy version.
+This document defines the exact feature subset the Aleph3 SDK must support in
+its first trustworthy version.
 
 This subset is intentionally narrow.
 
@@ -60,7 +60,7 @@ Not supported in v1:
 Notes:
 
 - Internally the runtime may represent values however it wants.
-- Public SDK behavior should expose a clean value model, not legacy AST detail.
+- Public SDK behavior should expose a clean value model, not symbolic AST detail.
 
 ## Supported Syntax
 
@@ -339,8 +339,8 @@ To keep the trusted core small, parser design should follow these rules:
 - prefer explicit syntax over convenience syntax
 - avoid special-case language growth unless tied to a product use case
 
-This means the parser should be intentionally less ambitious than the current
-prototype parser.
+This means the parser should be intentionally narrower than the full symbolic
+parser.
 
 ## Runtime Simplicity Rules
 
@@ -362,7 +362,7 @@ A feature may be promoted beyond v1 only if all of the following are true:
 4. it has bounded runtime behavior
 5. it does not destabilize the trusted core disproportionately
 
-This rule exists to prevent the rewrite from drifting back into a broad CAS.
+This rule exists to prevent the SDK subset from drifting into a broad CAS.
 
 ## Release Gate For Trusted Subset V1
 

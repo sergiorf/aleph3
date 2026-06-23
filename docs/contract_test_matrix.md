@@ -2,20 +2,20 @@
 
 ## Purpose
 
-This document defines the contracts the new embedded engine must satisfy.
+This document defines the contracts the embedded engine must satisfy.
 
 It is the authoritative answer to:
 
-`What behavior is the rewrite required to preserve, and what behavior is it
+`What behavior is the engine required to preserve, and what behavior is it
 free to ignore?`
 
-These contracts are product contracts, not legacy compatibility contracts.
-Current engine behavior matters only if it supports one of these contracts.
+These contracts are product contracts. Current engine behavior matters only if
+it supports one of these contracts.
 
 ## Scope
 
-This matrix applies to the trusted embedded v1 subset described in the rewrite
-plan. It does not require compatibility with the full current language surface.
+This matrix applies to the trusted embedded v1 subset. It does not require
+compatibility with the full current language surface.
 
 The matrix is organized around the host product lifecycle:
 
@@ -72,7 +72,7 @@ Examples:
 
 Non-goals:
 
-- backward compatibility with legacy global registration behavior
+- backward compatibility with superseded global registration behavior
 
 ## C2. Syntax Compilation
 
@@ -99,7 +99,7 @@ Examples:
 
 Non-goals:
 
-- compatibility with unsupported legacy syntax such as assignments, rules, or
+- compatibility with unsupported syntax such as assignments, rules, or
   user-defined functions
 
 ### C2.2 Invalid Syntax Produces Structured Diagnostics
@@ -127,7 +127,7 @@ Examples:
 
 Non-goals:
 
-- preserving legacy exception message strings
+- preserving old exception message strings
 
 ### C2.3 Diagnostics Include Source Spans
 
@@ -445,7 +445,7 @@ Examples:
 
 Non-goals:
 
-- reusing internal legacy types directly in the host-facing API
+- reusing internal symbolic types directly in the host-facing API
 
 ### C6.2 Compiled Formula Is Reusable
 
@@ -519,7 +519,7 @@ Non-goals:
 
 ## Explicit Non-Contracts
 
-The rewrite is explicitly not required to preserve the following:
+The engine is explicitly not required to preserve the following:
 
 - current CLI prompt behavior
 - current pretty-print output strings
@@ -530,7 +530,7 @@ The rewrite is explicitly not required to preserve the following:
 - current exception message text
 - symbolic unevaluated fallback for unsupported forms
 
-These are deliberately excluded because preserving them would make the rewrite
+These are deliberately excluded because preserving them would make the engine
 broader, riskier, and less aligned with the embedded product wedge.
 
 ## Current Test Reuse Guidance
@@ -555,10 +555,10 @@ The existing test suite should be mined selectively.
 ### Likely Not Reused For v1 Contracts
 
 - tests depending on symbolic fallback behavior
-- tests depending on legacy formatting quirks
+- tests depending on older formatting quirks
 - tests centered on unsupported language constructs
 
-## Minimum Test Suites Required For Rewrite
+## Minimum Test Suites Required
 
 ## Suite A: Frontend Compile Tests
 
@@ -622,8 +622,8 @@ The new engine is not ready for pilot customers until all `P1` contracts pass.
 
 ## Recommendation
 
-Use this matrix as the acceptance boundary for the rewrite.
+Use this matrix as the acceptance boundary for the embedded engine.
 
 If a current behavior is not represented here, it is not a required contract.
-That is the discipline that prevents the rewrite from collapsing back into
-legacy compatibility work.
+That is the discipline that prevents the product from collapsing back into
+backward-compatibility work.

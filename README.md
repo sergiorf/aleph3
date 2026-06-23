@@ -27,16 +27,16 @@ The architecture is:
 - Docs index: [docs/sdk/README.md](docs/sdk/README.md)
 
 ## Getting Started
-To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler installed. Follow these steps:
+To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler installed.
 1. Clone the repository:
    ```bash
    git clone https://github.com/sergiorf/aleph3.git
    cd aleph3
    ```
 
-2. Build the SDK and primary engine only:
+2. Build the default developer targets:
    ```bash
-   cmake -S . -B build -DALEPH3_BUILD_LEGACY=OFF -DBUILD_TESTING=OFF
+   cmake -S . -B build
    cmake --build build
    ```
 
@@ -64,19 +64,22 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    Running `./build/bin/aleph3_cli` with no arguments starts the interactive REPL.
    `validate`, `compile`, trusted-subset `evaluate`, and demo host-function checks are now live on the primary SDK path.
 
-3. Build the legacy CLI and tests when you need the prototype path:
+3. Build a smaller SDK-only configuration when needed:
    ```bash
-   cmake -S . -B build
-   cmake --build build
-   cd build
-   ctest --output-on-failure --verbose
+   cmake -S . -B build-sdk -DALEPH3_BUILD_SYMBOLIC_ENGINE=OFF -DBUILD_TESTING=OFF
+   cmake --build build-sdk
+   ```
+
+4. Run tests:
+   ```bash
+   ctest --test-dir build --output-on-failure --verbose
    ```
 
 ## Documentation
 - Symbolic engine product plan: [docs/symbolic_engine_product_plan.md](docs/symbolic_engine_product_plan.md)
 - Symbolic evaluator cleanup plan: [docs/symbolic_evaluator_cleanup_plan.md](docs/symbolic_evaluator_cleanup_plan.md)
 - SDK overview: [docs/sdk/README.md](docs/sdk/README.md)
-- Delivery plan: [docs/embedded_formula_engine_implementation_plan.md](docs/embedded_formula_engine_implementation_plan.md)
+- Embedded formula engine design: [docs/embedded_formula_engine_design.md](docs/embedded_formula_engine_design.md)
 - System architecture: [docs/system_architecture.md](docs/system_architecture.md)
 - Trusted subset scope: [docs/trusted_subset_v1.md](docs/trusted_subset_v1.md)
 

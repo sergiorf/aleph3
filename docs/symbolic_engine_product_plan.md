@@ -143,7 +143,7 @@ Current limitations:
 - structured symbolic diagnostics are not complete
 - algebra support is still narrow relative to the long-term goal
 
-Current Phase 7 normalization scope:
+Current normalization scope:
 
 - rationals are normalized into a stable sign convention
 - subtraction is lowered into canonical additive form
@@ -176,15 +176,14 @@ Current status by area:
 
 ### Near-Term Priorities
 
-1. Finish evaluator hardening, especially error helpers and semantic boundary
-   cleanup.
-2. Establish canonical-form and normalization contracts for the supported
+1. Establish canonical-form and normalization contracts for the supported
    subset.
-3. Define evaluation-control behavior explicitly instead of relying on ad hoc
+2. Define evaluation-control behavior explicitly instead of relying on ad hoc
    branching.
-4. Turn simplification into a tested rewrite subsystem with clear boundaries.
-5. Harden algebra behavior and expand toward differentiation.
-6. Improve docs so the supported subset and current guarantees are explicit.
+3. Turn simplification into a tested rewrite subsystem with clear boundaries.
+4. Harden algebra behavior and expand toward differentiation.
+5. Expand UDF and cross-subsystem regression coverage.
+6. Keep docs aligned with the actual supported subset and architecture.
 
 ### Medium-Term Priorities
 
@@ -225,6 +224,9 @@ Aleph3-supported subset is coherent, predictable, and defensible.
 
 Aleph3 may eventually need a VM to execute Aleph3 programs efficiently, but
 that work should follow semantic stabilization, not precede it.
+
+This is a separate architecture track. The VM should amplify a stable symbolic
+core, not compensate for unresolved symbolic semantics.
 
 Purpose:
 

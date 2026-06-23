@@ -51,15 +51,15 @@ classDiagram
 
 ## Stable Design Rules
 
-- Host applications must not depend on legacy AST types such as `Expr`.
+- Host applications must not depend on internal symbolic AST types such as `Expr`.
 - The public SDK must remain usable without including parser or evaluator headers.
 - `CompiledFormula` remains opaque even though the frontend and runtime are now live.
 - `ir::Node` is for internal SDK/runtime layers only and must not leak into the SDK.
-- Engine-scoped host function registration replaces the legacy global registry model.
+- Engine-scoped host function registration replaces the old global registry model.
 
 ## Current Guarantees
 
-- SDK headers compile independently of legacy headers.
+- SDK headers compile independently of symbolic-engine internal headers.
 - The engine facade links with a concrete implementation.
 - Validation produces structured diagnostics for syntax, schema, arity, feature-gates, branch compatibility, schema-valued constants, constant runtime traps, and obvious type failures.
 - Compile produces reusable opaque `CompiledFormula` handles on successful parse + validation.

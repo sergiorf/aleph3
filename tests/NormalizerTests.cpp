@@ -44,8 +44,20 @@ std::string renormalized_evaluated_string(const std::string& source) {
     return to_string(normalize_expr(evaluate(parse_expression(source), ctx)));
 }
 
+std::string renormalized_evaluated_string(
+    const std::string& source,
+    EvaluationContext& ctx) {
+    return to_string(normalize_expr(evaluate(parse_expression(source), ctx)));
+}
+
 std::string renormalized_simplified_evaluated_string(const std::string& source) {
     EvaluationContext ctx;
+    return to_string(normalize_expr(simplify(evaluate(parse_expression(source), ctx))));
+}
+
+std::string renormalized_simplified_evaluated_string(
+    const std::string& source,
+    EvaluationContext& ctx) {
     return to_string(normalize_expr(simplify(evaluate(parse_expression(source), ctx))));
 }
 
@@ -96,6 +108,11 @@ TEST_CASE("Normalizer preserves exact structure while ordering opaque calls dete
     expect_normalizes_to("g[b] * f[c] * f[a]", "(f[a]) * (f[c]) * (g[b])");
 }
 
+TEST_CASE("Normalizer recurses through opaque call arguments and nested mixed products", "[normalizer]") {
+    expect_normalizes_to("f[y + x, z * x * 2, (b + a)^2]", "f[x + y, 2 * x * z, (a + b)^2]");
+    expect_normalizes_to("f[b] * y * x^2 * f[a] * 3", "3 * x^2 * y * (f[a]) * (f[b])");
+}
+
 TEST_CASE("Normalizer canonicalizes lowered subtraction and negation in raw form", "[normalizer]") {
     expect_raw_normalizes_to("x - y", "x+-1*y");
     expect_raw_normalizes_to("-(x + y)", "-1*x+y");
@@ -137,6 +154,12 @@ TEST_CASE("Normalizer recurses through lists, rules, assignments, and function d
 TEST_CASE("Normalizer keeps power and divide structure while normalizing arguments", "[normalizer]") {
     expect_normalizes_to("(y + x)^2", "(x + y)^2");
     expect_normalizes_to("(z * x * 2) / (y + x)", "2 * x * z / (x + y)");
+}
+
+TEST_CASE("Normalizer keeps nested canonical structure idempotent across recursive containers", "[normalizer][contract]") {
+    expect_normalizes_to(
+        "{f[y + x], (z * x * 2) / (b + a), lhs -> (d + c)}",
+        "List[f[x + y], 2 * x * z / (a + b), lhs -> c + d]");
 }
 
 TEST_CASE("Canonical structure agrees across normalize evaluate and simplify after renormalization", "[normalizer][contract]") {
@@ -188,4 +211,32 @@ TEST_CASE("Cross-layer canonical ordering stays stable after evaluation-driven r
     REQUIRE(simplified == "x + y + 5");
 
     REQUIRE(to_string(normalize_expr(parse_expression(simplified))) == "x + y + 5");
+}
+
+TEST_CASE("Cross-layer UDF outputs normalize to a stable canonical form", "[normalizer][contract][udf]") {
+    EvaluationContext ctx;
+    evaluate(parse_expression("f[x_, y_:b + a] := y + x + c"), ctx);
+
+    REQUIRE(renormalized_evaluated_string("f[z]", ctx) == "a + b + c + z");
+    REQUIRE(renormalized_simplified_evaluated_string("f[z]", ctx) == "a + b + c + z");
+
+    ctx.variables["offset"] = parse_expression("d + c");
+    evaluate(parse_expression("shift[x_, y_:offset] := y + x + b + a"), ctx);
+
+    REQUIRE(renormalized_evaluated_string("shift[z]", ctx) == "a + b + c + d + z");
+    REQUIRE(renormalized_simplified_evaluated_string("shift[z]", ctx) == "a + b + c + d + z");
+}
+
+TEST_CASE("Cross-layer algebra outputs renormalize to stable canonical forms", "[normalizer][contract][algebra]") {
+    EvaluationContext ctx;
+
+    REQUIRE(
+        renormalized_simplified_evaluated_string("Expand[(y + x) * (x + z)]", ctx) ==
+        "x^2 + x * y + x * z + y * z");
+    REQUIRE(
+        renormalized_simplified_evaluated_string("Factor[x^2 + 3*x + 2]", ctx) ==
+        "(x + 1) * (x + 2)");
+    REQUIRE(
+        renormalized_simplified_evaluated_string("Collect[y*x + x^2 + z*x, x]", ctx) ==
+        "x^2 + x * y + x * z");
 }

@@ -1,8 +1,7 @@
 # SDK Docs
 
-This directory is the working index for the Aleph3 SDK and primary engine.
-The older top-level documents remain the detailed source material; these subdocs
-make the production path easier to navigate as the SDK-first implementation grows.
+This directory is the working index for the Aleph3 SDK layer and its immediate
+integration points with the symbolic core.
 
 ## What Is Stable Now
 
@@ -27,7 +26,7 @@ make the production path easier to navigate as the SDK-first implementation grow
 - When the symbolic engine is built, `aleph3_cli` also exposes `symbolic-evaluate`, `symbolic-simplify`, and `symbolic-fullform`
 - The symbolic polynomial tier now supports product-facing `Expand`, `Factor`, `Collect`, `GCD`, and `PolynomialQuotient` from that CLI surface
 - SDK example target `aleph3_sdk_example` for host-app embedding
-- Contract direction defined by the top-level SDK docs
+- Contract direction defined by the top-level architecture and product docs
 
 ## What Is Not Stable Yet
 

@@ -2,8 +2,8 @@
 
 ## Purpose
 
-This document defines the target architecture for the rewritten Aleph3 embedded
-formula engine.
+This document defines the target architecture for Aleph3 as a layered symbolic
+system.
 
 It answers four questions:
 
@@ -11,8 +11,6 @@ It answers four questions:
 2. what major classes each layer owns
 3. how data flows from source text to evaluated result
 4. whether the system should have an IR and eventually a VM
-
-This architecture is for the controlled rewrite, not for the old pre-SDK implementation model.
 
 ## Architectural Goals
 
@@ -32,7 +30,7 @@ It is not optimized for:
 
 ## Top-Level Layers
 
-The rewritten system should have six layers:
+The system should have six layers:
 
 1. `sdk`
 2. `frontend`
@@ -82,7 +80,7 @@ Responsibility:
 
 Key rule:
 
-The IR should model only the supported embedded language, not the full legacy
+The IR should model only the supported embedded language, not the full symbolic
 expression universe.
 
 ### 4. Semantics
@@ -428,7 +426,7 @@ Reason:
 
 ## IR Classes
 
-The IR should be intentionally smaller than the legacy `Expr`.
+The IR should be intentionally smaller than the full symbolic `Expr`.
 
 ## NodeKind
 
@@ -626,7 +624,7 @@ Key rule:
 
 Header:
 
-- internal to runtime layer, not the legacy singleton
+- internal to runtime layer, not the old singleton model
 
 Responsibility:
 
@@ -831,7 +829,7 @@ Responsibility:
 Decision:
 
 - adopt IR now
-- do not adopt VM in the first trustworthy rewrite
+- do not adopt VM in the first trustworthy implementation
 - design `CompiledFormula` so a future lowering-to-VM path can be added without
   changing the SDK
 
@@ -891,7 +889,7 @@ Validation must not rely on executing expressions.
 
 ### Boundary 4
 
-Runtime must not depend on legacy singleton state.
+Runtime must not depend on singleton global state.
 
 ### Boundary 5
 
@@ -909,7 +907,7 @@ Tooling must use the SDK, not internal shortcuts.
 
 ## Recommendation
 
-The rewritten Aleph3 system should be built around:
+Aleph3 should be built around:
 
 - a small public SDK
 - a simple structural IR

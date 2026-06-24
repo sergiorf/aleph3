@@ -239,6 +239,10 @@ namespace aleph3 {
                 return "Infinity";
             },
 
+            [](const ComplexInfinity&) -> std::string {
+                return "ComplexInfinity";
+            },
+
             [](const Indeterminate&) -> std::string {
                 return "Indeterminate";
             },
@@ -334,6 +338,9 @@ namespace aleph3 {
             },
             [](const Infinity&) -> std::string {
                 return "Infinity";
+            },
+            [](const ComplexInfinity&) -> std::string {
+                return "ComplexInfinity";
             },
             [](const Indeterminate&) -> std::string {
                 return "Indeterminate";

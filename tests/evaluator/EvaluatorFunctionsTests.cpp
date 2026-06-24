@@ -445,6 +445,46 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
     }
 }
 
+TEST_CASE("Evaluator Gamma exact-value and pole contract", "[evaluator][gamma][exact]") {
+    EvaluationContext ctx;
+
+    const auto require_gamma_sqrt_pi_multiple = [](const ExprPtr& expr, int64_t num, int64_t den) {
+        REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+        const auto& times = std::get<FunctionCall>(*expr);
+        REQUIRE(times.head == "Times");
+        REQUIRE(times.args.size() == 2);
+        REQUIRE(std::holds_alternative<Rational>(*times.args[0]));
+        const auto& coeff = std::get<Rational>(*times.args[0]);
+        REQUIRE(coeff.numerator == num);
+        REQUIRE(coeff.denominator == den);
+        REQUIRE(std::holds_alternative<FunctionCall>(*times.args[1]));
+        const auto& sqrt_call = std::get<FunctionCall>(*times.args[1]);
+        REQUIRE(sqrt_call.head == "Sqrt");
+        REQUIRE(sqrt_call.args.size() == 1);
+        REQUIRE(std::holds_alternative<Symbol>(*sqrt_call.args[0]));
+        REQUIRE(std::get<Symbol>(*sqrt_call.args[0]).name == "Pi");
+    };
+
+    const auto gamma_half = evaluate(parse_expression("Gamma[1/2]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*gamma_half));
+    REQUIRE(to_string(gamma_half) == "Sqrt[Pi]");
+
+    const auto gamma_neg_half = evaluate(parse_expression("Gamma[-1/2]"), ctx);
+    require_gamma_sqrt_pi_multiple(gamma_neg_half, -2, 1);
+
+    const auto gamma_three_halves = evaluate(parse_expression("Gamma[3/2]"), ctx);
+    require_gamma_sqrt_pi_multiple(gamma_three_halves, 1, 2);
+
+    const auto gamma_neg_three_halves = evaluate(parse_expression("Gamma[-3/2]"), ctx);
+    require_gamma_sqrt_pi_multiple(gamma_neg_three_halves, 4, 3);
+
+    const auto gamma_zero = evaluate(parse_expression("Gamma[0]"), ctx);
+    REQUIRE(std::holds_alternative<ComplexInfinity>(*gamma_zero));
+
+    const auto gamma_minus_one = evaluate(parse_expression("Gamma[-1]"), ctx);
+    REQUIRE(std::holds_alternative<ComplexInfinity>(*gamma_minus_one));
+}
+
 void validate_evaluator_result(
     const std::string& expr_str,
     const std::variant<double, std::string>& expected

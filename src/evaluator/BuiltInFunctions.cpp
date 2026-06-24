@@ -28,6 +28,9 @@ namespace aleph3 {
             [](const Infinity&) -> ExprPtr {
                 return make_expr<Infinity>();
             },
+            [](const ComplexInfinity&) -> ExprPtr {
+                return make_expr<ComplexInfinity>();
+            },
             [](const Indeterminate&) -> ExprPtr {
                 return make_expr<Indeterminate>();
             },

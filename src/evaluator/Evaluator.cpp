@@ -112,6 +112,9 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
         [](const Infinity&) -> ExprPtr {
             return make_expr<Infinity>();
         },
+        [](const ComplexInfinity&) -> ExprPtr {
+            return make_expr<ComplexInfinity>();
+        },
         [](const Indeterminate&) -> ExprPtr {
             return make_expr<Indeterminate>();
         }

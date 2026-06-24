@@ -320,6 +320,9 @@ inline ExprPtr normalize_expr(const ExprPtr& expr) {
         [](const Infinity&) -> ExprPtr {
             return make_expr<Infinity>();
         },
+        [](const ComplexInfinity&) -> ExprPtr {
+            return make_expr<ComplexInfinity>();
+        },
         [](const Indeterminate&) -> ExprPtr {
             return make_expr<Indeterminate>();
         },

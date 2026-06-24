@@ -75,6 +75,9 @@ inline std::string to_fullform(const ExprPtr& expr) {
         void operator()(const Infinity&) {
             out << "Infinity";
         }
+        void operator()(const ComplexInfinity&) {
+            out << "ComplexInfinity";
+        }
         void operator()(const Indeterminate&) {
             out << "Indeterminate";
         }

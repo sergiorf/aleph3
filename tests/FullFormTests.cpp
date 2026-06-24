@@ -72,3 +72,9 @@ TEST_CASE("to_fullform complex numbers") {
     REQUIRE(to_fullform(make_expr<Complex>(0.0, 0.0)) == "Complex[0, 0]");
     REQUIRE(to_fullform(make_expr<Complex>(7.0, 0.0)) == "Complex[7, 0]");
 }
+
+TEST_CASE("to_fullform infinity variants") {
+    REQUIRE(to_fullform(make_expr<Infinity>()) == "Infinity");
+    REQUIRE(to_fullform(make_expr<ComplexInfinity>()) == "ComplexInfinity");
+    REQUIRE(to_fullform(make_expr<Indeterminate>()) == "Indeterminate");
+}

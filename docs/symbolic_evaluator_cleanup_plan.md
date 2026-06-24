@@ -310,6 +310,27 @@ Success condition:
 
 This is a future architecture track, not a current blocking phase.
 
+## Additional Implementation Steps
+
+1. Gamma function support toward Mathematica-level behavior
+   - numeric support for positive and negative non-integer reals
+   - numeric support for complex inputs
+   - explicit pole behavior at non-positive integers
+   - regression coverage for half-integers, recurrence, and conjugation
+   - remaining:
+     - symbolic simplification identities and recurrence-based reductions
+     - broader exact special values beyond the current half-integer coverage
+     - tighter integration with simplification and rewrite rules
+     - clearer analytic-domain and branch-behavior contract for symbolic cases
+
+2. Complex transcendental and special-function expansion
+   - extend unary transcendental support beyond basic arithmetic over complex
+     values
+   - define complex-domain contracts for powers, logarithms, roots, and special
+     functions
+   - add symbolic fallback and branch-behavior tests for the supported subset
+   - include follow-on Gamma-family and complex special-function interactions
+
 Purpose:
 
 - run Aleph3 programs efficiently

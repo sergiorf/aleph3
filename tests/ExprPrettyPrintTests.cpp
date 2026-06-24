@@ -129,3 +129,9 @@ TEST_CASE("Pretty printing of complex numbers", "[prettyprint][complex]") {
         REQUIRE(to_string(*c) == "0");
     }
 }
+
+TEST_CASE("Pretty printing of infinity variants", "[prettyprint][infinity]") {
+    REQUIRE(to_string(*make_expr<Infinity>()) == "Infinity");
+    REQUIRE(to_string(*make_expr<ComplexInfinity>()) == "ComplexInfinity");
+    REQUIRE(to_string(*make_expr<Indeterminate>()) == "Indeterminate");
+}

@@ -163,6 +163,24 @@ const std::unordered_map<std::string, std::function<bool(double)>>& unary_real_d
     return value;
 }
 
+const std::unordered_map<std::string, std::function<bool(double, double)>>& binary_real_domains() {
+    static const std::unordered_map<std::string, std::function<bool(double, double)>> value = {
+        {"Log", [](double base, double x) {
+            return base > 0.0 && base != 1.0 && x > 0.0;
+        }},
+        {"ArcTan", [](double, double) {
+            return true;
+        }},
+        {"Power", [](double base, double exponent) {
+            if (base >= 0.0) {
+                return true;
+            }
+            return std::floor(exponent) == exponent;
+        }}
+    };
+    return value;
+}
+
 const std::unordered_map<std::string, std::string>& inverse_unary_pairs() {
     static const std::unordered_map<std::string, std::string> value = {
         {"Sin", "ArcSin"},
@@ -391,6 +409,11 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
     if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
         double a = get_number_value(left);
         double b = get_number_value(right);
+        const auto& domains = binary_real_domains();
+        auto domain_it = domains.find(func.head);
+        if (domain_it != domains.end() && !domain_it->second(a, b)) {
+            return make_fcall(func.head, {left, right});
+        }
         return make_expr<Number>(it->second(a, b));
     }
 
@@ -494,12 +517,25 @@ ExprPtr evaluate_builtin_function(const FunctionCall& func, EvaluationContext& c
         return make_fcall("Times", {make_expr<Number>(-1), arg});
     }
 
-    if (auto unary = evaluate_builtin_unary(func, ctx)) {
-        return unary;
+    if (is_comparison_function(func.head)) {
+        if (auto comparison = evaluate_builtin_comparison(func, ctx)) {
+            return comparison;
+        }
     }
-    if (auto binary = evaluate_builtin_binary(func, ctx)) {
-        return binary;
+
+    if (is_numeric_function(func.head)) {
+        if (func.args.size() == 1) {
+            if (auto unary = evaluate_builtin_unary(func, ctx)) {
+                return unary;
+            }
+        }
+        if (func.args.size() == 2) {
+            if (auto binary = evaluate_builtin_binary(func, ctx)) {
+                return binary;
+            }
+        }
     }
+
     if (auto comparison = evaluate_builtin_comparison(func, ctx)) {
         return comparison;
     }

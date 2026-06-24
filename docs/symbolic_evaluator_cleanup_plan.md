@@ -210,12 +210,15 @@ Concrete checklist:
 - [x] support unary listable mapping while preserving symbolic fallback and
   domain behavior elementwise
 - [x] add evaluation-control contract tests for explicit listability semantics
-- [ ] define the first supported non-`If` hold-style behaviors, if any
-- [ ] decide whether `Orderless` and `Flat` are evaluator attributes or remain
-  purely normalization contracts
+- [x] define `And` and `Or` as supported hold-style evaluator constructs with
+  explicit short-circuit semantics
+- [x] decide that `Orderless` and `Flat` remain normalization-and-canonicalization
+  contracts for the current subset, while their presence is still recorded in
+  function semantics
 - [x] decide that comparisons remain non-listable in the current supported
   subset and cover that contract with tests
-- [ ] define numeric-function classification and where it affects dispatch
+- [x] define numeric-function classification and make builtin numeric dispatch
+  depend on that semantics layer
 - [ ] move additional evaluator dispatch decisions behind the semantics registry
 
 Success condition:

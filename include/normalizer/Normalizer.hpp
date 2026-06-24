@@ -1,6 +1,7 @@
 #pragma once
 #include "expr/Expr.hpp"
 #include "expr/ExprUtils.hpp"
+#include "evaluator/EvaluatorSemantics.hpp"
 #include "util/Overloaded.hpp"
 #include <memory>
 #include <algorithm>
@@ -170,7 +171,7 @@ inline void flatten_function_args(
     std::vector<ExprPtr>& output) {
     for (const auto& expr : input) {
         if (const auto* inner = std::get_if<FunctionCall>(expr.get());
-            inner != nullptr && inner->head == head) {
+            inner != nullptr && inner->head == head && is_flat_function(head)) {
             output.insert(output.end(), inner->args.begin(), inner->args.end());
         } else {
             output.push_back(expr);
@@ -248,7 +249,9 @@ inline ExprPtr normalize_plus_args(const std::vector<ExprPtr>& args) {
         terms.push_back(arg);
     }
 
-    std::sort(terms.begin(), terms.end(), canonical_plus_term_less);
+    if (is_orderless_function("Plus")) {
+        std::sort(terms.begin(), terms.end(), canonical_plus_term_less);
+    }
 
     if (auto complex = maybe_normalize_complex_sum(terms)) {
         return complex;
@@ -280,7 +283,9 @@ inline ExprPtr normalize_times_args(const std::vector<ExprPtr>& args) {
         factors.push_back(arg);
     }
 
-    std::sort(factors.begin(), factors.end(), canonical_times_factor_less);
+    if (is_orderless_function("Times")) {
+        std::sort(factors.begin(), factors.end(), canonical_times_factor_less);
+    }
 
     if (factors.empty()) {
         return make_expr<Number>(1.0);

@@ -3,6 +3,7 @@
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
+#include "Constants.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_all.hpp>
 #include <catch2/catch_approx.hpp>
@@ -404,6 +405,80 @@ TEST_CASE("Evaluator semantics keep comparisons explicit, binary, and non-listab
     REQUIRE_THROWS_AS(evaluate(too_many, ctx), std::runtime_error);
 }
 
+TEST_CASE("Evaluator semantics drive numeric-function dispatch and edge-domain fallback", "[evaluator][semantics][numeric]") {
+    EvaluationContext ctx;
+
+    const auto arctan_numeric = evaluate(parse_expression("ArcTan[1, 1]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*arctan_numeric));
+    REQUIRE(std::abs(get_number_value(arctan_numeric) - (PI / 4.0)) < 1e-12);
+
+    const auto log_numeric = evaluate(parse_expression("Log[10, 100]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*log_numeric));
+    REQUIRE(std::abs(get_number_value(log_numeric) - 2.0) < 1e-12);
+
+    const auto symbolic_log_argument = evaluate(parse_expression("Log[10, x]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*symbolic_log_argument));
+    REQUIRE(to_string(symbolic_log_argument) == "Log[10, x]");
+
+    const auto invalid_log_base = evaluate(parse_expression("Log[1, 10]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*invalid_log_base));
+    REQUIRE(to_string(invalid_log_base) == "Log[1, 10]");
+
+    const auto invalid_log_value = evaluate(parse_expression("Log[-2, 8]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*invalid_log_value));
+    REQUIRE(to_string(invalid_log_value) == "Log[-2, 8]");
+
+    const auto negative_fractional_power = evaluate(parse_expression("(-4)^0.5"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*negative_fractional_power));
+    const auto& power_call = std::get<FunctionCall>(*negative_fractional_power);
+    REQUIRE(power_call.head == "Power");
+    REQUIRE(power_call.args.size() == 2);
+    REQUIRE(std::holds_alternative<Number>(*power_call.args[0]));
+    REQUIRE(std::holds_alternative<Number>(*power_call.args[1]));
+    REQUIRE(std::abs(get_number_value(power_call.args[0]) + 4.0) < 1e-12);
+    REQUIRE(std::abs(get_number_value(power_call.args[1]) - 0.5) < 1e-12);
+}
+
+TEST_CASE("Evaluator semantics keep Flat and Orderless behavior out of opaque evaluator dispatch", "[evaluator][semantics][canonicalization]") {
+    EvaluationContext ctx;
+
+    const auto plus = evaluate(parse_expression("y + (x + 2)"), ctx);
+    REQUIRE(to_string(plus) == "2 + x + y");
+
+    const auto times = evaluate(parse_expression("z * (x * 2)"), ctx);
+    REQUIRE(to_string(times) == "2 * x * z");
+
+    const auto opaque = evaluate(parse_expression("f[y, f[x, 2]]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*opaque));
+    REQUIRE(to_string(opaque) == "f[y, f[x, 2]]");
+}
+
+TEST_CASE("Evaluator numeric-function listability preserves edge-case fallback elementwise", "[evaluator][semantics][numeric][listable]") {
+    EvaluationContext ctx;
+
+    const auto log_list = evaluate(parse_expression("Log[{1, E, -1}]"), ctx);
+    REQUIRE(std::holds_alternative<List>(*log_list));
+    const auto& log_elements = std::get<List>(*log_list).elements;
+    REQUIRE(log_elements.size() == 3);
+    REQUIRE(std::holds_alternative<Number>(*log_elements[0]));
+    REQUIRE(std::abs(get_number_value(log_elements[0])) < 1e-12);
+    REQUIRE(std::holds_alternative<Number>(*log_elements[1]));
+    REQUIRE(std::abs(get_number_value(log_elements[1]) - 1.0) < 1e-12);
+    REQUIRE(std::holds_alternative<FunctionCall>(*log_elements[2]));
+    REQUIRE(to_string(log_elements[2]) == "Log[-1]");
+
+    const auto sqrt_list = evaluate(parse_expression("Sqrt[{4, 9, -1}]"), ctx);
+    REQUIRE(std::holds_alternative<List>(*sqrt_list));
+    const auto& sqrt_elements = std::get<List>(*sqrt_list).elements;
+    REQUIRE(sqrt_elements.size() == 3);
+    REQUIRE(std::holds_alternative<Number>(*sqrt_elements[0]));
+    REQUIRE(std::abs(get_number_value(sqrt_elements[0]) - 2.0) < 1e-12);
+    REQUIRE(std::holds_alternative<Number>(*sqrt_elements[1]));
+    REQUIRE(std::abs(get_number_value(sqrt_elements[1]) - 3.0) < 1e-12);
+    REQUIRE(std::holds_alternative<FunctionCall>(*sqrt_elements[2]));
+    REQUIRE(to_string(sqrt_elements[2]) == "Sqrt[-1]");
+}
+
 TEST_CASE("Evaluator simplification rules flatten, cancel, and combine symbolic structure", "[evaluator][simplification]") {
     EvaluationContext ctx;
 
@@ -574,6 +649,46 @@ TEST_CASE("Evaluator handles logical AND (&&)", "[evaluator][logic]") {
     REQUIRE(std::get<Symbol>(*func.args[1]).name == "x");
 }
 
+TEST_CASE("Evaluator logic special forms preserve short-circuiting and symbolic tails", "[evaluator][logic][special-forms]") {
+    EvaluationContext ctx;
+
+    auto short_circuit_false = evaluate(parse_expression("False && (1/0)"), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*short_circuit_false));
+    REQUIRE(std::get<Boolean>(*short_circuit_false).value == false);
+
+    auto short_circuit_true = evaluate(parse_expression("True || (1/0)"), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*short_circuit_true));
+    REQUIRE(std::get<Boolean>(*short_circuit_true).value == true);
+
+    auto partially_evaluated_and = evaluate(make_expr<FunctionCall>("And", std::vector<ExprPtr>{
+        parse_expression("1 < 2"),
+        make_expr<Symbol>("x"),
+        parse_expression("1/0")
+    }), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*partially_evaluated_and));
+    const auto& and_call = std::get<FunctionCall>(*partially_evaluated_and);
+    REQUIRE(and_call.head == "And");
+    REQUIRE(and_call.args.size() == 3);
+    REQUIRE(std::holds_alternative<Boolean>(*and_call.args[0]));
+    REQUIRE(std::get<Boolean>(*and_call.args[0]).value == true);
+    REQUIRE(std::holds_alternative<Symbol>(*and_call.args[1]));
+    REQUIRE(std::get<Symbol>(*and_call.args[1]).name == "x");
+
+    auto partially_evaluated_or = evaluate(make_expr<FunctionCall>("Or", std::vector<ExprPtr>{
+        parse_expression("1 > 2"),
+        make_expr<Symbol>("x"),
+        parse_expression("1/0")
+    }), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*partially_evaluated_or));
+    const auto& or_call = std::get<FunctionCall>(*partially_evaluated_or);
+    REQUIRE(or_call.head == "Or");
+    REQUIRE(or_call.args.size() == 3);
+    REQUIRE(std::holds_alternative<Boolean>(*or_call.args[0]));
+    REQUIRE(std::get<Boolean>(*or_call.args[0]).value == false);
+    REQUIRE(std::holds_alternative<Symbol>(*or_call.args[1]));
+    REQUIRE(std::get<Symbol>(*or_call.args[1]).name == "x");
+}
+
 TEST_CASE("Evaluator handles logical OR (||)", "[evaluator][logic]") {
     EvaluationContext ctx;
 
@@ -600,6 +715,18 @@ TEST_CASE("Evaluator handles logical OR (||)", "[evaluator][logic]") {
     REQUIRE(std::get<Boolean>(*func.args[0]).value == false);
     REQUIRE(std::holds_alternative<Symbol>(*func.args[1]));
     REQUIRE(std::get<Symbol>(*func.args[1]).name == "x");
+}
+
+TEST_CASE("Evaluator logic special forms support identity arities", "[evaluator][logic][special-forms]") {
+    EvaluationContext ctx;
+
+    auto empty_and = evaluate(make_expr<FunctionCall>("And", std::vector<ExprPtr>{}), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*empty_and));
+    REQUIRE(std::get<Boolean>(*empty_and).value == true);
+
+    auto empty_or = evaluate(make_expr<FunctionCall>("Or", std::vector<ExprPtr>{}), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*empty_or));
+    REQUIRE(std::get<Boolean>(*empty_or).value == false);
 }
 
 TEST_CASE("Evaluator handles StringJoin", "[evaluator][string]") {

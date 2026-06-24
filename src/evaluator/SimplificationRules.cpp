@@ -1,5 +1,6 @@
 #include "evaluator/SimplificationRules.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "evaluator/EvaluatorSemantics.hpp"
 #include "expr/ExprUtils.hpp"
 #include <cmath>
 #include <cstdint>
@@ -19,7 +20,7 @@ namespace aleph3 {
         std::vector<ExprPtr>& output) {
         for (const auto& expr : input) {
             if (const auto* inner = std::get_if<FunctionCall>(expr.get());
-                inner != nullptr && inner->head == head) {
+                inner != nullptr && inner->head == head && is_flat_function(head)) {
                 output.insert(output.end(), inner->args.begin(), inner->args.end());
             } else {
                 output.push_back(expr);

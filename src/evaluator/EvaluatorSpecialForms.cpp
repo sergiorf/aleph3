@@ -27,6 +27,62 @@ ExprPtr evaluate_special_form(const FunctionCall& func, EvaluationContext& ctx) 
         return make_expr<FunctionCall>(name, func.args);
     }
 
+    if (name == "And") {
+        if (nargs == 0) {
+            return make_expr<Boolean>(true);
+        }
+
+        std::vector<ExprPtr> evaluated_prefix;
+        evaluated_prefix.reserve(nargs);
+
+        for (size_t i = 0; i < nargs; ++i) {
+            auto evaluated_arg = evaluate(func.args[i], ctx);
+            if (std::holds_alternative<Boolean>(*evaluated_arg)) {
+                const bool value = std::get<Boolean>(*evaluated_arg).value;
+                if (!value) {
+                    return make_expr<Boolean>(false);
+                }
+                evaluated_prefix.push_back(evaluated_arg);
+                continue;
+            }
+
+            std::vector<ExprPtr> residual_args = evaluated_prefix;
+            residual_args.push_back(evaluated_arg);
+            residual_args.insert(residual_args.end(), func.args.begin() + static_cast<std::ptrdiff_t>(i + 1), func.args.end());
+            return make_expr<FunctionCall>("And", residual_args);
+        }
+
+        return make_expr<Boolean>(true);
+    }
+
+    if (name == "Or") {
+        if (nargs == 0) {
+            return make_expr<Boolean>(false);
+        }
+
+        std::vector<ExprPtr> evaluated_prefix;
+        evaluated_prefix.reserve(nargs);
+
+        for (size_t i = 0; i < nargs; ++i) {
+            auto evaluated_arg = evaluate(func.args[i], ctx);
+            if (std::holds_alternative<Boolean>(*evaluated_arg)) {
+                const bool value = std::get<Boolean>(*evaluated_arg).value;
+                if (value) {
+                    return make_expr<Boolean>(true);
+                }
+                evaluated_prefix.push_back(evaluated_arg);
+                continue;
+            }
+
+            std::vector<ExprPtr> residual_args = evaluated_prefix;
+            residual_args.push_back(evaluated_arg);
+            residual_args.insert(residual_args.end(), func.args.begin() + static_cast<std::ptrdiff_t>(i + 1), func.args.end());
+            return make_expr<FunctionCall>("Or", residual_args);
+        }
+
+        return make_expr<Boolean>(false);
+    }
+
     throw_unsupported_construct("Unknown special form: " + name);
 }
 

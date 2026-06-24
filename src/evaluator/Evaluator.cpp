@@ -23,13 +23,13 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
 ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
     const std::string& name = func.head;
 
+    if (is_special_form_function(name)) {
+        return evaluate_special_form(func, ctx);
+    }
+
     auto& registry = FunctionRegistry::instance();
     if (registry.has_function(name)) {
         return registry.get_function(name)(func, ctx);
-    }
-
-    if (is_special_form_function(name)) {
-        return evaluate_special_form(func, ctx);
     }
 
     if (auto builtin_result = evaluate_builtin_function(func, ctx)) {

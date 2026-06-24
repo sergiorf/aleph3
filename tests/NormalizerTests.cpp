@@ -73,6 +73,26 @@ TEST_CASE("Normalizer canonicalizes commutative products", "[normalizer]") {
     expect_normalizes_to("x * (z * y) * 2", "2 * x * y * z");
 }
 
+TEST_CASE("Normalizer uses semantics-declared Flat and Orderless only for supported heads", "[normalizer][semantics]") {
+    auto plus = normalize_expr(make_fcall("Plus", {
+        make_expr<Symbol>("y"),
+        make_fcall("Plus", {make_expr<Symbol>("x"), make_expr<Number>(2.0)})
+    }));
+    REQUIRE(to_string(plus) == "x + y + 2");
+
+    auto times = normalize_expr(make_fcall("Times", {
+        make_expr<Symbol>("z"),
+        make_fcall("Times", {make_expr<Symbol>("x"), make_expr<Number>(2.0)})
+    }));
+    REQUIRE(to_string(times) == "2 * x * z");
+
+    auto opaque = normalize_expr(make_fcall("f", {
+        make_expr<Symbol>("y"),
+        make_fcall("f", {make_expr<Symbol>("x"), make_expr<Number>(2.0)})
+    }));
+    REQUIRE(to_string(opaque) == "f[y, f[x, 2]]");
+}
+
 TEST_CASE("Normalizer normalizes rationals and lowered subtraction forms", "[normalizer]") {
     auto rational = normalize_expr(make_expr<Rational>(2, -4));
     REQUIRE(to_string(rational) == "-1/2");

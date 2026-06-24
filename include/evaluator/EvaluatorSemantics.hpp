@@ -8,7 +8,8 @@ namespace aleph3 {
 
 enum class EvaluationMode {
     Eager,
-    HoldRest
+    HoldRest,
+    HoldAll
 };
 
 struct FunctionSemantics {
@@ -16,6 +17,9 @@ struct FunctionSemantics {
     bool special_form = false;
     bool listable = false;
     bool comparison = false;
+    bool numeric_function = false;
+    bool orderless = false;
+    bool flat = false;
     std::optional<size_t> min_arity;
     std::optional<size_t> max_arity;
 };
@@ -27,5 +31,8 @@ bool validate_function_arity(const std::string& name, size_t arity);
 bool is_special_form_function(const std::string& name);
 bool is_listable_function(const std::string& name);
 bool is_comparison_function(const std::string& name);
+bool is_numeric_function(const std::string& name);
+bool is_orderless_function(const std::string& name);
+bool is_flat_function(const std::string& name);
 
 }  // namespace aleph3

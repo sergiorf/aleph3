@@ -60,37 +60,6 @@ namespace aleph3 {
     void register_built_in_functions() {
         auto& registry = FunctionRegistry::instance();
 
-        // Logical operators
-        registry.register_function("And", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
-            for (const auto& arg : func.args) {
-                auto evaluated_arg = evaluate(arg, ctx);
-                if (std::holds_alternative<Boolean>(*evaluated_arg)) {
-                    if (!std::get<Boolean>(*evaluated_arg).value) {
-                        return make_expr<Boolean>(false); // Short-circuit if any argument is False
-                    }
-                }
-                else {
-                    return make_expr<FunctionCall>("And", func.args); // Return unevaluated
-                }
-            }
-            return make_expr<Boolean>(true); // All arguments are True
-            });
-
-        registry.register_function("Or", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
-            for (const auto& arg : func.args) {
-                auto evaluated_arg = evaluate(arg, ctx);
-                if (std::holds_alternative<Boolean>(*evaluated_arg)) {
-                    if (std::get<Boolean>(*evaluated_arg).value) {
-                        return make_expr<Boolean>(true); // Short-circuit if any argument is True
-                    }
-                }
-                else {
-                    return make_expr<FunctionCall>("Or", func.args); // Return unevaluated
-                }
-            }
-            return make_expr<Boolean>(false); // All arguments are False
-            });
-
         // String functions
         registry.register_function("StringJoin", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             std::string result;

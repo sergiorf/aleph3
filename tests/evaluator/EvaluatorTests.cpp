@@ -341,6 +341,69 @@ TEST_CASE("Evaluator builtins cover forgotten aliases and inverse trig variants"
     REQUIRE(to_string(arccsc_domain) == "ArcCsc[0]");
 }
 
+TEST_CASE("Evaluator semantics make unary builtins explicitly listable", "[evaluator][semantics][listable]") {
+    EvaluationContext ctx;
+
+    const auto sin_list = evaluate(parse_expression("Sin[{0, Pi/2, Pi}]"), ctx);
+    REQUIRE(std::holds_alternative<List>(*sin_list));
+    const auto& sin_elements = std::get<List>(*sin_list).elements;
+    REQUIRE(sin_elements.size() == 3);
+    REQUIRE(std::holds_alternative<Number>(*sin_elements[0]));
+    REQUIRE(std::abs(get_number_value(sin_elements[0])) < 1e-12);
+    REQUIRE(std::holds_alternative<Number>(*sin_elements[1]));
+    REQUIRE(std::abs(get_number_value(sin_elements[1]) - 1.0) < 1e-12);
+    REQUIRE(std::holds_alternative<Number>(*sin_elements[2]));
+    REQUIRE(std::abs(get_number_value(sin_elements[2])) < 1e-12);
+
+    const auto arcsin_list = evaluate(parse_expression("ArcSin[{0, 2}]"), ctx);
+    REQUIRE(std::holds_alternative<List>(*arcsin_list));
+    const auto& arcsin_elements = std::get<List>(*arcsin_list).elements;
+    REQUIRE(arcsin_elements.size() == 2);
+    REQUIRE(std::holds_alternative<Number>(*arcsin_elements[0]));
+    REQUIRE(std::abs(get_number_value(arcsin_elements[0])) < 1e-12);
+    REQUIRE(std::holds_alternative<FunctionCall>(*arcsin_elements[1]));
+    REQUIRE(to_string(arcsin_elements[1]) == "ArcSin[2]");
+}
+
+TEST_CASE("Evaluator semantics keep binary listability explicit and exact", "[evaluator][semantics][listable]") {
+    EvaluationContext ctx;
+
+    const auto result = evaluate(parse_expression("{1, 2} + 1/2"), ctx);
+    REQUIRE(std::holds_alternative<List>(*result));
+    const auto& elements = std::get<List>(*result).elements;
+    REQUIRE(elements.size() == 2);
+    REQUIRE(std::holds_alternative<Rational>(*elements[0]));
+    REQUIRE(std::holds_alternative<Rational>(*elements[1]));
+
+    const auto& first = std::get<Rational>(*elements[0]);
+    REQUIRE(first.numerator == 3);
+    REQUIRE(first.denominator == 2);
+
+    const auto& second = std::get<Rational>(*elements[1]);
+    REQUIRE(second.numerator == 5);
+    REQUIRE(second.denominator == 2);
+}
+
+TEST_CASE("Evaluator semantics keep comparisons explicit, binary, and non-listable", "[evaluator][semantics][comparison]") {
+    EvaluationContext ctx;
+
+    const auto symbolic_list_comparison = evaluate(parse_expression("{1, 2} < 3"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*symbolic_list_comparison));
+    REQUIRE(to_string(symbolic_list_comparison) == "{1, 2} < 3");
+
+    const auto symbolic_equality = evaluate(parse_expression("{1, 2} == {1, 2}"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*symbolic_equality));
+    REQUIRE(to_string(symbolic_equality) == "{1, 2} == {1, 2}");
+
+    const auto too_few = make_expr<FunctionCall>("Less", std::vector<ExprPtr>{make_expr<Number>(1.0)});
+    REQUIRE_THROWS_AS(evaluate(too_few, ctx), std::runtime_error);
+
+    const auto too_many = make_expr<FunctionCall>(
+        "ArcTan",
+        std::vector<ExprPtr>{make_expr<Number>(1.0), make_expr<Number>(2.0), make_expr<Number>(3.0)});
+    REQUIRE_THROWS_AS(evaluate(too_many, ctx), std::runtime_error);
+}
+
 TEST_CASE("Evaluator simplification rules flatten, cancel, and combine symbolic structure", "[evaluator][simplification]") {
     EvaluationContext ctx;
 

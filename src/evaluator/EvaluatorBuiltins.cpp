@@ -4,6 +4,7 @@
 #include "ExtraMath.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "evaluator/EvaluatorSemantics.hpp"
 #include "evaluator/SimplificationRules.hpp"
 #include "expr/ExprUtils.hpp"
 #include "util/Logging.hpp"
@@ -258,6 +259,16 @@ ExprPtr evaluate_builtin_unary(const FunctionCall& func, EvaluationContext& ctx)
         return make_expr<Number>(it->second(arg));
     }
 
+    if (is_listable_function(func.head) && std::holds_alternative<List>(*arg_eval)) {
+        const auto& elements = std::get<List>(*arg_eval).elements;
+        std::vector<ExprPtr> result;
+        result.reserve(elements.size());
+        for (const auto& element : elements) {
+            result.push_back(evaluate(make_fcall(func.head, {element}), ctx));
+        }
+        return std::make_shared<Expr>(List{result});
+    }
+
     return make_fcall(func.head, {arg_eval});
 }
 
@@ -270,7 +281,11 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
 
     auto left = evaluate(func.args[0], ctx);
     auto right = evaluate(func.args[1], ctx);
-    if (auto ew = evaluate_elementwise_binary(func.head, left, right, ctx)) return ew;
+    if (is_listable_function(func.head)) {
+        if (auto ew = evaluate_elementwise_binary(func.head, left, right, ctx)) {
+            return ew;
+        }
+    }
 
     if ((func.head == "Plus" || func.head == "Minus") && std::holds_alternative<Number>(*left)) {
         double real = std::get<Number>(*left).value;
@@ -443,6 +458,22 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
 }  // namespace
 
 ExprPtr evaluate_builtin_function(const FunctionCall& func, EvaluationContext& ctx) {
+    const auto* semantics = lookup_function_semantics(func.head);
+    if (semantics && !semantics->special_form && !validate_function_arity(func.head, func.args.size())) {
+        if (semantics->min_arity && semantics->max_arity && *semantics->min_arity == *semantics->max_arity) {
+            throw_invalid_arity_exact(func.head, *semantics->min_arity);
+        }
+        if (semantics->min_arity && semantics->max_arity) {
+            throw_invalid_arity_between(func.head, *semantics->min_arity, *semantics->max_arity);
+        }
+        if (semantics->min_arity) {
+            throw_invalid_arity_at_least(func.head, *semantics->min_arity, func.args.size());
+        }
+        if (semantics->max_arity) {
+            throw_invalid_arity_at_most(func.head, *semantics->max_arity, func.args.size());
+        }
+    }
+
     if (func.head == "Negate") {
         if (func.args.size() != 1) throw_invalid_arity_exact("Negate", 1);
         auto arg = evaluate(func.args[0], ctx);

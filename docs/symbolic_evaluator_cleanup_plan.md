@@ -201,6 +201,23 @@ Initial scope candidates:
 - listability if adopted
 - numeric-function classification where intended
 
+Concrete checklist:
+
+- [x] introduce a central function-semantics registry for explicit evaluation
+  behavior
+- [x] keep `If` as an explicit hold-rest special form with enforced exact arity
+- [x] make listability opt-in instead of accidental
+- [x] support unary listable mapping while preserving symbolic fallback and
+  domain behavior elementwise
+- [x] add evaluation-control contract tests for explicit listability semantics
+- [ ] define the first supported non-`If` hold-style behaviors, if any
+- [ ] decide whether `Orderless` and `Flat` are evaluator attributes or remain
+  purely normalization contracts
+- [x] decide that comparisons remain non-listable in the current supported
+  subset and cover that contract with tests
+- [ ] define numeric-function classification and where it affects dispatch
+- [ ] move additional evaluator dispatch decisions behind the semantics registry
+
 Success condition:
 
 - evaluation behavior is driven by explicit semantic rules rather than ad hoc

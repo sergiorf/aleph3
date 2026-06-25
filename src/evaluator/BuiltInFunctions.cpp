@@ -1,7 +1,7 @@
-#include "evaluator/FunctionRegistry.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
+#include "packs/PackRegistry.hpp"
 #include "util/Overloaded.hpp"
 #include "Constants.hpp"
 #include <cmath>
@@ -61,7 +61,7 @@ namespace aleph3 {
     }
 
     void register_built_in_functions() {
-        auto& registry = FunctionRegistry::instance();
+        auto& registry = packs::PackRegistry::instance();
 
         // String functions
         registry.register_function("StringJoin", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {

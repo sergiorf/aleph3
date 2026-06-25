@@ -62,6 +62,8 @@ if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
         "src/algebra/*.cpp"
         "src/evaluator/*.cpp"
         "src/expr/*.cpp"
+        "src/packs/*.cpp"
+        "src/symbols/*.cpp"
         "src/transforms/*.cpp"
         "src/tooling/SymbolicCliSupport.cpp")
     file(GLOB SYMBOLIC_HEADERS CONFIGURE_DEPENDS
@@ -72,7 +74,9 @@ if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
         "include/expr/*.hpp"
         "include/help/*.hpp"
         "include/normalizer/*.hpp"
+        "include/packs/*.hpp"
         "include/parser/*.hpp"
+        "include/symbols/*.hpp"
         "include/tooling/*.hpp"
         "include/transforms/*.hpp"
         "include/util/*.hpp")

@@ -17,7 +17,8 @@ The architecture is:
   symbolic semantics
 
 ## Current Repository Tracks
-- Symbolic core: parser, evaluator, transforms, and polynomial utilities
+- Symbolic kernel and early math surface: parser, evaluator, transforms, and
+  current algebra utilities
 - SDK layer: public API under `include/sdk/` and trusted-subset IR under `include/ir/`
 - CLI surface: `aleph3_cli` for symbolic and SDK checks
 - SDK validation and compile path: `validate` performs schema/arity/type checks and `compile` creates reusable formula handles
@@ -77,6 +78,8 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
 
 ## Documentation
 - Algebra supported subset: [docs/algebra_supported_subset.md](docs/algebra_supported_subset.md)
+- Symbolic core architecture: [docs/symbolic_core_architecture.md](docs/symbolic_core_architecture.md)
+- Symbolic core gap analysis: [docs/symbolic_core_gap_analysis.md](docs/symbolic_core_gap_analysis.md)
 - Symbolic engine product plan: [docs/symbolic_engine_product_plan.md](docs/symbolic_engine_product_plan.md)
 - Symbolic evaluator cleanup plan: [docs/symbolic_evaluator_cleanup_plan.md](docs/symbolic_evaluator_cleanup_plan.md)
 - SDK overview: [docs/sdk/README.md](docs/sdk/README.md)

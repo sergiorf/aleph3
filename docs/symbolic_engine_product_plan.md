@@ -35,18 +35,28 @@ It is the base for monetizable surfaces such as:
 Related implementation plan:
 
 - [Symbolic Evaluator Cleanup Plan](symbolic_evaluator_cleanup_plan.md)
+- [Symbolic Core Gap Analysis](symbolic_core_gap_analysis.md)
+- [Symbolic Core Architecture](symbolic_core_architecture.md)
 
 ## Product Architecture
 
-### Core: `aleph3_symbolic`
+Primary architecture contract:
 
-The symbolic engine owns:
+- [Symbolic Core Architecture](symbolic_core_architecture.md)
+
+### Pure Symbolic Kernel: `aleph3_symbolic`
+
+The pure kernel should own:
 
 - expression model
-- parser
+- parser and structural formatting
+- symbol metadata, definitions, and attributes
 - symbolic and mixed evaluation
-- simplification and transforms
-- polynomial and algebra utilities
+- canonicalization and bounded simplification
+- pattern matching and rewrite infrastructure
+- exact scalar arithmetic
+- assumptions/domain context
+- package registration interfaces
 
 Current code is concentrated in:
 
@@ -58,6 +68,30 @@ Current code is concentrated in:
 - [src/transforms/Transforms.cpp](/home/sergio/dev/aleph3/src/transforms/Transforms.cpp)
 - [include/algebra/Polynomial.hpp](/home/sergio/dev/aleph3/include/algebra/Polynomial.hpp)
 - [src/algebra](/home/sergio/dev/aleph3/src/algebra)
+
+This current mapping is transitional.
+The architecture target is stronger than the current directory layout:
+
+- `expr`, parser/frontend, evaluator orchestration, normalization, rewrite,
+  exact arithmetic, and assumptions belong to the kernel
+- algebra and special-function domain growth should move toward pack-style
+  ownership even if parts of that code still live under today's symbolic tree
+
+### Math Packs On Top Of The Kernel
+
+Higher math should be treated as layered packs built on top of the kernel.
+
+Examples:
+
+- elementary math pack
+- algebra pack
+- special functions pack
+- future calculus pack
+- future linear algebra and solver packs
+
+This split matters because Mathematica-class symbolic systems are not powerful
+mainly because they have many functions. They are powerful because a strong
+kernel lets many math domains share the same symbolic semantics.
 
 ### SDK: `aleph3_sdk`
 
@@ -97,6 +131,8 @@ Focused contracts:
 
 - [Algebra Supported Subset](algebra_supported_subset.md)
 - [Symbolic Evaluator Cleanup Plan](symbolic_evaluator_cleanup_plan.md)
+- [Symbolic Core Gap Analysis](symbolic_core_gap_analysis.md)
+- [Symbolic Core Architecture](symbolic_core_architecture.md)
 
 The current CLI surface for the symbolic layer is:
 
@@ -168,6 +204,9 @@ Current status by area:
 | Polynomial and algebra core | documented supported subset | lacks exact-rational coefficients and broader algorithms |
 | Differentiation | absent | capability missing |
 | Integration | absent | capability missing |
+| Pattern matching and rewrite rules | absent as a general subsystem | blocks Mathematica-class symbolic extensibility |
+| Assumptions and domains | absent as a product contract | blocks safe contextual simplification |
+| Kernel vs math-pack boundary | still blended | risks evaluator bloat and weak extensibility |
 
 ## Product Roadmap
 
@@ -180,11 +219,22 @@ Current status by area:
 
 ### Medium-Term Priorities
 
-1. Expand algebra capabilities beyond the current polynomial helpers.
-2. Introduce differentiation with a narrow but defensible contract.
-3. Add stronger semantic regression validation against a bounded
+1. Introduce a stronger kernel boundary and symbol-definition model.
+2. Add pattern-matching and rewrite infrastructure.
+3. Replace the current narrow floating algebra core with an exact algebra
+   backbone.
+4. Expand algebra capabilities beyond the current polynomial helpers.
+5. Introduce differentiation with a narrow but defensible contract.
+6. Add stronger semantic regression validation against a bounded
    Mathematica-inspired corpus.
-4. Define which subset is stable enough for external commercial use.
+7. Define which subset is stable enough for external commercial use.
+
+Priority note:
+
+- the architecture migration should begin before major new symbolic-domain
+  growth in algebra, calculus, rewrite-heavy transforms, or special functions
+- the first implementation tranche should be kernel boundary work, symbol
+  definitions, and pack registration interfaces
 
 ### Long-Term Priorities
 

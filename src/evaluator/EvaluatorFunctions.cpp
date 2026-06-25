@@ -39,35 +39,39 @@ std::vector<ExprPtr> bind_user_function_arguments(
 }  // namespace
 
 bool is_user_defined_function(const std::string& name, const EvaluationContext& ctx) {
-    return ctx.user_functions.find(name) != ctx.user_functions.end();
+    return ctx.function_definitions.contains(name);
 }
 
 ExprPtr evaluate_user_defined_function(const FunctionCall& func, EvaluationContext& ctx) {
-    const FunctionDefinition& def = ctx.user_functions.at(func.head);
-    auto final_args = bind_user_function_arguments(def, func);
+    const FunctionDefinition* def = ctx.function_definitions.lookup(func.head);
+    if (def == nullptr) {
+        throw_unsupported_construct("Unknown user-defined function: " + func.head);
+    }
+    auto final_args = bind_user_function_arguments(*def, func);
 
     EvaluationContext local_ctx = ctx;
-    for (size_t i = 0; i < def.params.size(); ++i) {
-        local_ctx.variables[def.params[i].name] = evaluate(final_args[i], ctx);
+    for (size_t i = 0; i < def->params.size(); ++i) {
+        local_ctx.symbol_values.set(def->params[i].name, evaluate(final_args[i], ctx));
     }
 
-    return evaluate(def.body, local_ctx);
+    return evaluate(def->body, local_ctx);
 }
 
 ExprPtr register_user_defined_function(const FunctionDefinition& def, EvaluationContext& ctx) {
     if (def.delayed) {
-        ctx.user_functions[def.name] = def;
+        ctx.function_definitions.set(def.name, def);
         return make_expr<FunctionDefinition>(def.name, def.params, def.body, true);
     }
 
     EvaluationContext local_ctx = ctx;
     for (const auto& param : def.params) {
-        local_ctx.variables[param.name] = make_expr<Symbol>(param.name);
+        local_ctx.symbol_values.set(param.name, make_expr<Symbol>(param.name));
     }
 
     auto evaluated_body = evaluate(def.body, local_ctx);
-    ctx.user_functions[def.name] =
-        FunctionDefinition(def.name, def.params, evaluated_body, false);
+    ctx.function_definitions.set(
+        def.name,
+        FunctionDefinition(def.name, def.params, evaluated_body, false));
     return evaluated_body;
 }
 

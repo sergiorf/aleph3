@@ -6,7 +6,7 @@
 #include "evaluator/EvaluatorFunctions.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
 #include "evaluator/EvaluatorSpecialForms.hpp"
-#include "evaluator/FunctionRegistry.hpp"
+#include "packs/PackRegistry.hpp"
 #include "expr/ExprUtils.hpp"
 #include "normalizer/Normalizer.hpp"
 #include "util/Logging.hpp"
@@ -28,7 +28,7 @@ ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
         return evaluate_special_form(func, ctx);
     }
 
-    auto& registry = FunctionRegistry::instance();
+    auto& registry = packs::PackRegistry::instance();
     if (registry.has_function(name)) {
         return registry.get_function(name)(func, ctx);
     }
@@ -69,13 +69,13 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
                 return make_expr<Symbol>(sym.name);
             }
 
-            auto it = ctx.variables.find(sym.name);
-            if (it == ctx.variables.end()) {
+            const ExprPtr* value = ctx.symbol_values.lookup(sym.name);
+            if (value == nullptr) {
                 return make_expr<Symbol>(sym.name);
             }
 
             visited.insert(sym.name);
-            auto result = evaluate_impl(it->second, ctx, visited);
+            auto result = evaluate_impl(*value, ctx, visited);
             visited.erase(sym.name);
             return result;
         },
@@ -99,7 +99,7 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
             return register_user_defined_function(def, ctx);
         },
         [&](const Assignment& assign) -> ExprPtr {
-            ctx.variables[assign.name] = evaluate(assign.value, ctx);
+            ctx.symbol_values.set(assign.name, evaluate(assign.value, ctx));
             return make_expr<Symbol>(assign.name);
         },
         [&](const Rule& rule) -> ExprPtr {

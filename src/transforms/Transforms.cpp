@@ -18,6 +18,17 @@ namespace aleph3 {
         return std::holds_alternative<Number>(*expr) && get_number_value(expr) == 1.0;
     }
 
+    bool try_get_exact_integer(const ExprPtr& expr, int& value) {
+        if (const auto* number = std::get_if<Number>(expr.get())) {
+            if (std::floor(number->value) != number->value) {
+                return false;
+            }
+            value = static_cast<int>(number->value);
+            return true;
+        }
+        return false;
+    }
+
     ExprPtr make_symbol_term(const std::string& symbol, double coefficient) {
         if (coefficient == 0.0) {
             return make_number(0);
@@ -165,12 +176,15 @@ namespace aleph3 {
                     }
                 }
 
-                // Simplify (a * b)^n → a^n * b^n
+                // Keep product powers structural unless the exponent is a safe positive integer.
+                int integer_exponent = 0;
                 if (auto base_func = std::get_if<FunctionCall>(base.get())) {
-                    if (base_func->head == "Times") {
+                    if (base_func->head == "Times" &&
+                        try_get_exact_integer(exponent, integer_exponent) &&
+                        integer_exponent > 1) {
                         std::vector<ExprPtr> expanded_terms;
                         for (const auto& term : base_func->args) {
-                            expanded_terms.push_back(make_pow(term, get_integer_value(exponent)));
+                            expanded_terms.push_back(make_pow(term, integer_exponent));
                         }
                         return simplify(make_expr<FunctionCall>("Times", expanded_terms));
                     }
@@ -332,13 +346,9 @@ namespace aleph3 {
 
             if (f->head == "Power" && new_args.size() == 2) {
                 auto base = new_args[0];
-                int exp;
-
-                try {
-                    exp = get_integer_value(new_args[1]);
-                }
-                catch (...) {
-                    // Return unevaluated if exponent is not an integer
+                int exp = 0;
+                if (!try_get_exact_integer(new_args[1], exp)) {
+                    // Return unevaluated if exponent is not an exact integer.
                     return make_expr<FunctionCall>("Power", new_args);
                 }
 

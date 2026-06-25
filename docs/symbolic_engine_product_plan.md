@@ -162,7 +162,7 @@ Current status by area:
 | Parser breadth | broad spot coverage | weak negative/error and ambiguity coverage |
 | Symbolic evaluation | meaningful but uneven | weak contract definition for fallback and normalization |
 | Canonical forms | partial and incidental | not yet a stable semantic contract |
-| Simplification | useful but thinly specified | lacks clear rewrite and idempotence contract |
+| Simplification | narrow but defined rewrite subsystem | scope remains intentionally conservative |
 | Built-in math | many examples | weak domain/error/canonical symbolic behavior coverage |
 | Evaluation control | minimal | lacks attribute-like semantics and explicit supported subset |
 | User-defined functions | functional | weak scoping/recursion/error/default-argument contract coverage |
@@ -180,10 +180,9 @@ Current status by area:
    subset.
 2. Define evaluation-control behavior explicitly instead of relying on ad hoc
    branching.
-3. Turn simplification into a tested rewrite subsystem with clear boundaries.
-4. Harden algebra behavior and expand toward differentiation.
-5. Expand UDF and cross-subsystem regression coverage.
-6. Keep docs aligned with the actual supported subset and architecture.
+3. Harden algebra behavior and expand toward differentiation.
+4. Expand UDF and cross-subsystem regression coverage.
+5. Keep docs aligned with the actual supported subset and architecture.
 
 ### Medium-Term Priorities
 

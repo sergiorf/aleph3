@@ -52,3 +52,11 @@ TEST_CASE("Expand does not handle (a + b)^3 (yet)") {
     auto expanded = expand(expr);
     REQUIRE(to_string(expanded) == "(a + b)^3");
 }
+
+TEST_CASE("Expand keeps non-integer powers structural", "[expand][contract]") {
+    auto fractional = expand(parse_expression("(a + b)^2.5"));
+    REQUIRE(to_string(fractional) == "(a + b)^2.5");
+
+    auto rational_fractional = expand(parse_expression("(a + b)^(1/2)"));
+    REQUIRE(to_string(rational_fractional) == "(a + b)^1/2");
+}

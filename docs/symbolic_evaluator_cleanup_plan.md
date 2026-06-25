@@ -43,8 +43,6 @@ refactor history is intentionally omitted so the plan stays operational.
 
 Active:
 
-- Phase 8. Evaluation-control semantics and attributes
-- Phase 9. Simplification and rewrite-system contract
 - Phase 10. Algebra capability hardening
 - Phase 11. Documentation pass
 
@@ -54,11 +52,10 @@ The main remaining fragilities are not just code-organization issues.
 
 - symbolic fallback is not yet defined sharply enough
 - canonical forms are not yet stable product behavior
-- simplification is useful but not governed by a clear contract
 - error behavior is still too ad hoc
 - algebra capability is too narrow for a production symbolic-core story
-- evaluator control semantics are still too limited for a Mathematica-inspired
-  engine
+- evaluator control semantics remain intentionally narrow compared with a full
+  Mathematica-style attribute system
 
 ## Architecture Target
 
@@ -182,6 +179,10 @@ Covered by tests:
 
 ## Phase 8. Evaluation-Control Semantics And Attributes
 
+Status:
+
+- complete
+
 Goal:
 
 - define the evaluation model beyond the current hardcoded special cases
@@ -219,7 +220,7 @@ Concrete checklist:
   subset and cover that contract with tests
 - [x] define numeric-function classification and make builtin numeric dispatch
   depend on that semantics layer
-- [ ] move additional evaluator dispatch decisions behind the semantics registry
+- [x] move additional evaluator dispatch decisions behind the semantics registry
 
 Success condition:
 
@@ -228,6 +229,10 @@ Success condition:
 - product docs state which evaluation controls are supported and which are not
 
 ## Phase 9. Simplification And Rewrite-System Contract
+
+Status:
+
+- complete
 
 Goal:
 
@@ -240,6 +245,39 @@ Work:
 - define boundaries between `evaluate`, `simplify`, and algebra transforms
 - document termination and idempotence expectations for supported rewrite paths
 - introduce targeted rewrite tests for cross-feature interaction
+
+Delivered contract:
+
+- `simplify` is a narrow rewrite pass over already-constructed expressions, not
+  a general evaluator
+- direct `simplify(expr)` may fold local arithmetic and structural identities
+  but does not perform builtin evaluation merely because numeric arguments are
+  present
+- CLI and cross-layer `symbolic-simplify` behavior remains `simplify(evaluate(
+  expr))`, so evaluator-visible exact arithmetic and builtin reductions happen
+  before simplification there
+- simplification is idempotent for the supported subset under repeated
+  application
+- simplification preserves symbolic fallback for opaque heads rather than
+  recursively evaluating their arguments
+- product-power rewrites are limited to safe positive integer exponents; they
+  do not distribute over fractional or negative exponents in the supported
+  subset
+- exact rational reductions remain part of evaluator behavior first, with
+  simplification preserving those exact outputs rather than introducing an
+  independent rational-evaluation semantics
+
+Covered by tests:
+
+- direct simplification idempotence for arithmetic identities and like-term
+  collection
+- no unintended builtin evaluation through simplification-only paths
+- cross-layer checks for exact arithmetic and builtin reduction through
+  `evaluate` followed by `simplify`
+- preservation of symbolic fallback for opaque calls
+- safe power-rewrite boundaries for positive integer, fractional, rational, and
+  negative exponents
+- cross-subsystem CLI coverage for symbolic simplify behavior
 
 Required tests:
 
@@ -262,16 +300,38 @@ Goal:
 Work:
 
 - harden multivariate polynomial behavior
+- define the exact rational arithmetic contract as part of the supported core
+  algebra subset
 - define canonical-form expectations for supported algebra outputs
 - improve selector and variable-policy rules
 - add differentiation as a planned algebra capability
 - identify which algebra features are in the supported product subset now
   versus later
 
+Exact rational arithmetic contract:
+
+- exact rationals are a supported core value type, not a best-effort parser
+  convenience
+- normalize rationals to lowest terms with the sign carried on the numerator
+  and a positive denominator
+- preserve exactness for rational-only arithmetic and for rational-plus-integer
+  or rational-times-integer paths where no inexact numeric value is introduced
+- define and document the exactness boundary where mixed rational-floating-point
+  operations demote to inexact `Number`
+- define and document current rational power and root behavior, including which
+  cases are exact, numeric-only, or intentionally left symbolic
+- make the current `int64_t` storage limit explicit and treat overflow risk and
+  large-intermediate behavior as a known limitation until a wider exact-number
+  strategy exists
+- require regression coverage for parser, evaluator, simplifier, and algebra
+  interactions involving exact rationals
+
 Required tests:
 
 - multivariate polynomial edge cases
 - canonical algebra output checks
+- exact rational arithmetic and demotion-boundary checks across parser,
+  evaluator, simplifier, and algebra entry points
 - negative/error behavior for invalid selectors and unsupported cases
 - differentiation contract tests once introduced
 
@@ -318,9 +378,6 @@ This is a future architecture track, not a current blocking phase.
    - explicit pole behavior at non-positive integers
    - regression coverage for half-integers, recurrence, and conjugation
    - remaining:
-     - symbolic simplification identities and recurrence-based reductions
-     - broader exact special values beyond the current half-integer coverage
-     - tighter integration with simplification and rewrite rules
      - clearer analytic-domain and branch-behavior contract for symbolic cases
 
 2. Complex transcendental and special-function expansion

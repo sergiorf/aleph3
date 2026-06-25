@@ -63,6 +63,10 @@ TEST_CASE("Symbolic CLI support hardens nested algebraic simplification", "[tool
     const auto merged_powers = tooling::symbolic_simplify_expression("x * x * y");
     REQUIRE(merged_powers.ok);
     REQUIRE(merged_powers.output == "x^2 * y");
+
+    const auto fractional_product_power = tooling::symbolic_simplify_expression("(x * y)^0.5");
+    REQUIRE(fractional_product_power.ok);
+    REQUIRE(fractional_product_power.output == "(x * y)^0.5");
 }
 
 TEST_CASE("Symbolic CLI support preserves evaluator fallback contracts", "[tooling][symbolic-cli]") {
@@ -108,6 +112,14 @@ TEST_CASE("Symbolic CLI support preserves builtin numeric and symbolic contracts
     const auto symbolic_fallback = tooling::symbolic_evaluate_expression("ArcSin[2]");
     REQUIRE(symbolic_fallback.ok);
     REQUIRE(symbolic_fallback.output == "ArcSin[2]");
+
+    const auto simplify_builtin = tooling::symbolic_simplify_expression("Sin[0]");
+    REQUIRE(simplify_builtin.ok);
+    REQUIRE(simplify_builtin.output == "0");
+
+    const auto simplify_exact_sum = tooling::symbolic_simplify_expression("1/2 + 1/3");
+    REQUIRE(simplify_exact_sum.ok);
+    REQUIRE(simplify_exact_sum.output == "5/6");
 }
 
 TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[tooling][symbolic-cli]") {

@@ -1,6 +1,7 @@
 #include "parser/Parser.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "evaluator/EvaluatorSemantics.hpp"
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "Constants.hpp"
@@ -477,6 +478,29 @@ TEST_CASE("Evaluator numeric-function listability preserves edge-case fallback e
     REQUIRE(std::abs(get_number_value(sqrt_elements[1]) - 3.0) < 1e-12);
     REQUIRE(std::holds_alternative<FunctionCall>(*sqrt_elements[2]));
     REQUIRE(to_string(sqrt_elements[2]) == "Sqrt[-1]");
+}
+
+TEST_CASE("Evaluator semantics registry drives structural and algebra dispatch", "[evaluator][semantics][dispatch]") {
+    EvaluationContext ctx;
+
+    REQUIRE(is_structural_function("List"));
+    REQUIRE(is_algebra_function("Expand"));
+    REQUIRE(is_algebra_function("PolynomialQuotient"));
+    REQUIRE_FALSE(is_algebra_function("f"));
+    REQUIRE_FALSE(is_structural_function("f"));
+
+    const auto list_result = evaluate(parse_expression("{x, 1 + 2, Sin[0]}"), ctx);
+    REQUIRE(std::holds_alternative<List>(*list_result));
+    const auto& elements = std::get<List>(*list_result).elements;
+    REQUIRE(elements.size() == 3);
+    REQUIRE(std::holds_alternative<Symbol>(*elements[0]));
+    REQUIRE(std::holds_alternative<Number>(*elements[1]));
+    REQUIRE(std::abs(get_number_value(elements[1]) - 3.0) < 1e-12);
+    REQUIRE(std::holds_alternative<Number>(*elements[2]));
+    REQUIRE(std::abs(get_number_value(elements[2])) < 1e-12);
+
+    const auto expanded = evaluate(parse_expression("Expand[(x + 1) * (x + 2)]"), ctx);
+    REQUIRE(to_string(expanded) == "x^2 + 3 * x + 2");
 }
 
 TEST_CASE("Evaluator simplification rules flatten, cancel, and combine symbolic structure", "[evaluator][simplification]") {

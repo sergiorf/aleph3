@@ -4,6 +4,7 @@
 #include "ExtraMath.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "evaluator/GammaUtils.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
 #include "evaluator/SimplificationRules.hpp"
 #include "expr/ExprUtils.hpp"
@@ -20,116 +21,6 @@
 namespace aleph3 {
 
 namespace {
-
-constexpr double SQRT_TWO_PI = 2.50662827463100050242;
-
-bool is_integer_like(double value, double tolerance = 1e-12) {
-    return std::abs(value - std::round(value)) < tolerance;
-}
-
-bool is_nonpositive_integer(double value) {
-    return value <= 0.0 && is_integer_like(value);
-}
-
-std::complex<double> complex_gamma_lanczos(std::complex<double> z) {
-    static const double coefficients[] = {
-        0.99999999999980993,
-        676.5203681218851,
-        -1259.1392167224028,
-        771.32342877765313,
-        -176.61502916214059,
-        12.507343278686905,
-        -0.13857109526572012,
-        9.9843695780195716e-6,
-        1.5056327351493116e-7
-    };
-
-    if (std::real(z) < 0.5) {
-        const auto pi_z = std::complex<double>(PI, 0.0) * z;
-        return std::complex<double>(PI, 0.0) /
-               (std::sin(pi_z) * complex_gamma_lanczos(std::complex<double>(1.0, 0.0) - z));
-    }
-
-    z -= std::complex<double>(1.0, 0.0);
-    std::complex<double> x(coefficients[0], 0.0);
-    for (size_t i = 1; i < std::size(coefficients); ++i) {
-        x += coefficients[i] / (z + static_cast<double>(i));
-    }
-
-    const std::complex<double> t = z + 7.5;
-    return SQRT_TWO_PI * std::pow(t, z + 0.5) * std::exp(-t) * x;
-}
-
-ExprPtr make_exact_gamma_half_integer(int odd_numerator) {
-    int64_t coeff_num = 1;
-    int64_t coeff_den = 1;
-    double current = 0.5;
-    const double target = static_cast<double>(odd_numerator) / 2.0;
-
-    if (target > current) {
-        while (current < target) {
-            auto [nn, dd] = normalize_rational(
-                coeff_num * static_cast<int64_t>(current * 2.0),
-                coeff_den * 2);
-            coeff_num = nn;
-            coeff_den = dd;
-            current += 1.0;
-        }
-    } else if (target < current) {
-        while (current > target) {
-            const double next = current - 1.0;
-            auto [nn, dd] = normalize_rational(
-                coeff_num * 2,
-                coeff_den * static_cast<int64_t>(next * 2.0));
-            coeff_num = nn;
-            coeff_den = dd;
-            current = next;
-        }
-    }
-
-    ExprPtr sqrt_pi = make_fcall("Sqrt", {make_expr<Symbol>("Pi")});
-    if (coeff_num == 1 && coeff_den == 1) {
-        return sqrt_pi;
-    }
-    return make_fcall("Times", {make_expr<Rational>(coeff_num, coeff_den), sqrt_pi});
-}
-
-std::optional<ExprPtr> evaluate_gamma_argument(const ExprPtr& arg_eval) {
-    if (std::holds_alternative<Number>(*arg_eval)) {
-        const double arg = get_number_value(arg_eval);
-        if (is_nonpositive_integer(arg)) {
-            return make_expr<ComplexInfinity>();
-        }
-        return make_expr<Number>(std::tgamma(arg));
-    }
-
-    if (std::holds_alternative<Rational>(*arg_eval)) {
-        const auto& rational = std::get<Rational>(*arg_eval);
-        if (rational.denominator == 1) {
-            if (rational.numerator <= 0) {
-                return make_expr<ComplexInfinity>();
-            }
-            return make_expr<Number>(std::tgamma(static_cast<double>(rational.numerator)));
-        }
-        if (rational.denominator == 2 && (rational.numerator % 2 != 0)) {
-            return make_exact_gamma_half_integer(static_cast<int>(rational.numerator));
-        }
-        const double arg =
-            static_cast<double>(rational.numerator) / static_cast<double>(rational.denominator);
-        return make_expr<Number>(std::tgamma(arg));
-    }
-
-    if (std::holds_alternative<Complex>(*arg_eval)) {
-        const auto& c = std::get<Complex>(*arg_eval);
-        if (std::abs(c.imag) < 1e-12 && is_nonpositive_integer(c.real)) {
-            return make_expr<ComplexInfinity>();
-        }
-        const auto value = complex_gamma_lanczos(std::complex<double>(c.real, c.imag));
-        return make_expr<Complex>(value.real(), value.imag());
-    }
-
-    return std::nullopt;
-}
 
 const std::unordered_map<std::string, std::function<double(double)>>& unary_functions() {
     static const std::unordered_map<std::string, std::function<double(double)>> value = {
@@ -380,7 +271,7 @@ ExprPtr evaluate_builtin_unary(const FunctionCall& func, EvaluationContext& ctx)
     }
 
     if (func.head == "Gamma") {
-        if (auto gamma_result = evaluate_gamma_argument(arg_eval)) {
+        if (auto gamma_result = simplify_gamma_argument(arg_eval)) {
             return *gamma_result;
         }
     }

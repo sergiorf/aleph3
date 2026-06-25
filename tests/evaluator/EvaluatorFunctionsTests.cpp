@@ -478,11 +478,45 @@ TEST_CASE("Evaluator Gamma exact-value and pole contract", "[evaluator][gamma][e
     const auto gamma_neg_three_halves = evaluate(parse_expression("Gamma[-3/2]"), ctx);
     require_gamma_sqrt_pi_multiple(gamma_neg_three_halves, 4, 3);
 
+    const auto gamma_five_halves = evaluate(parse_expression("Gamma[5/2]"), ctx);
+    require_gamma_sqrt_pi_multiple(gamma_five_halves, 3, 4);
+
+    const auto gamma_neg_five_halves = evaluate(parse_expression("Gamma[-5/2]"), ctx);
+    require_gamma_sqrt_pi_multiple(gamma_neg_five_halves, -8, 15);
+
     const auto gamma_zero = evaluate(parse_expression("Gamma[0]"), ctx);
     REQUIRE(std::holds_alternative<ComplexInfinity>(*gamma_zero));
 
     const auto gamma_minus_one = evaluate(parse_expression("Gamma[-1]"), ctx);
     REQUIRE(std::holds_alternative<ComplexInfinity>(*gamma_minus_one));
+}
+
+TEST_CASE("Evaluator Gamma symbolic recurrence and fallback contract", "[evaluator][gamma][symbolic]") {
+    EvaluationContext ctx;
+
+    const auto gamma_plain_symbol = evaluate(parse_expression("Gamma[x]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*gamma_plain_symbol));
+    REQUIRE(to_string(gamma_plain_symbol) == "Gamma[x]");
+
+    const auto gamma_plus_one = evaluate(parse_expression("Gamma[x + 1]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*gamma_plus_one));
+    REQUIRE(to_string(gamma_plus_one) == "x * (Gamma[x])");
+
+    const auto gamma_plus_two = evaluate(parse_expression("Gamma[x + 2]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*gamma_plus_two));
+    REQUIRE(to_string(gamma_plus_two) == "x * (Gamma[x]) * (x + 1)");
+
+    const auto gamma_minus_one = evaluate(parse_expression("Gamma[x - 1]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*gamma_minus_one));
+    REQUIRE(to_string(gamma_minus_one) == "(Gamma[x]) / (x - 1)");
+
+    const auto gamma_half_shift = evaluate(parse_expression("Gamma[x + 3/2]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*gamma_half_shift));
+    REQUIRE(to_string(gamma_half_shift) == "(Gamma[x + 1/2]) * (x + 1/2)");
+
+    const auto gamma_branch_preserved = evaluate(parse_expression("Gamma[z - 2]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*gamma_branch_preserved));
+    REQUIRE(to_string(gamma_branch_preserved) == "(Gamma[z]) / ((z - 1) * (z - 2))");
 }
 
 void validate_evaluator_result(

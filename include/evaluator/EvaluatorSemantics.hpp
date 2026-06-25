@@ -12,8 +12,16 @@ enum class EvaluationMode {
     HoldAll
 };
 
+enum class DispatchKind {
+    Default,
+    Structural,
+    SpecialForm,
+    Algebra
+};
+
 struct FunctionSemantics {
     EvaluationMode evaluation_mode = EvaluationMode::Eager;
+    DispatchKind dispatch_kind = DispatchKind::Default;
     bool special_form = false;
     bool listable = false;
     bool comparison = false;
@@ -34,5 +42,7 @@ bool is_comparison_function(const std::string& name);
 bool is_numeric_function(const std::string& name);
 bool is_orderless_function(const std::string& name);
 bool is_flat_function(const std::string& name);
+bool is_structural_function(const std::string& name);
+bool is_algebra_function(const std::string& name);
 
 }  // namespace aleph3

@@ -4,6 +4,7 @@
 #include "evaluator/EvaluatorAlgebra.hpp"
 #include "evaluator/EvaluatorBuiltins.hpp"
 #include "evaluator/EvaluatorFunctions.hpp"
+#include "evaluator/EvaluatorSemantics.hpp"
 #include "evaluator/EvaluatorSpecialForms.hpp"
 #include "evaluator/FunctionRegistry.hpp"
 #include "expr/ExprUtils.hpp"
@@ -79,11 +80,11 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
             return result;
         },
         [&](const FunctionCall& func) -> ExprPtr {
-            if (is_symbolic_algebra_function(func.head)) {
+            if (is_algebra_function(func.head)) {
                 return evaluate_algebra_function(func, ctx);
             }
 
-            if (func.head == "List") {
+            if (is_structural_function(func.head)) {
                 std::vector<ExprPtr> evaluated_elements;
                 evaluated_elements.reserve(func.args.size());
                 for (const auto& arg : func.args) {

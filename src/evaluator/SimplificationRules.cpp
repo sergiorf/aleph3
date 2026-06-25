@@ -1,5 +1,6 @@
 #include "evaluator/SimplificationRules.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "evaluator/GammaUtils.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
 #include "expr/ExprUtils.hpp"
 #include <cmath>
@@ -530,6 +531,19 @@ namespace aleph3 {
             return make_expr<Number>(a / b);
         }
         return make_fcall("Divide", {num, denom});
+    }},
+    {"Gamma", [](const std::vector<ExprPtr>& args, EvaluationContext& ctx,
+             const std::function<ExprPtr(const ExprPtr&, EvaluationContext&)>& eval) -> ExprPtr {
+        if (args.size() != 1) {
+            return make_fcall("Gamma", args);
+        }
+
+        auto arg = eval(args[0], ctx);
+        if (auto simplified = simplify_gamma_argument(arg)) {
+            return *simplified;
+        }
+
+        return make_fcall("Gamma", {arg});
     }},
     };
 }

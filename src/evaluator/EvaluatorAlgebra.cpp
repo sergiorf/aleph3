@@ -2,10 +2,10 @@
 
 #include "algebra/PolyUtils.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "evaluator/EvaluatorSemantics.hpp"
 
 #include <functional>
 #include <set>
-#include <unordered_set>
 #include <vector>
 
 namespace aleph3 {
@@ -65,10 +65,7 @@ std::vector<std::string> infer_variables(const ExprPtr& expr) {
 }  // namespace
 
 bool is_symbolic_algebra_function(const std::string& name) {
-    static const std::unordered_set<std::string> algebra_functions = {
-        "Expand", "Factor", "Collect", "GCD", "PolynomialQuotient"
-    };
-    return algebra_functions.count(name) > 0;
+    return is_algebra_function(name);
 }
 
 ExprPtr evaluate_algebra_function(const FunctionCall& func, EvaluationContext& ctx) {

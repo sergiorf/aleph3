@@ -550,6 +550,10 @@ namespace aleph3 {
             if (auto num = std::get_if<Number>(&(*e))) {
                 return Polynomial(static_cast<double>(num->value));
             }
+            if (std::holds_alternative<Rational>(*e)) {
+                throw_unsupported_construct(
+                    "Polynomial functions do not yet support exact rational coefficients");
+            }
             if (auto sym = std::get_if<Symbol>(&(*e))) {
                 if (!contains_variable(variables, sym->name)) {
                     throw_invalid_form(
@@ -712,7 +716,13 @@ namespace aleph3 {
     }
 
     ExprPtr collect_polynomial(const ExprPtr& expr, const std::vector<std::string>& variables, EvaluationContext& ctx) {
-        Polynomial poly = expr_to_polynomial(expr, variables);
+        auto polynomial_variables = infer_variables(expr);
+        for (const auto& variable : variables) {
+            if (!contains_variable(polynomial_variables, variable)) {
+                polynomial_variables.push_back(variable);
+            }
+        }
+        Polynomial poly = expr_to_polynomial(expr, polynomial_variables);
         Polynomial collected = collect(poly, variables);
         return polynomial_to_expr(collected);
     }

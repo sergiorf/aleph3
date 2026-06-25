@@ -38,6 +38,20 @@ TEST_CASE("Polynomial functions expand and collect to stable polynomial forms", 
 
     const auto collected_with_list = evaluate_source("Collect[x^2 + 2*x + 1, {x}]", ctx);
     REQUIRE(simplify_string(collected_with_list) == "x^2 + 2 * x + 1");
+
+    const auto collected_symbolic_coefficients = evaluate_source("Collect[y*x + x^2 + z*x, x]", ctx);
+    REQUIRE(simplify_string(collected_symbolic_coefficients) == "x^2 + x * y + x * z");
+
+    const auto collected_constant_coefficient = evaluate_source("Collect[x^2 + y, x]", ctx);
+    REQUIRE(simplify_string(collected_constant_coefficient) == "x^2 + y");
+
+    const auto collected_symbolic_coefficients_with_list =
+        evaluate_source("Collect[y*x + x^2 + z*x, {x}]", ctx);
+    REQUIRE(simplify_string(collected_symbolic_coefficients_with_list) == "x^2 + x * y + x * z");
+
+    const auto collected_duplicate_selector =
+        evaluate_source("Collect[y*x + x^2 + z*x, {x, x}]", ctx);
+    REQUIRE(simplify_string(collected_duplicate_selector) == "x^2 + x * y + x * z");
 }
 
 TEST_CASE("Polynomial GCD supports an explicit variable selector", "[algebra][functions]") {
@@ -92,6 +106,34 @@ TEST_CASE("Polynomial GCD and division reject unsupported multivariate inference
         std::runtime_error);
 }
 
+TEST_CASE("Polynomial selectors reject empty lists and infer variables from both operands", "[algebra][functions]") {
+    EvaluationContext ctx;
+
+    try {
+        static_cast<void>(evaluate_source("Collect[x^2 + y, {}]", ctx));
+        FAIL("Expected Collect to reject an empty selector list");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::invalid_form);
+        REQUIRE(std::string(ex.what()) == "Variable list must not be empty");
+    }
+
+    try {
+        static_cast<void>(evaluate_source("GCD[x^2 - 1, y - 1]", ctx));
+        FAIL("Expected GCD inference across mixed variables to reject unsupported multivariate input");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(ex.what()) == "gcd: only univariate GCD is implemented");
+    }
+
+    try {
+        static_cast<void>(evaluate_source("PolynomialQuotient[x^2 - 1, y - 1]", ctx));
+        FAIL("Expected PolynomialQuotient inference across mixed variables to reject unsupported multivariate input");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(ex.what()) == "divide: only univariate division is implemented");
+    }
+}
+
 TEST_CASE("Polynomial factor supports supported content and linear-root factorization", "[algebra][functions]") {
     EvaluationContext ctx;
 
@@ -140,5 +182,28 @@ TEST_CASE("Polynomial factor rejects unsupported non integer univariate coeffici
     } catch (const EvaluatorError& ex) {
         REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
         REQUIRE(std::string(ex.what()) == "Polynomial factorization currently requires integer coefficients");
+    }
+}
+
+TEST_CASE("Polynomial algebra rejects exact rational coefficients explicitly", "[algebra][functions][rational]") {
+    EvaluationContext ctx;
+
+    const std::vector<std::string> inputs = {
+        "Expand[(1/2) * (x + 1)]",
+        "Collect[(1/2) * x + 1, x]",
+        "Factor[(1/2) * x^2 + x]"
+    };
+
+    for (const auto& input : inputs) {
+        DYNAMIC_SECTION(input) {
+            try {
+                static_cast<void>(evaluate_source(input, ctx));
+                FAIL("Expected exact rational polynomial coefficient rejection");
+            } catch (const EvaluatorError& ex) {
+                REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+                REQUIRE(std::string(ex.what()) ==
+                        "Polynomial functions do not yet support exact rational coefficients");
+            }
+        }
     }
 }

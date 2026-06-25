@@ -120,6 +120,14 @@ TEST_CASE("Symbolic CLI support preserves builtin numeric and symbolic contracts
     const auto simplify_exact_sum = tooling::symbolic_simplify_expression("1/2 + 1/3");
     REQUIRE(simplify_exact_sum.ok);
     REQUIRE(simplify_exact_sum.output == "5/6");
+
+    const auto gamma_list = tooling::symbolic_evaluate_expression("Gamma[{1/2, 3/2, -1}]");
+    REQUIRE(gamma_list.ok);
+    REQUIRE(gamma_list.output == "{Sqrt[Pi], 1/2 * (Sqrt[Pi]), ComplexInfinity}");
+
+    const auto sec_pi = tooling::symbolic_evaluate_expression("Sec[Pi]");
+    REQUIRE(sec_pi.ok);
+    REQUIRE(sec_pi.output == "-1");
 }
 
 TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[tooling][symbolic-cli]") {
@@ -127,11 +135,35 @@ TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[toolin
     REQUIRE_FALSE(parse_failure.ok);
     REQUIRE_FALSE(parse_failure.error_message.empty());
 
-    const auto eval_failure = tooling::symbolic_evaluate_expression("Collect[x^2 + y, x]");
-    REQUIRE_FALSE(eval_failure.ok);
-    REQUIRE_FALSE(eval_failure.error_message.empty());
+    const auto symbolic_coefficient_collect = tooling::symbolic_evaluate_expression("Collect[x^2 + y, x]");
+    REQUIRE(symbolic_coefficient_collect.ok);
+    REQUIRE(symbolic_coefficient_collect.output == "x^2 + y");
+
+    const auto symbolic_coefficient_collect_sum =
+        tooling::symbolic_evaluate_expression("Collect[y*x + x^2 + z*x, x]");
+    REQUIRE(symbolic_coefficient_collect_sum.ok);
+    REQUIRE(symbolic_coefficient_collect_sum.output == "x * y + x * z + x^2");
+
+    const auto symbolic_coefficient_collect_sum_simplified =
+        tooling::symbolic_simplify_expression("Collect[y*x + x^2 + z*x, x]");
+    REQUIRE(symbolic_coefficient_collect_sum_simplified.ok);
+    REQUIRE(symbolic_coefficient_collect_sum_simplified.output == "x^2 + x * y + x * z");
 
     const auto selector_failure = tooling::symbolic_evaluate_expression("Collect[x^2 + 1, 3]");
     REQUIRE_FALSE(selector_failure.ok);
     REQUIRE(selector_failure.error_message == "Variable argument must be a symbol or list of symbols");
+
+    const auto empty_selector_failure = tooling::symbolic_evaluate_expression("Collect[x^2 + y, {}]");
+    REQUIRE_FALSE(empty_selector_failure.ok);
+    REQUIRE(empty_selector_failure.error_message == "Variable list must not be empty");
+
+    const auto mixed_inferred_gcd_failure = tooling::symbolic_evaluate_expression("GCD[x^2 - 1, y - 1]");
+    REQUIRE_FALSE(mixed_inferred_gcd_failure.ok);
+    REQUIRE(mixed_inferred_gcd_failure.error_message == "gcd: only univariate GCD is implemented");
+
+    const auto rational_expand_failure =
+        tooling::symbolic_evaluate_expression("Expand[(1/2) * (x + 1)]");
+    REQUIRE_FALSE(rational_expand_failure.ok);
+    REQUIRE(rational_expand_failure.error_message ==
+            "Polynomial functions do not yet support exact rational coefficients");
 }

@@ -4,6 +4,7 @@
 #include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
 
+#include <algorithm>
 #include <functional>
 #include <set>
 #include <vector>
@@ -11,6 +12,16 @@
 namespace aleph3 {
 
 namespace {
+
+std::vector<std::string> dedupe_variables(const std::vector<std::string>& variables) {
+    std::vector<std::string> deduped;
+    for (const auto& variable : variables) {
+        if (std::find(deduped.begin(), deduped.end(), variable) == deduped.end()) {
+            deduped.push_back(variable);
+        }
+    }
+    return deduped;
+}
 
 std::vector<std::string> extract_variables(const ExprPtr& expr) {
     if (auto sym = std::get_if<Symbol>(&(*expr))) {
@@ -27,6 +38,10 @@ std::vector<std::string> extract_variables(const ExprPtr& expr) {
                     throw_invalid_form("Variable list must contain only symbols");
                 }
             }
+            vars = dedupe_variables(vars);
+            if (vars.empty()) {
+                throw_invalid_form("Variable list must not be empty");
+            }
             return vars;
         }
     }
@@ -39,6 +54,10 @@ std::vector<std::string> extract_variables(const ExprPtr& expr) {
             else {
                 throw_invalid_form("Variable list must contain only symbols");
             }
+        }
+        vars = dedupe_variables(vars);
+        if (vars.empty()) {
+            throw_invalid_form("Variable list must not be empty");
         }
         return vars;
     }
@@ -60,6 +79,16 @@ std::vector<std::string> infer_variables(const ExprPtr& expr) {
     };
     visit(expr);
     return {vars.begin(), vars.end()};
+}
+
+std::vector<std::string> infer_variables(const ExprPtr& left, const ExprPtr& right) {
+    auto variables = infer_variables(left);
+    for (const auto& variable : infer_variables(right)) {
+        if (std::find(variables.begin(), variables.end(), variable) == variables.end()) {
+            variables.push_back(variable);
+        }
+    }
+    return variables;
 }
 
 }  // namespace
@@ -90,7 +119,7 @@ ExprPtr evaluate_algebra_function(const FunctionCall& func, EvaluationContext& c
             throw_invalid_arity_between("GCD", 2, 3);
         }
         const auto variables =
-            nargs == 3 ? extract_variables(func.args[2]) : infer_variables(func.args[0]);
+            nargs == 3 ? extract_variables(func.args[2]) : infer_variables(func.args[0], func.args[1]);
         return gcd_polynomial(func.args[0], func.args[1], variables, ctx);
     }
     if (name == "PolynomialQuotient") {
@@ -98,7 +127,7 @@ ExprPtr evaluate_algebra_function(const FunctionCall& func, EvaluationContext& c
             throw_invalid_arity_between("PolynomialQuotient", 2, 3);
         }
         const auto variables =
-            nargs == 3 ? extract_variables(func.args[2]) : infer_variables(func.args[0]);
+            nargs == 3 ? extract_variables(func.args[2]) : infer_variables(func.args[0], func.args[1]);
         const auto result = divide_polynomial(func.args[0], func.args[1], variables, ctx);
         return make_expr<List>(std::vector<ExprPtr>{result.first, result.second});
     }

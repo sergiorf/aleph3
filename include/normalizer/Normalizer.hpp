@@ -111,6 +111,23 @@ inline std::string canonical_symbolic_key(const ExprPtr& expr) {
     return to_string_raw(expr);
 }
 
+inline int canonical_plus_algebraic_shape_rank(const ExprPtr& expr) {
+    if (std::holds_alternative<Symbol>(*expr)) {
+        return 0;
+    }
+    if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
+        if (call->head == "Power" && call->args.size() == 2 &&
+            std::holds_alternative<Symbol>(*call->args[0]) &&
+            std::holds_alternative<Number>(*call->args[1])) {
+            return 0;
+        }
+        if (call->head == "Times") {
+            return 1;
+        }
+    }
+    return 2;
+}
+
 inline bool canonical_plus_term_less(const ExprPtr& left, const ExprPtr& right) {
     const auto left_class = normalized_sort_class(left);
     const auto right_class = normalized_sort_class(right);
@@ -133,6 +150,15 @@ inline bool canonical_plus_term_less(const ExprPtr& left, const ExprPtr& right) 
     const int right_degree = normalized_term_degree(right);
     if (left_degree != right_degree) {
         return left_degree > right_degree;
+    }
+
+    if (left_class == NormalizedSortClass::algebraic &&
+        right_class == NormalizedSortClass::algebraic) {
+        const int left_shape_rank = canonical_plus_algebraic_shape_rank(left);
+        const int right_shape_rank = canonical_plus_algebraic_shape_rank(right);
+        if (left_shape_rank != right_shape_rank) {
+            return left_shape_rank < right_shape_rank;
+        }
     }
 
     return canonical_symbolic_key(left) < canonical_symbolic_key(right);

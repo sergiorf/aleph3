@@ -76,6 +76,7 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    ```
 
 ## Documentation
+- Algebra supported subset: [docs/algebra_supported_subset.md](docs/algebra_supported_subset.md)
 - Symbolic engine product plan: [docs/symbolic_engine_product_plan.md](docs/symbolic_engine_product_plan.md)
 - Symbolic evaluator cleanup plan: [docs/symbolic_evaluator_cleanup_plan.md](docs/symbolic_evaluator_cleanup_plan.md)
 - SDK overview: [docs/sdk/README.md](docs/sdk/README.md)

@@ -93,6 +93,11 @@ The current symbolic engine already provides:
 - polynomial arithmetic and symbolic polynomial helpers such as `Expand`,
   `Factor`, `Collect`, `GCD`, and `PolynomialQuotient`
 
+Focused contracts:
+
+- [Algebra Supported Subset](algebra_supported_subset.md)
+- [Symbolic Evaluator Cleanup Plan](symbolic_evaluator_cleanup_plan.md)
+
 The current CLI surface for the symbolic layer is:
 
 - `aleph3_cli symbolic-evaluate <expr>`
@@ -137,20 +142,12 @@ Until the cleanup work expands or changes behavior intentionally,
 
 Current limitations:
 
-- eager-vs-lazy behavior is not yet documented broadly
-- canonicalization is not yet a stable product contract
-- simplification boundaries are still underdefined
 - structured symbolic diagnostics are not complete
-- algebra support is still narrow relative to the long-term goal
-
-Current normalization scope:
-
-- rationals are normalized into a stable sign convention
-- subtraction is lowered into canonical additive form
-- nested commutative `Plus` and `Times` forms are flattened
-- commutative `Plus` and `Times` arguments are ordered deterministically
-- normalization is intended to be structural and idempotent, not a substitute
-  for simplification
+- algebra support is intentionally narrow relative to the long-term goal
+- multivariate polynomial GCD and division are not supported
+- exact rational coefficients are not yet supported by the polynomial helper
+  layer
+- differentiation and integration are still future capabilities
 
 ## Main Product Gaps
 
@@ -161,14 +158,14 @@ Current status by area:
 | Expression/value model | indirectly covered | lacks invariant-focused tests |
 | Parser breadth | broad spot coverage | weak negative/error and ambiguity coverage |
 | Symbolic evaluation | meaningful but uneven | weak contract definition for fallback and normalization |
-| Canonical forms | partial and incidental | not yet a stable semantic contract |
-| Simplification | narrow but defined rewrite subsystem | scope remains intentionally conservative |
+| Canonical forms | stable for the supported subset | broader semantic coverage remains limited |
+| Simplification | narrow and defined rewrite subsystem | scope remains intentionally conservative |
 | Built-in math | many examples | weak domain/error/canonical symbolic behavior coverage |
-| Evaluation control | minimal | lacks attribute-like semantics and explicit supported subset |
+| Evaluation control | explicit for the current subset | still far narrower than full Mathematica semantics |
 | User-defined functions | functional | weak scoping/recursion/error/default-argument contract coverage |
 | Rational arithmetic | relatively strong | weak integration with broader symbolic simplification |
 | Complex arithmetic | basic | shallow coverage |
-| Polynomial and algebra core | real but narrow | weak multivariate and canonical-form confidence |
+| Polynomial and algebra core | documented supported subset | lacks exact-rational coefficients and broader algorithms |
 | Differentiation | absent | capability missing |
 | Integration | absent | capability missing |
 
@@ -176,13 +173,10 @@ Current status by area:
 
 ### Near-Term Priorities
 
-1. Establish canonical-form and normalization contracts for the supported
-   subset.
-2. Define evaluation-control behavior explicitly instead of relying on ad hoc
-   branching.
-3. Harden algebra behavior and expand toward differentiation.
-4. Expand UDF and cross-subsystem regression coverage.
-5. Keep docs aligned with the actual supported subset and architecture.
+1. Keep engine-facing docs aligned with the supported symbolic subset.
+2. Expand UDF and cross-subsystem regression coverage.
+3. Harden special-function and complex-domain contracts.
+4. Expand algebra deliberately toward differentiation.
 
 ### Medium-Term Priorities
 

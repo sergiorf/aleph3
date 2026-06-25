@@ -300,6 +300,7 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         {"ArcCos[1]", 0.0, "ArcCos[1] is 0.0."},
         {"ArcCsc[2]", std::asin(0.5), "ArcCsc[2] is arcsin(1/2)."},
         {"ArcCot[1]", PI / 4, "ArcCot[1] is Pi/4."},
+        {"ArcCot[0]", PI / 2, "ArcCot[0] follows atan2(1, 0) = Pi/2."},
 
         // ArcSin
         {"ArcSin[0]", 0.0, "ArcSin[0] is 0.0."},
@@ -315,6 +316,7 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         // Ceiling
         {"Ceil[2.1]", 3.0, "Ceil[2.1] is 3.0."},
         {"Ceiling[2.1]", 3.0, "Ceiling[2.1] is 3.0."},
+        {"Ceiling[-2.1]", -2.0, "Ceiling[-2.1] is -2.0."},
 
         // Cos
         {"Cos[0]", 1.0, "Cos[0] is 1.0."},
@@ -335,6 +337,7 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
 
         // Csc
         {"Csc[Pi/2]", 1.0, "Csc[Pi/2] is 1.0."},
+        {"Csc[-Pi/2]", -1.0, "Csc[-Pi/2] is -1.0."},
 
         // Exp
         {"Exp[0]", 1.0, "Exp[0] is 1.0."},
@@ -350,6 +353,7 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
         {"Ln[E]", 1.0, "Ln[E] is 1.0."},
         {"Log[1]", 0.0, "Log[1] is 0.0."},
         {"Log[E]", 1.0, "Log[E] is 1.0."},
+        {"Log[10, 1]", 0.0, "Log base 10 of 1 is 0."},
         {"Log[10, 100]", 2.0, "Log base 10 of 100 is 2."},
         {"Log[10, 1000]", 3.0, "Log base 10 of 1000 is 3."},
 
@@ -382,6 +386,7 @@ TEST_CASE("Evaluator: numeric and symbolic evaluation", "[evaluator][functions][
 
         // Sec
         {"Sec[0]", 1.0, "Sec[0] is 1.0."},
+        {"Sec[Pi]", -1.0, "Sec[Pi] is -1.0."},
 
         // Sin
         {"Sin[0]", 0.0, "Sin[0] is 0.0."},
@@ -517,6 +522,19 @@ TEST_CASE("Evaluator Gamma symbolic recurrence and fallback contract", "[evaluat
     const auto gamma_branch_preserved = evaluate(parse_expression("Gamma[z - 2]"), ctx);
     REQUIRE(std::holds_alternative<FunctionCall>(*gamma_branch_preserved));
     REQUIRE(to_string(gamma_branch_preserved) == "(Gamma[z]) / ((z - 1) * (z - 2))");
+}
+
+TEST_CASE("Evaluator Gamma listability preserves exact and pole behavior elementwise", "[evaluator][gamma][listable]") {
+    EvaluationContext ctx;
+
+    const auto gamma_list = evaluate(parse_expression("Gamma[{1/2, 3/2, -1}]"), ctx);
+    REQUIRE(std::holds_alternative<List>(*gamma_list));
+    const auto& elements = std::get<List>(*gamma_list).elements;
+    REQUIRE(elements.size() == 3);
+
+    REQUIRE(to_string(elements[0]) == "Sqrt[Pi]");
+    REQUIRE(to_string(elements[1]) == "1/2 * (Sqrt[Pi])");
+    REQUIRE(std::holds_alternative<ComplexInfinity>(*elements[2]));
 }
 
 void validate_evaluator_result(

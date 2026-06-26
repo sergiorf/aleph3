@@ -34,6 +34,7 @@ Implementation backlog:
 - [Kernel Registration Interfaces](kernel_registration_interfaces.md)
 - [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)
 - [Header Documentation Guideline](header_documentation_guideline.md)
+- [Representation Gap Inventory](representation_gap_inventory.md)
 
 ## Decision
 

@@ -1,3 +1,11 @@
+/*
+ * Trusted Subset IR Nodes
+ * -----------------------
+ * Narrow internal representation for the SDK trusted subset, carrying source
+ * spans and explicit operator/control-flow nodes rather than full symbolic
+ * kernel semantics.
+ */
+
 #pragma once
 
 #include <memory>

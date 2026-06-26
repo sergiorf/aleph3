@@ -98,9 +98,11 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
 ## Documentation
 - Algebra supported subset: [docs/algebra_supported_subset.md](docs/algebra_supported_subset.md)
 - Symbolic core architecture: [docs/symbolic_core_architecture.md](docs/symbolic_core_architecture.md)
+- Class collaboration: [docs/class_collaboration.md](docs/class_collaboration.md)
 - Kernel refactor urgent plan: [docs/kernel_refactor_urgent_plan.md](docs/kernel_refactor_urgent_plan.md)
 - Kernel refactor backlog: [docs/kernel_refactor_backlog.md](docs/kernel_refactor_backlog.md)
 - Kernel representation decision: [docs/kernel_representation_decision.md](docs/kernel_representation_decision.md)
+- Representation gap inventory: [docs/representation_gap_inventory.md](docs/representation_gap_inventory.md)
 - Layer ownership matrix: [docs/layer_ownership_matrix.md](docs/layer_ownership_matrix.md)
 - Kernel symbol definition precedence: [docs/kernel_symbol_definition_precedence.md](docs/kernel_symbol_definition_precedence.md)
 - Header documentation guideline: [docs/header_documentation_guideline.md](docs/header_documentation_guideline.md)

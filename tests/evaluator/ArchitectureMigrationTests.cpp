@@ -121,6 +121,15 @@ TEST_CASE("Registered symbolic handlers win before user-defined functions", "[ar
     REQUIRE(std::get<Number>(*result).value == 3.0);
 }
 
+TEST_CASE("Builtin evaluator functions win before user-defined functions", "[architecture][precedence]") {
+    EvaluationContext ctx;
+    evaluate(parse_expression("Plus[x_, y_] := 99"), ctx);
+
+    auto result = evaluate(parse_expression("Plus[1, 2]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 3.0);
+}
+
 TEST_CASE("Unknown symbolic functions remain symbolic when no handler owns the name", "[architecture][precedence]") {
     EvaluationContext ctx;
 

@@ -15,6 +15,7 @@ Architecture status note:
 
 Related architecture documents:
 
+- [Class Collaboration](class_collaboration.md)
 - [Symbolic Core Architecture](symbolic_core_architecture.md)
 - [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
 - [Kernel Refactor Backlog](kernel_refactor_backlog.md)

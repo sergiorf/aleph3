@@ -13,6 +13,7 @@
 #include "util/Overloaded.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <unordered_set>
 
 namespace aleph3 {
@@ -21,27 +22,100 @@ namespace {
 
 ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordered_set<std::string>& visited);
 
-ExprPtr evaluate_function(const FunctionCall& func, EvaluationContext& ctx) {
-    const std::string& name = func.head;
+enum class GeneralFunctionResolutionStage {
+    special_form,
+    registered_symbolic_function,
+    builtin_function,
+    user_defined_function,
+    unresolved_symbolic_fallback
+};
 
-    if (is_special_form_function(name)) {
+std::optional<ExprPtr> try_resolve_special_form(const FunctionCall& func, EvaluationContext& ctx) {
+    if (is_special_form_function(func.head)) {
         return evaluate_special_form(func, ctx);
     }
+    return std::nullopt;
+}
 
+std::optional<ExprPtr> try_resolve_registered_symbolic_function(const FunctionCall& func, EvaluationContext& ctx) {
     auto& registry = packs::PackRegistry::instance();
-    if (registry.has_function(name)) {
-        return registry.get_function(name)(func, ctx);
+    if (registry.has_function(func.head)) {
+        return registry.get_function(func.head)(func, ctx);
     }
+    return std::nullopt;
+}
 
+std::optional<ExprPtr> try_resolve_builtin_function(const FunctionCall& func, EvaluationContext& ctx) {
     if (auto builtin_result = evaluate_builtin_function(func, ctx)) {
         return builtin_result;
     }
+    return std::nullopt;
+}
 
-    if (is_user_defined_function(name, ctx)) {
+std::optional<ExprPtr> try_resolve_user_defined_function(const FunctionCall& func, EvaluationContext& ctx) {
+    if (is_user_defined_function(func.head, ctx)) {
         return evaluate_user_defined_function(func, ctx);
     }
+    return std::nullopt;
+}
 
-    return make_expr<FunctionCall>(name, func.args);
+ExprPtr unresolved_symbolic_fallback(const FunctionCall& func) {
+    return make_expr<FunctionCall>(func.head, func.args);
+}
+
+ExprPtr evaluate_general_function(const FunctionCall& func, EvaluationContext& ctx) {
+    constexpr GeneralFunctionResolutionStage stages[] = {
+        GeneralFunctionResolutionStage::special_form,
+        GeneralFunctionResolutionStage::registered_symbolic_function,
+        GeneralFunctionResolutionStage::builtin_function,
+        GeneralFunctionResolutionStage::user_defined_function,
+        GeneralFunctionResolutionStage::unresolved_symbolic_fallback
+    };
+
+    for (const auto stage : stages) {
+        switch (stage) {
+            case GeneralFunctionResolutionStage::special_form:
+                if (auto resolved = try_resolve_special_form(func, ctx)) {
+                    return *resolved;
+                }
+                break;
+            case GeneralFunctionResolutionStage::registered_symbolic_function:
+                if (auto resolved = try_resolve_registered_symbolic_function(func, ctx)) {
+                    return *resolved;
+                }
+                break;
+            case GeneralFunctionResolutionStage::builtin_function:
+                if (auto resolved = try_resolve_builtin_function(func, ctx)) {
+                    return *resolved;
+                }
+                break;
+            case GeneralFunctionResolutionStage::user_defined_function:
+                if (auto resolved = try_resolve_user_defined_function(func, ctx)) {
+                    return *resolved;
+                }
+                break;
+            case GeneralFunctionResolutionStage::unresolved_symbolic_fallback:
+                return unresolved_symbolic_fallback(func);
+        }
+    }
+
+    return unresolved_symbolic_fallback(func);
+}
+
+ExprPtr resolve_symbol_value(const Symbol& sym, EvaluationContext& ctx, std::unordered_set<std::string>& visited) {
+    if (visited.count(sym.name)) {
+        return make_expr<Symbol>(sym.name);
+    }
+
+    const ExprPtr* value = ctx.symbol_values.lookup(sym.name);
+    if (value == nullptr) {
+        return make_expr<Symbol>(sym.name);
+    }
+
+    visited.insert(sym.name);
+    auto result = evaluate_impl(*value, ctx, visited);
+    visited.erase(sym.name);
+    return result;
 }
 
 ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordered_set<std::string>& visited) {
@@ -65,19 +139,7 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
             return make_expr<String>(str.value);
         },
         [&](const Symbol& sym) -> ExprPtr {
-            if (visited.count(sym.name)) {
-                return make_expr<Symbol>(sym.name);
-            }
-
-            const ExprPtr* value = ctx.symbol_values.lookup(sym.name);
-            if (value == nullptr) {
-                return make_expr<Symbol>(sym.name);
-            }
-
-            visited.insert(sym.name);
-            auto result = evaluate_impl(*value, ctx, visited);
-            visited.erase(sym.name);
-            return result;
+            return resolve_symbol_value(sym, ctx, visited);
         },
         [&](const FunctionCall& func) -> ExprPtr {
             if (is_algebra_function(func.head)) {
@@ -93,7 +155,7 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
                 return make_expr<List>(evaluated_elements);
             }
 
-            return evaluate_function(func, ctx);
+            return evaluate_general_function(func, ctx);
         },
         [&](const FunctionDefinition& def) -> ExprPtr {
             return register_user_defined_function(def, ctx);

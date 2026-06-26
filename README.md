@@ -26,6 +26,8 @@ Current architecture warning:
   kernel
 - the active refactor direction is convergence on one kernel plus pack-style
   domain growth
+- the SDK now builds on the kernel directly even when the broader symbolic
+  surface is disabled
 
 ## Current Repository Tracks
 - Symbolic kernel and early math surface: parser, evaluator, transforms, and
@@ -83,6 +85,10 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    cmake -S . -B build-sdk -DALEPH3_BUILD_SYMBOLIC_ENGINE=OFF -DBUILD_TESTING=OFF
    cmake --build build-sdk
    ```
+
+   In this configuration, the SDK still builds its kernel dependency.
+   `ALEPH3_BUILD_SYMBOLIC_ENGINE=OFF` disables the broader symbolic surface and
+   related tests; it does not remove the kernel from the SDK build graph.
 
 4. Run tests:
    ```bash

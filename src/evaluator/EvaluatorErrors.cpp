@@ -11,6 +11,14 @@ EvaluatorErrorKind EvaluatorError::kind() const noexcept {
     return kind_;
 }
 
+kernel::ErrorCode EvaluatorError::code() const noexcept {
+    return kernel::kernel_error_code_for(kind_);
+}
+
+std::string_view EvaluatorError::code_string() const noexcept {
+    return kernel::kernel_error_code_name(code());
+}
+
 [[noreturn]] void throw_evaluator_error(EvaluatorErrorKind kind, std::string message) {
     throw EvaluatorError(kind, std::move(message));
 }

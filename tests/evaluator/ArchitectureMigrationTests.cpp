@@ -1,8 +1,13 @@
 #include "evaluator/BuiltInFunctions.hpp"
 #include "evaluator/EvaluationContext.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/Evaluator.hpp"
+#include "kernel/Diagnostics.hpp"
+#include "kernel/EvaluationContext.hpp"
 #include "packs/PackRegistry.hpp"
 #include "parser/Parser.hpp"
+#include "sdk/Policy.hpp"
+#include "sdk/Types.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -41,4 +46,47 @@ TEST_CASE("Built-in symbolic surface is registered through the pack registry", "
     auto& registry = packs::PackRegistry::instance();
     REQUIRE(registry.has_function("StringJoin"));
     REQUIRE(registry.has_function("N"));
+}
+
+TEST_CASE("Kernel evaluation context can carry symbolic and SDK runtime state", "[architecture][kernel]") {
+    Bindings bindings = {{"x", Value(2.0)}};
+    Bindings constants = {{"pi", Value(3.14159)}};
+
+    HostFunctionSpec clamp;
+    clamp.name = "Clamp";
+    clamp.arity = FunctionArity::exact(3);
+    clamp.callback = [](std::span<const Value>) {
+        EvaluationResult result;
+        result.value = Value(0.0);
+        return result;
+    };
+
+    std::unordered_map<std::string, HostFunctionSpec> host_functions;
+    host_functions.emplace(clamp.name, clamp);
+
+    Policy policy = Policy::default_policy();
+    policy.budget().max_evaluation_steps = 77;
+
+    kernel::EvaluationContext ctx(bindings, constants, host_functions, policy);
+    ctx.symbol_values.set("offset", make_expr<Number>(5.0));
+
+    REQUIRE(ctx.variables.contains("offset"));
+    REQUIRE(ctx.bindings().contains("x"));
+    REQUIRE(ctx.constants().contains("pi"));
+    REQUIRE(ctx.host_functions().contains("Clamp"));
+    REQUIRE(ctx.policy().budget().max_evaluation_steps == 77);
+}
+
+TEST_CASE("Kernel diagnostic taxonomy maps symbolic and runtime surfaces", "[architecture][kernel]") {
+    REQUIRE(kernel::kernel_error_code_for(EvaluatorErrorKind::unsupported_construct) ==
+            kernel::ErrorCode::unsupported_construct);
+    REQUIRE(kernel::kernel_error_code_name(kernel::ErrorCode::unsupported_construct) ==
+            "kernel.unsupported_construct");
+    REQUIRE(kernel::sdk_runtime_projection_code(kernel::ErrorCode::type_mismatch) ==
+            "runtime.type_mismatch");
+
+    const auto runtime_error = kernel::make_runtime_error(
+        kernel::ErrorCode::invalid_numeric_domain,
+        "Sqrt is undefined for negative inputs.");
+    REQUIRE(runtime_error.code == "runtime.invalid_numeric_domain");
 }

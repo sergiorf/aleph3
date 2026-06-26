@@ -11,12 +11,18 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 option(ALEPH3_BUILD_SYMBOLIC_ENGINE "Build the symbolic engine and its tests." ON)
 option(ALEPH3_BUILD_SDK "Build the SDK and primary engine targets." ON)
 
+set(ALEPH3_BUILD_KERNEL OFF)
+
 if(DEFINED ALEPH3_BUILD_REWRITE AND NOT DEFINED ALEPH3_BUILD_SDK)
     set(ALEPH3_BUILD_SDK "${ALEPH3_BUILD_REWRITE}" CACHE BOOL "Build the SDK and primary engine targets." FORCE)
 endif()
 
 if(DEFINED ALEPH3_BUILD_LEGACY AND NOT DEFINED ALEPH3_BUILD_SYMBOLIC_ENGINE)
     set(ALEPH3_BUILD_SYMBOLIC_ENGINE "${ALEPH3_BUILD_LEGACY}" CACHE BOOL "Build the symbolic engine and its tests." FORCE)
+endif()
+
+if(ALEPH3_BUILD_SDK OR ALEPH3_BUILD_SYMBOLIC_ENGINE)
+    set(ALEPH3_BUILD_KERNEL ON)
 endif()
 
 set(ALEPH3_PUBLIC_HEADERS
@@ -56,7 +62,7 @@ if(ALEPH3_BUILD_SDK)
     target_link_libraries(aleph3_sdk_example PRIVATE aleph3_sdk)
 endif()
 
-if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
+if(ALEPH3_BUILD_KERNEL)
     file(GLOB SYMBOLIC_ROOT_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
     file(GLOB SYMBOLIC_COMPONENT_SOURCES CONFIGURE_DEPENDS
         "src/algebra/*.cpp"
@@ -96,6 +102,10 @@ if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
     target_link_libraries(aleph3_pack_algebra INTERFACE aleph3_kernel)
 
     if(ALEPH3_BUILD_SDK)
+        target_link_libraries(aleph3_sdk PRIVATE aleph3_kernel)
+    endif()
+
+    if(ALEPH3_BUILD_SDK AND ALEPH3_BUILD_SYMBOLIC_ENGINE)
         target_link_libraries(aleph3_cli PRIVATE aleph3_kernel)
         target_compile_definitions(aleph3_cli PRIVATE ALEPH3_HAS_SYMBOLIC_ENGINE=1)
     endif()

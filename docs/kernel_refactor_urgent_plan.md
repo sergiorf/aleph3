@@ -29,6 +29,8 @@ Implementation backlog:
 - [Kernel Refactor Backlog](kernel_refactor_backlog.md)
 - [Kernel Representation Decision](kernel_representation_decision.md)
 - [Layer Ownership Matrix](layer_ownership_matrix.md)
+- [Kernel Evaluation Context](kernel_evaluation_context.md)
+- [Kernel Diagnostic Taxonomy](kernel_diagnostic_taxonomy.md)
 
 ## Decision
 

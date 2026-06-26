@@ -1,5 +1,7 @@
 #include "runtime/Evaluator.hpp"
 
+#include "kernel/Diagnostics.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <optional>
@@ -45,34 +47,42 @@ bool is_integer_value(double value) noexcept {
 }
 
 EvaluationResult make_non_finite_input_error(const SourceSpan& span) {
-    return make_failure(
-        "runtime.non_finite_number",
+    EvaluationResult result;
+    result.error = kernel::make_runtime_error(
+        kernel::ErrorCode::non_finite_number,
         "Numeric operations require finite input values.",
         span);
+    return result;
 }
 
 EvaluationResult make_non_finite_result_error(const SourceSpan& span) {
-    return make_failure(
-        "runtime.invalid_numeric_result",
+    EvaluationResult result;
+    result.error = kernel::make_runtime_error(
+        kernel::ErrorCode::invalid_numeric_result,
         "Numeric evaluation produced a non-finite result.",
         span);
+    return result;
 }
 
 EvaluationResult make_invalid_power_domain_error(const SourceSpan& span) {
-    return make_failure(
-        "runtime.invalid_power_domain",
+    EvaluationResult result;
+    result.error = kernel::make_runtime_error(
+        kernel::ErrorCode::invalid_power_domain,
         "Power is undefined for the given numeric inputs.",
         span);
+    return result;
 }
 
 EvaluationResult make_invalid_numeric_domain_error(
     const std::string& function_name,
     const std::string& message,
     const SourceSpan& span) {
-    return make_failure(
-        "runtime.invalid_numeric_domain",
+    EvaluationResult result;
+    result.error = kernel::make_runtime_error(
+        kernel::ErrorCode::invalid_numeric_domain,
         function_name + " " + message,
         span);
+    return result;
 }
 
 EvaluationResult make_finite_numeric_success(double value, const SourceSpan& span) {
@@ -176,7 +186,7 @@ class EvaluatorImpl {
 public:
     explicit EvaluatorImpl(EvaluationContext context)
         : context_(context) {
-        budget_.max_steps = context_.policy.budget().max_evaluation_steps;
+        budget_.max_steps = context_.policy().budget().max_evaluation_steps;
     }
 
     EvaluationResult evaluate(const ir::NodePtr& root) {
@@ -210,13 +220,15 @@ private:
             return make_success(Value(string->value));
         }
         if (const auto* variable = node->as<ir::VariableNode>()) {
-            const auto binding = context_.bindings.find(variable->name);
-            if (binding != context_.bindings.end()) {
+            const auto& bindings = context_.bindings();
+            const auto binding = bindings.find(variable->name);
+            if (binding != bindings.end()) {
                 return make_success(binding->second);
             }
 
-            const auto constant = context_.constants.find(variable->name);
-            if (constant != context_.constants.end()) {
+            const auto& constants = context_.constants();
+            const auto constant = constants.find(variable->name);
+            if (constant != constants.end()) {
                 return make_success(constant->second);
             }
 
@@ -400,8 +412,9 @@ private:
             arguments.push_back(std::move(*argument.value));
         }
 
-        const auto host_function = context_.host_functions.find(call.callee);
-        if (host_function != context_.host_functions.end()) {
+        const auto& host_functions = context_.host_functions();
+        const auto host_function = host_functions.find(call.callee);
+        if (host_function != host_functions.end()) {
             const auto& spec = host_function->second;
             if (!spec.arity.allows(arguments.size())) {
                 return make_failure(

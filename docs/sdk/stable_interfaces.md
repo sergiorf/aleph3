@@ -56,6 +56,8 @@ classDiagram
 - `CompiledFormula` remains opaque even though the frontend and runtime are now live.
 - `ir::Node` is for internal SDK/runtime layers only and must not leak into the SDK.
 - Engine-scoped host function registration replaces the old global registry model.
+- The SDK build now depends on `aleph3_kernel` even though the public SDK
+  boundary still must not expose internal symbolic AST types.
 
 ## Current Guarantees
 

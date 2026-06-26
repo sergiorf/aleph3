@@ -13,6 +13,8 @@ This is the architecture contract Aleph3 should clean toward.
 Urgent migration program:
 
 - [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
+- [Kernel Evaluation Context](kernel_evaluation_context.md)
+- [Kernel Diagnostic Taxonomy](kernel_diagnostic_taxonomy.md)
 
 ## Top-Level Layers
 

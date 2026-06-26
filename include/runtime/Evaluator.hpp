@@ -1,21 +1,13 @@
 #pragma once
 
 #include <cstddef>
-#include <string>
-#include <unordered_map>
 
+#include "kernel/EvaluationContext.hpp"
 #include "ir/Node.hpp"
-#include "sdk/Policy.hpp"
-#include "sdk/Types.hpp"
 
 namespace aleph3::runtime {
 
-struct EvaluationContext {
-    const Bindings& bindings;
-    const Bindings& constants;
-    const std::unordered_map<std::string, HostFunctionSpec>& host_functions;
-    const Policy& policy;
-};
+using EvaluationContext = aleph3::kernel::EvaluationContext;
 
 class Evaluator {
 public:

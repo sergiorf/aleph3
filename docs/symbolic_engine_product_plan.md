@@ -15,8 +15,12 @@ than through vague feature parity claims.
 
 Aleph3 should be understood as a layered system:
 
-1. `aleph3_symbolic`
-   The core symbolic math engine and the main strategic asset.
+1. `aleph3_kernel`
+   The explicit kernel build target for the core symbolic math engine and the
+   main strategic asset.
+
+   `aleph3_symbolic` currently remains as a compatibility alias during
+   migration.
 
 2. `aleph3_sdk`
    A controlled embedding layer built on top of that core.
@@ -44,7 +48,7 @@ Primary architecture contract:
 
 - [Symbolic Core Architecture](symbolic_core_architecture.md)
 
-### Pure Symbolic Kernel: `aleph3_symbolic`
+### Pure Symbolic Kernel: `aleph3_kernel`
 
 The pure kernel should own:
 
@@ -88,6 +92,13 @@ Examples:
 - special functions pack
 - future calculus pack
 - future linear algebra and solver packs
+
+Current build status:
+
+- `aleph3_pack_core_math` and `aleph3_pack_algebra` now exist as placeholder
+  build targets
+- they are staging boundaries for extraction, not yet evidence that the
+  underlying code has been cleanly separated
 
 This split matters because Mathematica-class symbolic systems are not powerful
 mainly because they have many functions. They are powerful because a strong

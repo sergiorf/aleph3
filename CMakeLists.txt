@@ -81,15 +81,22 @@ if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
         "include/transforms/*.hpp"
         "include/util/*.hpp")
 
-    add_library(aleph3_symbolic
+    add_library(aleph3_kernel
         ${SYMBOLIC_ROOT_SOURCES}
         ${SYMBOLIC_COMPONENT_SOURCES}
         ${SYMBOLIC_HEADERS})
-    add_library(${PROJECT_NAME}_lib ALIAS aleph3_symbolic)
-    target_include_directories(aleph3_symbolic PUBLIC include PRIVATE third_party/utf8cpp)
+    add_library(aleph3_symbolic ALIAS aleph3_kernel)
+    add_library(${PROJECT_NAME}_lib ALIAS aleph3_kernel)
+    target_include_directories(aleph3_kernel PUBLIC include PRIVATE third_party/utf8cpp)
+
+    add_library(aleph3_pack_core_math INTERFACE)
+    target_link_libraries(aleph3_pack_core_math INTERFACE aleph3_kernel)
+
+    add_library(aleph3_pack_algebra INTERFACE)
+    target_link_libraries(aleph3_pack_algebra INTERFACE aleph3_kernel)
 
     if(ALEPH3_BUILD_SDK)
-        target_link_libraries(aleph3_cli PRIVATE aleph3_symbolic)
+        target_link_libraries(aleph3_cli PRIVATE aleph3_kernel)
         target_compile_definitions(aleph3_cli PRIVATE ALEPH3_HAS_SYMBOLIC_ENGINE=1)
     endif()
 endif()
@@ -108,28 +115,49 @@ if(BUILD_TESTING)
     FetchContent_MakeAvailable(Catch2)
 
     if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
-        file(GLOB SYMBOLIC_TEST_ROOT CONFIGURE_DEPENDS "tests/*.cpp")
-        file(GLOB SYMBOLIC_TEST_SOURCES CONFIGURE_DEPENDS
+        file(GLOB KERNEL_TEST_ROOT CONFIGURE_DEPENDS
+            "tests/ExpandTests.cpp"
+            "tests/ExprPrettyPrintTests.cpp"
+            "tests/FullFormTests.cpp"
+            "tests/GlobalTestSetup.cpp"
+            "tests/NormalizerTests.cpp"
+            "tests/SimplifyTests.cpp")
+        file(GLOB KERNEL_TEST_SOURCES CONFIGURE_DEPENDS
             "tests/algebra/*.cpp"
             "tests/evaluator/*.cpp"
             "tests/parser/*.cpp")
+        file(GLOB SYMBOLIC_TOOLING_TEST_SOURCES CONFIGURE_DEPENDS
+            "tests/SymbolicCliSupportTests.cpp")
+        file(GLOB PACK_TEST_SOURCES CONFIGURE_DEPENDS
+            "tests/packs/*.cpp")
 
-        add_executable(aleph3_symbolic_tests ${SYMBOLIC_TEST_ROOT} ${SYMBOLIC_TEST_SOURCES})
-        target_link_libraries(aleph3_symbolic_tests PRIVATE aleph3_symbolic Catch2::Catch2WithMain)
+        add_executable(
+            aleph3_symbolic_tests
+            ${KERNEL_TEST_ROOT}
+            ${KERNEL_TEST_SOURCES}
+            ${SYMBOLIC_TOOLING_TEST_SOURCES}
+            ${PACK_TEST_SOURCES})
+        target_link_libraries(aleph3_symbolic_tests PRIVATE aleph3_kernel Catch2::Catch2WithMain)
         target_include_directories(aleph3_symbolic_tests PRIVATE third_party/utf8cpp tests)
         add_test(NAME aleph3_symbolic_tests COMMAND aleph3_symbolic_tests)
     endif()
 
     if(ALEPH3_BUILD_SDK)
-        file(GLOB REWRITE_TEST_SOURCES CONFIGURE_DEPENDS
+        file(GLOB SDK_FRONTEND_TEST_SOURCES CONFIGURE_DEPENDS
             "tests/frontend/*.cpp"
             "tests/ir/*.cpp"
-            "tests/runtime/*.cpp"
             "tests/semantics/*.cpp"
-            "tests/sdk/*.cpp"
+            "tests/sdk/*.cpp")
+        file(GLOB SDK_TRANSITIONAL_RUNTIME_TEST_SOURCES CONFIGURE_DEPENDS
+            "tests/runtime/*.cpp")
+        file(GLOB SDK_TOOLING_TEST_SOURCES CONFIGURE_DEPENDS
             "tests/tooling/*.cpp")
 
-        add_executable(aleph3_sdk_tests ${REWRITE_TEST_SOURCES})
+        add_executable(
+            aleph3_sdk_tests
+            ${SDK_FRONTEND_TEST_SOURCES}
+            ${SDK_TRANSITIONAL_RUNTIME_TEST_SOURCES}
+            ${SDK_TOOLING_TEST_SOURCES})
         target_link_libraries(aleph3_sdk_tests PRIVATE aleph3_sdk Catch2::Catch2WithMain)
         target_include_directories(aleph3_sdk_tests PRIVATE tests)
         target_compile_definitions(aleph3_sdk_tests PRIVATE ALEPH3_CLI_PATH="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/aleph3_cli")

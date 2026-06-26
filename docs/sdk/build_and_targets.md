@@ -21,13 +21,16 @@ Related documents:
 
 | Target | Type | Purpose |
 | --- | --- | --- |
-| `aleph3_symbolic` | library | Current symbolic engine surface, expected to evolve toward an explicit kernel target |
+| `aleph3_kernel` | library | Explicit kernel build target for the current symbolic engine surface |
+| `aleph3_symbolic` | alias | Compatibility alias for the current kernel target during migration |
+| `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
+| `aleph3_pack_algebra` | interface library | Placeholder pack boundary for future algebra extraction |
 | `aleph3_runtime` | interface library | Transitional runtime-facing include boundary placeholder |
 | `aleph3_sdk` | library | Public SDK facade that should converge on kernel-backed execution |
 | `aleph3_cli` | executable | Thin SDK tooling CLI for manual parser/validator/runtime checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
-| `aleph3_symbolic_tests` | executable | Symbolic engine tests |
-| `aleph3_sdk_tests` | executable | Rewrite SDK and IR tests |
+| `aleph3_symbolic_tests` | executable | Kernel-oriented symbolic tests plus current symbolic tooling and pack-placeholder coverage |
+| `aleph3_sdk_tests` | executable | SDK-layer tests plus transitional runtime and SDK tooling coverage |
 
 ## Build Options
 
@@ -39,7 +42,10 @@ Related documents:
 
 ```mermaid
 flowchart TD
-    Symbolic["aleph3_symbolic"] --> SymbolicTests["aleph3_symbolic_tests"]
+    Kernel["aleph3_kernel"] --> SymbolicTests["aleph3_symbolic_tests"]
+    Symbolic["aleph3_symbolic (alias)"] --> Kernel
+    CoreMath["aleph3_pack_core_math"] --> Kernel
+    Algebra["aleph3_pack_algebra"] --> Kernel
     Runtime["aleph3_runtime"] --> Sdk["aleph3_sdk"]
     Sdk --> SdkTests["aleph3_sdk_tests"]
     Sdk --> Cli["aleph3_cli"]
@@ -47,8 +53,9 @@ flowchart TD
 ```
 
 This diagram reflects the current build, not the desired end state.
-The desired end state is an explicit `aleph3_kernel` below the SDK and pack
-targets.
+The main immediate improvement is that the kernel now has an explicit build
+name and the first pack targets now exist as placeholders even though the SDK
+and pack layering work is not complete yet.
 
 ## Practical Guidance
 
@@ -61,8 +68,24 @@ targets.
 - `evaluate-host` in the CLI registers demo host functions for end-to-end SDK checks.
 - `aleph3_sdk_example` is the smallest compiled host-app integration reference in the repo.
 - Use `ALEPH3_BUILD_SYMBOLIC_ENGINE=ON` when working on the symbolic engine core.
+- Treat `aleph3_pack_core_math` and `aleph3_pack_algebra` as staging boundaries
+  for future extraction, not as proof that pack-owned code has already moved.
 - Use `BUILD_TESTING=OFF` for offline or dependency-restricted compile checks.
 - Keep new SDK components linked only through SDK targets unless a kernel
   dependency is explicitly justified.
 - Do not add new permanent semantics to the current `runtime` layer without a
   kernel migration plan.
+
+## Current Test Ownership Split
+
+- `tests/evaluator`, `tests/parser`, and the structural symbolic tests in
+  `tests/*.cpp` are treated as kernel-side coverage.
+- `tests/algebra` remains linked through the symbolic test target for now, but
+  is treated as pack-owned coverage by architecture.
+- `tests/runtime` is transitional coverage for the current SDK runtime path and
+  should shrink as SDK evaluation collapses into the kernel.
+- `tests/frontend`, `tests/ir`, `tests/semantics`, and `tests/sdk` are SDK-side
+  coverage.
+- `tests/tooling` is SDK/tooling consumer coverage.
+- `tests/packs/` is reserved for explicit future pack-owned test files once
+  extraction moves beyond placeholder targets.

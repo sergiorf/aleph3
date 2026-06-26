@@ -11,8 +11,9 @@ surfaces built on top of it.
 
 The architecture is:
 
-- `aleph3_symbolic`: the current symbolic engine surface, migrating toward an
-  explicit `aleph3_kernel`
+- `aleph3_kernel`: the explicit kernel build target for the current symbolic
+  engine surface
+- `aleph3_symbolic`: a compatibility alias during migration
 - `aleph3_sdk`: the host-facing embedding layer built on top of that core
 - future products: additional tooling and services that reuse the same
   symbolic semantics

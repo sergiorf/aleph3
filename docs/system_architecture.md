@@ -20,6 +20,7 @@ Related architecture documents:
 - [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
 - [Kernel Refactor Backlog](kernel_refactor_backlog.md)
 - [Kernel Representation Decision](kernel_representation_decision.md)
+- [Representation Lowering Strategy](representation_lowering_strategy.md)
 - [Layer Ownership Matrix](layer_ownership_matrix.md)
 
 It answers four questions:

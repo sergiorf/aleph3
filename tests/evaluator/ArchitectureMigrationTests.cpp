@@ -5,6 +5,7 @@
 #include "kernel/Diagnostics.hpp"
 #include "kernel/EvaluationContext.hpp"
 #include "kernel/FunctionRegistry.hpp"
+#include "kernel/Lowering.hpp"
 #include "packs/PackRegistry.hpp"
 #include "parser/Parser.hpp"
 #include "sdk/Policy.hpp"
@@ -139,4 +140,54 @@ TEST_CASE("Unknown symbolic functions remain symbolic when no handler owns the n
     const auto& call = std::get<FunctionCall>(*result);
     REQUIRE(call.head == "f");
     REQUIRE(call.args.size() == 1);
+}
+
+TEST_CASE("Trusted-subset IR lowers into kernel Expr heads", "[architecture][lowering]") {
+    using namespace aleph3::ir;
+
+    const auto lowered = kernel::lower_trusted_ir_to_expr(make_node(
+        {},
+        BinaryOpNode{
+            BinaryOperator::subtract,
+            make_node({}, VariableNode{"x"}),
+            make_node({}, NumberLiteralNode{2.0})}));
+
+    REQUIRE(lowered.ok());
+    REQUIRE(std::holds_alternative<FunctionCall>(*lowered.expr));
+
+    const auto& plus = std::get<FunctionCall>(*lowered.expr);
+    REQUIRE(plus.head == "Plus");
+    REQUIRE(plus.args.size() == 2);
+    REQUIRE(std::holds_alternative<Symbol>(*plus.args[0]));
+    REQUIRE(std::get<Symbol>(*plus.args[0]).name == "x");
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*plus.args[1]));
+    const auto& negated = std::get<FunctionCall>(*plus.args[1]);
+    REQUIRE(negated.head == "Times");
+    REQUIRE(negated.args.size() == 2);
+    REQUIRE(std::holds_alternative<Number>(*negated.args[0]));
+    REQUIRE(std::get<Number>(*negated.args[0]).value == -1.0);
+    REQUIRE(std::holds_alternative<Number>(*negated.args[1]));
+    REQUIRE(std::get<Number>(*negated.args[1]).value == 2.0);
+}
+
+TEST_CASE("Trusted-subset If nodes lower into kernel If calls", "[architecture][lowering]") {
+    using namespace aleph3::ir;
+
+    const auto lowered = kernel::lower_trusted_ir_to_expr(make_node(
+        {},
+        IfNode{
+            make_node({}, BooleanLiteralNode{true}),
+            make_node({}, NumberLiteralNode{1.0}),
+            make_node({}, NumberLiteralNode{0.0})}));
+
+    REQUIRE(lowered.ok());
+    REQUIRE(std::holds_alternative<FunctionCall>(*lowered.expr));
+
+    const auto& if_call = std::get<FunctionCall>(*lowered.expr);
+    REQUIRE(if_call.head == "If");
+    REQUIRE(if_call.args.size() == 3);
+    REQUIRE(std::holds_alternative<Boolean>(*if_call.args[0]));
+    REQUIRE(std::holds_alternative<Number>(*if_call.args[1]));
+    REQUIRE(std::holds_alternative<Number>(*if_call.args[2]));
 }

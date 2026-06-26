@@ -6,6 +6,7 @@
 #include "kernel/EvaluationContext.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/Lowering.hpp"
+#include "kernel/TrustedSubsetBridge.hpp"
 #include "packs/PackRegistry.hpp"
 #include "parser/Parser.hpp"
 #include "sdk/Policy.hpp"
@@ -190,4 +191,25 @@ TEST_CASE("Trusted-subset If nodes lower into kernel If calls", "[architecture][
     REQUIRE(std::holds_alternative<Boolean>(*if_call.args[0]));
     REQUIRE(std::holds_alternative<Number>(*if_call.args[1]));
     REQUIRE(std::holds_alternative<Number>(*if_call.args[2]));
+}
+
+TEST_CASE("Trusted-subset bridge stages frontend and kernel forms together", "[architecture][lowering]") {
+    using namespace aleph3::ir;
+
+    const auto root = make_node(
+        {},
+        CallNode{"Clamp", {
+            make_node({}, VariableNode{"x"}),
+            make_node({}, NumberLiteralNode{0.0}),
+            make_node({}, NumberLiteralNode{1.0})}});
+
+    const auto staged = kernel::stage_trusted_subset_formula(root);
+
+    REQUIRE(staged.ok());
+    REQUIRE(staged.trusted_root == root);
+    REQUIRE(std::holds_alternative<FunctionCall>(*staged.kernel_expr));
+
+    const auto& call = std::get<FunctionCall>(*staged.kernel_expr);
+    REQUIRE(call.head == "Clamp");
+    REQUIRE(call.args.size() == 3);
 }

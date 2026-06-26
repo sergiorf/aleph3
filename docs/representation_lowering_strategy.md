@@ -55,6 +55,11 @@ The lowering seam should live in a kernel-owned migration adapter:
 - input: validated `ir::Node`
 - output: kernel `Expr`
 
+The repository may also keep a temporary staging object that carries both:
+
+- trusted-subset `ir::Node` for frontend and validation ownership
+- lowered `Expr` for future kernel-backed execution
+
 That seam exists so:
 
 - SDK compile and validation stay narrow
@@ -118,6 +123,7 @@ It is temporary in these senses:
 - it should stay narrow and translation-oriented
 - it should not accumulate host policy logic
 - it should not become a rich second interpreter API
+- if a staging object carries both forms, that object is transitional as well
 
 ## What Should Not Be Added Here
 

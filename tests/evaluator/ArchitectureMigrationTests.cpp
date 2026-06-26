@@ -4,6 +4,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "kernel/EvaluationContext.hpp"
+#include "kernel/FunctionRegistry.hpp"
 #include "packs/PackRegistry.hpp"
 #include "parser/Parser.hpp"
 #include "sdk/Policy.hpp"
@@ -89,4 +90,44 @@ TEST_CASE("Kernel diagnostic taxonomy maps symbolic and runtime surfaces", "[arc
         kernel::ErrorCode::invalid_numeric_domain,
         "Sqrt is undefined for negative inputs.");
     REQUIRE(runtime_error.code == "runtime.invalid_numeric_domain");
+}
+
+TEST_CASE("Kernel function registry backs symbolic and host registration paths", "[architecture][kernel]") {
+    auto& registry = kernel::FunctionRegistry::instance();
+    REQUIRE(registry.has_function("StringJoin"));
+
+    kernel::HostFunctionRegistry host_registry;
+    HostFunctionSpec clamp;
+    clamp.name = "Clamp";
+    clamp.arity = FunctionArity::exact(3);
+    clamp.callback = [](std::span<const Value>) {
+        EvaluationResult result;
+        result.value = Value(1.0);
+        return result;
+    };
+
+    kernel::FunctionRegistry::register_host_function(host_registry, clamp);
+    const auto* host_spec = kernel::FunctionRegistry::find_host_function(host_registry, "Clamp");
+    REQUIRE(host_spec != nullptr);
+    REQUIRE(host_spec->arity.allows(3));
+}
+
+TEST_CASE("Registered symbolic handlers win before user-defined functions", "[architecture][precedence]") {
+    EvaluationContext ctx;
+    evaluate(parse_expression("Length[x_] := 99"), ctx);
+
+    auto result = evaluate(parse_expression("Length[{1, 2, 3}]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 3.0);
+}
+
+TEST_CASE("Unknown symbolic functions remain symbolic when no handler owns the name", "[architecture][precedence]") {
+    EvaluationContext ctx;
+
+    auto result = evaluate(parse_expression("f[x]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+
+    const auto& call = std::get<FunctionCall>(*result);
+    REQUIRE(call.head == "f");
+    REQUIRE(call.args.size() == 1);
 }

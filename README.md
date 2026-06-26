@@ -102,6 +102,8 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
 - Kernel refactor backlog: [docs/kernel_refactor_backlog.md](docs/kernel_refactor_backlog.md)
 - Kernel representation decision: [docs/kernel_representation_decision.md](docs/kernel_representation_decision.md)
 - Layer ownership matrix: [docs/layer_ownership_matrix.md](docs/layer_ownership_matrix.md)
+- Kernel symbol definition precedence: [docs/kernel_symbol_definition_precedence.md](docs/kernel_symbol_definition_precedence.md)
+- Header documentation guideline: [docs/header_documentation_guideline.md](docs/header_documentation_guideline.md)
 - Symbolic core gap analysis: [docs/symbolic_core_gap_analysis.md](docs/symbolic_core_gap_analysis.md)
 - Symbolic engine product plan: [docs/symbolic_engine_product_plan.md](docs/symbolic_engine_product_plan.md)
 - Symbolic evaluator cleanup plan: [docs/symbolic_evaluator_cleanup_plan.md](docs/symbolic_evaluator_cleanup_plan.md)

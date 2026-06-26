@@ -31,6 +31,9 @@ Implementation backlog:
 - [Layer Ownership Matrix](layer_ownership_matrix.md)
 - [Kernel Evaluation Context](kernel_evaluation_context.md)
 - [Kernel Diagnostic Taxonomy](kernel_diagnostic_taxonomy.md)
+- [Kernel Registration Interfaces](kernel_registration_interfaces.md)
+- [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)
+- [Header Documentation Guideline](header_documentation_guideline.md)
 
 ## Decision
 

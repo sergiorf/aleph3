@@ -1,10 +1,10 @@
 #pragma once
 
-#include "packs/PackRegistry.hpp"
+#include "kernel/FunctionRegistry.hpp"
 
 namespace aleph3 {
 
-using FunctionHandler = packs::PackFunctionHandler;
-using FunctionRegistry = packs::PackRegistry;
+using FunctionHandler = kernel::SymbolicFunctionHandler;
+using FunctionRegistry = kernel::FunctionRegistry;
 
 }  // namespace aleph3

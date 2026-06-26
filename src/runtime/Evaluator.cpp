@@ -1,6 +1,7 @@
 #include "runtime/Evaluator.hpp"
 
 #include "kernel/Diagnostics.hpp"
+#include "kernel/FunctionRegistry.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -413,30 +414,28 @@ private:
         }
 
         const auto& host_functions = context_.host_functions();
-        const auto host_function = host_functions.find(call.callee);
-        if (host_function != host_functions.end()) {
-            const auto& spec = host_function->second;
-            if (!spec.arity.allows(arguments.size())) {
+        if (const auto* spec = kernel::FunctionRegistry::find_host_function(host_functions, call.callee)) {
+            if (!spec->arity.allows(arguments.size())) {
                 return make_failure(
                     "runtime.invalid_call",
                     "Host function `" + call.callee + "` was called with an invalid arity.",
                     span);
             }
 
-            const std::size_t checked_parameters = std::min(spec.parameters.size(), arguments.size());
+            const std::size_t checked_parameters = std::min(spec->parameters.size(), arguments.size());
             for (std::size_t index = 0; index < checked_parameters; ++index) {
-                if (!matches_value_type(arguments[index], spec.parameters[index].type)) {
+                if (!matches_value_type(arguments[index], spec->parameters[index].type)) {
                     return make_failure(
                         "runtime.invalid_argument_type",
                         "Host function `" + call.callee + "` expects argument " +
                             std::to_string(index + 1) + " to be `" +
-                            value_type_name(spec.parameters[index].type) + "`, but found `" +
+                            value_type_name(spec->parameters[index].type) + "`, but found `" +
                             value_type_name(arguments[index]) + "`.",
                         call.arguments[index] != nullptr ? call.arguments[index]->span : span);
                 }
             }
 
-            auto callback_result = spec.callback(arguments);
+            auto callback_result = spec->callback(arguments);
             if (callback_result.value.has_value() == callback_result.error.has_value()) {
                 return make_failure(
                     "runtime.invalid_host_result",
@@ -446,12 +445,12 @@ private:
             if (!callback_result.ok() && callback_result.error && !callback_result.error->span.has_value()) {
                 callback_result.error->span = span;
             }
-            if (callback_result.ok() && spec.return_type.has_value() &&
-                !matches_value_type(*callback_result.value, *spec.return_type)) {
+            if (callback_result.ok() && spec->return_type.has_value() &&
+                !matches_value_type(*callback_result.value, *spec->return_type)) {
                 return make_failure(
                     "runtime.invalid_host_result",
                     "Host function `" + call.callee + "` declared return type `" +
-                        value_type_name(*spec.return_type) + "`, but returned `" +
+                        value_type_name(*spec->return_type) + "`, but returned `" +
                         value_type_name(*callback_result.value) + "`.",
                     span);
             }

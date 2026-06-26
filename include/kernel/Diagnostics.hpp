@@ -1,3 +1,10 @@
+/*
+ * Kernel Diagnostics
+ * ------------------
+ * Canonical kernel-level error taxonomy and projection helpers for current
+ * SDK/runtime-facing error surfaces.
+ */
+
 #pragma once
 
 #include <optional>

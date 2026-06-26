@@ -1,3 +1,10 @@
+/*
+ * Kernel Evaluation Context
+ * -------------------------
+ * Shared execution context for symbolic kernel state and embedded runtime
+ * state during the kernel-unification refactor.
+ */
+
 #pragma once
 
 #include <string>

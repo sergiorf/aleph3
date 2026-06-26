@@ -2,6 +2,7 @@
 
 #include "frontend/Parser.hpp"
 #include "ir/Node.hpp"
+#include "kernel/FunctionRegistry.hpp"
 #include "runtime/Evaluator.hpp"
 #include "semantics/Validator.hpp"
 
@@ -136,7 +137,7 @@ void Engine::register_function(HostFunctionSpec spec) {
     }
 
     std::lock_guard<std::mutex> lock(state_->mutex);
-    state_->host_functions[spec.name] = std::move(spec);
+    kernel::FunctionRegistry::register_host_function(state_->host_functions, std::move(spec));
 }
 
 CompileResult Engine::compile(

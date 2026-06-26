@@ -5,6 +5,22 @@
 This document defines the target architecture for Aleph3 as a layered symbolic
 system.
 
+Architecture status note:
+
+- this document describes the SDK/trusted-subset architecture track
+- the repository also contains a symbolic-core track that is converging toward
+  a single kernel
+- the current SDK runtime evaluator should be treated as transitional, not as a
+  second permanent kernel
+
+Related architecture documents:
+
+- [Symbolic Core Architecture](symbolic_core_architecture.md)
+- [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
+- [Kernel Refactor Backlog](kernel_refactor_backlog.md)
+- [Kernel Representation Decision](kernel_representation_decision.md)
+- [Layer Ownership Matrix](layer_ownership_matrix.md)
+
 It answers four questions:
 
 1. what layers the system has
@@ -107,6 +123,12 @@ Responsibility:
 - evaluation budgeting
 - eventual compiled execution path
 
+Transitional rule:
+
+The current SDK runtime layer is allowed as a migration layer for the
+trusted-subset path, but long-term symbolic semantics must converge on a single
+kernel rather than persisting as a separate `runtime::Evaluator` core.
+
 ### 6. Tooling
 
 Responsibility:
@@ -130,6 +152,12 @@ The intended flow is:
 6. SDK returns `CompiledFormula` or diagnostics
 7. host evaluates compiled formula with bindings
 8. runtime executes IR and returns `Value` or `RuntimeError`
+
+Migration note:
+
+For the current repository state, this flow is still implemented separately
+from the symbolic evaluator. That is a transitional condition being corrected
+by the kernel refactor program.
 
 That gives a clean lifecycle:
 

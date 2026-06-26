@@ -29,6 +29,7 @@ Current strategic gap analysis:
 Current architecture contract:
 
 - [Symbolic Core Architecture](symbolic_core_architecture.md)
+- [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
 
 ## Active Phase
 

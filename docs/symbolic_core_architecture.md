@@ -10,6 +10,10 @@ This document defines the intended architecture boundary between:
 
 This is the architecture contract Aleph3 should clean toward.
 
+Urgent migration program:
+
+- [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
+
 ## Top-Level Layers
 
 Aleph3 should be understood as four layers:

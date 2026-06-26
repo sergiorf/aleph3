@@ -11,10 +11,20 @@ surfaces built on top of it.
 
 The architecture is:
 
-- `aleph3_symbolic`: the core symbolic math engine
+- `aleph3_symbolic`: the current symbolic engine surface, migrating toward an
+  explicit `aleph3_kernel`
 - `aleph3_sdk`: the host-facing embedding layer built on top of that core
 - future products: additional tooling and services that reuse the same
   symbolic semantics
+
+Current architecture warning:
+
+- the repository still contains a transitional dual-evaluator state
+- `src/evaluator` is the symbolic engine path
+- `src/runtime` is an SDK runtime path that should not become a permanent peer
+  kernel
+- the active refactor direction is convergence on one kernel plus pack-style
+  domain growth
 
 ## Current Repository Tracks
 - Symbolic kernel and early math surface: parser, evaluator, transforms, and
@@ -22,7 +32,9 @@ The architecture is:
 - SDK layer: public API under `include/sdk/` and trusted-subset IR under `include/ir/`
 - CLI surface: `aleph3_cli` for symbolic and SDK checks
 - SDK validation and compile path: `validate` performs schema/arity/type checks and `compile` creates reusable formula handles
-- SDK runtime path: `evaluate` runs the trusted-subset tree interpreter
+- SDK runtime path: `evaluate` currently runs a trusted-subset tree interpreter,
+  but this runtime path is transitional and is intended to collapse into the
+  shared kernel
 - Host function contract: engine-scoped registration enforces callback metadata at registration and runtime
 - Host-function tooling: `evaluate-host` and `aleph3_sdk_example` exercise embedded callbacks end-to-end
 - Docs index: [docs/sdk/README.md](docs/sdk/README.md)
@@ -79,6 +91,10 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
 ## Documentation
 - Algebra supported subset: [docs/algebra_supported_subset.md](docs/algebra_supported_subset.md)
 - Symbolic core architecture: [docs/symbolic_core_architecture.md](docs/symbolic_core_architecture.md)
+- Kernel refactor urgent plan: [docs/kernel_refactor_urgent_plan.md](docs/kernel_refactor_urgent_plan.md)
+- Kernel refactor backlog: [docs/kernel_refactor_backlog.md](docs/kernel_refactor_backlog.md)
+- Kernel representation decision: [docs/kernel_representation_decision.md](docs/kernel_representation_decision.md)
+- Layer ownership matrix: [docs/layer_ownership_matrix.md](docs/layer_ownership_matrix.md)
 - Symbolic core gap analysis: [docs/symbolic_core_gap_analysis.md](docs/symbolic_core_gap_analysis.md)
 - Symbolic engine product plan: [docs/symbolic_engine_product_plan.md](docs/symbolic_engine_product_plan.md)
 - Symbolic evaluator cleanup plan: [docs/symbolic_evaluator_cleanup_plan.md](docs/symbolic_evaluator_cleanup_plan.md)

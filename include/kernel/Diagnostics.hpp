@@ -8,6 +8,7 @@
 #pragma once
 
 #include <optional>
+#include <stdexcept>
 #include <string_view>
 
 #include "sdk/Types.hpp"
@@ -147,6 +148,27 @@ enum class ErrorCode {
     error.message = std::move(message);
     error.span = std::move(span);
     return error;
+}
+
+class RuntimeFailure : public std::runtime_error {
+public:
+    explicit RuntimeFailure(RuntimeError error)
+        : std::runtime_error(error.message),
+          error_(std::move(error)) {}
+
+    [[nodiscard]] const RuntimeError& error() const noexcept {
+        return error_;
+    }
+
+private:
+    RuntimeError error_;
+};
+
+[[noreturn]] inline void throw_runtime_error(
+    ErrorCode code,
+    std::string message,
+    std::optional<SourceSpan> span = std::nullopt) {
+    throw RuntimeFailure(make_runtime_error(code, std::move(message), std::move(span)));
 }
 
 [[nodiscard]] constexpr ErrorCode kernel_error_code_for(EvaluatorErrorKind kind) noexcept;

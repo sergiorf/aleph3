@@ -213,3 +213,32 @@ TEST_CASE("Trusted-subset bridge stages frontend and kernel forms together", "[a
     REQUIRE(call.head == "Clamp");
     REQUIRE(call.args.size() == 3);
 }
+
+TEST_CASE("Kernel evaluator can execute registered host functions through the shared context", "[architecture][kernel]") {
+    EvaluationContext ctx;
+
+    HostFunctionSpec scale_add;
+    scale_add.name = "ScaleAdd";
+    scale_add.arity = FunctionArity::exact(3);
+    scale_add.parameters = {
+        {"value", ValueType::number, true},
+        {"scale", ValueType::number, true},
+        {"offset", ValueType::number, true}
+    };
+    scale_add.return_type = ValueType::number;
+    scale_add.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = Value(*args[0].as_number() * *args[1].as_number() + *args[2].as_number());
+        return result;
+    };
+
+    std::unordered_map<std::string, HostFunctionSpec> host_functions;
+    kernel::FunctionRegistry::register_host_function(host_functions, scale_add);
+    Policy policy = Policy::default_policy();
+
+    ctx = kernel::EvaluationContext({}, {}, host_functions, policy);
+
+    const auto result = evaluate(parse_expression("ScaleAdd[4, 1.5, 2]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 8.0);
+}

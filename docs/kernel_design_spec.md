@@ -228,6 +228,10 @@ Current rewrite migration decision:
   before broadening the general matcher
 - keep like-term collection, container-aware arithmetic, and domain-sensitive
   power/division logic out of that first variadic rewrite slice
+- move like-term collection through a separate symbolic coefficient contract
+  rather than through the arithmetic rewrite layer
+- defer exponent merging to a later algebra-aware layer rather than folding it
+  into arithmetic rewrite
 
 Planned near-term rewrite layering:
 
@@ -243,6 +247,9 @@ Current implementation status of that layering:
   annihilator handling for `Times`, and scalar numeric/rational bucket folding
 - it still does not cover like-term collection, exponent merging, division
   cancellation, or container-aware arithmetic
+- like-term collection is now intended to become the first client of a
+  coefficient-aware symbolic layer above arithmetic rewrite
+- exponent merging is now intended to live in a later algebra-aware layer
 
 ## Interface Inventory To Define
 

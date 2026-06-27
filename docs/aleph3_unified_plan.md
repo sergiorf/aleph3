@@ -481,10 +481,11 @@ Current status:
 
 Near-term tasks:
 
-- decide whether like-term collection should wait for stronger exact-algebra
-  metadata or get a separate symbolic coefficient contract
-- decide whether exponent merging belongs in arithmetic rewrite or in a later
-  algebra-aware layer
+- define the first symbolic coefficient contract for supported monomial-shaped
+  terms and migrate the current supported like-term collection surface through
+  it
+- keep exponent merging out of arithmetic rewrite and define the later
+  algebra-aware layer that should own it
 - keep like-term collection, exponent merging, division cancellation,
   list-aware arithmetic, and special-function shortcuts evaluator-owned until
   stronger kernel contracts exist
@@ -502,6 +503,10 @@ Detailed guidance for the next rewrite migration slice:
   matcher feature
 - migrate only reductions that preserve current scalar arithmetic contracts
   without depending on list semantics or stronger algebra metadata
+- move like-term collection into a separate symbolic coefficient contract
+  instead of broadening arithmetic rewrite
+- treat exponent merging as a later algebra-aware concern, not as an immediate
+  arithmetic rewrite responsibility
 
 ### G. Exact Algebra Backbone
 
@@ -627,12 +632,13 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. decide whether like-term collection should wait for stronger exact-algebra
-   metadata or get a separate symbolic coefficient contract
-3. decide whether exponent merging belongs in arithmetic rewrite or in a later
-   algebra-aware layer
+2. define the first symbolic coefficient contract for supported monomial-shaped
+   terms
+3. migrate the current supported like-term collection surface through that
+   contract
 4. keep division cancellation, power-domain-sensitive behavior, list-aware
-   arithmetic, and special-function shortcuts explicitly out of that slice
+   arithmetic, special-function shortcuts, and exponent merging explicitly out
+   of that slice
 5. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 

@@ -265,6 +265,104 @@ These are deferred because they either:
 - depend on container semantics that are not just scalar rewrites
 - or carry domain/error behavior that should remain explicit before migration
 
+## Decision On Like-term Collection
+
+Like-term collection should not wait for the full exact-algebra program, but it
+also should not be folded into the current arithmetic rewrite contract.
+
+The long-term direction should be a separate symbolic coefficient contract.
+
+That is the better split because like-term collection is not only "more `Plus`
+cleanup". It requires explicit reasoning about:
+
+- symbolic monomials
+- coefficient extraction
+- coefficient recombination
+- canonical comparison between term bases
+
+Those concepts are richer than the current n-ary arithmetic rewrite contract,
+but narrower than the full algebra-pack and exact-polynomial program.
+
+### Planned Symbolic Coefficient Contract
+
+The next contract above arithmetic rewrite should make the following concepts
+explicit:
+
+- scalar coefficient
+- symbolic basis term
+- canonical monomial key for supported forms
+- additive accumulation over matching basis terms
+
+For the near term, that contract only needs to cover the currently supported
+surface already implied by evaluator behavior, such as:
+
+- `x`
+- `c * x` where `c` is numeric or exact rational
+- `x^n`
+- `c * x^n`
+
+It should not initially require:
+
+- multivariate polynomial normalization
+- symbolic coefficient domains
+- distributive expansion across arbitrary products
+- pack-level algebra metadata
+
+### Why This Should Be Separate From Arithmetic Rewrite
+
+Arithmetic rewrite for `Plus` and `Times` currently owns:
+
+- neutral elimination
+- annihilator handling
+- numeric and exact-rational bucket folding
+
+Like-term collection requires a different abstraction boundary:
+
+- identify "same basis term"
+- extract coefficient from each compatible term
+- combine coefficients
+- rebuild canonical term form
+
+That is a symbolic coefficient problem, not just a variadic arithmetic-head
+problem.
+
+## Decision On Exponent Merging
+
+Exponent merging should not move into the current arithmetic rewrite layer.
+It belongs in a later algebra-aware layer.
+
+Examples of the deferred behavior include:
+
+- `x * x -> x^2`
+- `x * x^2 -> x^3`
+- `(x^2)^3 -> x^6`
+
+### Why Exponent Merging Should Be Deferred
+
+Exponent merging depends on more than arithmetic bucket folding:
+
+- identifying compatible power bases
+- reasoning about exponent domains
+- preserving canonical form across nested power/product interactions
+- avoiding accidental extension into unsupported algebraic identities
+
+The current arithmetic rewrite contract is intentionally head-local and
+coefficient-light. Exponent merging crosses into algebra structure.
+
+### Planned Ownership Boundary
+
+The intended long-term split should be:
+
+- arithmetic rewrite layer:
+  numeric and exact-rational accumulation for normalized `Plus`/`Times`
+- symbolic coefficient layer:
+  like-term collection for supported coefficient/basis shapes
+- algebra-aware layer:
+  exponent merging, power flattening beyond fixed identities, and other
+  structure-sensitive multiplicative rewrites
+
+That gives Aleph3 three cleaner stages instead of one overloaded simplifier.
+
 General rewrite integration beyond explicit callers is still future work and
 should only happen where the scheduling contract is precise enough to avoid
 hidden semantic drift.
@@ -297,9 +395,11 @@ Example of what works now:
 
 ## Next Steps
 
-- decide whether like-term collection should wait for stronger exact-algebra
-  metadata or get a separate symbolic coefficient contract first
-- decide whether exponent merging belongs in arithmetic rewrite or in a later
-  algebra-aware layer
+- define the first symbolic coefficient contract for supported monomial-shaped
+  terms
+- migrate the current supported like-term collection surface behind that
+  contract
+- define the later algebra-aware layer that will own exponent merging and
+  related multiplicative structure rules
 - decide which non-arithmetic simplifications are good candidates for future
   rewrite-owned migration

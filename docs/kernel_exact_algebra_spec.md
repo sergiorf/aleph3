@@ -42,6 +42,31 @@ This spec should cover:
 - which exact abstractions belong in the kernel versus algebra pack layer
 - how exact coefficients interact with current polynomial APIs
 
+## Current Decision Relevant To Rewrite Migration
+
+Exact algebra should not be used as the gating dependency for the first
+symbolic coefficient contract.
+
+Near-term implication:
+
+- like-term collection can grow through a smaller symbolic coefficient contract
+  before the full exact-polynomial/algebra foundation is complete
+
+But the following should still wait for stronger exact algebra:
+
+- broad multivariate polynomial reasoning
+- coefficient-ring-general algorithms
+- exponent and monomial laws that depend on richer algebra metadata
+
+That means exact algebra remains the owner of:
+
+- long-term coefficient-ring abstractions
+- exact polynomial semantics
+- algebra-heavy transformations whose safety depends on those abstractions
+
+While the near-term symbolic coefficient contract only needs enough exactness
+to preserve today’s supported numeric and rational coefficient behavior.
+
 ## Acceptance Criteria
 
 This spec is sufficient when:

@@ -127,4 +127,6 @@ Deferred:
 - make evaluator dispatch consult richer symbol-definition facts
 - migrate more builtin identity and precedence knowledge out of evaluator
   branches
+- define the first symbolic coefficient contract for supported monomial-shaped
+  terms and decide how it should attach to symbol-definition metadata
 - define how rewrite rules register against the same symbol contract

@@ -471,20 +471,23 @@ Current status:
 - bounded repeated rewrite entrypoints exist
 - the first evaluator-facing rewrite-owned simplification slice now covers
   fixed-arity arithmetic identity rewrites
-- the next arithmetic-rewrite decision is now to introduce a dedicated n-ary
-  rewrite contract for normalized `Plus` and `Times`, rather than waiting for
-  general sequence patterns
 - that dedicated n-ary arithmetic rewrite contract is now implemented for
   scalar `Plus` and `Times` neutral elimination, scalar `Times` annihilator
   handling, and scalar numeric/rational bucket folding
+- a first symbolic coefficient layer now exists for normalized `Plus` over
+  single-symbol and single-power bases with numeric and exact-rational
+  coefficients
+- a first algebra-aware layer now exists for same-symbol exponent accumulation
+  in normalized `Times` and nested numeric `Power` forms
 - conditional rules and richer pattern classes are still open
 
 Near-term tasks:
 
 - decide whether the symbolic coefficient contract should grow beyond
   single-symbol and single-power bases before the algebra-aware layer exists
-- keep the algebra-aware layer narrow while exponent merging semantics harden
-- keep like-term collection, division cancellation,
+- decide whether the algebra-aware layer should stay limited to same-symbol
+  exponent accumulation until stronger exact algebra exists
+- keep division cancellation,
   list-aware arithmetic, and special-function shortcuts evaluator-owned until
   stronger kernel contracts exist
 
@@ -503,8 +506,8 @@ Detailed guidance for the next rewrite migration slice:
   without depending on list semantics or stronger algebra metadata
 - move like-term collection into a separate symbolic coefficient contract
   instead of broadening arithmetic rewrite
-- treat exponent merging as a later algebra-aware concern, not as an immediate
-  arithmetic rewrite responsibility
+- keep exponent merging in the separate algebra-aware layer rather than
+  broadening arithmetic rewrite
 
 ### G. Exact Algebra Backbone
 

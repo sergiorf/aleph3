@@ -230,8 +230,8 @@ Current rewrite migration decision:
   power/division logic out of that first variadic rewrite slice
 - move like-term collection through a separate symbolic coefficient contract
   rather than through the arithmetic rewrite layer
-- defer exponent merging to a later algebra-aware layer rather than folding it
-  into arithmetic rewrite
+- keep exponent merging in the separate algebra-aware layer rather than
+  folding it into arithmetic rewrite
 
 Planned near-term rewrite layering:
 

@@ -251,7 +251,6 @@ The first evaluator-owned simplifications chosen for migration were:
 The following should not be migrated in the next rewrite slice:
 
 - like-term combination such as `2*x + 3*x -> 5*x`
-- exponent merging such as `x * x^2 -> x^3`
 - division simplifications such as `x/x -> 1` or `0/x -> 0`
 - power-domain-sensitive behavior beyond the current fixed identities
 - list broadcasting and elementwise arithmetic
@@ -359,8 +358,8 @@ It intentionally does not yet support:
 
 ## Decision On Exponent Merging
 
-Exponent merging should not move into the current arithmetic rewrite layer.
-It belongs in a later algebra-aware layer.
+Exponent merging should not move into the arithmetic rewrite layer.
+It belongs in the separate algebra-aware layer.
 
 Examples of the deferred behavior include:
 
@@ -446,8 +445,8 @@ Example of what works now:
 
 ## Next Steps
 
-- expand the symbolic coefficient contract only if it can stay independent of
-  multivariate polynomial semantics
+- decide whether the symbolic coefficient contract should remain limited to
+  single-symbol and single-power bases until stronger exact algebra exists
 - decide whether the algebra-aware layer should remain limited to same-symbol
   exponent accumulation until stronger exact algebra exists
 - decide which non-arithmetic simplifications are good candidates for future

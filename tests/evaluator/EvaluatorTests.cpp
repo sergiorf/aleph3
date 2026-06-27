@@ -308,6 +308,18 @@ TEST_CASE("Symbolic coefficient contract stays out of unsupported multivariate t
     REQUIRE(to_string(result) != "3 * x * y");
 }
 
+TEST_CASE("Symbolic coefficient contract preserves unsupported grouped and call-shaped bases", "[evaluator][simplification][coefficients]") {
+    EvaluationContext ctx;
+
+    const auto grouped = evaluate(parse_expression("(x + y) + 2*(x + y)"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*grouped));
+    REQUIRE(to_string(grouped) != "3 * (x + y)");
+
+    const auto call_shaped = evaluate(parse_expression("f[x] + 2*f[x]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*call_shaped));
+    REQUIRE(to_string(call_shaped) != "3 * f[x]");
+}
+
 TEST_CASE("Algebra-aware layer merges supported exponent structure only", "[evaluator][simplification][algebra-aware]") {
     EvaluationContext ctx;
 
@@ -320,6 +332,18 @@ TEST_CASE("Algebra-aware layer merges supported exponent structure only", "[eval
     const auto divide_identity = evaluate(parse_expression("x / x"), ctx);
     REQUIRE(std::holds_alternative<Number>(*divide_identity));
     REQUIRE(get_number_value(divide_identity) == 1.0);
+}
+
+TEST_CASE("Algebra-aware layer preserves unsupported exponent structure", "[evaluator][simplification][algebra-aware]") {
+    EvaluationContext ctx;
+
+    const auto symbolic_nested_power = evaluate(parse_expression("(x^a)^b"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*symbolic_nested_power));
+    REQUIRE(to_string(symbolic_nested_power) != "x^(a * b)");
+
+    const auto mixed_basis = evaluate(parse_expression("x * y * x*y"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*mixed_basis));
+    REQUIRE(to_string(mixed_basis) != "x^2 * y^2");
 }
 
 TEST_CASE("Evaluator contract keeps If lazy and symbolic when required", "[evaluator][contract]") {

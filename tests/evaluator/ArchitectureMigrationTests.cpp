@@ -424,6 +424,30 @@ TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of multivariat
     REQUIRE_FALSE(rewritten.has_value());
 }
 
+TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of grouped symbolic bases", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("(x + y) + 2*(x + y)"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_symbolic_coefficient_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
+}
+
+TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of call-shaped bases", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("f[x] + 2*f[x]"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_symbolic_coefficient_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
+}
+
 TEST_CASE("Kernel rewrite algebra-aware layer merges supported Times exponents", "[architecture][rewrite]") {
     kernel::EvaluationContext ctx;
     const auto normalized = normalize_expr(parse_expression("x * x^2 * y"));
@@ -448,6 +472,30 @@ TEST_CASE("Kernel rewrite algebra-aware layer collapses nested Power exponents",
 
     REQUIRE(rewritten.has_value());
     REQUIRE(to_string(*rewritten) == "x^6");
+}
+
+TEST_CASE("Kernel rewrite algebra-aware layer stays out of mixed symbolic bases", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("x * y * x*y"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
+}
+
+TEST_CASE("Kernel rewrite algebra-aware layer stays out of symbolic nested Power exponents", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("(x^a)^b"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
 }
 
 TEST_CASE("Kernel rewrite algebra-aware layer stays out of Divide forms", "[architecture][rewrite]") {

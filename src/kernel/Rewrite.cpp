@@ -911,6 +911,7 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
 
     if (func.head == "Times") {
         std::map<std::string, double> symbol_powers;
+        std::map<std::string, std::size_t> symbol_term_counts;
         std::vector<ExprPtr> opaque_terms;
         bool changed = false;
 
@@ -919,12 +920,24 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
             double exponent = 0.0;
             if (extract_symbol_power_term(arg, symbol_name, exponent)) {
                 symbol_powers[symbol_name] += exponent;
+                symbol_term_counts[symbol_name] += 1;
                 if (!(std::holds_alternative<Symbol>(*arg) && exponent == 1.0)) {
                     changed = true;
                 }
                 continue;
             }
             opaque_terms.push_back(arg);
+        }
+
+        std::size_t repeated_symbol_families = 0;
+        for (const auto& [symbol_name, count] : symbol_term_counts) {
+            (void)symbol_name;
+            if (count > 1) {
+                repeated_symbol_families += 1;
+            }
+        }
+        if (repeated_symbol_families > 1) {
+            return std::nullopt;
         }
 
         std::vector<ExprPtr> rebuilt_terms;

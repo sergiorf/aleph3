@@ -113,3 +113,22 @@ TEST_CASE("Simplify keeps opaque arguments structurally intact", "[simplify][con
     expect_simplifies_to("f[x + 0]", "f[x + 0]");
     expect_simplifies_to("f[1 * x]", "f[1 * x]");
 }
+
+TEST_CASE("Simplify preserves unsupported coefficient and exponent contract shapes", "[simplify][contract][rewrite]") {
+    auto multivariate = simplify(parse_expression("x*y + 2*x*y"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*multivariate));
+    REQUIRE(to_string(multivariate) != "3 * x * y");
+    REQUIRE(to_string(simplify(multivariate)) == to_string(multivariate));
+
+    expect_direct_simplify_to("(x + y) + 2 * (x + y)", "x + y + 2 * (x + y)");
+
+    auto call_shaped = simplify(parse_expression("f[x] + 2 * f[x]"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*call_shaped));
+    REQUIRE(to_string(call_shaped) != "3 * f[x]");
+    REQUIRE(to_string(simplify(call_shaped)) == to_string(call_shaped));
+
+    auto symbolic_power = simplify(parse_expression("(x^a)^b"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*symbolic_power));
+    REQUIRE(to_string(symbolic_power) != "x^(a * b)");
+    REQUIRE(to_string(simplify(symbolic_power)) == to_string(symbolic_power));
+}

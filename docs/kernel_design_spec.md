@@ -245,11 +245,12 @@ Current implementation status of that layering:
 - steps 1 through 3 now exist in initial form
 - the n-ary arithmetic layer currently covers neutral elimination, scalar
   annihilator handling for `Times`, and scalar numeric/rational bucket folding
-- it still does not cover like-term collection, exponent merging, division
+- it still does not cover like-term collection, division
   cancellation, or container-aware arithmetic
 - a first coefficient-aware symbolic layer now exists for small monomial-shaped
   terms in normalized `Plus` forms
-- exponent merging is now intended to live in a later algebra-aware layer
+- a first algebra-aware layer now exists for same-symbol exponent accumulation
+  in normalized `Times` and nested numeric `Power` forms
 
 ## Interface Inventory To Define
 

@@ -308,6 +308,20 @@ TEST_CASE("Symbolic coefficient contract stays out of unsupported multivariate t
     REQUIRE(to_string(result) != "3 * x * y");
 }
 
+TEST_CASE("Algebra-aware layer merges supported exponent structure only", "[evaluator][simplification][algebra-aware]") {
+    EvaluationContext ctx;
+
+    const auto merged_product = evaluate(parse_expression("x * x^2 * y"), ctx);
+    REQUIRE(to_string(merged_product) == "x^3 * y");
+
+    const auto collapsed_power = evaluate(parse_expression("(x^2)^3"), ctx);
+    REQUIRE(to_string(collapsed_power) == "x^6");
+
+    const auto divide_identity = evaluate(parse_expression("x / x"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*divide_identity));
+    REQUIRE(get_number_value(divide_identity) == 1.0);
+}
+
 TEST_CASE("Evaluator contract keeps If lazy and symbolic when required", "[evaluator][contract]") {
     EvaluationContext ctx;
 

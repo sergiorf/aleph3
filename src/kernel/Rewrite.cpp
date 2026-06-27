@@ -297,6 +297,27 @@ bool extract_supported_symbolic_basis(const ExprPtr& expr, ExprPtr& basis) {
     return true;
 }
 
+bool extract_symbol_power_term(const ExprPtr& expr, std::string& symbol_name, double& exponent) {
+    if (const auto* symbol = std::get_if<Symbol>(expr.get())) {
+        symbol_name = symbol->name;
+        exponent = 1.0;
+        return true;
+    }
+
+    const auto* power = std::get_if<FunctionCall>(expr.get());
+    if (power == nullptr || power->head != "Power" || power->args.size() != 2) {
+        return false;
+    }
+
+    if (std::holds_alternative<Symbol>(*power->args[0]) && std::holds_alternative<Number>(*power->args[1])) {
+        symbol_name = std::get<Symbol>(*power->args[0]).name;
+        exponent = get_number_value(power->args[1]);
+        return true;
+    }
+
+    return false;
+}
+
 bool extract_supported_monomial_term(
     const ExprPtr& expr,
     SupportedMonomialTerm& term) {
@@ -879,6 +900,89 @@ std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
 
     ctx.consume_evaluation_step();
     return rewritten;
+}
+
+std::optional<ExprPtr> rewrite_normalized_algebraic_head(
+    const FunctionCall& func,
+    EvaluationContext& ctx) {
+    if (contains_list_argument(func.args)) {
+        return std::nullopt;
+    }
+
+    if (func.head == "Times") {
+        std::map<std::string, double> symbol_powers;
+        std::vector<ExprPtr> opaque_terms;
+        bool changed = false;
+
+        for (const auto& arg : func.args) {
+            std::string symbol_name;
+            double exponent = 0.0;
+            if (extract_symbol_power_term(arg, symbol_name, exponent)) {
+                symbol_powers[symbol_name] += exponent;
+                if (!(std::holds_alternative<Symbol>(*arg) && exponent == 1.0)) {
+                    changed = true;
+                }
+                continue;
+            }
+            opaque_terms.push_back(arg);
+        }
+
+        std::vector<ExprPtr> rebuilt_terms;
+        rebuilt_terms.reserve(symbol_powers.size() + opaque_terms.size());
+        for (const auto& [symbol_name, exponent] : symbol_powers) {
+            if (exponent == 0.0) {
+                changed = true;
+                continue;
+            }
+            if (exponent == 1.0) {
+                rebuilt_terms.push_back(make_expr<Symbol>(symbol_name));
+            } else {
+                rebuilt_terms.push_back(
+                    make_fcall("Power", {make_expr<Symbol>(symbol_name), make_expr<Number>(exponent)}));
+            }
+        }
+        rebuilt_terms.insert(rebuilt_terms.end(), opaque_terms.begin(), opaque_terms.end());
+
+        ExprPtr rewritten;
+        if (rebuilt_terms.empty()) {
+            rewritten = make_expr<Number>(1.0);
+        } else if (rebuilt_terms.size() == 1) {
+            rewritten = rebuilt_terms.front();
+        } else {
+            rewritten = normalize_expr(make_fcall("Times", rebuilt_terms));
+        }
+
+        const auto original = normalize_expr(make_fcall("Times", func.args));
+        if (!changed && !structurally_equal(original, rewritten)) {
+            changed = true;
+        }
+        if (!changed) {
+            return std::nullopt;
+        }
+
+        ctx.consume_evaluation_step();
+        return rewritten;
+    }
+
+    if (func.head == "Power" && func.args.size() == 2) {
+        const auto* nested_power = std::get_if<FunctionCall>(func.args[0].get());
+        if (nested_power == nullptr ||
+            nested_power->head != "Power" ||
+            nested_power->args.size() != 2 ||
+            !std::holds_alternative<Number>(*nested_power->args[1]) ||
+            !std::holds_alternative<Number>(*func.args[1])) {
+            return std::nullopt;
+        }
+
+        ctx.consume_evaluation_step();
+        return make_fcall(
+            "Power",
+            {nested_power->args[0],
+             make_expr<Number>(
+                 get_number_value(nested_power->args[1]) * get_number_value(func.args[1]))});
+    }
+
+    return std::nullopt;
 }
 
 }  // namespace aleph3::kernel

@@ -483,9 +483,8 @@ Near-term tasks:
 
 - decide whether the symbolic coefficient contract should grow beyond
   single-symbol and single-power bases before the algebra-aware layer exists
-- keep exponent merging out of arithmetic rewrite and define the later
-  algebra-aware layer that should own it
-- keep like-term collection, exponent merging, division cancellation,
+- keep the algebra-aware layer narrow while exponent merging semantics harden
+- keep like-term collection, division cancellation,
   list-aware arithmetic, and special-function shortcuts evaluator-owned until
   stronger kernel contracts exist
 
@@ -631,13 +630,12 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. define the later algebra-aware layer that should own exponent merging and
-   related multiplicative structure rules
-3. decide whether the symbolic coefficient contract should stay limited to
+2. decide whether the symbolic coefficient contract should stay limited to
    single-symbol and single-power bases until stronger exact algebra exists
+3. decide whether the algebra-aware layer should stay limited to same-symbol
+   exponent accumulation until stronger exact algebra exists
 4. keep division cancellation, power-domain-sensitive behavior, list-aware
-   arithmetic, special-function shortcuts, and exponent merging explicitly out
-   of that slice
+   arithmetic, and special-function shortcuts explicitly out of that slice
 5. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 

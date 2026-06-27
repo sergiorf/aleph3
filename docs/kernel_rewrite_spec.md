@@ -394,6 +394,26 @@ The intended long-term split should be:
 
 That gives Aleph3 three cleaner stages instead of one overloaded simplifier.
 
+### Current Small Algebra-aware Layer
+
+That algebra-aware layer now exists in initial form.
+
+Its currently implemented surface is intentionally small:
+
+- `x * x -> x^2`
+- `x * x^2 -> x^3`
+- `(x^2)^3 -> x^6`
+
+Current constraints:
+
+- only normalized `Times` and `Power` forms participate
+- basis matching is limited to the same single symbol basis already supported
+  by current evaluator semantics
+- nested power collapse only runs when both exponents are numeric
+- division cancellation is explicitly out of scope
+- power-domain-sensitive transformations are explicitly out of scope
+- list-aware arithmetic is explicitly out of scope
+
 General rewrite integration beyond explicit callers is still future work and
 should only happen where the scheduling contract is precise enough to avoid
 hidden semantic drift.
@@ -428,7 +448,7 @@ Example of what works now:
 
 - expand the symbolic coefficient contract only if it can stay independent of
   multivariate polynomial semantics
-- define the later algebra-aware layer that will own exponent merging and
-  related multiplicative structure rules
+- decide whether the algebra-aware layer should remain limited to same-symbol
+  exponent accumulation until stronger exact algebra exists
 - decide which non-arithmetic simplifications are good candidates for future
   rewrite-owned migration

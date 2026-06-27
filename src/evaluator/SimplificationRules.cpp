@@ -88,27 +88,6 @@ namespace aleph3 {
         }
     }
 
-    bool extract_symbol_power_term(const ExprPtr& expr, std::string& symbol_name, double& exponent) {
-        if (const auto* symbol = std::get_if<Symbol>(expr.get())) {
-            symbol_name = symbol->name;
-            exponent = 1.0;
-            return true;
-        }
-
-        const auto* power = std::get_if<FunctionCall>(expr.get());
-        if (power == nullptr || power->head != "Power" || power->args.size() != 2) {
-            return false;
-        }
-
-        if (std::holds_alternative<Symbol>(*power->args[0]) && std::holds_alternative<Number>(*power->args[1])) {
-            symbol_name = std::get<Symbol>(*power->args[0]).name;
-            exponent = get_number_value(power->args[1]);
-            return true;
-        }
-
-        return false;
-    }
-
     }  // namespace
 
     const std::unordered_map<std::string, SimplifyRule> simplification_rules = {
@@ -229,6 +208,13 @@ namespace aleph3 {
             }
         }
 
+        const auto normalized_after_arithmetic = normalize_expr(make_fcall("Times", eval_args));
+        if (const auto* times = std::get_if<FunctionCall>(normalized_after_arithmetic.get())) {
+            if (auto rewritten = kernel::rewrite_normalized_algebraic_head(*times, ctx)) {
+                return *rewritten;
+            }
+        }
+
         std::vector<ExprPtr> flat_args;
         flatten_function_args("Times", eval_args, flat_args);
 
@@ -305,7 +291,6 @@ namespace aleph3 {
         bool has_rational_result = false;
         int64_t rational_num = 1;
         int64_t rational_den = 1;
-        std::map<std::string, double> symbol_powers;
         std::vector<ExprPtr> symbolic_terms;
 
         for (const auto& e : flat_args) {
@@ -329,17 +314,10 @@ namespace aleph3 {
                 } else {
                     auto [nn, dd] = normalize_rational(
                         rational_num * rational.numerator,
-                        rational_den * rational.denominator);
+                    rational_den * rational.denominator);
                     rational_num = nn;
                     rational_den = dd;
                 }
-                continue;
-            }
-
-            std::string symbol_name;
-            double exponent = 0.0;
-            if (extract_symbol_power_term(e, symbol_name, exponent)) {
-                symbol_powers[symbol_name] += exponent;
                 continue;
             }
 
@@ -352,7 +330,7 @@ namespace aleph3 {
                 auto [nn, dd] = normalize_rational(
                     rational_num * static_cast<int64_t>(numeric_result),
                     rational_den);
-                if (!(nn == 1 && dd == 1 && (!symbol_powers.empty() || !symbolic_terms.empty()))) {
+                if (!(nn == 1 && dd == 1 && !symbolic_terms.empty())) {
                     simplified.push_back(dd == 1 ? make_expr<Number>(static_cast<double>(nn))
                                                  : make_expr<Rational>(nn, dd));
                 }
@@ -364,21 +342,8 @@ namespace aleph3 {
         if (numeric_result == 0.0) {
             return make_expr<Number>(0);
         }
-        if (!(numeric_result == 1.0 && (!symbol_powers.empty() || !symbolic_terms.empty()))) {
+        if (!(numeric_result == 1.0 && !symbolic_terms.empty())) {
             simplified.push_back(make_expr<Number>(numeric_result));
-        }
-
-        for (const auto& [symbol_name, exponent] : symbol_powers) {
-            if (exponent == 0.0) {
-                continue;
-            }
-            if (exponent == 1.0) {
-                simplified.push_back(make_expr<Symbol>(symbol_name));
-            } else {
-                simplified.push_back(make_fcall(
-                    "Power",
-                    {make_expr<Symbol>(symbol_name), make_expr<Number>(exponent)}));
-            }
         }
 
         simplified.insert(simplified.end(), symbolic_terms.begin(), symbolic_terms.end());
@@ -407,14 +372,11 @@ namespace aleph3 {
             double b = get_number_value(base);
             if (b == 1) return make_expr<Number>(1.0);
         }
-        if (const auto* nested_power = std::get_if<FunctionCall>(base.get());
-            nested_power != nullptr && nested_power->head == "Power" && nested_power->args.size() == 2 &&
-            std::holds_alternative<Number>(*nested_power->args[1]) &&
-            std::holds_alternative<Number>(*exp)) {
-            return make_fcall(
-                "Power",
-                {nested_power->args[0],
-                 make_expr<Number>(get_number_value(nested_power->args[1]) * get_number_value(exp))});
+        auto normalized_power = normalize_expr(make_fcall("Power", {base, exp}));
+        if (const auto* power = std::get_if<FunctionCall>(normalized_power.get())) {
+            if (auto rewritten = kernel::rewrite_normalized_algebraic_head(*power, ctx)) {
+                return *rewritten;
+            }
         }
         // Add this block for rational exponents:
         if (std::holds_alternative<Number>(*base) && std::holds_alternative<Rational>(*exp)) {

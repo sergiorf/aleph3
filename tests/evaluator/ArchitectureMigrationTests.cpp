@@ -424,6 +424,44 @@ TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of multivariat
     REQUIRE_FALSE(rewritten.has_value());
 }
 
+TEST_CASE("Kernel rewrite algebra-aware layer merges supported Times exponents", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("x * x^2 * y"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "x^3 * y");
+}
+
+TEST_CASE("Kernel rewrite algebra-aware layer collapses nested Power exponents", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("(x^2)^3"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "x^6");
+}
+
+TEST_CASE("Kernel rewrite algebra-aware layer stays out of Divide forms", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("x / x"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
+}
+
 TEST_CASE("Kernel rewrite respects explicit rewrite-count bounds", "[architecture][rewrite]") {
     const auto expr = parse_expression("f[f[f[x]]]");
     const Rule rule{

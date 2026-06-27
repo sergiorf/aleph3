@@ -68,16 +68,21 @@ What is already true:
 - the symbolic engine already has a meaningful supported subset with parser,
   evaluation, normalization, simplification, exact rationals, and a narrow
   algebra layer
+- the SDK now evaluates through the kernel and retains lowered kernel
+  execution state rather than trusted-subset IR
+- the public SDK surface is documented and split into stable versus
+  transitional API areas
 
 What is still unresolved:
 
-- symbolic semantics are still split across `Expr`-based and `ir::Node`-based
-  compile-time and lowering representations in some migration areas
 - higher math boundaries are still blended into evaluator-oriented code
-- several roadmap documents duplicated the same priorities with different
-  framing
+- symbol definition and extension contracts are not yet strong enough for the
+  intended pack model
+- several advanced roadmap areas still depend on stronger kernel contracts
 
-That unresolved split remains the main architectural risk.
+The main remaining architectural risk is not the old runtime split anymore.
+It is whether the kernel grows a clean extension model before more symbolic
+surface area gets added.
 
 ## Accepted Core Decisions
 
@@ -257,14 +262,13 @@ The order of work is:
 
 1. keep docs and repo messaging aligned with the one-kernel direction
 2. finish collapsing SDK execution into the kernel
-3. define the stable SDK surface that survives after kernel convergence
-4. define the symbol and extension model the kernel will grow through
-5. add general rewrite infrastructure
-6. replace weak algebra foundations with exact infrastructure
-7. add assumptions and domain-aware semantics
-8. extract higher math behind explicit pack boundaries
-9. expand product-facing symbolic capabilities on top of the stronger kernel
-10. build richer interactive product surfaces such as a notebook-like
+3. define the symbol and extension model the kernel will grow through
+4. add general rewrite infrastructure
+5. replace weak algebra foundations with exact infrastructure
+6. add assumptions and domain-aware semantics
+7. extract higher math behind explicit pack boundaries
+8. expand product-facing symbolic capabilities on top of the stronger kernel
+9. build richer interactive product surfaces such as a notebook-like
    application on top of the unified kernel
 
 ## Milestones
@@ -307,6 +311,10 @@ Outcome:
 - SDK diagnostics and evaluation flow are recognizably kernel-backed
 - external developers can adopt Aleph3 through the SDK without needing kernel
   internals
+
+Current status:
+
+- substantially complete
 ### M5. Kernel Extensibility Becomes Real
 
 Outcome:
@@ -408,31 +416,15 @@ Goals:
 - remove the SDK’s status as a peer execution engine
 - make the SDK a clean kernel-backed adoption layer
 
-Tasks:
+Current status:
 
-- route `Engine::evaluate` toward kernel-backed execution
-- treat `ir::Node` as validated and lowered input, not as a permanent semantic
-  center
-- remove the former direct dependence on `runtime::Evaluator`
-- delete the legacy runtime evaluator path and its dedicated test surface
-- define which SDK APIs are stable product APIs and which are transitional
-- ensure SDK diagnostics are kernel diagnostics projected for host users
-- document the SDK as the first practical open-source adoption path
-- add examples that demonstrate the kernel-backed SDK path
-
-This work is now complete enough that the next focus should be cleanup,
-bridge simplification, and stronger kernel-first coverage.
-
-The bridge simplification step is now in place: trusted-subset SDK evaluation
-flows through explicit kernel bridge entrypoints rather than ad hoc execution
-logic inside `Engine`.
-
-Compiled formulas now retain lowered kernel execution state rather than
-trusted-subset IR, so `ir::Node` is limited to parser and validator concerns.
-
-Regression coverage now compares SDK evaluation against direct kernel
-evaluation for success paths, host functions, runtime failures, and evaluation
-budgets.
+- complete for the current migration slice
+- SDK evaluation is kernel-backed
+- trusted-subset IR is limited to parser and validator concerns
+- the legacy runtime evaluator path is retired
+- SDK/runtime diagnostics are projected from kernel-owned errors
+- regression coverage compares SDK evaluation against direct kernel evaluation
+- the stable versus transitional SDK API split is now documented
 
 Success criteria:
 
@@ -598,9 +590,9 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. define the public SDK surface that should survive after kernel convergence
-3. identify which SDK APIs are stable versus transitional
-4. define the minimal registration contract future packs will require
+2. define the minimal registration contract future packs will require
+3. strengthen the symbol-definition and metadata model behind that contract
+4. begin the rewrite infrastructure that future kernel growth depends on
 5. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 

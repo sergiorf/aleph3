@@ -3,6 +3,13 @@
 This directory is the working index for the Aleph3 SDK layer and its immediate
 integration points with the symbolic core.
 
+The surviving host-facing SDK surface is:
+
+- `include/sdk/Engine.hpp`
+- `include/sdk/Schema.hpp`
+- `include/sdk/Policy.hpp`
+- `include/sdk/Types.hpp`
+
 ## What Is Stable Now
 
 - Public SDK headers under `include/sdk/`
@@ -30,6 +37,7 @@ integration points with the symbolic core.
 
 ## What Is Not Stable Yet
 
+- `EngineOptions` as a hardened product-configuration surface
 - Deeper flow-sensitive validation beyond current constant-condition pruning, schema-valued constant reasoning, constant runtime-trap detection, and branch/type/return checks
 - Custom host-function injection into the CLI beyond the built-in demo bundle
 - Packaging and final target names
@@ -39,7 +47,6 @@ integration points with the symbolic core.
 - [Stable Interfaces](stable_interfaces.md)
 - [Build And Targets](build_and_targets.md)
 - [Testing Strategy](testing_strategy.md)
-- [Migration Notes](migration_notes.md)
 - [Math Core Audit](math_core_audit.md)
 
 ## SDK Layer Diagram

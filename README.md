@@ -30,6 +30,7 @@ Current architecture warning:
 - Symbolic kernel and early math surface: parser, evaluator, transforms, and
   current algebra utilities
 - SDK layer: public API under `include/sdk/` and trusted-subset IR under `include/ir/`
+- Surviving host-facing SDK contract: `Engine`, `Schema`, `Policy`, `Types`, and opaque compiled formulas under `include/sdk/`
 - CLI surface: `aleph3_cli` for symbolic and SDK checks
 - SDK validation and compile path: `validate` performs schema/arity/type checks and `compile` creates reusable formula handles
 - SDK execution path: `evaluate` lowers trusted-subset formulas into kernel

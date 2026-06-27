@@ -83,8 +83,8 @@ not complete yet.
 - Use `BUILD_TESTING=OFF` for offline or dependency-restricted compile checks.
 - Keep new SDK components linked only through SDK targets unless a kernel
   dependency is explicitly justified.
-- Do not add new permanent semantics to the current `runtime` layer without a
-  kernel migration plan.
+- Do not add new permanent SDK-only execution semantics outside the
+  kernel-backed path.
 
 ## Current Test Ownership Split
 

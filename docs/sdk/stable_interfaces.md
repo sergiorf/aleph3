@@ -1,20 +1,88 @@
 # Stable Interfaces
 
-This document marks the interfaces that should now be treated as the SDK
-boundary. They are stable enough to build against, but not yet feature-complete.
+This document defines the public SDK surface that should survive after kernel
+convergence and identifies which current SDK-facing APIs are stable versus
+transitional.
 
 ## Status Table
 
 | Surface | Status | Notes |
 | --- | --- | --- |
-| `sdk/Types.hpp` | provisional stable | Public value model, diagnostics, opaque `CompiledFormula`, and host function metadata/contracts |
-| `sdk/Schema.hpp` | provisional stable | Host allowlists for variables, functions, and constants, including optional constant values |
-| `sdk/Policy.hpp` | provisional stable | Structural/runtime limits and feature flags |
-| `sdk/Engine.hpp` | provisional stable | Main facade; `validate`, `compile`, and trusted-subset `evaluate` are live |
+| `sdk/Types.hpp` | stable product surface | Public value model, diagnostics, opaque `CompiledFormula`, result wrappers, and host function metadata/contracts |
+| `sdk/Schema.hpp` | stable product surface | Host allowlists for variables, functions, and constants, including optional constant values |
+| `sdk/Policy.hpp` | stable with transitional members | Budget controls and trusted-subset feature gates are stable; some forward-looking toggles are not yet part of the hardened product contract |
+| `sdk/Engine.hpp` | stable product surface | Main facade; `validate`, `compile`, trusted-subset `evaluate`, and engine-scoped host registration are live |
+| `EngineOptions` | transitional | Public constructor hook exists, but only `retain_source_text` currently affects behavior; other fields should not be treated as long-term product knobs yet |
 | `ir/Node.hpp` | internal stable | Trusted-subset IR for parser and validation work |
 | `frontend/Lexer.hpp` + `frontend/Parser.hpp` | internal stable | Trusted-subset syntax frontend with structured diagnostics |
 | `semantics/Validator.hpp` | internal stable | Schema, arity, feature-gate, and composed-expression type validation for the trusted subset |
 | `kernel/TrustedSubsetBridge.hpp` | internal stable | Trusted-subset lowering and kernel-backed execution adapter |
+
+## Surviving Public SDK Surface
+
+The SDK surface that should remain public after kernel convergence is:
+
+- `Engine`
+- `Schema`
+- `Policy`
+- `CompiledFormula`
+- `CompileResult`
+- `ValidationResult`
+- `EvaluationResult`
+- `Value`
+- `Bindings`
+- `Diagnostic`
+- `RuntimeError`
+- `HostFunctionSpec`, `HostFunctionParameter`, `HostFunctionCallback`,
+  `FunctionArity`, `ValueType`, and `HostFunctionPurity`
+
+These types define the host-facing embedding contract. They should remain
+usable without exposing `Expr`, kernel contexts, lowering helpers, or parser
+internals.
+
+## Stable Vs Transitional
+
+### Stable Product Surface
+
+These APIs should be treated as the durable SDK contract:
+
+- `Engine::compile`
+- `Engine::validate`
+- `Engine::evaluate`
+- `Engine::register_function`
+- `Schema` variable/function/constant allowlisting
+- `Policy` budget controls and trusted-subset feature gates that already affect
+  validation or evaluation
+- `Value`, `Bindings`, `Diagnostic`, `RuntimeError`, and the result wrapper
+  types
+- host-function metadata and callback contracts
+- `CompiledFormula` opacity and reusability across evaluations
+
+### Transitional Public Members
+
+These names are public today, but should not be treated as hardened long-term
+product guarantees yet:
+
+- `EngineOptions`
+  Reason: only `retain_source_text` currently changes behavior in the engine
+  implementation; the other fields are not yet a reliable external contract.
+- `Policy::allow_assignments`
+- `Policy::allow_user_defined_functions`
+- `Policy::allow_implicit_multiplication`
+- `Policy::allow_chained_comparisons`
+  Reason: these toggles are forward-looking surface area that is not yet backed
+  by a comparably hardened trusted-subset contract.
+
+### Internal But Stable For Current Ownership
+
+These surfaces are stable in the sense that their ownership is clear, but they
+are not part of the host-facing SDK contract:
+
+- `ir::Node.hpp`
+- `frontend/Lexer.hpp`
+- `frontend/Parser.hpp`
+- `semantics/Validator.hpp`
+- `kernel/TrustedSubsetBridge.hpp`
 
 ## Public SDK Boundary
 
@@ -58,6 +126,8 @@ classDiagram
 - Engine-scoped host function registration replaces the old global registry model.
 - The SDK build now depends on `aleph3_kernel` even though the public SDK
   boundary still must not expose internal symbolic AST types.
+- Transitional public knobs must not expand faster than their tested behavior
+  and documentation.
 
 ## Current Guarantees
 
@@ -83,3 +153,5 @@ classDiagram
 - No explicit source canonicalization or serialization yet.
 - CLI evaluation currently supports numbers, booleans, and string bindings through `--var name=value`.
 - Optional built-ins and richer host-function tooling ergonomics are still limited on the tooling path.
+- `EngineOptions` needs either contract hardening or reduction before it should
+  be treated as stable product configuration.

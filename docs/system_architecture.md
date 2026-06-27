@@ -17,6 +17,7 @@ Related architecture documents:
 - [Class Collaboration](class_collaboration.md)
 - [Symbolic Core Architecture](symbolic_core_architecture.md)
 - [Aleph3 Unified Plan](aleph3_unified_plan.md)
+- [SDK Stable Interfaces](sdk/stable_interfaces.md)
 - [Kernel Representation Decision](kernel_representation_decision.md)
 - [Representation Lowering Strategy](representation_lowering_strategy.md)
 - [Layer Ownership Matrix](layer_ownership_matrix.md)
@@ -618,7 +619,7 @@ Key rule:
 
 Header:
 
-- internal to runtime layer, not the old singleton model
+- internal to the SDK/kernel execution boundary, not the old singleton model
 
 Responsibility:
 
@@ -718,7 +719,8 @@ For v1: no, not as the first execution path.
 
 ### Phase 1: Tree Interpreter
 
-Compile source into IR, then interpret IR directly.
+Compile source into IR, lower into kernel `Expr`, then evaluate through the
+kernel.
 
 Why:
 
@@ -753,17 +755,17 @@ Add a dedicated VM only if one or more of these become true:
 
 ## Recommended VM Position
 
-If a VM is added later, it should sit under the runtime layer:
+If a VM is added later, it should sit under the kernel-backed execution layer:
 
 ```text
-source -> lexer -> parser -> IR -> validator -> lowered IR/bytecode -> VM
+source -> lexer -> parser -> IR -> validator -> lowered kernel plan/bytecode -> VM
 ```
 
 That means:
 
 - parser still produces structural IR
 - semantics still validate structural IR
-- runtime may optionally lower validated IR into bytecode
+- kernel execution may optionally lower validated IR into bytecode
 
 This is the correct separation.
 

@@ -11,6 +11,7 @@ It is the collaboration view across the current refactor state.
 Related documents:
 
 - [System Architecture](system_architecture.md)
+- [SDK Stable Interfaces](sdk/stable_interfaces.md)
 - [Symbolic Core Architecture](symbolic_core_architecture.md)
 - [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)
 - [Kernel Representation Decision](kernel_representation_decision.md)
@@ -62,6 +63,7 @@ flowchart LR
 - public facade for compile, validate, and evaluate
 - owns engine-scoped host function registrations
 - orchestrates parser, validator, lowering, and kernel-backed execution
+- is part of the surviving host-facing SDK contract
 
 `Schema`
 

@@ -162,6 +162,8 @@ symbolic `evaluate(...)`
 
 - now provides structural rule rewriting plus the first minimal pattern
   language based on named binders, with bounded repeated application
+- now also backs a small evaluator-facing simplification slice for fixed-arity
+  arithmetic identity rewrites
 - is still an intentionally small rewrite subsystem slice, not a full pattern
   engine
 

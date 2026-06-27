@@ -146,7 +146,9 @@ g[g[x]]
 In Aleph3, rewrite infrastructure is the subsystem that applies such symbolic
 transformation rules in a controlled way. The current kernel supports exact
 structural rules plus a first minimal pattern language with named binders such
-as `a_`.
+as `a_`. It also now underpins a small fixed-arity arithmetic identity
+simplification slice, while broader simplification still remains evaluator
+owned.
 
 ## Stable Architectural Rules
 

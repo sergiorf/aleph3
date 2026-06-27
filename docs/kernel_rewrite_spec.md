@@ -153,6 +153,30 @@ Today the general evaluator still does:
 2. run evaluator-owned dispatch and builtin simplification
 3. preserve symbolic fallback when no owner reduces the form
 
+The first rewrite-owned simplification slice is now intentionally narrow:
+
+- binary `Plus` neutral-element identities such as `0 + a -> a`
+- binary `Times` neutral and annihilator identities such as `1 * a -> a` and
+  `0 * a -> 0`
+- basic `Power` identities such as `a^0 -> 1`, `a^1 -> a`, and `1^a -> 1`
+
+For this slice, the scheduling contract is:
+
+- normalize before matching
+- apply the rewrite rule
+- normalize the rewritten result again
+
+This normalization policy is currently limited to these fixed-arity arithmetic
+identity rewrites because it improves canonical matching without changing the
+ownership of broader n-ary simplification.
+
+The following still remain evaluator-owned for now:
+
+- n-ary constant folding for `Plus` and `Times`
+- coefficient collection and like-term combination
+- list broadcasting and other container-aware simplifications
+- numeric-domain and special-value handling
+
 General rewrite integration beyond explicit callers is still future work and
 should only happen where the scheduling contract is precise enough to avoid
 hidden semantic drift.
@@ -165,6 +189,8 @@ The rewrite subsystem can already support:
 - first pattern-based substitution tests
 - rule-driven structural cleanup experiments
 - migration of selected hardcoded transforms toward kernel-owned rewrite APIs
+- the first evaluator-facing identity-simplification slice for fixed-arity
+  arithmetic forms
 
 Example of what works now:
 
@@ -183,6 +209,7 @@ Example of what works now:
 
 ## Next Steps
 
-- decide which existing simplifications should move behind rewrite entrypoints
-- define whether selected rewrite-driven flows should normalize pre-match,
-  post-substitution, or both
+- decide whether broader arithmetic simplification should wait for sequence
+  patterns or use a dedicated n-ary rewrite contract
+- decide which non-arithmetic simplifications are good candidates for future
+  rewrite-owned migration

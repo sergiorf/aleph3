@@ -213,6 +213,34 @@ TEST_CASE("Simplify nested expressions", "[evaluator][simplification]") {
     REQUIRE(get_number_value(result) == 1.0);
 }
 
+TEST_CASE("Rewrite-driven identity simplification preserves list-aware evaluator semantics", "[evaluator][simplification][rewrite]") {
+    EvaluationContext ctx;
+
+    auto plus_expr = parse_expression("0 + {x, y}");
+    auto plus_result = evaluate(plus_expr, ctx);
+    REQUIRE(std::holds_alternative<List>(*plus_result));
+    const auto& plus_elements = std::get<List>(*plus_result).elements;
+    REQUIRE(plus_elements.size() == 2);
+    REQUIRE(to_string(plus_elements[0]) == "x");
+    REQUIRE(to_string(plus_elements[1]) == "y");
+
+    auto times_expr = parse_expression("0 * {x, y}");
+    auto times_result = evaluate(times_expr, ctx);
+    REQUIRE(std::holds_alternative<List>(*times_result));
+    const auto& times_elements = std::get<List>(*times_result).elements;
+    REQUIRE(times_elements.size() == 2);
+    REQUIRE(to_string(times_elements[0]) == "0");
+    REQUIRE(to_string(times_elements[1]) == "0");
+
+    auto ones_expr = parse_expression("1 * {x, y}");
+    auto ones_result = evaluate(ones_expr, ctx);
+    REQUIRE(std::holds_alternative<List>(*ones_result));
+    const auto& ones_elements = std::get<List>(*ones_result).elements;
+    REQUIRE(ones_elements.size() == 2);
+    REQUIRE(to_string(ones_elements[0]) == "x");
+    REQUIRE(to_string(ones_elements[1]) == "y");
+}
+
 TEST_CASE("Simplify Plus[2, 3, 4] to 9", "[evaluator][simplification]") {
     EvaluationContext ctx; // Empty context
     auto expr = parse_expression("2 + 3 + 4");

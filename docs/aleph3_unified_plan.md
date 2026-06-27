@@ -469,6 +469,8 @@ Current status:
 - exact structural rule rewriting is implemented
 - the first named-binder pattern language is implemented
 - bounded repeated rewrite entrypoints exist
+- the first evaluator-facing rewrite-owned simplification slice now covers
+  fixed-arity arithmetic identity rewrites
 - conditional rules and richer pattern classes are still open
 
 Success criteria:
@@ -599,9 +601,10 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. decide which existing simplifications should move behind rewrite entrypoints
-3. define when rewrite-driven flows should normalize before matching,
-   after substitution, or both
+2. decide whether broader arithmetic simplification should wait for sequence
+   patterns or introduce a dedicated n-ary rewrite contract
+3. identify the next safe evaluator-owned simplifications to migrate after the
+   fixed-arity identity slice
 4. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 

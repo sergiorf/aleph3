@@ -346,6 +346,33 @@ TEST_CASE("Algebra-aware layer preserves unsupported exponent structure", "[eval
     REQUIRE(to_string(mixed_basis) != "x^2 * y^2");
 }
 
+TEST_CASE("Evaluator retains ownership of domain-sensitive power semantics", "[evaluator][simplification][algebra-aware]") {
+    EvaluationContext ctx;
+
+    const auto negative_fractional_power = evaluate(parse_expression("(-4)^0.5"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*negative_fractional_power));
+    REQUIRE(to_string(negative_fractional_power) != "2");
+    const auto& power_call = std::get<FunctionCall>(*negative_fractional_power);
+    REQUIRE(power_call.head == "Power");
+    REQUIRE(power_call.args.size() == 2);
+
+    const auto safe_integer_power = evaluate(parse_expression("(-4)^2"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*safe_integer_power));
+    REQUIRE(get_number_value(safe_integer_power) == 16.0);
+}
+
+TEST_CASE("Evaluator retains ownership of list-aware arithmetic semantics", "[evaluator][simplification][rewrite]") {
+    EvaluationContext ctx;
+
+    const auto plus_result = evaluate(parse_expression("{1, 2} + 1/2"), ctx);
+    REQUIRE(std::holds_alternative<List>(*plus_result));
+    REQUIRE(to_string(plus_result) == "{3/2, 5/2}");
+
+    const auto times_result = evaluate(parse_expression("0 * {x, y}"), ctx);
+    REQUIRE(std::holds_alternative<List>(*times_result));
+    REQUIRE(to_string(times_result) == "{0, 0}");
+}
+
 TEST_CASE("Evaluator contract keeps If lazy and symbolic when required", "[evaluator][contract]") {
     EvaluationContext ctx;
 

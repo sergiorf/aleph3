@@ -264,6 +264,18 @@ Current product-contract boundaries for those two upper layers are:
 - both layers preserve unsupported structures rather than partially
   reinterpreting them
 
+Current evaluator-owned boundary around those layers is also explicit:
+
+- division cancellation remains evaluator-owned
+- power-domain-sensitive behavior remains evaluator-owned
+- list-aware arithmetic and broadcasting remain evaluator-owned
+- special-function shortcuts and recurrence-style symbolic transforms remain
+  evaluator-owned
+
+Those behaviors are not merely "not yet in rewrite". They are intentionally
+kept outside the current kernel rewrite slice until the surrounding algebra,
+domain, and container contracts are stronger.
+
 ## Interface Inventory To Define
 
 The first interfaces that should be made explicit are:

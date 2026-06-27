@@ -4,6 +4,7 @@
 #include "expr/Expr.hpp"
 #include "Constants.hpp"
 #include "evaluator/EvaluationContext.hpp"
+#include "transforms/Transforms.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_all.hpp>
 #include <cmath>
@@ -522,6 +523,18 @@ TEST_CASE("Evaluator Gamma symbolic recurrence and fallback contract", "[evaluat
     const auto gamma_branch_preserved = evaluate(parse_expression("Gamma[z - 2]"), ctx);
     REQUIRE(std::holds_alternative<FunctionCall>(*gamma_branch_preserved));
     REQUIRE(to_string(gamma_branch_preserved) == "(Gamma[z]) / ((z - 1) * (z - 2))");
+}
+
+TEST_CASE("Evaluator retains ownership of special-function shortcuts", "[evaluator][gamma][symbolic]") {
+    EvaluationContext ctx;
+
+    const auto simplified = simplify(parse_expression("Gamma[x + 1]"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*simplified));
+    REQUIRE(to_string(simplified) == "Gamma[x + 1]");
+
+    const auto evaluated = evaluate(parse_expression("Gamma[x + 1]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*evaluated));
+    REQUIRE(to_string(evaluated) == "x * (Gamma[x])");
 }
 
 TEST_CASE("Evaluator Gamma listability preserves exact and pole behavior elementwise", "[evaluator][gamma][listable]") {

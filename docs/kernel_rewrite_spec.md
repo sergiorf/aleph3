@@ -174,6 +174,7 @@ The following still remain evaluator-owned for now:
 
 - list broadcasting and other container-aware simplifications
 - numeric-domain and special-value handling
+- special-function symbolic shortcuts and recurrence transforms
 
 ## Decision On Broader Arithmetic Simplification
 
@@ -469,6 +470,10 @@ preserved rather than partially normalized:
 - branch- or assumption-sensitive power laws
 - list-aware or container-aware multiplicative behavior
 
+Those forms are intentionally evaluator-owned where behavior exists today. The
+current rewrite contract is preservation, not partial imitation of evaluator
+semantics.
+
 General rewrite integration beyond explicit callers is still future work and
 should only happen where the scheduling contract is precise enough to avoid
 hidden semantic drift.
@@ -505,5 +510,8 @@ Example of what works now:
   single-power bases until stronger exact algebra exists
 - keep the algebra-aware layer limited to same-symbol exponent accumulation and
   numeric nested-power collapse until stronger exact algebra exists
+- keep division cancellation, power-domain-sensitive behavior, list-aware
+  arithmetic, and special-function shortcuts explicitly evaluator-owned until
+  stronger kernel contracts exist
 - decide which non-arithmetic simplifications are good candidates for future
   rewrite-owned migration

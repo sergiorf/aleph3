@@ -510,6 +510,38 @@ TEST_CASE("Kernel rewrite algebra-aware layer stays out of Divide forms", "[arch
     REQUIRE_FALSE(rewritten.has_value());
 }
 
+TEST_CASE("Kernel rewrite algebra-aware layer stays out of power-domain-sensitive forms", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("(-4)^0.5"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
+}
+
+TEST_CASE("Kernel rewrite entrypoints do not own special-function shortcuts", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("Gamma[x + 1]"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto arithmetic = kernel::rewrite_normalized_arithmetic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+    const auto coefficients = kernel::rewrite_normalized_symbolic_coefficient_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+    const auto algebraic = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(arithmetic.has_value());
+    REQUIRE_FALSE(coefficients.has_value());
+    REQUIRE_FALSE(algebraic.has_value());
+}
+
 TEST_CASE("Kernel rewrite respects explicit rewrite-count bounds", "[architecture][rewrite]") {
     const auto expr = parse_expression("f[f[f[x]]]");
     const Rule rule{

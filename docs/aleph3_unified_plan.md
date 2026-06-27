@@ -471,11 +471,37 @@ Current status:
 - bounded repeated rewrite entrypoints exist
 - the first evaluator-facing rewrite-owned simplification slice now covers
   fixed-arity arithmetic identity rewrites
+- the next arithmetic-rewrite decision is now to introduce a dedicated n-ary
+  rewrite contract for normalized `Plus` and `Times`, rather than waiting for
+  general sequence patterns
+- that dedicated n-ary arithmetic rewrite contract is now implemented for
+  scalar `Plus` and `Times` neutral elimination, scalar `Times` annihilator
+  handling, and scalar numeric/rational bucket folding
 - conditional rules and richer pattern classes are still open
+
+Near-term tasks:
+
+- decide whether like-term collection should wait for stronger exact-algebra
+  metadata or get a separate symbolic coefficient contract
+- decide whether exponent merging belongs in arithmetic rewrite or in a later
+  algebra-aware layer
+- keep like-term collection, exponent merging, division cancellation,
+  list-aware arithmetic, and special-function shortcuts evaluator-owned until
+  stronger kernel contracts exist
 
 Success criteria:
 
 - symbolic transforms no longer depend only on hardcoded evaluator cases
+
+Detailed guidance for the next rewrite migration slice:
+
+- do not wait for general sequence patterns before moving broader arithmetic
+  cleanup out of evaluator-local code
+- use a dedicated n-ary contract for normalized `Plus` and `Times`
+- treat that contract as head-aware variadic reduction, not as a generic
+  matcher feature
+- migrate only reductions that preserve current scalar arithmetic contracts
+  without depending on list semantics or stronger algebra metadata
 
 ### G. Exact Algebra Backbone
 
@@ -601,11 +627,13 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. decide whether broader arithmetic simplification should wait for sequence
-   patterns or introduce a dedicated n-ary rewrite contract
-3. identify the next safe evaluator-owned simplifications to migrate after the
-   fixed-arity identity slice
-4. only then start designing richer interactive surfaces such as a notebook
+2. decide whether like-term collection should wait for stronger exact-algebra
+   metadata or get a separate symbolic coefficient contract
+3. decide whether exponent merging belongs in arithmetic rewrite or in a later
+   algebra-aware layer
+4. keep division cancellation, power-domain-sensitive behavior, list-aware
+   arithmetic, and special-function shortcuts explicitly out of that slice
+5. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 
 ## Deferred Work

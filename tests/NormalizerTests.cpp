@@ -227,7 +227,7 @@ TEST_CASE("Cross-layer canonical ordering stays stable after evaluation-driven r
     const auto simplified = simplified_evaluated_string("x + (y + 2) + 3");
 
     REQUIRE(normalized == "x + y + 2 + 3");
-    REQUIRE(evaluated == "5 + x + y");
+    REQUIRE(evaluated == "x + y + 5");
     REQUIRE(simplified == "x + y + 5");
 
     REQUIRE(to_string(normalize_expr(parse_expression(simplified))) == "x + y + 5");

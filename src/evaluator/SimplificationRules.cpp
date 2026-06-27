@@ -17,42 +17,6 @@ namespace aleph3 {
         return std::floor(value) == value;
     }
 
-    const std::vector<Rule>& plus_identity_rules() {
-        static const std::vector<Rule> rules = {
-            Rule{
-                make_fcall("Plus", {make_expr<Number>(0.0), make_expr<Symbol>("a_")}),
-                make_expr<Symbol>("a")
-            },
-            Rule{
-                make_fcall("Plus", {make_expr<Symbol>("a_"), make_expr<Number>(0.0)}),
-                make_expr<Symbol>("a")
-            }
-        };
-        return rules;
-    }
-
-    const std::vector<Rule>& times_identity_rules() {
-        static const std::vector<Rule> rules = {
-            Rule{
-                make_fcall("Times", {make_expr<Number>(1.0), make_expr<Symbol>("a_")}),
-                make_expr<Symbol>("a")
-            },
-            Rule{
-                make_fcall("Times", {make_expr<Symbol>("a_"), make_expr<Number>(1.0)}),
-                make_expr<Symbol>("a")
-            },
-            Rule{
-                make_fcall("Times", {make_expr<Number>(0.0), make_expr<Symbol>("a_")}),
-                make_expr<Number>(0.0)
-            },
-            Rule{
-                make_fcall("Times", {make_expr<Symbol>("a_"), make_expr<Number>(0.0)}),
-                make_expr<Number>(0.0)
-            }
-        };
-        return rules;
-    }
-
     const std::vector<Rule>& power_identity_rules() {
         static const std::vector<Rule> rules = {
             Rule{
@@ -80,31 +44,19 @@ namespace aleph3 {
         return false;
     }
 
-    ExprPtr apply_identity_rewrite_simplification(
-        const std::string& head,
+    ExprPtr apply_power_identity_rewrite_simplification(
         const std::vector<ExprPtr>& args,
         EvaluationContext& ctx) {
         if (args.size() != 2 || contains_list_argument(args)) {
             return nullptr;
         }
 
-        const std::vector<Rule>* rules = nullptr;
-        if (head == "Plus") {
-            rules = &plus_identity_rules();
-        } else if (head == "Times") {
-            rules = &times_identity_rules();
-        } else if (head == "Power") {
-            rules = &power_identity_rules();
-        } else {
-            return nullptr;
-        }
-
-        auto current = normalize_expr(make_fcall(head, args));
+        auto current = normalize_expr(make_fcall("Power", args));
         bool changed = false;
 
         for (std::size_t iteration = 0; iteration < 8; ++iteration) {
             bool applied_rule = false;
-            for (const auto& rule : *rules) {
+            for (const auto& rule : power_identity_rules()) {
                 const auto rewritten = kernel::rewrite_repeated(current, rule, ctx, 1);
                 if (!rewritten.changed) {
                     continue;
@@ -195,8 +147,11 @@ namespace aleph3 {
             eval_args.push_back(eval(arg, ctx));
         }
 
-        if (auto rewritten = apply_identity_rewrite_simplification("Plus", eval_args, ctx)) {
-            return rewritten;
+        const auto normalized_eval_args = normalize_expr(make_fcall("Plus", eval_args));
+        if (const auto* plus = std::get_if<FunctionCall>(normalized_eval_args.get())) {
+            if (auto rewritten = kernel::rewrite_normalized_arithmetic_head(*plus, ctx)) {
+                return *rewritten;
+            }
         }
 
         std::vector<ExprPtr> flat_args;
@@ -358,8 +313,11 @@ namespace aleph3 {
             eval_args.push_back(eval(arg, ctx));
         }
 
-        if (auto rewritten = apply_identity_rewrite_simplification("Times", eval_args, ctx)) {
-            return rewritten;
+        const auto normalized_eval_args = normalize_expr(make_fcall("Times", eval_args));
+        if (const auto* times = std::get_if<FunctionCall>(normalized_eval_args.get())) {
+            if (auto rewritten = kernel::rewrite_normalized_arithmetic_head(*times, ctx)) {
+                return *rewritten;
+            }
         }
 
         std::vector<ExprPtr> flat_args;
@@ -524,7 +482,7 @@ namespace aleph3 {
         if (args.size() != 2) return make_fcall("Power", args);
         auto base = eval(args[0], ctx);
         auto exp = eval(args[1], ctx);
-        if (auto rewritten = apply_identity_rewrite_simplification("Power", {base, exp}, ctx)) {
+        if (auto rewritten = apply_power_identity_rewrite_simplification({base, exp}, ctx)) {
             return rewritten;
         }
         if (std::holds_alternative<Number>(*exp)) {

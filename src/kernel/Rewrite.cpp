@@ -1,7 +1,13 @@
 #include "kernel/Rewrite.hpp"
 
 #include "kernel/EvaluationContext.hpp"
+#include "expr/ExprUtils.hpp"
+#include "normalizer/Normalizer.hpp"
 
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <map>
 #include <unordered_map>
 #include <type_traits>
 #include <utility>
@@ -11,6 +17,192 @@ namespace aleph3::kernel {
 namespace {
 
 using PatternBindings = std::unordered_map<std::string, ExprPtr>;
+
+bool is_integral(double value) {
+    return std::floor(value) == value;
+}
+
+bool contains_list_argument(const std::vector<ExprPtr>& args) {
+    for (const auto& arg : args) {
+        if (std::holds_alternative<List>(*arg)) {
+            return true;
+        }
+        if (const auto* call = std::get_if<FunctionCall>(arg.get());
+            call != nullptr && call->head == "List") {
+            return true;
+        }
+    }
+    return false;
+}
+
+ExprPtr build_plus_bucket_expr(
+    const std::vector<ExprPtr>& args,
+    bool& changed) {
+    double numeric_result = 0.0;
+    bool has_rational_result = false;
+    int64_t rational_num = 0;
+    int64_t rational_den = 1;
+    std::vector<ExprPtr> symbolic_terms;
+
+    for (const auto& arg : args) {
+        if (std::holds_alternative<Number>(*arg)) {
+            const double value = get_number_value(arg);
+            if (value == 0.0) {
+                changed = true;
+                continue;
+            }
+            numeric_result += value;
+            continue;
+        }
+        if (std::holds_alternative<Rational>(*arg)) {
+            const auto& rational = std::get<Rational>(*arg);
+            if (!has_rational_result) {
+                rational_num = rational.numerator;
+                rational_den = rational.denominator;
+                has_rational_result = true;
+            } else {
+                auto [nn, dd] = normalize_rational(
+                    rational_num * rational.denominator + rational.numerator * rational_den,
+                    rational_den * rational.denominator);
+                rational_num = nn;
+                rational_den = dd;
+            }
+            continue;
+        }
+        symbolic_terms.push_back(arg);
+    }
+
+    std::vector<ExprPtr> rebuilt_terms;
+    rebuilt_terms.reserve(symbolic_terms.size() + 1);
+    rebuilt_terms.insert(rebuilt_terms.end(), symbolic_terms.begin(), symbolic_terms.end());
+
+    if (has_rational_result) {
+        if (is_integral(numeric_result)) {
+            auto [nn, dd] = normalize_rational(
+                rational_num + static_cast<int64_t>(numeric_result) * rational_den,
+                rational_den);
+            if (nn != 0) {
+                rebuilt_terms.push_back(
+                    dd == 1 ? make_expr<Number>(static_cast<double>(nn))
+                            : make_expr<Rational>(nn, dd));
+            } else {
+                changed = true;
+            }
+        } else {
+            const double rational_value = static_cast<double>(rational_num) / rational_den;
+            const double combined = rational_value + numeric_result;
+            if (combined != 0.0) {
+                rebuilt_terms.push_back(make_expr<Number>(combined));
+            } else {
+                changed = true;
+            }
+        }
+    } else if (numeric_result != 0.0) {
+        rebuilt_terms.push_back(make_expr<Number>(numeric_result));
+    } else if (args.size() != symbolic_terms.size()) {
+        changed = true;
+    }
+
+    if (rebuilt_terms.empty()) {
+        return make_expr<Number>(0.0);
+    }
+    if (rebuilt_terms.size() == 1) {
+        return rebuilt_terms.front();
+    }
+    return normalize_expr(make_fcall("Plus", rebuilt_terms));
+}
+
+ExprPtr build_times_bucket_expr(
+    const std::vector<ExprPtr>& args,
+    bool& changed) {
+    double numeric_result = 1.0;
+    bool has_rational_result = false;
+    int64_t rational_num = 1;
+    int64_t rational_den = 1;
+    std::vector<ExprPtr> symbolic_terms;
+
+    for (const auto& arg : args) {
+        if (std::holds_alternative<Number>(*arg)) {
+            const double value = get_number_value(arg);
+            if (value == 0.0) {
+                changed = true;
+                return make_expr<Number>(0.0);
+            }
+            if (value == 1.0) {
+                changed = true;
+                continue;
+            }
+            numeric_result *= value;
+            continue;
+        }
+        if (std::holds_alternative<Rational>(*arg)) {
+            const auto& rational = std::get<Rational>(*arg);
+            if (rational.numerator == 0) {
+                changed = true;
+                return make_expr<Number>(0.0);
+            }
+            if (!has_rational_result) {
+                rational_num = rational.numerator;
+                rational_den = rational.denominator;
+                has_rational_result = true;
+            } else {
+                auto [nn, dd] = normalize_rational(
+                    rational_num * rational.numerator,
+                    rational_den * rational.denominator);
+                rational_num = nn;
+                rational_den = dd;
+            }
+            if (rational.numerator == rational.denominator) {
+                changed = true;
+            }
+            continue;
+        }
+        symbolic_terms.push_back(arg);
+    }
+
+    std::vector<ExprPtr> rebuilt_terms;
+    rebuilt_terms.reserve(symbolic_terms.size() + 1);
+
+    if (has_rational_result) {
+        if (is_integral(numeric_result)) {
+            auto [nn, dd] = normalize_rational(
+                rational_num * static_cast<int64_t>(numeric_result),
+                rational_den);
+            if (!(nn == 1 && dd == 1)) {
+                rebuilt_terms.push_back(
+                    dd == 1 ? make_expr<Number>(static_cast<double>(nn))
+                            : make_expr<Rational>(nn, dd));
+            } else if (!symbolic_terms.empty()) {
+                changed = true;
+            }
+        } else {
+            const double combined = numeric_result * (static_cast<double>(rational_num) / rational_den);
+            if (combined == 0.0) {
+                changed = true;
+                return make_expr<Number>(0.0);
+            }
+            if (combined != 1.0 || symbolic_terms.empty()) {
+                rebuilt_terms.push_back(make_expr<Number>(combined));
+            } else {
+                changed = true;
+            }
+        }
+    } else if (numeric_result != 1.0 || symbolic_terms.empty()) {
+        rebuilt_terms.push_back(make_expr<Number>(numeric_result));
+    } else if (args.size() != symbolic_terms.size()) {
+        changed = true;
+    }
+
+    rebuilt_terms.insert(rebuilt_terms.end(), symbolic_terms.begin(), symbolic_terms.end());
+
+    if (rebuilt_terms.empty()) {
+        return make_expr<Number>(1.0);
+    }
+    if (rebuilt_terms.size() == 1) {
+        return rebuilt_terms.front();
+    }
+    return normalize_expr(make_fcall("Times", rebuilt_terms));
+}
 
 bool is_pattern_symbol_name(const std::string& name) {
     return name == "_" || (!name.empty() && name.back() == '_');
@@ -445,6 +637,35 @@ RewriteResult rewrite_repeated(
     }
 
     return accumulated;
+}
+
+std::optional<ExprPtr> rewrite_normalized_arithmetic_head(
+    const FunctionCall& func,
+    EvaluationContext& ctx) {
+    if ((func.head != "Plus" && func.head != "Times") || contains_list_argument(func.args)) {
+        return std::nullopt;
+    }
+
+    bool changed = false;
+    ExprPtr rewritten;
+    if (func.head == "Plus") {
+        rewritten = build_plus_bucket_expr(func.args, changed);
+    } else {
+        rewritten = build_times_bucket_expr(func.args, changed);
+    }
+
+    if (!changed) {
+        const auto original = normalize_expr(make_fcall(func.head, func.args));
+        if (!structurally_equal(original, rewritten)) {
+            changed = true;
+        }
+    }
+    if (!changed) {
+        return std::nullopt;
+    }
+
+    ctx.consume_evaluation_step();
+    return rewritten;
 }
 
 }  // namespace aleph3::kernel

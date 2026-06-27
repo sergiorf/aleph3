@@ -348,6 +348,44 @@ TEST_CASE("Kernel rewrite can apply repeated named-pattern rewrites", "[architec
     REQUIRE(kernel::structurally_equal(result.expr, parse_expression("g[g[x]]")));
 }
 
+TEST_CASE("Kernel rewrite supports normalized variadic Plus reduction", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("y + 0 + 2 + x + 3"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_arithmetic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "x + y + 5");
+}
+
+TEST_CASE("Kernel rewrite supports normalized exact variadic Times reduction", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("y * 1 * 2 * x * 1/3"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_arithmetic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "2/3 * x * y");
+}
+
+TEST_CASE("Kernel rewrite variadic arithmetic contract stays out of list-aware forms", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("0 * {x, y}"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_arithmetic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
+}
+
 TEST_CASE("Kernel rewrite respects explicit rewrite-count bounds", "[architecture][rewrite]") {
     const auto expr = parse_expression("f[f[f[x]]]");
     const Rule rule{

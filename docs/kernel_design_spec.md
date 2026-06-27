@@ -220,6 +220,30 @@ Current implementation contract:
 - `rewrite_repeated(..., EvaluationContext&, max_rewrites)` additionally
   consumes the shared evaluation-step budget, one step per successful rewrite
 
+Current rewrite migration decision:
+
+- do not block broader arithmetic simplification on full sequence-pattern
+  support
+- add a dedicated n-ary rewrite contract for normalized `Plus` and `Times`
+  before broadening the general matcher
+- keep like-term collection, container-aware arithmetic, and domain-sensitive
+  power/division logic out of that first variadic rewrite slice
+
+Planned near-term rewrite layering:
+
+1. general structural and named-binder rule engine
+2. fixed-arity arithmetic identity rewrites
+3. dedicated n-ary arithmetic reductions for normalized `Plus` and `Times`
+4. only later, if still justified, broader sequence-pattern machinery
+
+Current implementation status of that layering:
+
+- steps 1 through 3 now exist in initial form
+- the n-ary arithmetic layer currently covers neutral elimination, scalar
+  annihilator handling for `Times`, and scalar numeric/rational bucket folding
+- it still does not cover like-term collection, exponent merging, division
+  cancellation, or container-aware arithmetic
+
 ## Interface Inventory To Define
 
 The first interfaces that should be made explicit are:

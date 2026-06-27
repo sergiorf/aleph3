@@ -172,10 +172,98 @@ ownership of broader n-ary simplification.
 
 The following still remain evaluator-owned for now:
 
-- n-ary constant folding for `Plus` and `Times`
 - coefficient collection and like-term combination
 - list broadcasting and other container-aware simplifications
 - numeric-domain and special-value handling
+
+## Decision On Broader Arithmetic Simplification
+
+Broader arithmetic simplification should not wait for general sequence
+patterns.
+
+The next rewrite expansion should introduce a dedicated n-ary arithmetic
+rewrite contract for canonical `Plus` and `Times` forms.
+
+This decision is intentional for three reasons:
+
+- sequence patterns would widen the general matcher surface significantly and
+  pull in a larger semantic program than the current arithmetic migration
+  needs
+- `Plus` and `Times` already have kernel-known `Flat` and `Orderless`
+  semantics, so they can use a narrower contract than a full sequence-pattern
+  language
+- waiting for general sequence patterns would keep too much arithmetic cleanup
+  trapped in evaluator-local code even though the next safe reductions are
+  already well understood
+
+### N-ary Arithmetic Rewrite Contract
+
+The current rewrite-owned arithmetic slice now operates on already-normalized
+`Plus` and `Times` expressions and treat them as variadic arithmetic forms,
+not as arbitrary pattern-matched trees.
+
+The intended contract is:
+
+- input is a normalized `Plus[...]` or `Times[...]`
+- the rewrite step may inspect the whole argument list for that head
+- the rewrite step may rebuild a new argument list for the same head
+- the rebuilt result is normalized again before it leaves the rewrite-owned
+  arithmetic path
+- each successful reduction remains budgeted through the same rewrite/eval
+  budgeting rules already defined above
+
+The currently implemented reductions are:
+
+- variadic neutral-element elimination for `Plus` and `Times`
+- variadic annihilator handling for scalar `Times`
+- scalar numeric bucket folding for `Plus` and `Times`
+- exact rational bucket folding where the current exact-rational behavior is
+  already stable
+
+This is not the same thing as sequence patterns.
+It is a head-aware variadic reduction contract for a small number of arithmetic
+heads whose algebraic flattening and ordering rules are already known.
+
+### Safe Arithmetic Migrations After The Fixed-arity Identity Slice
+
+The first evaluator-owned simplifications chosen for migration were:
+
+1. variadic neutral-element elimination for `Plus` and `Times`
+   Examples:
+   - `x + 0 + y -> x + y`
+   - `1 * x * y -> x * y`
+2. variadic annihilator handling for `Times`
+   Examples:
+   - `x * 0 * y -> 0`
+   - this remains gated to scalar arithmetic forms, not list-aware broadcast
+     paths
+3. numeric bucket folding for `Plus` and `Times`
+   Examples:
+   - `2 + x + 3 -> x + 5`
+   - `2 * x * 3 -> 6 * x`
+4. exact numeric bucket folding where the existing exact-rational contract is
+   already stable
+   Examples:
+   - `1/2 + x + 1/3 -> x + 5/6`
+   - `2 * 1/3 * x -> 2/3 * x`
+
+### Simplifications That Should Stay Evaluator-owned For Now
+
+The following should not be migrated in the next rewrite slice:
+
+- like-term combination such as `2*x + 3*x -> 5*x`
+- exponent merging such as `x * x^2 -> x^3`
+- division simplifications such as `x/x -> 1` or `0/x -> 0`
+- power-domain-sensitive behavior beyond the current fixed identities
+- list broadcasting and elementwise arithmetic
+- special-function reductions such as `Gamma` shortcuts
+
+These are deferred because they either:
+
+- depend on a stronger exact-algebra foundation
+- depend on richer matcher power than the current minimal pattern language
+- depend on container semantics that are not just scalar rewrites
+- or carry domain/error behavior that should remain explicit before migration
 
 General rewrite integration beyond explicit callers is still future work and
 should only happen where the scheduling contract is precise enough to avoid
@@ -209,7 +297,9 @@ Example of what works now:
 
 ## Next Steps
 
-- decide whether broader arithmetic simplification should wait for sequence
-  patterns or use a dedicated n-ary rewrite contract
+- decide whether like-term collection should wait for stronger exact-algebra
+  metadata or get a separate symbolic coefficient contract first
+- decide whether exponent merging belongs in arithmetic rewrite or in a later
+  algebra-aware layer
 - decide which non-arithmetic simplifications are good candidates for future
   rewrite-owned migration

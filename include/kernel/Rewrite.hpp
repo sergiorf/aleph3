@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 
 #include "expr/Expr.hpp"
 
@@ -35,5 +36,9 @@ struct RewriteResult {
     const Rule& rule,
     EvaluationContext& ctx,
     std::size_t max_rewrites = 16);
+
+[[nodiscard]] std::optional<ExprPtr> rewrite_normalized_arithmetic_head(
+    const FunctionCall& func,
+    EvaluationContext& ctx);
 
 }  // namespace aleph3::kernel

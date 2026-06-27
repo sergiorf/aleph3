@@ -259,6 +259,30 @@ TEST_CASE("Simplify Times[2, 3, 0] to 0", "[evaluator][simplification]") {
     REQUIRE(get_number_value(result) == 0.0);
 }
 
+TEST_CASE("N-ary rewrite-driven arithmetic simplification folds scalar numeric buckets", "[evaluator][simplification][rewrite]") {
+    EvaluationContext ctx;
+
+    auto plus_expr = parse_expression("y + 0 + 2 + x + 3");
+    auto plus_result = evaluate(plus_expr, ctx);
+    REQUIRE(to_string(plus_result) == "x + y + 5");
+
+    auto times_expr = parse_expression("y * 1 * 2 * x * 3");
+    auto times_result = evaluate(times_expr, ctx);
+    REQUIRE(to_string(times_result) == "6 * x * y");
+}
+
+TEST_CASE("N-ary rewrite-driven arithmetic simplification preserves exact rational buckets", "[evaluator][simplification][rewrite]") {
+    EvaluationContext ctx;
+
+    auto plus_expr = parse_expression("x + 1/2 + 1/3");
+    auto plus_result = evaluate(plus_expr, ctx);
+    REQUIRE(to_string(plus_result) == "x + 5/6");
+
+    auto times_expr = parse_expression("x * 2 * 1/3");
+    auto times_result = evaluate(times_expr, ctx);
+    REQUIRE(to_string(times_result) == "2/3 * x");
+}
+
 TEST_CASE("Evaluator contract keeps If lazy and symbolic when required", "[evaluator][contract]") {
     EvaluationContext ctx;
 
@@ -535,7 +559,7 @@ TEST_CASE("Evaluator simplification rules flatten, cancel, and combine symbolic 
     EvaluationContext ctx;
 
     const auto nested_plus = evaluate(parse_expression("x + (y + 2) + 3"), ctx);
-    REQUIRE(to_string(nested_plus) == "5 + x + y");
+    REQUIRE(to_string(nested_plus) == "x + y + 5");
 
     const auto cancelled_sum = evaluate(parse_expression("x + (-1 * x)"), ctx);
     REQUIRE(std::holds_alternative<Number>(*cancelled_sum));

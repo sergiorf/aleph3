@@ -11,10 +11,9 @@ owner:
 - `tooling`
 - `transitional`
 
-Related plans:
+Related documents:
 
-- [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
-- [Kernel Refactor Backlog](kernel_refactor_backlog.md)
+- [Aleph3 Unified Plan](aleph3_unified_plan.md)
 - [Kernel Representation Decision](kernel_representation_decision.md)
 
 ## Ownership Table

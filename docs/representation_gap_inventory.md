@@ -9,8 +9,8 @@ This document inventories the concrete modeling gaps between:
 
 Related documents:
 
+- [Aleph3 Unified Plan](aleph3_unified_plan.md)
 - [Kernel Representation Decision](kernel_representation_decision.md)
-- [Kernel Refactor Backlog](kernel_refactor_backlog.md)
 - [Trusted Subset V1](trusted_subset_v1.md)
 
 Primary sources:

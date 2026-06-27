@@ -4,10 +4,9 @@
 
 Accepted for the current refactor program.
 
-Related plans:
+Related documents:
 
-- [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
-- [Kernel Refactor Backlog](kernel_refactor_backlog.md)
+- [Aleph3 Unified Plan](aleph3_unified_plan.md)
 - [Representation Gap Inventory](representation_gap_inventory.md)
 
 ## Decision

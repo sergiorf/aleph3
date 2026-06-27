@@ -285,46 +285,12 @@ Prefer registration and declarative metadata over evaluator branching:
 - evaluator asks the kernel symbol/definition model first, not scattered
   special cases
 
-## Recommended Future Phases
+## Planning Note
 
-These are the meaningful post-documentation phases if Aleph3 wants to move
-toward a Mathematica-class symbolic core without losing rigor.
+Roadmap, sequencing, and implementation priority now live in the
+[Aleph3 Unified Plan](aleph3_unified_plan.md).
 
-### Phase 12. Kernel Boundary And Symbol Definition Model
-
-Goal:
-
-- define the pure symbolic kernel boundary
-- introduce a symbol-definition architecture that can grow beyond hardcoded
-  evaluator dispatch
-
-### Phase 13. Pattern Matching And Rewrite Engine
-
-Goal:
-
-- add the general symbolic rule machinery that higher symbolic features depend
-  on
-
-### Phase 14. Assumptions And Domain Semantics
-
-Goal:
-
-- let transformations depend on explicit mathematical context instead of only
-  local syntax and numeric checks
-
-### Phase 15. Exact Algebra Backbone
-
-Goal:
-
-- replace the current floating-point polynomial internals with exact algebra
-  infrastructure suitable for real symbolic growth
-
-### Phase 16. Math Packs And High-Level Domains
-
-Goal:
-
-- move algebra, calculus, special functions, and future higher math into pack
-  layers built on the stronger kernel
+This document remains a gap analysis, not a second roadmap.
 
 ## Strategic Rule
 

@@ -17,8 +17,7 @@ Related architecture documents:
 
 - [Class Collaboration](class_collaboration.md)
 - [Symbolic Core Architecture](symbolic_core_architecture.md)
-- [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
-- [Kernel Refactor Backlog](kernel_refactor_backlog.md)
+- [Aleph3 Unified Plan](aleph3_unified_plan.md)
 - [Kernel Representation Decision](kernel_representation_decision.md)
 - [Representation Lowering Strategy](representation_lowering_strategy.md)
 - [Layer Ownership Matrix](layer_ownership_matrix.md)

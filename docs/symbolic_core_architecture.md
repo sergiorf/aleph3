@@ -10,10 +10,10 @@ This document defines the intended architecture boundary between:
 
 This is the architecture contract Aleph3 should clean toward.
 
-Urgent migration program:
+Related documents:
 
 - [Class Collaboration](class_collaboration.md)
-- [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
+- [Aleph3 Unified Plan](aleph3_unified_plan.md)
 - [Kernel Evaluation Context](kernel_evaluation_context.md)
 - [Kernel Diagnostic Taxonomy](kernel_diagnostic_taxonomy.md)
 - [Kernel Registration Interfaces](kernel_registration_interfaces.md)
@@ -293,151 +293,13 @@ This does not need to happen immediately as a directory rename.
 The important thing is to align ownership and interfaces first, then move code
 once boundaries are stable.
 
-## Code Migration Plan
+## Code Migration
 
-This migration should happen in stages. The goal is to improve ownership and
-interfaces first, then move files and APIs once the semantic boundaries are
-clear.
+Migration sequencing and implementation priority now live in the
+[Aleph3 Unified Plan](aleph3_unified_plan.md).
 
-### Priority Rule
-
-This should be done before major new symbolic feature growth in the affected
-areas.
-
-More specifically:
-
-- do the kernel-boundary and migration groundwork before broadening algebra,
-  calculus, rewrite, or special-function work
-- do not block narrow bug fixes, tests, or documentation cleanup on the full
-  migration
-- do not wait for a perfect end-state before starting to remove evaluator
-  bloat and clarify interfaces
-
-So the right answer is:
-
-- yes, this should come first as an architecture program
-- no, it does not need to freeze all feature work
-
-### Migration Order
-
-#### Step 1. Freeze The Architecture Contract
-
-Deliverables:
-
-- architecture doc for kernel vs packs
-- explicit ownership rules
-- list of target subsystems not yet separated
-
-Status:
-
-- documentation-level contract exists
-
-Reason:
-
-- avoid moving code without a stable ownership model
-
-#### Step 2. Introduce Kernel-Facing Interfaces Before Moving Files
-
-Deliverables:
-
-- evaluator-facing interfaces for symbol metadata/definitions
-- pack registration interface
-- clearer boundary for exact arithmetic helpers
-- clearer boundary for normalization and rewrite entrypoints
-
-Reason:
-
-- interface extraction is lower risk than directory churn
-- makes later code movement mostly mechanical
-
-#### Step 3. Carve Out Missing Kernel Subsystems
-
-Target new subsystems:
-
-- `symbols`
-- `rewrite`
-- `exact`
-- `assumptions`
-
-Deliverables:
-
-- minimal headers and source files for each subsystem
-- no full feature parity required yet
-- enough structure that new work lands in the right place
-
-Reason:
-
-- the main problem today is not only file locations
-- it is that important kernel responsibilities have no clear home
-
-#### Step 4. Turn Algebra Into An Explicit Early Pack
-
-Deliverables:
-
-- algebra registration boundary
-- evaluator calls into algebra via pack-facing contracts
-- fewer direct evaluator assumptions about algebra internals
-
-Reason:
-
-- `src/algebra` is the clearest currently blended domain
-- it is the best first candidate for testing the kernel/pack split
-
-#### Step 5. Move Special Functions Toward Pack Ownership
-
-Deliverables:
-
-- special-function registration surface
-- Gamma and follow-on special-function logic moved behind pack-style interfaces
-
-Reason:
-
-- special functions are domain-heavy and otherwise tend to accumulate inside
-  evaluator dispatch
-
-#### Step 6. Introduce Rewrite-Driven Feature Growth
-
-Deliverables:
-
-- new symbolic capabilities depend on the rewrite subsystem and symbol model,
-  not only on evaluator branches
-
-Reason:
-
-- otherwise migration loses value and evaluator bloat resumes
-
-### What Should Be Done First
-
-The first real implementation tranche should be:
-
-1. introduce kernel-facing interfaces
-2. carve out `symbols` and `exact`
-3. define pack registration
-4. re-home algebra behind that registration boundary
-
-That should happen before:
-
-- broad differentiation work
-- substantial special-function expansion
-- more algebra algorithm growth
-- large new evaluator-dispatched built-ins
-
-### What Can Proceed In Parallel
-
-These can continue while migration starts:
-
-- bug fixes
-- regression-test expansion
-- narrow contract hardening
-- documentation cleanup
-- small isolated builtin fixes
-
-### What Should Wait
-
-These should mostly wait until the migration groundwork exists:
-
-- major symbolic calculus work
-- broad solver work
+This document stays focused on architecture boundaries and ownership rather
+than carrying its own separate roadmap.
 - large rewrite-heavy features without a rewrite subsystem
 - deeper algebra expansion on top of the current floating polynomial core
 

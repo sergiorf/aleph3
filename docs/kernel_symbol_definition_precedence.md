@@ -7,8 +7,7 @@ function resolution in the Aleph3 kernel refactor.
 
 Related documents:
 
-- [Kernel Refactor Urgent Plan](kernel_refactor_urgent_plan.md)
-- [Kernel Refactor Backlog](kernel_refactor_backlog.md)
+- [Aleph3 Unified Plan](aleph3_unified_plan.md)
 - [Kernel Registration Interfaces](kernel_registration_interfaces.md)
 - [Kernel Evaluation Context](kernel_evaluation_context.md)
 

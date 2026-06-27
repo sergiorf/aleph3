@@ -343,18 +343,50 @@ problem.
 This contract is now implemented in initial form as a separate kernel-owned
 reduction step above arithmetic rewrite.
 
+It should be treated as a product contract, not as a best-effort heuristic.
+
 It currently supports:
 
 - combining `x + 2*x + 1/3*x` into `10/3 * x`
 - combining `x^2 + 2*x^2` into `3 * x^2`
 - cancelling `x + (-1 * x)` into `0`
 
-It intentionally does not yet support:
+### Supported Basis Class For The Coefficient Layer
+
+The supported basis class is intentionally narrow.
+
+Collection may run only for normalized `Plus` terms whose addends reduce to one
+of these basis shapes:
+
+- `x`
+- `x^n`
+- `c * x`
+- `c * x^n`
+
+Where:
+
+- `x` is a single symbol basis
+- `c` is `Number` or `Rational`
+- `n` is a supported numeric exponent
+
+This means the current coefficient layer promises stable behavior only for
+single-symbol and single-power monomial terms with numeric or exact-rational
+scalar coefficients.
+
+The following are outside the supported basis class and must remain preserved
+rather than partially collected:
 
 - `x*y + 2*x*y`
 - `x*y^2 + 3*x*y^2`
+- `(x + y) + 2 * (x + y)`
+- `f[x] + 2 * f[x]`
 - symbolic coefficient domains
 - basis extraction beyond single-symbol or single-power terms
+- coefficient extraction from terms with more than one symbolic basis factor
+
+If a normalized `Plus` contains both supported and unsupported basis shapes,
+the supported slice may still collect, but unsupported terms must pass through
+without reinterpretation.
 
 ## Decision On Exponent Merging
 
@@ -403,6 +435,21 @@ Its currently implemented surface is intentionally small:
 - `x * x^2 -> x^3`
 - `(x^2)^3 -> x^6`
 
+### Supported Exponent Class For The Algebra-aware Layer
+
+The algebra-aware layer also has a product contract.
+
+Its supported exponent class is:
+
+- same-symbol exponent accumulation inside normalized `Times`
+- nested `Power[Power[x, a], b]` collapse when both `a` and `b` are numeric
+
+In contract terms, the current supported surface is:
+
+- one single-symbol basis reused across the multiplicative chain
+- numeric exponent accumulation on that basis
+- numeric nested-power exponent multiplication
+
 Current constraints:
 
 - only normalized `Times` and `Power` forms participate
@@ -412,6 +459,15 @@ Current constraints:
 - division cancellation is explicitly out of scope
 - power-domain-sensitive transformations are explicitly out of scope
 - list-aware arithmetic is explicitly out of scope
+
+The following are outside the supported exponent class and must remain
+preserved rather than partially normalized:
+
+- base mixing such as `x * y`
+- multibase products such as `x*y * x*y`
+- division-driven identities such as `x^a / x^b`
+- branch- or assumption-sensitive power laws
+- list-aware or container-aware multiplicative behavior
 
 General rewrite integration beyond explicit callers is still future work and
 should only happen where the scheduling contract is precise enough to avoid
@@ -445,9 +501,9 @@ Example of what works now:
 
 ## Next Steps
 
-- decide whether the symbolic coefficient contract should remain limited to
-  single-symbol and single-power bases until stronger exact algebra exists
-- decide whether the algebra-aware layer should remain limited to same-symbol
-  exponent accumulation until stronger exact algebra exists
+- keep the symbolic coefficient contract limited to single-symbol and
+  single-power bases until stronger exact algebra exists
+- keep the algebra-aware layer limited to same-symbol exponent accumulation and
+  numeric nested-power collapse until stronger exact algebra exists
 - decide which non-arithmetic simplifications are good candidates for future
   rewrite-owned migration

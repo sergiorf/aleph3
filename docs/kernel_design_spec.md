@@ -252,6 +252,18 @@ Current implementation status of that layering:
 - a first algebra-aware layer now exists for same-symbol exponent accumulation
   in normalized `Times` and nested numeric `Power` forms
 
+Current product-contract boundaries for those two upper layers are:
+
+- symbolic coefficient layer:
+  supported basis class is `x`, `x^n`, `c*x`, and `c*x^n`, with single-symbol
+  bases only and `c` restricted to `Number` or `Rational`
+- algebra-aware layer:
+  supported exponent class is same-symbol numeric exponent accumulation in
+  normalized `Times` plus nested `Power[Power[x, a], b]` collapse for numeric
+  `a` and `b`
+- both layers preserve unsupported structures rather than partially
+  reinterpreting them
+
 ## Interface Inventory To Define
 
 The first interfaces that should be made explicit are:

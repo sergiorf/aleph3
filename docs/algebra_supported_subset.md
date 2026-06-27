@@ -83,6 +83,54 @@ Examples:
 - `1/2 + 0.5` -> inexact `Number`
 - `Expand[(1/2) * (x + 1)]` -> unsupported exact-rational polynomial input
 
+## Symbolic Rewrite Product Contracts
+
+The current symbolic simplification surface also includes two narrow
+kernel-owned contracts below the broader polynomial helpers above.
+
+### Coefficient Layer Basis Contract
+
+Supported basis shapes for like-term collection are:
+
+- `x`
+- `x^n`
+- `c * x`
+- `c * x^n`
+
+Where:
+
+- `x` is a single symbol
+- `c` is `Number` or `Rational`
+- `n` is a supported numeric exponent
+
+This layer is intentionally not a general monomial collector. The following are
+outside the supported subset:
+
+- multivariate bases such as `x*y`
+- grouped symbolic bases such as `(x + y)`
+- call-shaped bases such as `f[x]`
+- symbolic coefficients
+
+Outside those shapes, the product contract is preservation, not best-effort
+collection.
+
+### Algebra-aware Exponent Contract
+
+Supported exponent behavior is limited to:
+
+- same-symbol exponent accumulation in normalized multiplicative forms
+- nested numeric power collapse such as `(x^2)^3 -> x^6`
+
+The following remain outside the supported subset:
+
+- base-sensitive transforms across different symbols
+- division cancellation
+- branch- or domain-sensitive power laws
+- list-aware arithmetic
+
+Outside those shapes, the product contract is preservation, not heuristic power
+simplification.
+
 ## Factorization Contract
 
 `Factor` currently supports:

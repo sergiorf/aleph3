@@ -144,10 +144,9 @@ g[g[x]]
 ```
 
 In Aleph3, rewrite infrastructure is the subsystem that applies such symbolic
-transformation rules in a controlled way.
-
-Today, Aleph3 only has exact structural rewriting.
-Later, this should grow into pattern-based rewriting.
+transformation rules in a controlled way. The current kernel supports exact
+structural rules plus a first minimal pattern language with named binders such
+as `a_`.
 
 ## Stable Architectural Rules
 

@@ -448,7 +448,10 @@ Current status:
 
 - initial registration metadata is implemented
 - initial symbol metadata and definition records are implemented
-- evaluator precedence still needs to migrate onto those kernel contracts
+- evaluator dispatch now syncs and consults symbol-definition and registration
+  contracts for registered symbolic handlers, user functions, and host
+  functions
+- builtin evaluator functions still retain local precedence code
 
 Success criteria:
 
@@ -464,8 +467,9 @@ Goals:
 Current status:
 
 - exact structural rule rewriting is implemented
+- the first named-binder pattern language is implemented
 - bounded repeated rewrite entrypoints exist
-- pattern matching and conditional rules are still open
+- conditional rules and richer pattern classes are still open
 
 Success criteria:
 
@@ -595,11 +599,10 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. make evaluator dispatch consult the new symbol-definition and registration
-   contracts
-3. extend rewrite from exact structural rules to the first pattern language
-4. define rewrite budgeting relative to evaluation budgets
-5. only then start designing richer interactive surfaces such as a notebook
+2. define rewrite budgeting relative to evaluation budgets
+3. explain how rewrite should be scheduled relative to evaluator-owned
+   simplification and normalization
+4. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 
 ## Deferred Work

@@ -160,9 +160,10 @@ symbolic `evaluate(...)`
 
 `kernel::Rewrite`
 
-- now provides exact structural rule rewriting with bounded repeated
-  application
-- is the first rewrite subsystem slice, not a full pattern engine
+- now provides structural rule rewriting plus the first minimal pattern
+  language based on named binders, with bounded repeated application
+- is still an intentionally small rewrite subsystem slice, not a full pattern
+  engine
 
 `PackRegistry`
 

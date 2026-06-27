@@ -304,6 +304,49 @@ TEST_CASE("Kernel rewrite can traverse and apply repeated exact rewrites", "[arc
     REQUIRE(kernel::structurally_equal(result.expr, parse_expression("g[x] + g[x]")));
 }
 
+TEST_CASE("Kernel rewrite supports named pattern bindings", "[architecture][rewrite]") {
+    const auto expr = parse_expression("f[x + 1]");
+    const Rule rule{
+        parse_expression("f[a_]"),
+        parse_expression("g[a]")
+    };
+
+    const auto result = kernel::rewrite_once(expr, rule);
+
+    REQUIRE(result.changed);
+    REQUIRE(result.rewrites_applied == 1);
+    REQUIRE(kernel::structurally_equal(result.expr, parse_expression("g[x + 1]")));
+}
+
+TEST_CASE("Kernel rewrite enforces repeated named pattern consistency", "[architecture][rewrite]") {
+    const Rule rule{
+        parse_expression("f[a_, a_]"),
+        parse_expression("same[a]")
+    };
+
+    const auto matched = kernel::rewrite_once(parse_expression("f[x + 1, x + 1]"), rule);
+    REQUIRE(matched.changed);
+    REQUIRE(kernel::structurally_equal(matched.expr, parse_expression("same[x + 1]")));
+
+    const auto mismatched = kernel::rewrite_once(parse_expression("f[x + 1, y + 1]"), rule);
+    REQUIRE_FALSE(mismatched.changed);
+    REQUIRE(kernel::structurally_equal(mismatched.expr, parse_expression("f[x + 1, y + 1]")));
+}
+
+TEST_CASE("Kernel rewrite can apply repeated named-pattern rewrites", "[architecture][rewrite]") {
+    const auto expr = parse_expression("f[f[x]]");
+    const Rule rule{
+        parse_expression("f[a_]"),
+        parse_expression("g[a]")
+    };
+
+    const auto result = kernel::rewrite_repeated(expr, rule, 4);
+
+    REQUIRE(result.changed);
+    REQUIRE(result.rewrites_applied >= 2);
+    REQUIRE(kernel::structurally_equal(result.expr, parse_expression("g[g[x]]")));
+}
+
 TEST_CASE("Trusted-subset bridge evaluates lowered formulas with SDK bindings and constants", "[architecture][kernel]") {
     using namespace aleph3::ir;
 

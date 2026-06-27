@@ -1,11 +1,25 @@
 #include "kernel/Rewrite.hpp"
 
+#include <unordered_map>
 #include <type_traits>
 #include <utility>
 
 namespace aleph3::kernel {
 
 namespace {
+
+using PatternBindings = std::unordered_map<std::string, ExprPtr>;
+
+bool is_pattern_symbol_name(const std::string& name) {
+    return name == "_" || (!name.empty() && name.back() == '_');
+}
+
+std::string pattern_binding_name(const std::string& name) {
+    if (name == "_") {
+        return {};
+    }
+    return name.substr(0, name.size() - 1);
+}
 
 bool structurally_equal_list(
     const std::vector<ExprPtr>& left,
@@ -90,14 +104,170 @@ ExprPtr clone_expr(const ExprPtr& expr) {
     return expr == nullptr ? nullptr : std::make_shared<Expr>(*expr);
 }
 
+bool match_list(
+    const std::vector<ExprPtr>& pattern,
+    const std::vector<ExprPtr>& expr,
+    PatternBindings& bindings);
+
+bool match_pattern(
+    const ExprPtr& pattern,
+    const ExprPtr& expr,
+    PatternBindings& bindings) {
+    if (pattern == nullptr || expr == nullptr) {
+        return pattern == nullptr && expr == nullptr;
+    }
+
+    if (const auto* symbol = std::get_if<Symbol>(&*pattern)) {
+        if (is_pattern_symbol_name(symbol->name)) {
+            const auto binding_name = pattern_binding_name(symbol->name);
+            if (binding_name.empty()) {
+                return true;
+            }
+            auto it = bindings.find(binding_name);
+            if (it == bindings.end()) {
+                bindings.emplace(binding_name, expr);
+                return true;
+            }
+            return structurally_equal(it->second, expr);
+        }
+    }
+
+    if (pattern->index() != expr->index()) {
+        return false;
+    }
+
+    return std::visit(
+        [&](const auto& lhs) -> bool {
+            using T = std::decay_t<decltype(lhs)>;
+            const auto& rhs = std::get<T>(*expr);
+
+            if constexpr (std::is_same_v<T, Symbol>) {
+                return lhs.name == rhs.name;
+            } else if constexpr (std::is_same_v<T, Number>) {
+                return lhs.value == rhs.value;
+            } else if constexpr (std::is_same_v<T, Complex>) {
+                return lhs.real == rhs.real && lhs.imag == rhs.imag;
+            } else if constexpr (std::is_same_v<T, Rational>) {
+                return lhs.numerator == rhs.numerator &&
+                       lhs.denominator == rhs.denominator;
+            } else if constexpr (std::is_same_v<T, Boolean>) {
+                return lhs.value == rhs.value;
+            } else if constexpr (std::is_same_v<T, String>) {
+                return lhs.value == rhs.value;
+            } else if constexpr (std::is_same_v<T, FunctionCall>) {
+                return lhs.head == rhs.head &&
+                       match_list(lhs.args, rhs.args, bindings);
+            } else if constexpr (std::is_same_v<T, FunctionDefinition>) {
+                if (lhs.name != rhs.name ||
+                    lhs.delayed != rhs.delayed ||
+                    lhs.params.size() != rhs.params.size()) {
+                    return false;
+                }
+                for (std::size_t index = 0; index < lhs.params.size(); ++index) {
+                    if (lhs.params[index].name != rhs.params[index].name) {
+                        return false;
+                    }
+                    if (!match_pattern(lhs.params[index].default_value,
+                                       rhs.params[index].default_value,
+                                       bindings)) {
+                        return false;
+                    }
+                }
+                return match_pattern(lhs.body, rhs.body, bindings);
+            } else if constexpr (std::is_same_v<T, Assignment>) {
+                return lhs.name == rhs.name &&
+                       match_pattern(lhs.value, rhs.value, bindings);
+            } else if constexpr (std::is_same_v<T, Rule>) {
+                return match_pattern(lhs.lhs, rhs.lhs, bindings) &&
+                       match_pattern(lhs.rhs, rhs.rhs, bindings);
+            } else if constexpr (std::is_same_v<T, List>) {
+                return match_list(lhs.elements, rhs.elements, bindings);
+            } else if constexpr (std::is_same_v<T, Infinity> ||
+                                 std::is_same_v<T, ComplexInfinity> ||
+                                 std::is_same_v<T, Indeterminate>) {
+                return true;
+            } else {
+                return false;
+            }
+        },
+        *pattern);
+}
+
+bool match_list(
+    const std::vector<ExprPtr>& pattern,
+    const std::vector<ExprPtr>& expr,
+    PatternBindings& bindings) {
+    if (pattern.size() != expr.size()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < pattern.size(); ++index) {
+        if (!match_pattern(pattern[index], expr[index], bindings)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+ExprPtr substitute_pattern_bindings(const ExprPtr& expr, const PatternBindings& bindings) {
+    if (expr == nullptr) {
+        return nullptr;
+    }
+
+    return std::visit(
+        [&](const auto& node) -> ExprPtr {
+            using T = std::decay_t<decltype(node)>;
+
+            if constexpr (std::is_same_v<T, Symbol>) {
+                auto it = bindings.find(node.name);
+                return it == bindings.end() ? clone_expr(expr) : clone_expr(it->second);
+            } else if constexpr (std::is_same_v<T, FunctionCall>) {
+                std::vector<ExprPtr> args;
+                args.reserve(node.args.size());
+                for (const auto& arg : node.args) {
+                    args.push_back(substitute_pattern_bindings(arg, bindings));
+                }
+                return make_expr<FunctionCall>(node.head, args);
+            } else if constexpr (std::is_same_v<T, List>) {
+                std::vector<ExprPtr> elements;
+                elements.reserve(node.elements.size());
+                for (const auto& element : node.elements) {
+                    elements.push_back(substitute_pattern_bindings(element, bindings));
+                }
+                return std::make_shared<Expr>(List{elements});
+            } else if constexpr (std::is_same_v<T, Rule>) {
+                return make_expr<Rule>(
+                    substitute_pattern_bindings(node.lhs, bindings),
+                    substitute_pattern_bindings(node.rhs, bindings));
+            } else if constexpr (std::is_same_v<T, Assignment>) {
+                return make_expr<Assignment>(
+                    node.name,
+                    substitute_pattern_bindings(node.value, bindings));
+            } else if constexpr (std::is_same_v<T, FunctionDefinition>) {
+                auto params = node.params;
+                for (auto& param : params) {
+                    param.default_value = substitute_pattern_bindings(param.default_value, bindings);
+                }
+                return make_expr<FunctionDefinition>(
+                    node.name,
+                    params,
+                    substitute_pattern_bindings(node.body, bindings),
+                    node.delayed);
+            } else {
+                return clone_expr(expr);
+            }
+        },
+        *expr);
+}
+
 RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
     if (expr == nullptr) {
         return {};
     }
 
-    if (structurally_equal(expr, rule.lhs)) {
+    PatternBindings bindings;
+    if (match_pattern(rule.lhs, expr, bindings)) {
         RewriteResult result;
-        result.expr = clone_expr(rule.rhs);
+        result.expr = substitute_pattern_bindings(rule.rhs, bindings);
         result.changed = true;
         result.rewrites_applied = 1;
         return result;

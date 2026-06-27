@@ -1,9 +1,8 @@
 /*
  * Kernel Rewrite
  * --------------
- * Minimal kernel-owned rewrite entrypoints for exact structural rule
- * application. This is the first rewrite subsystem slice, not a full pattern
- * matcher.
+ * Minimal kernel-owned rewrite entrypoints for structural and first-pattern
+ * rule application.
  */
 
 #pragma once

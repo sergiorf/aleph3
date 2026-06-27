@@ -2,8 +2,8 @@
 
 ## Status
 
-Initial rewrite infrastructure is now implemented as an exact structural rule
-engine.
+Initial rewrite infrastructure is now implemented as a structural rule engine
+with the first minimal pattern language.
 
 Primary implementation:
 
@@ -15,8 +15,8 @@ Primary implementation:
 This document defines the first kernel-owned rewrite contract.
 
 It is intentionally smaller than the long-term target. The current goal is to
-establish rewrite ownership, traversal semantics, and bounded repeated
-application before adding patterns.
+establish rewrite ownership, traversal semantics, bounded repeated
+application, and the first reusable pattern contract.
 
 ## What "Rewrite" Means
 
@@ -64,17 +64,23 @@ as:
 
 ### Rule Scope
 
-The current rewrite engine accepts exact `Rule` expressions:
+The current rewrite engine accepts structural `Rule` expressions and a first
+pattern language:
 
-- left-hand side must match structurally
-- right-hand side is substituted structurally
+- exact structural rules still work
+- symbols ending in `_` act as named pattern binders
+- repeated use of the same named binder must match the same expression
+- the right-hand side substitutes named binders by bare symbol name
 
-There is no pattern language yet.
-This is exact tree rewriting only.
+Examples:
 
-That means the left-hand side must already match the expression tree exactly.
-The current engine does not yet understand placeholders such as "any
-expression" or named pattern variables.
+- `f[x] -> g[x]`
+- `f[a_] -> g[a]`
+- `f[a_, a_] -> same[a]`
+
+This is still intentionally small.
+There are no typed patterns, predicates, conditions, sequence patterns, or
+attribute-aware matcher rules yet.
 
 ### Equality Model
 
@@ -87,13 +93,14 @@ expression" or named pattern variables.
 - function definitions
 - lists
 
-This is the equality contract used by the first rewrite slice.
+This is the equality contract used by structural matching and by repeated
+named-pattern consistency checks.
 
 ### Traversal Semantics
 
 `rewrite_once(...)` performs:
 
-- top-level exact match first
+- top-level structural or pattern match first
 - recursive traversal into child expressions otherwise
 - whole-tree reconstruction when any child rewrite happens
 
@@ -113,6 +120,7 @@ The first repeated entrypoint is explicitly bounded:
 The rewrite subsystem can already support:
 
 - exact local transformation tests
+- first pattern-based substitution tests
 - rule-driven structural cleanup experiments
 - migration of selected hardcoded transforms toward kernel-owned rewrite APIs
 
@@ -122,23 +130,16 @@ Example of what works now:
 - input: `f[f[x]]`
 - repeated rewrite output: `g[g[x]]`
 
-Example of what does not work yet:
-
-- rule: `f[a_] -> g[a]`
-
-Pattern variables such as `a_` are not implemented yet.
-
 ## What Is Not Implemented Yet
 
-- symbolic patterns
-- named pattern variables
 - conditional rules
+- typed or predicate-based patterns
+- sequence patterns
 - rewrite strategy selection
 - integration with assumptions
 - evaluator/rewrite scheduling policy
 
 ## Next Steps
 
-- add the first minimal pattern language
 - define rewrite budgeting relative to evaluation budgets
 - decide which existing simplifications should move behind rewrite entrypoints

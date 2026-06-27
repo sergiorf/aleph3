@@ -92,6 +92,7 @@ const std::unordered_map<std::string, FunctionSemantics>& function_semantics_reg
         {"Ceil", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, true, false, true, false, false, 1)},
         {"Ceiling", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, true, false, true, false, false, 1)},
         {"Round", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, true, false, true, false, false, 1)},
+        {"Clamp", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, true, false, false, 3)},
         {"ArcSin", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, true, false, true, false, false, 1)},
         {"ArcCos", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, true, false, true, false, false, 1)},
         {"ArcTan", arity_range_semantics(EvaluationMode::Eager, DispatchKind::Default, false, true, false, true, false, false, 1, 2)},

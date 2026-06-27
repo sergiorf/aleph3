@@ -26,7 +26,6 @@ Related documents:
 | `include/frontend`, `src/frontend` | trusted-subset frontend | `sdk` | SDK/trusted-subset parsing and diagnostics layer |
 | `include/ir` | trusted-subset IR | `sdk` | Internal SDK representation only, not kernel-owned semantics |
 | `include/semantics`, `src/semantics` | trusted-subset validation | `sdk` | Schema/policy enforcement belongs above the kernel |
-| `include/runtime`, `src/runtime` | SDK runtime evaluator | `transitional` | Must collapse into kernel-backed execution |
 | `include/sdk`, `src/sdk` | host-facing API | `sdk` | Stable embedding surface |
 | `include/algebra`, `src/algebra` | early domain math | `pack` | First explicit pack extraction target |
 | `include/packs` | registry shell | `kernel` | Registration contracts belong to the kernel; pack implementations do not |
@@ -35,7 +34,6 @@ Related documents:
 | `include/transforms`, `src/transforms` | symbolic transforms | `kernel` | Keep kernel-owned if transform semantics are structural/global; domain-specific transforms should move to packs later |
 | `include/tooling`, `src/tooling` | CLI/support tooling | `tooling` | Consumer layer only |
 | `tests/evaluator` | symbolic evaluator tests | `kernel` | Rename or regroup later if needed |
-| `tests/runtime` | SDK runtime tests | `transitional` | Replace with kernel-backed SDK contract tests over time |
 | `tests/sdk` | SDK behavior tests | `sdk` | Keep host-facing contract coverage here |
 | `tests/algebra` | algebra behavior tests | `pack` | Should follow algebra pack extraction |
 | `tests/parser` | symbolic parser tests | `kernel` | Kernel symbolic parser coverage |
@@ -47,8 +45,6 @@ Related documents:
 These areas should be treated as explicitly transitional and should not absorb
 major new permanent semantics:
 
-- `include/runtime`, `src/runtime`
-- `tests/runtime`
 - any code path that deepens `ir::Node` into a second symbolic engine
 
 ## Ownership Rules
@@ -66,7 +62,6 @@ Use these rules when placing new work:
 
 Do not:
 
-- add new permanent evaluator semantics under `src/runtime`
 - add new domain algorithms directly into the kernel evaluator when they can be
   pack-registered
 - treat `include/ir` as a second symbolic AST
@@ -76,7 +71,5 @@ Do not:
 ## First Follow-On Moves
 
 1. introduce `aleph3_kernel` as an explicit target
-2. mark `runtime::Evaluator` as transitional in docs and code comments where
-   appropriate
-3. extract algebra toward the first pack boundary
-4. migrate SDK evaluation toward kernel-backed execution
+2. extract algebra toward the first pack boundary
+3. keep SDK evaluation kernel-backed

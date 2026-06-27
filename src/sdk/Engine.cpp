@@ -8,7 +8,6 @@
 #include "kernel/Diagnostics.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/TrustedSubsetBridge.hpp"
-#include "runtime/Evaluator.hpp"
 #include "semantics/Validator.hpp"
 
 #include <cctype>
@@ -149,64 +148,6 @@ ExprPtr sdk_value_to_expr(const Value& value) {
     return make_expr<Indeterminate>();
 }
 
-bool contains_non_finite_number(const Value& value) {
-    if (const auto* number = value.as_number()) {
-        return !std::isfinite(*number);
-    }
-    if (const auto* list = value.as_list()) {
-        for (const auto& element : *list) {
-            if (contains_non_finite_number(element)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-bool contains_non_finite_numbers(const Bindings& bindings) {
-    for (const auto& [_, value] : bindings) {
-        if (contains_non_finite_number(value)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool has_runtime_sensitive_semantics(const ExprPtr& expr) {
-    if (expr == nullptr) {
-        return false;
-    }
-
-    if (const auto* call = std::get_if<FunctionCall>(&*expr)) {
-        if (call->head == "Divide" ||
-            call->head == "Power" ||
-            call->head == "Equal" ||
-            call->head == "NotEqual" ||
-            call->head == "Less" ||
-            call->head == "LessEqual" ||
-            call->head == "Greater" ||
-            call->head == "GreaterEqual") {
-            return true;
-        }
-        for (const auto& arg : call->args) {
-            if (has_runtime_sensitive_semantics(arg)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    if (const auto* list = std::get_if<List>(&*expr)) {
-        for (const auto& element : list->elements) {
-            if (has_runtime_sensitive_semantics(element)) {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 void seed_kernel_symbols(
     kernel::EvaluationContext& ctx,
     const Bindings& constants,
@@ -231,6 +172,8 @@ EvaluationResult evaluate_via_kernel_bridge(
     });
 
     kernel::EvaluationContext ctx(bindings, constants, host_functions, policy);
+    ctx.enable_runtime_strict_semantics(true);
+    ctx.reset_runtime_step_counter();
     seed_kernel_symbols(ctx, constants, bindings);
 
     auto result_expr = evaluate(kernel_expr, ctx);
@@ -381,33 +324,36 @@ EvaluationResult Engine::evaluate(
         host_functions = state_->host_functions;
     }
 
-    if (formula.state_->kernel_expr != nullptr &&
-        !contains_non_finite_numbers(bindings) &&
-        !contains_non_finite_numbers(formula.state_->constants) &&
-        !has_runtime_sensitive_semantics(formula.state_->kernel_expr)) {
-        try {
-            auto bridged = evaluate_via_kernel_bridge(
-                formula.state_->kernel_expr,
-                bindings,
-                formula.state_->constants,
-                host_functions,
-                formula.state_->policy);
-            if (bridged.ok()) {
-                return bridged;
-            }
-        } catch (const kernel::RuntimeFailure& failure) {
-            EvaluationResult result;
-            result.error = failure.error();
-            return result;
-        } catch (const EvaluatorError&) {
-            // Preserve current SDK behavior while the kernel bridge is still incomplete.
-        } catch (const std::runtime_error&) {
-            // Preserve current SDK behavior while the kernel bridge is still incomplete.
-        }
+    if (formula.state_->kernel_expr == nullptr) {
+        EvaluationResult result;
+        result.error = kernel::make_runtime_error(
+            kernel::ErrorCode::internal_inconsistency,
+            "Compiled formula is missing its lowered kernel expression.");
+        return result;
     }
 
-    runtime::Evaluator evaluator({bindings, formula.state_->constants, host_functions, formula.state_->policy});
-    return evaluator.evaluate(formula.state_->root);
+    try {
+        return evaluate_via_kernel_bridge(
+            formula.state_->kernel_expr,
+            bindings,
+            formula.state_->constants,
+            host_functions,
+            formula.state_->policy);
+    } catch (const kernel::RuntimeFailure& failure) {
+        EvaluationResult result;
+        result.error = failure.error();
+        return result;
+    } catch (const EvaluatorError& error) {
+        EvaluationResult result;
+        result.error = kernel::make_runtime_error(error.code(), error.what());
+        return result;
+    } catch (const std::runtime_error& error) {
+        EvaluationResult result;
+        result.error = kernel::make_runtime_error(
+            kernel::ErrorCode::internal_inconsistency,
+            error.what());
+        return result;
+    }
 }
 
 }  // namespace aleph3

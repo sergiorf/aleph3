@@ -87,8 +87,8 @@ the SDK runtime:
 - calls -> `FunctionCall(callee, args...)`
 - `IfNode` -> `If[condition, then, else]`
 
-This mapping intentionally targets symbolic heads rather than reproducing the
-SDK runtime evaluator's operator-specific execution tree.
+This mapping intentionally targets symbolic heads rather than reproducing a
+separate SDK operator-specific execution tree.
 
 ## `CompiledFormula` Strategy
 
@@ -119,7 +119,7 @@ The lowering adapter is migration scaffolding.
 
 It is temporary in these senses:
 
-- it exists because the repo still has an SDK runtime evaluator
+- it exists because the repo still has SDK-owned frontend and validation forms
 - it should stay narrow and translation-oriented
 - it should not accumulate host policy logic
 - it should not become a rich second interpreter API
@@ -140,5 +140,4 @@ Do not use the lowering layer to:
 2. route SDK execution through that module before symbolic evaluation collapse
 3. decide whether `CompiledFormula` should cache lowered `Expr`, `ir::Node`, or
    both during the transition
-4. remove duplicate semantic behavior from `runtime::Evaluator` once kernel
-   execution owns the trusted subset
+4. simplify the remaining bridge once kernel execution owns the trusted subset

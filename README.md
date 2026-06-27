@@ -20,14 +20,11 @@ The architecture is:
 
 Current architecture warning:
 
-- the repository still contains a transitional dual-evaluator state
 - `src/evaluator` is the symbolic engine path
-- `src/runtime` is an SDK runtime path that should not become a permanent peer
-  kernel
 - the active refactor direction is convergence on one kernel plus pack-style
   domain growth
-- the SDK now builds on the kernel directly even when the broader symbolic
-  surface is disabled
+- the SDK now builds on and evaluates through the kernel directly even when
+  the broader symbolic surface is disabled
 
 ## Current Repository Tracks
 - Symbolic kernel and early math surface: parser, evaluator, transforms, and
@@ -35,9 +32,8 @@ Current architecture warning:
 - SDK layer: public API under `include/sdk/` and trusted-subset IR under `include/ir/`
 - CLI surface: `aleph3_cli` for symbolic and SDK checks
 - SDK validation and compile path: `validate` performs schema/arity/type checks and `compile` creates reusable formula handles
-- SDK runtime path: `evaluate` currently runs a trusted-subset tree interpreter,
-  but this runtime path is transitional and is intended to collapse into the
-  shared kernel
+- SDK execution path: `evaluate` lowers trusted-subset formulas into kernel
+  expressions and executes them through the shared kernel path
 - Host function contract: engine-scoped registration enforces callback metadata at registration and runtime
 - Host-function tooling: `evaluate-host` and `aleph3_sdk_example` exercise embedded callbacks end-to-end
 - Docs index: [docs/sdk/README.md](docs/sdk/README.md)

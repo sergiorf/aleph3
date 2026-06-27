@@ -50,9 +50,9 @@ Bottom line:
 
 ## Current Trusted Math Core
 
-## Runtime
+## Evaluation
 
-Current runtime behavior in [src/runtime/Evaluator.cpp](/home/sergio/dev/aleph3/src/runtime/Evaluator.cpp):
+Current SDK evaluation behavior is kernel-backed through [src/sdk/Engine.cpp](/home/sergio/dev/aleph3/src/sdk/Engine.cpp):
 
 - arithmetic operators: `+`, `-`, `*`, `/`, `^`
 - comparisons: `==`, `!=`, `<`, `<=`, `>`, `>=`
@@ -85,9 +85,9 @@ time or compile time.
 
 Current coverage is meaningful:
 
-- [tests/runtime/EvaluatorTests.cpp](/home/sergio/dev/aleph3/tests/runtime/EvaluatorTests.cpp)
 - [tests/semantics/ValidatorTests.cpp](/home/sergio/dev/aleph3/tests/semantics/ValidatorTests.cpp)
 - [tests/sdk/EngineTests.cpp](/home/sergio/dev/aleph3/tests/sdk/EngineTests.cpp)
+- [tests/evaluator/ArchitectureMigrationTests.cpp](/home/sergio/dev/aleph3/tests/evaluator/ArchitectureMigrationTests.cpp)
 
 That said, the tests currently prove a narrow happy path and a few negative
 cases. They do not yet define a full numeric contract.

@@ -10,8 +10,8 @@ Architecture status note:
 - this document describes the SDK/trusted-subset architecture track
 - the repository also contains a symbolic-core track that is converging toward
   a single kernel
-- the current SDK runtime evaluator should be treated as transitional, not as a
-  second permanent kernel
+- SDK evaluation is now kernel-backed rather than routed through a separate
+  runtime evaluator
 
 Related architecture documents:
 
@@ -53,7 +53,7 @@ The system should have six layers:
 2. `frontend`
 3. `ir`
 4. `semantics`
-5. `runtime`
+5. `kernel`
 6. `tooling`
 
 These are logical layers first. They should also map to code organization.
@@ -114,21 +114,15 @@ Output:
 
 - validated IR plus diagnostics
 
-### 5. Runtime
+### 5. Kernel
 
 Responsibility:
 
 - evaluation
-- runtime value model
+- kernel value and expression semantics
 - host function dispatch
 - evaluation budgeting
-- eventual compiled execution path
-
-Transitional rule:
-
-The current SDK runtime layer is allowed as a migration layer for the
-trusted-subset path, but long-term symbolic semantics must converge on a single
-kernel rather than persisting as a separate `runtime::Evaluator` core.
+- lowered trusted-subset execution path
 
 ### 6. Tooling
 
@@ -152,13 +146,7 @@ The intended flow is:
 5. semantics validates IR against schema and policy
 6. SDK returns `CompiledFormula` or diagnostics
 7. host evaluates compiled formula with bindings
-8. runtime executes IR and returns `Value` or `RuntimeError`
-
-Migration note:
-
-For the current repository state, this flow is still implemented separately
-from the symbolic evaluator. That is a transitional condition being corrected
-by the kernel refactor program.
+8. kernel executes the lowered formula and returns `Value` or `RuntimeError`
 
 That gives a clean lifecycle:
 
@@ -189,11 +177,10 @@ include/
     Validator.hpp
     AstAnalysis.hpp
     TypeSystem.hpp
-  runtime/
-    Value.hpp
-    Evaluator.hpp
-    HostFunction.hpp
-    RuntimeError.hpp
+  kernel/
+    EvaluationContext.hpp
+    Diagnostics.hpp
+    TrustedSubsetBridge.hpp
 
 src/
   sdk/
@@ -208,9 +195,9 @@ src/
     Validator.cpp
     AstAnalysis.cpp
     TypeSystem.cpp
-  runtime/
-    Evaluator.cpp
-    HostFunction.cpp
+  kernel/
+    Lowering.cpp
+    TrustedSubsetBridge.cpp
 ```
 
 ## Core Public SDK Classes
@@ -296,7 +283,7 @@ Likely implementation:
 Header:
 
 - `include/sdk/Types.hpp`
-- runtime backing in `include/runtime/Value.hpp`
+- kernel-backed SDK value support lives behind the SDK types layer
 
 Responsibility:
 
@@ -368,8 +355,7 @@ Fields:
 
 Header:
 
-- `include/runtime/HostFunction.hpp`
-- public exposure via SDK headers as needed
+- `include/sdk/Types.hpp`
 
 Responsibility:
 
@@ -591,31 +577,15 @@ Examples:
 
 ## Runtime Classes
 
-## Runtime Value
-
-Header:
-
-- `include/runtime/Value.hpp`
-
-Responsibility:
-
-- internal and public-facing runtime value representation
-
-Variants:
-
-- number
-- boolean
-- string
-
 ## RuntimeError
 
 Header:
 
-- `include/runtime/RuntimeError.hpp`
+- `include/sdk/Types.hpp`
 
 Responsibility:
 
-- machine-readable runtime failure
+- machine-readable runtime failure projected from kernel-backed execution
 
 Examples:
 
@@ -626,13 +596,9 @@ Examples:
 
 ## Evaluator
 
-Header:
-
-- `include/runtime/Evaluator.hpp`
-
 Responsibility:
 
-- execute validated IR
+- execute lowered trusted-subset formulas through the kernel
 
 Input:
 

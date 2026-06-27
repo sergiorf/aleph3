@@ -246,7 +246,7 @@ Deliverables:
 Deliverables:
 
 - SDK evaluation reaches kernel entrypoint through a defined bridge
-- `runtime::Evaluator` stops being a peer semantic center
+- the legacy runtime evaluator path stops being a peer semantic center
 
 ### Slice 4. Symbol And Registration Expansion
 

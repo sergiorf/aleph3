@@ -129,7 +129,6 @@ Current blended areas:
 Clearly non-kernel areas:
 
 - `include/sdk`, `src/sdk`
-- `include/runtime`, `src/runtime`
 - `include/ir`
 - `include/tooling`, `src/tooling`
 

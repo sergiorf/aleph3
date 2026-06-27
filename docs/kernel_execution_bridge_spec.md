@@ -14,7 +14,7 @@ It should specify:
 
 - how `ir::Node` maps or lowers into kernel execution inputs
 - where the adapter lives
-- how `Engine::evaluate` stops depending on `runtime::Evaluator`
+- how `Engine::evaluate` stops depending on the legacy runtime evaluator path
 - what transitional compatibility is acceptable during migration
 
 ## Scope
@@ -25,7 +25,7 @@ This spec should cover:
 - ownership boundaries between SDK and kernel
 - lowering or translation model
 - runtime policy and diagnostic projection
-- migration off `runtime::Evaluator`
+- migration off the legacy runtime evaluator path
 
 ## Required Sections
 
@@ -48,5 +48,5 @@ This spec should cover:
 
 This spec is sufficient when:
 
-- the removal path for `runtime::Evaluator` is explicit
+- the removal path for the legacy runtime evaluator path is explicit
 - SDK execution can be redirected without inventing a second semantic model

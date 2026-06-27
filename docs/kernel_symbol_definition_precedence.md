@@ -17,7 +17,7 @@ This is the current precedence contract for the symbolic `Expr` evaluator.
 
 It does not yet define a fully unified precedence model for:
 
-- SDK runtime host functions versus symbolic functions
+- SDK host functions versus symbolic functions
 - future rewrite rules
 - future assumptions-driven transformations
 - future richer symbol metadata such as upvalues/downvalues
@@ -63,7 +63,8 @@ Inside the general function path, the current order is:
 2. kernel symbolic registry functions
 3. builtin evaluator functions
 4. user-defined functions
-5. unresolved symbolic fallback
+5. host functions
+6. unresolved symbolic fallback
 
 Meaning:
 
@@ -73,6 +74,8 @@ Meaning:
 - builtin evaluator branches win before user-defined functions
 - user-defined functions are only used when no earlier symbolic dispatch owns
   the name
+- host functions are resolved through the shared kernel context after symbolic
+  function ownership checks
 - if nothing owns the name, the function call remains symbolic
 
 ## Current Assignment And Definition Rules
@@ -85,14 +88,8 @@ Meaning:
 
 ## Current Host Function Position
 
-Host functions currently belong to the SDK/runtime `ir::Node` execution track.
-
-Current rule:
-
-- host functions are resolved only in the runtime evaluator
-- they are not yet part of the symbolic `Expr` precedence ladder
-
-This is an intentional transitional limitation.
+Host functions now resolve through the shared kernel context during SDK
+evaluation.
 
 ## Explicit Current Answers
 
@@ -120,7 +117,7 @@ Current answer:
 
 - remains symbolic rather than erroring by default
 
-### Unknown SDK runtime variable
+### Unknown SDK variable
 
 Current answer:
 
@@ -128,6 +125,6 @@ Current answer:
 
 ## Next Follow-On Steps
 
-1. define how runtime host functions and symbolic registrations relate long-term
+1. define how SDK host functions and symbolic registrations relate long-term
 2. define precedence for future rewrite rules
 3. define richer symbol metadata and attribute-driven dispatch

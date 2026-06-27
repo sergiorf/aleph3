@@ -3,6 +3,7 @@
 #include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
+#include "kernel/Diagnostics.hpp"
 
 namespace aleph3 {
 
@@ -23,6 +24,11 @@ ExprPtr evaluate_special_form(const FunctionCall& func, EvaluationContext& ctx) 
         if (std::holds_alternative<Boolean>(*condition)) {
             const bool cond = std::get<Boolean>(*condition).value;
             return cond ? evaluate(func.args[1], ctx) : evaluate(func.args[2], ctx);
+        }
+        if (ctx.strict_runtime_semantics()) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::type_mismatch,
+                "If condition must evaluate to a boolean.");
         }
         return make_expr<FunctionCall>(name, func.args);
     }

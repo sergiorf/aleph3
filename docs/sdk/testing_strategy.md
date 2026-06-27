@@ -8,7 +8,7 @@ for the new embedded engine.
 
 ```mermaid
 flowchart TD
-    Unit["Unit Tests\nSDK / IR / runtime helpers"] --> Contract["Contract Tests\ncompile / validate / evaluate guarantees"]
+    Unit["Unit Tests\nSDK / IR / kernel bridge helpers"] --> Contract["Contract Tests\ncompile / validate / evaluate guarantees"]
     Contract --> Integration["Integration Tests\nexample host app / package consumption"]
 ```
 
@@ -26,8 +26,8 @@ flowchart TD
   Verifies the trusted-subset IR shape and construction helpers.
 - `tests/semantics/ValidatorTests.cpp`
   Verifies unknown-symbol, arity, feature-gate, structural-limit, constant-condition branch pruning, schema-valued constant reasoning, constant runtime-trap detection, branch-compatibility, and composed-type checks.
-- `tests/runtime/EvaluatorTests.cpp`
-  Verifies arithmetic, comparisons, conditionals, bindings, host function contracts, and runtime failures.
+- `tests/evaluator/ArchitectureMigrationTests.cpp`
+  Verifies the lowering bridge, shared kernel execution context, and kernel-side host-function behavior used by SDK evaluation.
 
 ## What Legacy Tests Still Mean
 

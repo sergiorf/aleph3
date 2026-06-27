@@ -122,7 +122,7 @@ It should not become:
 ## Immediate Implementation Implications
 
 1. Introduce `aleph3_kernel` as the target that owns `Expr`-based semantics.
-2. Treat `runtime::Evaluator` as transitional.
+2. Treat the former `runtime::Evaluator` path as transitional and removable.
 3. Route SDK evaluation toward the kernel rather than preserving a permanent
    `ir::Node` evaluator.
 4. Keep trusted-subset validation and policy in the SDK layer.

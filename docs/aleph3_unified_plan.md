@@ -71,9 +71,8 @@ What is already true:
 
 What is still unresolved:
 
-- the SDK still has a real runtime evaluator path over `ir::Node`
 - symbolic semantics are still split across `Expr`-based and `ir::Node`-based
-  execution paths
+  compile-time and lowering representations in some migration areas
 - higher math boundaries are still blended into evaluator-oriented code
 - several roadmap documents duplicated the same priorities with different
   framing
@@ -231,7 +230,7 @@ The program is complete when all of the following are true:
 
 - `aleph3_kernel` is the only semantic core
 - SDK evaluation routes through the kernel
-- `runtime::Evaluator` is removed or reduced to a thin adapter
+- the legacy runtime evaluator path is removed
 - kernel-owned contracts exist for evaluation context, diagnostics, symbol
   definitions, and registration
 - higher math growth follows pack boundaries instead of accumulating in the
@@ -414,14 +413,15 @@ Tasks:
 - route `Engine::evaluate` toward kernel-backed execution
 - treat `ir::Node` as validated and lowered input, not as a permanent semantic
   center
-- replace direct dependence on `runtime::Evaluator` with kernel execution
-- either delete `runtime::Evaluator` or reduce it to a thin adapter
+- remove the former direct dependence on `runtime::Evaluator`
+- delete the legacy runtime evaluator path and its dedicated test surface
 - define which SDK APIs are stable product APIs and which are transitional
 - ensure SDK diagnostics are kernel diagnostics projected for host users
 - document the SDK as the first practical open-source adoption path
 - add examples that demonstrate the kernel-backed SDK path
 
-This is the most important active implementation task.
+This work is now complete enough that the next focus should be cleanup,
+bridge simplification, and stronger kernel-first coverage.
 
 Success criteria:
 
@@ -574,7 +574,7 @@ Goals:
 Tasks:
 
 - remove stale plan files and duplicated roadmap text
-- remove or hollow out duplicate runtime paths once kernel execution is live
+- remove duplicate runtime paths once kernel execution is live
 - clean up docs, tests, and class-collaboration descriptions that imply two
   lasting semantic cores
 
@@ -587,16 +587,14 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. define the kernel-facing execution path the SDK should call
-3. route `Engine::evaluate` toward that kernel path
-4. keep `ir::Node` as validated/lowered input only
-5. reduce `runtime::Evaluator` to an adapter or remove it
-6. add regression coverage proving SDK and symbolic execution share kernel
+2. simplify the remaining lowering bridge around the kernel-backed SDK path
+3. keep `ir::Node` as validated/lowered input only
+4. add regression coverage proving SDK and symbolic execution share kernel
    semantics
-7. define the public SDK surface that should survive after kernel convergence
-8. identify which SDK APIs are stable versus transitional
-9. define the minimal registration contract future packs will require
-10. only then start designing richer interactive surfaces such as a notebook
+5. define the public SDK surface that should survive after kernel convergence
+6. identify which SDK APIs are stable versus transitional
+7. define the minimal registration contract future packs will require
+8. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 
 ## Deferred Work

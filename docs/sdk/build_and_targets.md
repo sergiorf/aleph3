@@ -8,8 +8,8 @@ Status note:
 
 - this split is transitional
 - the target architecture is one kernel plus SDK and pack layers above it
-- the current SDK runtime path should not become a permanent peer semantic core
-- `aleph3_sdk` now depends on `aleph3_kernel` in the build graph
+- SDK execution is now kernel-backed
+- `aleph3_sdk` depends on `aleph3_kernel` in the build graph
 
 Related documents:
 
@@ -25,12 +25,11 @@ Related documents:
 | `aleph3_symbolic` | alias | Compatibility alias for the current kernel target during migration |
 | `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
 | `aleph3_pack_algebra` | interface library | Placeholder pack boundary for future algebra extraction |
-| `aleph3_runtime` | interface library | Transitional runtime-facing include boundary placeholder |
-| `aleph3_sdk` | library | Public SDK facade that should converge on kernel-backed execution |
+| `aleph3_sdk` | library | Public SDK facade over kernel-backed execution |
 | `aleph3_cli` | executable | Thin SDK tooling CLI for manual parser/validator/runtime checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
 | `aleph3_symbolic_tests` | executable | Kernel-oriented symbolic tests plus current symbolic tooling and pack-placeholder coverage |
-| `aleph3_sdk_tests` | executable | SDK-layer tests plus transitional runtime and SDK tooling coverage |
+| `aleph3_sdk_tests` | executable | SDK-layer tests and SDK tooling coverage |
 
 ## Build Options
 
@@ -55,7 +54,6 @@ flowchart TD
     CoreMath["aleph3_pack_core_math"] --> Kernel
     Algebra["aleph3_pack_algebra"] --> Kernel
     Kernel --> Sdk["aleph3_sdk"]
-    Runtime["aleph3_runtime"] --> Sdk
     Sdk --> SdkTests["aleph3_sdk_tests"]
     Sdk --> Cli["aleph3_cli"]
     Sdk --> Example["aleph3_sdk_example"]
@@ -70,8 +68,6 @@ not complete yet.
 ## Practical Guidance
 
 - Use `ALEPH3_BUILD_SDK=ON` to work on the primary SDK path.
-- Treat the current SDK runtime evaluator as transitional while the repo moves
-  toward one kernel.
 - Expect the kernel to build whenever the SDK is enabled.
 - Use `aleph3_cli` for fast manual checks while broader validation and custom host-function tooling are still under construction.
 - `validate` in the CLI now exercises the real lexer/parser/validator path.
@@ -96,8 +92,6 @@ not complete yet.
   `tests/*.cpp` are treated as kernel-side coverage.
 - `tests/algebra` remains linked through the symbolic test target for now, but
   is treated as pack-owned coverage by architecture.
-- `tests/runtime` is transitional coverage for the current SDK runtime path and
-  should shrink as SDK evaluation collapses into the kernel.
 - `tests/frontend`, `tests/ir`, `tests/semantics`, and `tests/sdk` are SDK-side
   coverage.
 - `tests/tooling` is SDK/tooling consumer coverage.

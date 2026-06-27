@@ -8,6 +8,7 @@
 #include "evaluator/EvaluatorSemantics.hpp"
 #include "evaluator/SimplificationRules.hpp"
 #include "expr/ExprUtils.hpp"
+#include "kernel/Diagnostics.hpp"
 #include "util/Logging.hpp"
 
 #include <algorithm>
@@ -21,6 +22,26 @@
 namespace aleph3 {
 
 namespace {
+
+bool is_finite_number(double value) noexcept {
+    return std::isfinite(value);
+}
+
+[[noreturn]] void throw_runtime_type_mismatch(std::string message) {
+    kernel::throw_runtime_error(kernel::ErrorCode::type_mismatch, std::move(message));
+}
+
+[[noreturn]] void throw_runtime_invalid_call(std::string message) {
+    kernel::throw_runtime_error(kernel::ErrorCode::invalid_call, std::move(message));
+}
+
+void ensure_finite_number(double value) {
+    if (!is_finite_number(value)) {
+        kernel::throw_runtime_error(
+            kernel::ErrorCode::non_finite_number,
+            "Numeric operations require finite input values.");
+    }
+}
 
 const std::unordered_map<std::string, std::function<double(double)>>& unary_functions() {
     static const std::unordered_map<std::string, std::function<double(double)>> value = {
@@ -278,12 +299,26 @@ ExprPtr evaluate_builtin_unary(const FunctionCall& func, EvaluationContext& ctx)
 
     if (std::holds_alternative<Number>(*arg_eval)) {
         double arg = get_number_value(arg_eval);
+        if (ctx.strict_runtime_semantics()) {
+            ensure_finite_number(arg);
+        }
         const auto& domains = unary_real_domains();
         auto domain_it = domains.find(func.head);
         if (domain_it != domains.end() && !domain_it->second(arg)) {
+            if (ctx.strict_runtime_semantics()) {
+                kernel::throw_runtime_error(
+                    kernel::ErrorCode::invalid_numeric_domain,
+                    func.head + " is undefined for the given numeric input.");
+            }
             return make_fcall(func.head, {arg_eval});
         }
-        return make_expr<Number>(it->second(arg));
+        double result = it->second(arg);
+        if (ctx.strict_runtime_semantics() && !is_finite_number(result)) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::invalid_numeric_result,
+                "Numeric evaluation produced a non-finite result.");
+        }
+        return make_expr<Number>(result);
     }
 
     if (is_listable_function(func.head) && std::holds_alternative<List>(*arg_eval)) {
@@ -418,12 +453,53 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
     if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
         double a = get_number_value(left);
         double b = get_number_value(right);
+        if (ctx.strict_runtime_semantics()) {
+            ensure_finite_number(a);
+            ensure_finite_number(b);
+            if (func.head == "Divide" && b == 0.0) {
+                kernel::throw_runtime_error(
+                    kernel::ErrorCode::division_by_zero,
+                    "Division by zero is not allowed.");
+            }
+            if (func.head == "Power") {
+                if (a == 0.0 && b == 0.0) {
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::invalid_power_domain,
+                        "Power is undefined for the given numeric inputs.");
+                }
+                if (a < 0.0 && std::floor(b) != b) {
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::invalid_power_domain,
+                        "Power is undefined for the given numeric inputs.");
+                }
+            }
+        }
         const auto& domains = binary_real_domains();
         auto domain_it = domains.find(func.head);
         if (domain_it != domains.end() && !domain_it->second(a, b)) {
+            if (ctx.strict_runtime_semantics()) {
+                if (func.head == "Power") {
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::invalid_power_domain,
+                        "Power is undefined for the given numeric inputs.");
+                }
+                kernel::throw_runtime_error(
+                    kernel::ErrorCode::invalid_numeric_domain,
+                    func.head + " is undefined for the given numeric inputs.");
+            }
             return make_fcall(func.head, {left, right});
         }
-        return make_expr<Number>(it->second(a, b));
+        double result = it->second(a, b);
+        if (ctx.strict_runtime_semantics() && !is_finite_number(result)) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::invalid_numeric_result,
+                "Numeric evaluation produced a non-finite result.");
+        }
+        return make_expr<Number>(result);
+    }
+
+    if (ctx.strict_runtime_semantics()) {
+        throw_runtime_type_mismatch("Arithmetic operators require numeric values.");
     }
 
     auto simp_it = simplification_rules.find(func.head);
@@ -454,6 +530,10 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
     if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
         double arg1 = get_number_value(left);
         double arg2 = get_number_value(right);
+        if (ctx.strict_runtime_semantics()) {
+            ensure_finite_number(arg1);
+            ensure_finite_number(arg2);
+        }
         return make_expr<Boolean>(it->second(arg1, arg2));
     }
     if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Rational>(*right)) {
@@ -482,7 +562,26 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
         double a = std::get<Number>(*left).value;
         const auto& b = std::get<Rational>(*right);
         double b_val = static_cast<double>(b.numerator) / b.denominator;
+        if (ctx.strict_runtime_semantics()) {
+            ensure_finite_number(a);
+        }
         return make_expr<Boolean>(it->second(a, b_val));
+    }
+
+    if ((func.head == "Equal" || func.head == "NotEqual")) {
+        if (std::holds_alternative<Boolean>(*left) && std::holds_alternative<Boolean>(*right)) {
+            const bool result = std::get<Boolean>(*left).value == std::get<Boolean>(*right).value;
+            return make_expr<Boolean>(func.head == "Equal" ? result : !result);
+        }
+        if (std::holds_alternative<String>(*left) && std::holds_alternative<String>(*right)) {
+            const bool result = std::get<String>(*left).value == std::get<String>(*right).value;
+            return make_expr<Boolean>(func.head == "Equal" ? result : !result);
+        }
+        if (ctx.strict_runtime_semantics()) {
+            throw_runtime_type_mismatch("Equality comparisons require comparable value types.");
+        }
+    } else if (ctx.strict_runtime_semantics()) {
+        throw_runtime_type_mismatch("Comparison operators require numeric values.");
     }
     return make_fcall(func.head, {left, right});
 }
@@ -524,6 +623,45 @@ ExprPtr evaluate_builtin_function(const FunctionCall& func, EvaluationContext& c
             }
         }
         return make_fcall("Times", {make_expr<Number>(-1), arg});
+    }
+
+    if (func.head == "Clamp") {
+        if (func.args.size() != 3) {
+            if (ctx.strict_runtime_semantics()) {
+                throw_runtime_invalid_call("Clamp expects three numeric arguments.");
+            }
+            throw_invalid_arity_exact("Clamp", 3);
+        }
+
+        auto value = evaluate(func.args[0], ctx);
+        auto low = evaluate(func.args[1], ctx);
+        auto high = evaluate(func.args[2], ctx);
+        if (!std::holds_alternative<Number>(*value) ||
+            !std::holds_alternative<Number>(*low) ||
+            !std::holds_alternative<Number>(*high)) {
+            if (ctx.strict_runtime_semantics()) {
+                throw_runtime_invalid_call("Clamp expects three numeric arguments.");
+            }
+            return make_fcall("Clamp", {value, low, high});
+        }
+
+        const double numeric_value = std::get<Number>(*value).value;
+        const double numeric_low = std::get<Number>(*low).value;
+        const double numeric_high = std::get<Number>(*high).value;
+        if (ctx.strict_runtime_semantics()) {
+            ensure_finite_number(numeric_value);
+            ensure_finite_number(numeric_low);
+            ensure_finite_number(numeric_high);
+        }
+        if (numeric_low > numeric_high) {
+            if (ctx.strict_runtime_semantics()) {
+                kernel::throw_runtime_error(
+                    kernel::ErrorCode::invalid_numeric_domain,
+                    "Clamp requires the lower bound to be less than or equal to the upper bound.");
+            }
+            return make_fcall("Clamp", {value, low, high});
+        }
+        return make_expr<Number>(std::clamp(numeric_value, numeric_low, numeric_high));
     }
 
     if (is_comparison_function(func.head)) {

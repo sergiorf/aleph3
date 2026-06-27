@@ -40,7 +40,6 @@ The current design uses one kernel-owned context type:
 Compatibility aliases currently remain in place for migration:
 
 - `aleph3::EvaluationContext` through `include/evaluator/EvaluationContext.hpp`
-- `aleph3::runtime::EvaluationContext` through `include/runtime/Evaluator.hpp`
 
 That means existing call sites can keep compiling while the repo converges on a
 single context contract.
@@ -64,17 +63,16 @@ kernel-owned context shape before deeper semantic unification.
   through the same kernel context object
 - context copies preserve symbolic state and preserve the referenced or owned
   runtime sources
-- SDK/runtime code can keep using the existing `runtime::EvaluationContext`
-  compatibility name during migration
+- SDK-facing code can use the kernel-owned context directly through the bridge
+  and evaluator layers during migration
 
 ## Current Non-Goals
 
 This contract does not yet mean:
 
-- the SDK runtime evaluator has been removed
-- diagnostics are unified
-- registration is unified
-- `ir::Node` and `Expr` execute through one evaluator
+- diagnostics are unified everywhere
+- registration is unified everywhere
+- the lowering boundary is fully simplified
 
 Those are later phases.
 

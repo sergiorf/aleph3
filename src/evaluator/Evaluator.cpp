@@ -286,6 +286,11 @@ ExprPtr resolve_symbol_value(const Symbol& sym, EvaluationContext& ctx, std::uno
 
     const ExprPtr* value = ctx.symbol_values.lookup(sym.name);
     if (value == nullptr) {
+        if (ctx.strict_runtime_semantics()) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::unknown_binding,
+                "No binding was provided for variable `" + sym.name + "`.");
+        }
         return make_expr<Symbol>(sym.name);
     }
 
@@ -296,6 +301,7 @@ ExprPtr resolve_symbol_value(const Symbol& sym, EvaluationContext& ctx, std::uno
 }
 
 ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordered_set<std::string>& visited) {
+    ctx.consume_evaluation_step();
     ALEPH3_LOG("evaluate: input = " << to_string_raw(expr));
 
     auto result = std::visit(overloaded{

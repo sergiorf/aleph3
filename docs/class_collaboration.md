@@ -38,7 +38,7 @@ Main classes:
 - `CompiledFormula`
 - `frontend::Parser`
 - `semantics::Validator`
-- `runtime::Evaluator`
+- kernel lowering/bridge helpers
 - `ir::Node`
 
 ### Main Flow
@@ -52,8 +52,9 @@ flowchart LR
     Parser --> IR["ir::Node"]
     IR --> Validator["semantics::Validator"]
     Validator --> Compiled["CompiledFormula"]
-    Compiled --> Runtime["runtime::Evaluator"]
-    Runtime --> Value["sdk::Value / RuntimeError"]
+    Compiled --> Bridge["kernel bridge / lowering"]
+    Bridge --> KernelEval["kernel evaluate(...)"]
+    KernelEval --> Value["sdk::Value / RuntimeError"]
 ```
 
 ### Responsibilities
@@ -62,7 +63,7 @@ flowchart LR
 
 - public facade for compile, validate, and evaluate
 - owns engine-scoped host function registrations
-- orchestrates parser, validator, and runtime
+- orchestrates parser, validator, lowering, and kernel-backed execution
 
 `Schema`
 
@@ -87,11 +88,11 @@ flowchart LR
 
 - validates trusted-subset IR against schema and policy
 
-`runtime::Evaluator`
+kernel lowering/bridge helpers
 
-- executes trusted-subset IR using runtime bindings, constants, host functions,
-  and policy
-- transitional evaluator layer during the refactor
+- lower trusted-subset IR into kernel `Expr`
+- preserve frontend/validation ownership while routing execution into the
+  shared kernel path
 
 ## Symbolic Kernel Track
 

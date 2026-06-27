@@ -8,6 +8,7 @@
 #include "kernel/Lowering.hpp"
 #include "kernel/Rewrite.hpp"
 #include "kernel/TrustedSubsetBridge.hpp"
+#include "normalizer/Normalizer.hpp"
 #include "packs/PackRegistry.hpp"
 #include "parser/Parser.hpp"
 #include "sdk/Policy.hpp"
@@ -345,6 +346,51 @@ TEST_CASE("Kernel rewrite can apply repeated named-pattern rewrites", "[architec
     REQUIRE(result.changed);
     REQUIRE(result.rewrites_applied >= 2);
     REQUIRE(kernel::structurally_equal(result.expr, parse_expression("g[g[x]]")));
+}
+
+TEST_CASE("Kernel rewrite respects explicit rewrite-count bounds", "[architecture][rewrite]") {
+    const auto expr = parse_expression("f[f[f[x]]]");
+    const Rule rule{
+        parse_expression("f[a_]"),
+        parse_expression("g[a]")
+    };
+
+    const auto result = kernel::rewrite_repeated(expr, rule, 1);
+
+    REQUIRE(result.changed);
+    REQUIRE(result.rewrites_applied == 1);
+    REQUIRE(kernel::structurally_equal(result.expr, parse_expression("g[f[f[x]]]")));
+}
+
+TEST_CASE("Kernel rewrite can consume runtime step budget through evaluation context", "[architecture][rewrite][budget]") {
+    Policy policy = Policy::default_policy();
+    policy.budget().max_evaluation_steps = 1;
+
+    kernel::EvaluationContext ctx({}, {}, {}, policy);
+    ctx.enable_runtime_strict_semantics(true);
+    ctx.reset_runtime_step_counter();
+
+    const auto expr = parse_expression("f[f[x]]");
+    const Rule rule{
+        parse_expression("f[a_]"),
+        parse_expression("g[a]")
+    };
+
+    REQUIRE_THROWS_AS(kernel::rewrite_repeated(expr, rule, ctx, 4), kernel::RuntimeFailure);
+}
+
+TEST_CASE("Kernel rewrite does not normalize rewritten output implicitly", "[architecture][rewrite][normalize]") {
+    const auto expr = parse_expression("f[y + x]");
+    const Rule rule{
+        parse_expression("f[a_]"),
+        parse_expression("g[a]")
+    };
+
+    const auto rewritten = kernel::rewrite_once(expr, rule);
+
+    REQUIRE(rewritten.changed);
+    REQUIRE(to_string(rewritten.expr) == "g[y + x]");
+    REQUIRE(to_string(normalize_expr(rewritten.expr)) == "g[x + y]");
 }
 
 TEST_CASE("Trusted-subset bridge evaluates lowered formulas with SDK bindings and constants", "[architecture][kernel]") {

@@ -599,9 +599,9 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. define rewrite budgeting relative to evaluation budgets
-3. explain how rewrite should be scheduled relative to evaluator-owned
-   simplification and normalization
+2. decide which existing simplifications should move behind rewrite entrypoints
+3. define when rewrite-driven flows should normalize before matching,
+   after substitution, or both
 4. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 

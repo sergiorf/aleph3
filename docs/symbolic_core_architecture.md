@@ -194,6 +194,16 @@ Should own:
 - rule application
 - traversal-driven replacement
 - bounded repeated rewrite semantics
+- explicit rewrite budgeting hooks that share kernel step-budget semantics when
+  rewrite participates in runtime execution
+
+Current scheduling rule:
+
+- rewrite is explicit and caller-directed
+- evaluator simplification and generic reduction still happen outside a general
+  rewrite phase
+- normalization remains a separate kernel concern rather than an implicit part
+  of every rewrite call
 
 ### `exact`
 

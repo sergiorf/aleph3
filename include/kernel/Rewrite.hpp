@@ -13,6 +13,8 @@
 
 namespace aleph3::kernel {
 
+class EvaluationContext;
+
 struct RewriteResult {
     ExprPtr expr;
     bool changed = false;
@@ -26,6 +28,12 @@ struct RewriteResult {
 [[nodiscard]] RewriteResult rewrite_repeated(
     const ExprPtr& expr,
     const Rule& rule,
+    std::size_t max_rewrites = 16);
+
+[[nodiscard]] RewriteResult rewrite_repeated(
+    const ExprPtr& expr,
+    const Rule& rule,
+    EvaluationContext& ctx,
     std::size_t max_rewrites = 16);
 
 }  // namespace aleph3::kernel

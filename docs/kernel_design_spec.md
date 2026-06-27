@@ -205,9 +205,20 @@ At a high level:
 
 Open design questions:
 
-- where pre-normalization versus post-normalization boundaries should sit
-- how rewrite iteration is budgeted relative to evaluation steps
-- which reductions are evaluator-owned versus rewrite-owned
+- where pre-normalization versus post-normalization boundaries should sit for
+  future rewrite-heavy flows
+- which existing reductions should move from evaluator-local code into
+  rewrite-owned APIs
+
+Current implementation contract:
+
+- evaluation entry normalizes once before evaluator dispatch
+- builtin simplification remains evaluator-owned
+- rewrite is currently an explicit kernel API, not an ambient evaluator phase
+- `rewrite_repeated(..., max_rewrites)` is locally bounded by caller-provided
+  rewrite count
+- `rewrite_repeated(..., EvaluationContext&, max_rewrites)` additionally
+  consumes the shared evaluation-step budget, one step per successful rewrite
 
 ## Interface Inventory To Define
 

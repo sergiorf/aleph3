@@ -1,5 +1,7 @@
 #include "kernel/Rewrite.hpp"
 
+#include "kernel/EvaluationContext.hpp"
+
 #include <unordered_map>
 #include <type_traits>
 #include <utility>
@@ -415,6 +417,28 @@ RewriteResult rewrite_repeated(
         if (!step.changed) {
             break;
         }
+        accumulated.expr = std::move(step.expr);
+        accumulated.changed = true;
+        accumulated.rewrites_applied += step.rewrites_applied;
+    }
+
+    return accumulated;
+}
+
+RewriteResult rewrite_repeated(
+    const ExprPtr& expr,
+    const Rule& rule,
+    EvaluationContext& ctx,
+    std::size_t max_rewrites) {
+    RewriteResult accumulated;
+    accumulated.expr = expr;
+
+    for (std::size_t iteration = 0; iteration < max_rewrites; ++iteration) {
+        auto step = rewrite_once(accumulated.expr, rule);
+        if (!step.changed) {
+            break;
+        }
+        ctx.consume_evaluation_step();
         accumulated.expr = std::move(step.expr);
         accumulated.changed = true;
         accumulated.rewrites_applied += step.rewrites_applied;

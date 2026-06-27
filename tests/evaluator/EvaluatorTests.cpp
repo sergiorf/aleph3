@@ -283,6 +283,31 @@ TEST_CASE("N-ary rewrite-driven arithmetic simplification preserves exact ration
     REQUIRE(to_string(times_result) == "2/3 * x");
 }
 
+TEST_CASE("Symbolic coefficient contract combines supported like terms", "[evaluator][simplification][coefficients]") {
+    EvaluationContext ctx;
+
+    const auto linear = evaluate(parse_expression("x + 2*x + 1/3*x"), ctx);
+    REQUIRE(to_string(linear) == "10/3 * x");
+
+    const auto power_basis = evaluate(parse_expression("x^2 + 2*x^2"), ctx);
+    REQUIRE(to_string(power_basis) == "3 * x^2");
+
+    const auto cancelled = evaluate(parse_expression("x + (-1 * x)"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*cancelled));
+    REQUIRE(get_number_value(cancelled) == 0.0);
+}
+
+TEST_CASE("Symbolic coefficient contract stays out of unsupported multivariate terms", "[evaluator][simplification][coefficients]") {
+    EvaluationContext ctx;
+
+    const auto result = evaluate(parse_expression("x*y + 2*x*y"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    const auto& plus = std::get<FunctionCall>(*result);
+    REQUIRE(plus.head == "Plus");
+    REQUIRE(plus.args.size() == 2);
+    REQUIRE(to_string(result) != "3 * x * y");
+}
+
 TEST_CASE("Evaluator contract keeps If lazy and symbolic when required", "[evaluator][contract]") {
     EvaluationContext ctx;
 
@@ -496,7 +521,7 @@ TEST_CASE("Evaluator semantics keep Flat and Orderless behavior out of opaque ev
     EvaluationContext ctx;
 
     const auto plus = evaluate(parse_expression("y + (x + 2)"), ctx);
-    REQUIRE(to_string(plus) == "2 + x + y");
+    REQUIRE(to_string(plus) == "x + y + 2");
 
     const auto times = evaluate(parse_expression("z * (x * 2)"), ctx);
     REQUIRE(to_string(times) == "2 * x * z");
@@ -643,10 +668,10 @@ TEST_CASE("Unknown variables are treated as symbolic", "[evaluator]") {
     auto func = std::get<FunctionCall>(*result);
     REQUIRE(func.head == "Plus");
     REQUIRE(func.args.size() == 2);
-    REQUIRE(std::holds_alternative<Number>(*func.args[0])); // Numeric argument comes first
-    REQUIRE(std::get<Number>(*func.args[0]).value == 1.0);
-    REQUIRE(std::holds_alternative<Symbol>(*func.args[1])); // Symbolic argument comes second
-    REQUIRE(std::get<Symbol>(*func.args[1]).name == "z");
+    REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
+    REQUIRE(std::get<Symbol>(*func.args[0]).name == "z");
+    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
+    REQUIRE(std::get<Number>(*func.args[1]).value == 1.0);
 }
 
 TEST_CASE("Evaluator handles nested parentheses correctly", "[evaluator]") {

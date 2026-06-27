@@ -88,34 +88,6 @@ namespace aleph3 {
         }
     }
 
-    bool extract_linear_symbol_term(const ExprPtr& expr, std::string& symbol_name, double& coefficient) {
-        if (const auto* symbol = std::get_if<Symbol>(expr.get())) {
-            symbol_name = symbol->name;
-            coefficient = 1.0;
-            return true;
-        }
-
-        const auto* times = std::get_if<FunctionCall>(expr.get());
-        if (times == nullptr || times->head != "Times" || times->args.size() != 2) {
-            return false;
-        }
-
-        if (std::holds_alternative<Number>(*times->args[0]) && std::holds_alternative<Symbol>(*times->args[1])) {
-            symbol_name = std::get<Symbol>(*times->args[1]).name;
-            coefficient = get_number_value(times->args[0]);
-            return true;
-        }
-
-        if (std::holds_alternative<Rational>(*times->args[0]) && std::holds_alternative<Symbol>(*times->args[1])) {
-            const auto& rational = std::get<Rational>(*times->args[0]);
-            symbol_name = std::get<Symbol>(*times->args[1]).name;
-            coefficient = static_cast<double>(rational.numerator) / rational.denominator;
-            return true;
-        }
-
-        return false;
-    }
-
     bool extract_symbol_power_term(const ExprPtr& expr, std::string& symbol_name, double& exponent) {
         if (const auto* symbol = std::get_if<Symbol>(expr.get())) {
             symbol_name = symbol->name;
@@ -145,13 +117,6 @@ namespace aleph3 {
         std::vector<ExprPtr> eval_args;
         for (const auto& arg : args) {
             eval_args.push_back(eval(arg, ctx));
-        }
-
-        const auto normalized_eval_args = normalize_expr(make_fcall("Plus", eval_args));
-        if (const auto* plus = std::get_if<FunctionCall>(normalized_eval_args.get())) {
-            if (auto rewritten = kernel::rewrite_normalized_arithmetic_head(*plus, ctx)) {
-                return *rewritten;
-            }
         }
 
         std::vector<ExprPtr> flat_args;
@@ -228,83 +193,27 @@ namespace aleph3 {
             }
         }
 
-        double numeric_result = 0.0;
-        bool has_rational_result = false;
-        int64_t rational_num = 0;
-        int64_t rational_den = 1;
-        std::map<std::string, double> linear_terms;
-        std::vector<ExprPtr> symbolic_terms;
-
-        for (const auto& e : flat_args) {
-            if (std::holds_alternative<Number>(*e)) {
-                double val = get_number_value(e);
-                if (val == 0) continue;
-                numeric_result += val;
-                continue;
-            }
-
-            if (std::holds_alternative<Rational>(*e)) {
-                const auto& rational = std::get<Rational>(*e);
-                if (!has_rational_result) {
-                    rational_num = rational.numerator;
-                    rational_den = rational.denominator;
-                    has_rational_result = true;
-                } else {
-                    auto [nn, dd] = normalize_rational(
-                        rational_num * rational.denominator + rational.numerator * rational_den,
-                        rational_den * rational.denominator);
-                    rational_num = nn;
-                    rational_den = dd;
-                }
-                continue;
-            }
-
-            std::string symbol_name;
-            double coefficient = 0.0;
-            if (extract_linear_symbol_term(e, symbol_name, coefficient)) {
-                linear_terms[symbol_name] += coefficient;
-                continue;
-            }
-
-            symbolic_terms.push_back(e);
+        ExprPtr current = normalize_expr(make_fcall("Plus", flat_args));
+        if (!std::holds_alternative<FunctionCall>(*current)) {
+            return current;
         }
 
-        std::vector<ExprPtr> simplified;
-        if (has_rational_result) {
-            if (is_integral(numeric_result)) {
-                auto [nn, dd] = normalize_rational(
-                    rational_num + static_cast<int64_t>(numeric_result) * rational_den,
-                    rational_den);
-                if (nn != 0) {
-                    simplified.push_back(dd == 1 ? make_expr<Number>(static_cast<double>(nn))
-                                                 : make_expr<Rational>(nn, dd));
-                }
-            } else {
-                numeric_result += static_cast<double>(rational_num) / rational_den;
+        if (const auto* plus = std::get_if<FunctionCall>(current.get())) {
+            if (auto rewritten = kernel::rewrite_normalized_arithmetic_head(*plus, ctx)) {
+                current = normalize_expr(*rewritten);
+            }
+        }
+        if (!std::holds_alternative<FunctionCall>(*current)) {
+            return current;
+        }
+
+        if (const auto* plus = std::get_if<FunctionCall>(current.get())) {
+            if (auto rewritten = kernel::rewrite_normalized_symbolic_coefficient_head(*plus, ctx)) {
+                return *rewritten;
             }
         }
 
-        if (numeric_result != 0.0) {
-            simplified.push_back(make_expr<Number>(numeric_result));
-        }
-
-        for (const auto& [symbol_name, coefficient] : linear_terms) {
-            if (coefficient == 0.0) {
-                continue;
-            }
-            if (coefficient == 1.0) {
-                simplified.push_back(make_expr<Symbol>(symbol_name));
-            } else {
-                simplified.push_back(make_fcall(
-                    "Times",
-                    {make_expr<Number>(coefficient), make_expr<Symbol>(symbol_name)}));
-            }
-        }
-
-        simplified.insert(simplified.end(), symbolic_terms.begin(), symbolic_terms.end());
-        if (simplified.empty()) return make_expr<Number>(0);
-        if (simplified.size() == 1) return simplified[0];
-        return make_fcall("Plus", simplified);
+        return current;
     }},
     {"Times", [](const std::vector<ExprPtr>& args, EvaluationContext& ctx,
              const std::function<ExprPtr(const ExprPtr&, EvaluationContext&)>& eval) -> ExprPtr {

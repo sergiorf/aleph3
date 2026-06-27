@@ -172,7 +172,6 @@ ownership of broader n-ary simplification.
 
 The following still remain evaluator-owned for now:
 
-- coefficient collection and like-term combination
 - list broadcasting and other container-aware simplifications
 - numeric-domain and special-value handling
 
@@ -308,6 +307,20 @@ It should not initially require:
 - distributive expansion across arbitrary products
 - pack-level algebra metadata
 
+The currently implemented surface now covers:
+
+- `x`
+- `x^n` for numeric exponents already preserved by current supported semantics
+- `c * x`
+- `c * x^n`
+
+Where `c` may be:
+
+- `Number`
+- `Rational`
+
+And where collection is limited to normalized `Plus` forms.
+
 ### Why This Should Be Separate From Arithmetic Rewrite
 
 Arithmetic rewrite for `Plus` and `Times` currently owns:
@@ -325,6 +338,24 @@ Like-term collection requires a different abstraction boundary:
 
 That is a symbolic coefficient problem, not just a variadic arithmetic-head
 problem.
+
+### Current Small Coefficient Layer
+
+This contract is now implemented in initial form as a separate kernel-owned
+reduction step above arithmetic rewrite.
+
+It currently supports:
+
+- combining `x + 2*x + 1/3*x` into `10/3 * x`
+- combining `x^2 + 2*x^2` into `3 * x^2`
+- cancelling `x + (-1 * x)` into `0`
+
+It intentionally does not yet support:
+
+- `x*y + 2*x*y`
+- `x*y^2 + 3*x*y^2`
+- symbolic coefficient domains
+- basis extraction beyond single-symbol or single-power terms
 
 ## Decision On Exponent Merging
 
@@ -395,10 +426,8 @@ Example of what works now:
 
 ## Next Steps
 
-- define the first symbolic coefficient contract for supported monomial-shaped
-  terms
-- migrate the current supported like-term collection surface behind that
-  contract
+- expand the symbolic coefficient contract only if it can stay independent of
+  multivariate polynomial semantics
 - define the later algebra-aware layer that will own exponent merging and
   related multiplicative structure rules
 - decide which non-arithmetic simplifications are good candidates for future

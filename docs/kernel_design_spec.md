@@ -247,8 +247,8 @@ Current implementation status of that layering:
   annihilator handling for `Times`, and scalar numeric/rational bucket folding
 - it still does not cover like-term collection, exponent merging, division
   cancellation, or container-aware arithmetic
-- like-term collection is now intended to become the first client of a
-  coefficient-aware symbolic layer above arithmetic rewrite
+- a first coefficient-aware symbolic layer now exists for small monomial-shaped
+  terms in normalized `Plus` forms
 - exponent merging is now intended to live in a later algebra-aware layer
 
 ## Interface Inventory To Define

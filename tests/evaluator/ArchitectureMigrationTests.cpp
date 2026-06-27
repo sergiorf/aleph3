@@ -386,6 +386,44 @@ TEST_CASE("Kernel rewrite variadic arithmetic contract stays out of list-aware f
     REQUIRE_FALSE(rewritten.has_value());
 }
 
+TEST_CASE("Kernel rewrite supports normalized symbolic coefficient collection", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("x + 2*x + 1/3*x + y"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_symbolic_coefficient_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "y + 10/3 * x");
+}
+
+TEST_CASE("Kernel rewrite symbolic coefficient contract supports power bases", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("x^2 + 2*x^2"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_symbolic_coefficient_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "3 * x^2");
+}
+
+TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of multivariate products", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("x*y + 2*x*y"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_symbolic_coefficient_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
+}
+
 TEST_CASE("Kernel rewrite respects explicit rewrite-count bounds", "[architecture][rewrite]") {
     const auto expr = parse_expression("f[f[f[x]]]");
     const Rule rule{

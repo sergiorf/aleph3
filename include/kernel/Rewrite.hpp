@@ -41,4 +41,8 @@ struct RewriteResult {
     const FunctionCall& func,
     EvaluationContext& ctx);
 
+[[nodiscard]] std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
+    const FunctionCall& func,
+    EvaluationContext& ctx);
+
 }  // namespace aleph3::kernel

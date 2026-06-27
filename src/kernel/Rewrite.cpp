@@ -22,6 +22,80 @@ bool is_integral(double value) {
     return std::floor(value) == value;
 }
 
+ExprPtr clone_expr(const ExprPtr& expr) {
+    return expr == nullptr ? nullptr : std::make_shared<Expr>(*expr);
+}
+
+struct ScalarCoefficient {
+    bool exact = true;
+    int64_t numerator = 0;
+    int64_t denominator = 1;
+    double approximate = 0.0;
+
+    void add_number(double value) {
+        if (exact && is_integral(value)) {
+            auto [nn, dd] = normalize_rational(
+                numerator + static_cast<int64_t>(value) * denominator,
+                denominator);
+            numerator = nn;
+            denominator = dd;
+            return;
+        }
+
+        if (exact) {
+            approximate = static_cast<double>(numerator) / denominator;
+            exact = false;
+        }
+        approximate += value;
+    }
+
+    void add_rational(int64_t num, int64_t den) {
+        if (exact) {
+            auto [nn, dd] = normalize_rational(
+                numerator * den + num * denominator,
+                denominator * den);
+            numerator = nn;
+            denominator = dd;
+            return;
+        }
+        approximate += static_cast<double>(num) / den;
+    }
+
+    void add(const ScalarCoefficient& other) {
+        if (other.exact) {
+            add_rational(other.numerator, other.denominator);
+            return;
+        }
+        add_number(other.approximate);
+    }
+
+    [[nodiscard]] bool is_zero() const {
+        return exact ? numerator == 0 : approximate == 0.0;
+    }
+
+    [[nodiscard]] bool is_one() const {
+        if (!exact) {
+            return approximate == 1.0;
+        }
+        return numerator == denominator;
+    }
+
+    [[nodiscard]] ExprPtr to_expr() const {
+        if (!exact) {
+            return make_expr<Number>(approximate);
+        }
+        if (denominator == 1) {
+            return make_expr<Number>(static_cast<double>(numerator));
+        }
+        return make_expr<Rational>(numerator, denominator);
+    }
+};
+
+struct SupportedMonomialTerm {
+    ExprPtr basis;
+    ScalarCoefficient coefficient;
+};
+
 bool contains_list_argument(const std::vector<ExprPtr>& args) {
     for (const auto& arg : args) {
         if (std::holds_alternative<List>(*arg)) {
@@ -204,6 +278,79 @@ ExprPtr build_times_bucket_expr(
     return normalize_expr(make_fcall("Times", rebuilt_terms));
 }
 
+bool extract_supported_symbolic_basis(const ExprPtr& expr, ExprPtr& basis) {
+    if (std::holds_alternative<Symbol>(*expr)) {
+        basis = expr;
+        return true;
+    }
+
+    const auto* power = std::get_if<FunctionCall>(expr.get());
+    if (power == nullptr || power->head != "Power" || power->args.size() != 2) {
+        return false;
+    }
+    if (!std::holds_alternative<Symbol>(*power->args[0]) ||
+        !std::holds_alternative<Number>(*power->args[1])) {
+        return false;
+    }
+
+    basis = expr;
+    return true;
+}
+
+bool extract_supported_monomial_term(
+    const ExprPtr& expr,
+    SupportedMonomialTerm& term) {
+    ExprPtr basis;
+    if (extract_supported_symbolic_basis(expr, basis)) {
+        term.basis = basis;
+        term.coefficient.numerator = 1;
+        term.coefficient.denominator = 1;
+        return true;
+    }
+
+    const auto* times = std::get_if<FunctionCall>(expr.get());
+    if (times == nullptr || times->head != "Times" || times->args.size() != 2) {
+        return false;
+    }
+
+    const ExprPtr* coefficient_expr = nullptr;
+    const ExprPtr* basis_expr = nullptr;
+    if (std::holds_alternative<Number>(*times->args[0]) ||
+        std::holds_alternative<Rational>(*times->args[0])) {
+        coefficient_expr = &times->args[0];
+        basis_expr = &times->args[1];
+    } else if (std::holds_alternative<Number>(*times->args[1]) ||
+               std::holds_alternative<Rational>(*times->args[1])) {
+        coefficient_expr = &times->args[1];
+        basis_expr = &times->args[0];
+    } else {
+        return false;
+    }
+
+    if (!extract_supported_symbolic_basis(*basis_expr, basis)) {
+        return false;
+    }
+
+    term.basis = basis;
+    if (std::holds_alternative<Number>(**coefficient_expr)) {
+        term.coefficient.add_number(std::get<Number>(**coefficient_expr).value);
+    } else {
+        const auto& rational = std::get<Rational>(**coefficient_expr);
+        term.coefficient.add_rational(rational.numerator, rational.denominator);
+    }
+    return true;
+}
+
+ExprPtr rebuild_supported_monomial_term(const SupportedMonomialTerm& term) {
+    if (term.coefficient.is_zero()) {
+        return nullptr;
+    }
+    if (term.coefficient.is_one()) {
+        return clone_expr(term.basis);
+    }
+    return normalize_expr(make_fcall("Times", {term.coefficient.to_expr(), term.basis}));
+}
+
 bool is_pattern_symbol_name(const std::string& name) {
     return name == "_" || (!name.empty() && name.back() == '_');
 }
@@ -292,10 +439,6 @@ bool structurally_equal_list(
         }
     }
     return true;
-}
-
-ExprPtr clone_expr(const ExprPtr& expr) {
-    return expr == nullptr ? nullptr : std::make_shared<Expr>(*expr);
 }
 
 bool match_list(
@@ -659,6 +802,76 @@ std::optional<ExprPtr> rewrite_normalized_arithmetic_head(
         if (!structurally_equal(original, rewritten)) {
             changed = true;
         }
+    }
+    if (!changed) {
+        return std::nullopt;
+    }
+
+    ctx.consume_evaluation_step();
+    return rewritten;
+}
+
+std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
+    const FunctionCall& func,
+    EvaluationContext& ctx) {
+    if (func.head != "Plus" || contains_list_argument(func.args)) {
+        return std::nullopt;
+    }
+
+    struct MonomialBucket {
+        ExprPtr basis;
+        ScalarCoefficient coefficient;
+    };
+
+    std::unordered_map<std::string, std::size_t> bucket_index;
+    std::vector<MonomialBucket> buckets;
+    std::vector<ExprPtr> opaque_terms;
+    bool changed = false;
+
+    for (const auto& arg : func.args) {
+        SupportedMonomialTerm term;
+        if (!extract_supported_monomial_term(arg, term)) {
+            opaque_terms.push_back(arg);
+            continue;
+        }
+
+        const auto key = to_string_raw(normalize_expr(term.basis));
+        const auto [it, inserted] = bucket_index.emplace(key, buckets.size());
+        if (inserted) {
+            buckets.push_back(MonomialBucket{normalize_expr(term.basis), term.coefficient});
+            continue;
+        }
+
+        buckets[it->second].coefficient.add(term.coefficient);
+        changed = true;
+    }
+
+    std::vector<ExprPtr> rebuilt_terms;
+    rebuilt_terms.reserve(opaque_terms.size() + buckets.size());
+    rebuilt_terms.insert(rebuilt_terms.end(), opaque_terms.begin(), opaque_terms.end());
+
+    for (const auto& bucket : buckets) {
+        auto rebuilt = rebuild_supported_monomial_term(
+            SupportedMonomialTerm{bucket.basis, bucket.coefficient});
+        if (rebuilt == nullptr) {
+            changed = true;
+            continue;
+        }
+        rebuilt_terms.push_back(std::move(rebuilt));
+    }
+
+    ExprPtr rewritten;
+    if (rebuilt_terms.empty()) {
+        rewritten = make_expr<Number>(0.0);
+    } else if (rebuilt_terms.size() == 1) {
+        rewritten = rebuilt_terms.front();
+    } else {
+        rewritten = normalize_expr(make_fcall("Plus", rebuilt_terms));
+    }
+
+    const auto original = normalize_expr(make_fcall("Plus", func.args));
+    if (!changed && !structurally_equal(original, rewritten)) {
+        changed = true;
     }
     if (!changed) {
         return std::nullopt;

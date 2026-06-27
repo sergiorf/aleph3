@@ -159,6 +159,7 @@ The first rewrite-owned simplification slice is now intentionally narrow:
 - binary `Times` neutral and annihilator identities such as `1 * a -> a` and
   `0 * a -> 0`
 - basic `Power` identities such as `a^0 -> 1`, `a^1 -> a`, and `1^a -> 1`
+  through a dedicated normalized `Power` rewrite entrypoint
 
 For this slice, the scheduling contract is:
 

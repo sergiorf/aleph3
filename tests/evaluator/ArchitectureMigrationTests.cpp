@@ -474,6 +474,52 @@ TEST_CASE("Kernel rewrite algebra-aware layer collapses nested Power exponents",
     REQUIRE(to_string(*rewritten) == "x^6");
 }
 
+TEST_CASE("Kernel rewrite owns fixed Power identities through a dedicated entrypoint", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+
+    const auto zero_exponent = normalize_expr(parse_expression("x^0"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*zero_exponent));
+    const auto zero_rewritten = kernel::rewrite_normalized_power_identity_head(
+        std::get<FunctionCall>(*zero_exponent),
+        ctx);
+    REQUIRE(zero_rewritten.has_value());
+    REQUIRE(to_string(*zero_rewritten) == "1");
+
+    const auto unit_exponent = normalize_expr(parse_expression("x^1"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*unit_exponent));
+    const auto unit_rewritten = kernel::rewrite_normalized_power_identity_head(
+        std::get<FunctionCall>(*unit_exponent),
+        ctx);
+    REQUIRE(unit_rewritten.has_value());
+    REQUIRE(to_string(*unit_rewritten) == "x");
+
+    const auto unit_base = normalize_expr(parse_expression("1^z"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*unit_base));
+    const auto unit_base_rewritten = kernel::rewrite_normalized_power_identity_head(
+        std::get<FunctionCall>(*unit_base),
+        ctx);
+    REQUIRE(unit_base_rewritten.has_value());
+    REQUIRE(to_string(*unit_base_rewritten) == "1");
+}
+
+TEST_CASE("Kernel Power identity entrypoint stays out of list-aware and non-identity forms", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+
+    const auto list_power = normalize_expr(parse_expression("{x, y}^1"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*list_power));
+    const auto list_rewritten = kernel::rewrite_normalized_power_identity_head(
+        std::get<FunctionCall>(*list_power),
+        ctx);
+    REQUIRE_FALSE(list_rewritten.has_value());
+
+    const auto domain_sensitive = normalize_expr(parse_expression("(-4)^0.5"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*domain_sensitive));
+    const auto domain_rewritten = kernel::rewrite_normalized_power_identity_head(
+        std::get<FunctionCall>(*domain_sensitive),
+        ctx);
+    REQUIRE_FALSE(domain_rewritten.has_value());
+}
+
 TEST_CASE("Kernel rewrite algebra-aware layer stays out of mixed symbolic bases", "[architecture][rewrite]") {
     kernel::EvaluationContext ctx;
     const auto normalized = normalize_expr(parse_expression("x * y * x*y"));

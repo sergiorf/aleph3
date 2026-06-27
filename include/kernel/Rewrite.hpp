@@ -41,6 +41,10 @@ struct RewriteResult {
     const FunctionCall& func,
     EvaluationContext& ctx);
 
+[[nodiscard]] std::optional<ExprPtr> rewrite_normalized_power_identity_head(
+    const FunctionCall& func,
+    EvaluationContext& ctx);
+
 [[nodiscard]] std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
     const FunctionCall& func,
     EvaluationContext& ctx);

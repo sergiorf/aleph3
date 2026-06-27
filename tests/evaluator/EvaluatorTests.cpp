@@ -361,6 +361,22 @@ TEST_CASE("Evaluator retains ownership of domain-sensitive power semantics", "[e
     REQUIRE(get_number_value(safe_integer_power) == 16.0);
 }
 
+TEST_CASE("Evaluator routes fixed Power identities through the kernel-owned entrypoint", "[evaluator][simplification][rewrite]") {
+    EvaluationContext ctx;
+
+    const auto zero_exponent = evaluate(parse_expression("mystery[x]^0"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*zero_exponent));
+    REQUIRE(get_number_value(zero_exponent) == 1.0);
+
+    const auto unit_exponent = evaluate(parse_expression("mystery[x]^1"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*unit_exponent));
+    REQUIRE(to_string(unit_exponent) == "mystery[x]");
+
+    const auto unit_base = evaluate(parse_expression("1^mystery[x]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*unit_base));
+    REQUIRE(get_number_value(unit_base) == 1.0);
+}
+
 TEST_CASE("Evaluator retains ownership of list-aware arithmetic semantics", "[evaluator][simplification][rewrite]") {
     EvaluationContext ctx;
 

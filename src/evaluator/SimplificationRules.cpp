@@ -17,63 +17,6 @@ namespace aleph3 {
         return std::floor(value) == value;
     }
 
-    const std::vector<Rule>& power_identity_rules() {
-        static const std::vector<Rule> rules = {
-            Rule{
-                make_fcall("Power", {make_expr<Symbol>("a_"), make_expr<Number>(0.0)}),
-                make_expr<Number>(1.0)
-            },
-            Rule{
-                make_fcall("Power", {make_expr<Symbol>("a_"), make_expr<Number>(1.0)}),
-                make_expr<Symbol>("a")
-            },
-            Rule{
-                make_fcall("Power", {make_expr<Number>(1.0), make_expr<Symbol>("a_")}),
-                make_expr<Number>(1.0)
-            }
-        };
-        return rules;
-    }
-
-    bool contains_list_argument(const std::vector<ExprPtr>& args) {
-        for (const auto& arg : args) {
-            if (std::holds_alternative<List>(*arg)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    ExprPtr apply_power_identity_rewrite_simplification(
-        const std::vector<ExprPtr>& args,
-        EvaluationContext& ctx) {
-        if (args.size() != 2 || contains_list_argument(args)) {
-            return nullptr;
-        }
-
-        auto current = normalize_expr(make_fcall("Power", args));
-        bool changed = false;
-
-        for (std::size_t iteration = 0; iteration < 8; ++iteration) {
-            bool applied_rule = false;
-            for (const auto& rule : power_identity_rules()) {
-                const auto rewritten = kernel::rewrite_repeated(current, rule, ctx, 1);
-                if (!rewritten.changed) {
-                    continue;
-                }
-                current = normalize_expr(rewritten.expr);
-                changed = true;
-                applied_rule = true;
-                break;
-            }
-            if (!applied_rule) {
-                break;
-            }
-        }
-
-        return changed ? current : nullptr;
-    }
-
     void flatten_function_args(
         const std::string& head,
         const std::vector<ExprPtr>& input,
@@ -356,27 +299,18 @@ namespace aleph3 {
         if (args.size() != 2) return make_fcall("Power", args);
         auto base = eval(args[0], ctx);
         auto exp = eval(args[1], ctx);
-        if (auto rewritten = apply_power_identity_rewrite_simplification({base, exp}, ctx)) {
-            return rewritten;
-        }
-        if (std::holds_alternative<Number>(*exp)) {
-            double e = get_number_value(exp);
-            if (e == 0) return make_expr<Number>(1.0);
-            if (e == 1) return base;
+        auto normalized_power = normalize_expr(make_fcall("Power", {base, exp}));
+        if (const auto* power = std::get_if<FunctionCall>(normalized_power.get())) {
+            if (auto rewritten = kernel::rewrite_normalized_power_identity_head(*power, ctx)) {
+                return *rewritten;
+            }
+            if (auto rewritten = kernel::rewrite_normalized_algebraic_head(*power, ctx)) {
+                return *rewritten;
+            }
         }
         if (std::holds_alternative<Number>(*base) && get_number_value(base) == 0.0 &&
             std::holds_alternative<Number>(*exp) && get_number_value(exp) > 0.0) {
             return make_expr<Number>(0.0);
-        }
-        if (std::holds_alternative<Number>(*base)) {
-            double b = get_number_value(base);
-            if (b == 1) return make_expr<Number>(1.0);
-        }
-        auto normalized_power = normalize_expr(make_fcall("Power", {base, exp}));
-        if (const auto* power = std::get_if<FunctionCall>(normalized_power.get())) {
-            if (auto rewritten = kernel::rewrite_normalized_algebraic_head(*power, ctx)) {
-                return *rewritten;
-            }
         }
         // Add this block for rational exponents:
         if (std::holds_alternative<Number>(*base) && std::holds_alternative<Rational>(*exp)) {

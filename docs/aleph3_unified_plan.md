@@ -423,6 +423,10 @@ Tasks:
 This work is now complete enough that the next focus should be cleanup,
 bridge simplification, and stronger kernel-first coverage.
 
+The bridge simplification step is now in place: trusted-subset SDK evaluation
+flows through explicit kernel bridge entrypoints rather than ad hoc execution
+logic inside `Engine`.
+
 Success criteria:
 
 - the SDK no longer owns a separate semantic runtime
@@ -587,14 +591,13 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. simplify the remaining lowering bridge around the kernel-backed SDK path
-3. keep `ir::Node` as validated/lowered input only
-4. add regression coverage proving SDK and symbolic execution share kernel
+2. keep `ir::Node` as validated/lowered input only
+3. add regression coverage proving SDK and symbolic execution share kernel
    semantics
-5. define the public SDK surface that should survive after kernel convergence
-6. identify which SDK APIs are stable versus transitional
-7. define the minimal registration contract future packs will require
-8. only then start designing richer interactive surfaces such as a notebook
+4. define the public SDK surface that should survive after kernel convergence
+5. identify which SDK APIs are stable versus transitional
+6. define the minimal registration contract future packs will require
+7. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 
 ## Deferred Work

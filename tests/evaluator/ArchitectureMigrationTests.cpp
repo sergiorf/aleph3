@@ -214,6 +214,114 @@ TEST_CASE("Trusted-subset bridge stages frontend and kernel forms together", "[a
     REQUIRE(call.args.size() == 3);
 }
 
+TEST_CASE("Trusted-subset bridge evaluates lowered formulas with SDK bindings and constants", "[architecture][kernel]") {
+    using namespace aleph3::ir;
+
+    const auto root = make_node(
+        {},
+        IfNode{
+            make_node({}, VariableNode{"enabled"}),
+            make_node(
+                {},
+                BinaryOpNode{
+                    BinaryOperator::add,
+                    make_node({}, VariableNode{"x"}),
+                    make_node({}, VariableNode{"offset"})}),
+            make_node({}, NumberLiteralNode{0.0})});
+
+    const auto staged = kernel::stage_trusted_subset_formula(root);
+    REQUIRE(staged.ok());
+
+    const Bindings bindings = {
+        {"enabled", Value(true)},
+        {"x", Value(2.0)}
+    };
+    const Bindings constants = {
+        {"offset", Value(1.5)}
+    };
+
+    const auto result = kernel::evaluate_trusted_subset_formula(
+        staged.kernel_expr,
+        bindings,
+        constants,
+        {},
+        Policy::default_policy());
+
+    REQUIRE(result.ok());
+    REQUIRE(result.value.has_value());
+    REQUIRE(result.value->as_number() != nullptr);
+    REQUIRE(*result.value->as_number() == 3.5);
+}
+
+TEST_CASE("Trusted-subset bridge projects strict runtime failures to SDK errors", "[architecture][kernel]") {
+    using namespace aleph3::ir;
+
+    const auto root = make_node(
+        {},
+        BinaryOpNode{
+            BinaryOperator::divide,
+            make_node({}, NumberLiteralNode{1.0}),
+            make_node({}, VariableNode{"x"})});
+
+    const auto staged = kernel::stage_trusted_subset_formula(root);
+    REQUIRE(staged.ok());
+
+    const auto result = kernel::evaluate_trusted_subset_formula(
+        staged.kernel_expr,
+        {{"x", Value(0.0)}},
+        {},
+        {},
+        Policy::default_policy());
+
+    REQUIRE_FALSE(result.ok());
+    REQUIRE(result.error.has_value());
+    REQUIRE(result.error->code == "runtime.division_by_zero");
+}
+
+TEST_CASE("Trusted-subset bridge executes registered host functions through the kernel registry", "[architecture][kernel]") {
+    using namespace aleph3::ir;
+
+    HostFunctionSpec scale_add;
+    scale_add.name = "ScaleAdd";
+    scale_add.arity = FunctionArity::exact(3);
+    scale_add.parameters = {
+        {"value", ValueType::number, true},
+        {"scale", ValueType::number, true},
+        {"offset", ValueType::number, true}
+    };
+    scale_add.return_type = ValueType::number;
+    scale_add.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = Value(*args[0].as_number() * *args[1].as_number() + *args[2].as_number());
+        return result;
+    };
+
+    kernel::HostFunctionRegistry host_functions;
+    kernel::FunctionRegistry::register_host_function(host_functions, scale_add);
+
+    const auto root = make_node(
+        {},
+        CallNode{"ScaleAdd", {
+            make_node({}, NumberLiteralNode{4.0}),
+            make_node({}, NumberLiteralNode{1.5}),
+            make_node({}, NumberLiteralNode{2.0})}});
+
+    const auto staged = kernel::stage_trusted_subset_formula(root);
+    REQUIRE(staged.ok());
+
+    const auto result = kernel::evaluate_trusted_subset_formula(
+        staged.kernel_expr,
+        {},
+        {},
+        host_functions,
+        Policy::default_policy());
+
+    REQUIRE(result.ok());
+    REQUIRE(result.value.has_value());
+    REQUIRE(result.value->as_number() != nullptr);
+    REQUIRE(*result.value->as_number() == 8.0);
+}
+
 TEST_CASE("Kernel evaluator can execute registered host functions through the shared context", "[architecture][kernel]") {
     EvaluationContext ctx;
 

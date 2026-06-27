@@ -1,9 +1,6 @@
 #include "sdk/Engine.hpp"
 
 #include "frontend/Parser.hpp"
-#include "evaluator/BuiltInFunctions.hpp"
-#include "evaluator/Evaluator.hpp"
-#include "evaluator/EvaluatorErrors.hpp"
 #include "ir/Node.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "kernel/FunctionRegistry.hpp"
@@ -11,9 +8,7 @@
 #include "semantics/Validator.hpp"
 
 #include <cctype>
-#include <cmath>
 #include <mutex>
-#include <optional>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -88,103 +83,6 @@ FrontendPassResult parse_and_validate(
 
     result.root = std::move(parse_result.root);
     return result;
-}
-
-std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
-    if (expr == nullptr) {
-        return std::nullopt;
-    }
-
-    if (const auto* number = std::get_if<Number>(&*expr)) {
-        double value = number->value;
-        if (value == 0.0) {
-            value = 0.0;
-        }
-        return Value(value);
-    }
-    if (const auto* rational = std::get_if<Rational>(&*expr)) {
-        return Value(static_cast<double>(rational->numerator) / rational->denominator);
-    }
-    if (const auto* boolean = std::get_if<Boolean>(&*expr)) {
-        return Value(boolean->value);
-    }
-    if (const auto* string = std::get_if<String>(&*expr)) {
-        return Value(string->value);
-    }
-    if (const auto* list = std::get_if<List>(&*expr)) {
-        Value::List values;
-        values.reserve(list->elements.size());
-        for (const auto& element : list->elements) {
-            auto converted = expr_to_sdk_value(element);
-            if (!converted.has_value()) {
-                return std::nullopt;
-            }
-            values.push_back(std::move(*converted));
-        }
-        return Value(std::move(values));
-    }
-
-    return std::nullopt;
-}
-
-ExprPtr sdk_value_to_expr(const Value& value) {
-    if (const auto* number = value.as_number()) {
-        return make_expr<Number>(*number);
-    }
-    if (const auto* boolean = value.as_boolean()) {
-        return make_expr<Boolean>(*boolean);
-    }
-    if (const auto* string = value.as_string()) {
-        return make_expr<String>(*string);
-    }
-    if (const auto* list = value.as_list()) {
-        std::vector<ExprPtr> elements;
-        elements.reserve(list->size());
-        for (const auto& element : *list) {
-            elements.push_back(sdk_value_to_expr(element));
-        }
-        return std::make_shared<Expr>(List{elements});
-    }
-    return make_expr<Indeterminate>();
-}
-
-void seed_kernel_symbols(
-    kernel::EvaluationContext& ctx,
-    const Bindings& constants,
-    const Bindings& bindings) {
-    for (const auto& [name, value] : constants) {
-        ctx.symbol_values.set(name, sdk_value_to_expr(value));
-    }
-    for (const auto& [name, value] : bindings) {
-        ctx.symbol_values.set(name, sdk_value_to_expr(value));
-    }
-}
-
-EvaluationResult evaluate_via_kernel_bridge(
-    const ExprPtr& kernel_expr,
-    const Bindings& bindings,
-    const Bindings& constants,
-    const std::unordered_map<std::string, HostFunctionSpec>& host_functions,
-    const Policy& policy) {
-    static std::once_flag builtins_once;
-    std::call_once(builtins_once, []() {
-        register_built_in_functions();
-    });
-
-    kernel::EvaluationContext ctx(bindings, constants, host_functions, policy);
-    ctx.enable_runtime_strict_semantics(true);
-    ctx.reset_runtime_step_counter();
-    seed_kernel_symbols(ctx, constants, bindings);
-
-    auto result_expr = evaluate(kernel_expr, ctx);
-    auto value = expr_to_sdk_value(result_expr);
-    if (value.has_value()) {
-        EvaluationResult result;
-        result.value = std::move(*value);
-        return result;
-    }
-
-    return {};
 }
 
 }  // namespace
@@ -324,36 +222,12 @@ EvaluationResult Engine::evaluate(
         host_functions = state_->host_functions;
     }
 
-    if (formula.state_->kernel_expr == nullptr) {
-        EvaluationResult result;
-        result.error = kernel::make_runtime_error(
-            kernel::ErrorCode::internal_inconsistency,
-            "Compiled formula is missing its lowered kernel expression.");
-        return result;
-    }
-
-    try {
-        return evaluate_via_kernel_bridge(
-            formula.state_->kernel_expr,
-            bindings,
-            formula.state_->constants,
-            host_functions,
-            formula.state_->policy);
-    } catch (const kernel::RuntimeFailure& failure) {
-        EvaluationResult result;
-        result.error = failure.error();
-        return result;
-    } catch (const EvaluatorError& error) {
-        EvaluationResult result;
-        result.error = kernel::make_runtime_error(error.code(), error.what());
-        return result;
-    } catch (const std::runtime_error& error) {
-        EvaluationResult result;
-        result.error = kernel::make_runtime_error(
-            kernel::ErrorCode::internal_inconsistency,
-            error.what());
-        return result;
-    }
+    return kernel::evaluate_trusted_subset_formula(
+        formula.state_->kernel_expr,
+        bindings,
+        formula.state_->constants,
+        host_functions,
+        formula.state_->policy);
 }
 
 }  // namespace aleph3

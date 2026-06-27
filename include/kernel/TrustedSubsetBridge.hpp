@@ -10,7 +10,10 @@
 
 #include "expr/Expr.hpp"
 #include "ir/Node.hpp"
+#include "kernel/FunctionRegistry.hpp"
 #include "kernel/Lowering.hpp"
+#include "sdk/Policy.hpp"
+#include "sdk/Types.hpp"
 
 namespace aleph3::kernel {
 
@@ -25,5 +28,12 @@ struct StagedTrustedSubsetFormula {
 };
 
 [[nodiscard]] StagedTrustedSubsetFormula stage_trusted_subset_formula(const ir::NodePtr& root);
+
+[[nodiscard]] EvaluationResult evaluate_trusted_subset_formula(
+    const ExprPtr& kernel_expr,
+    const Bindings& bindings,
+    const Bindings& constants,
+    const HostFunctionRegistry& host_functions,
+    const Policy& policy);
 
 }  // namespace aleph3::kernel

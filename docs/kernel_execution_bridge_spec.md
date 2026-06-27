@@ -2,51 +2,98 @@
 
 ## Status
 
-Draft implementation spec referenced by the
+Implemented execution contract referenced by the
 [Aleph3 Unified Plan](aleph3_unified_plan.md).
 
 ## Purpose
 
-This document will define how SDK trusted-subset execution converges onto the
-kernel.
+The trusted-subset SDK path now executes through one explicit kernel bridge:
 
-It should specify:
+- `kernel::stage_trusted_subset_formula`
+- `kernel::evaluate_trusted_subset_formula`
 
-- how `ir::Node` maps or lowers into kernel execution inputs
-- where the adapter lives
-- how `Engine::evaluate` stops depending on the legacy runtime evaluator path
-- what transitional compatibility is acceptable during migration
+This keeps the SDK facade thin while making kernel lowering, execution
+configuration, and runtime-error projection explicit.
 
-## Scope
+## Current Contract
 
-This spec should cover:
+### Staging
 
-- bridge entrypoints
-- ownership boundaries between SDK and kernel
-- lowering or translation model
-- runtime policy and diagnostic projection
-- migration off the legacy runtime evaluator path
+`stage_trusted_subset_formula(const ir::NodePtr&)` accepts trusted-subset IR
+that has already passed SDK parsing and validation.
 
-## Required Sections
+It returns:
 
-1. bridge architecture
-2. `ir::Node` to kernel representation strategy
-3. evaluation entrypoint used by `Engine`
-4. policy and binding propagation
-5. diagnostic projection back to SDK types
-6. transitional adapter strategy
-7. migration slices and tests
+- the validated trusted-subset root for transitional storage
+- the lowered kernel `Expr`
+- any lowering diagnostics
 
-## Initial Design Questions
+The IR remains an SDK-owned frontend artifact. The lowered kernel expression is
+the execution input.
 
-- whether to lower `ir::Node` directly into `Expr` or evaluate through a
-  narrower kernel bridge form
-- how much trusted-subset validation remains SDK-owned versus kernel-owned
-- where host-function invocation should attach in the kernel path
+### Evaluation
 
-## Acceptance Criteria
+`evaluate_trusted_subset_formula(...)` is the canonical execution adapter for
+trusted-subset SDK formulas.
 
-This spec is sufficient when:
+It owns:
 
-- the removal path for the legacy runtime evaluator path is explicit
-- SDK execution can be redirected without inventing a second semantic model
+- builtin registration bootstrap
+- construction of `kernel::EvaluationContext`
+- propagation of SDK bindings, constants, host functions, and policy
+- strict runtime semantics enablement
+- symbol seeding for SDK values
+- projection of kernel failures back to `EvaluationResult`
+
+`Engine::evaluate` should only gather engine-scoped host functions and delegate
+to this entrypoint.
+
+## Ownership Boundary
+
+SDK owns:
+
+- parsing
+- validation
+- schema and policy authoring
+- the public `Engine` facade
+
+Kernel owns:
+
+- lowered execution form
+- evaluation context
+- runtime semantics
+- host-function invocation during kernel evaluation
+- runtime diagnostic taxonomy and SDK projection
+
+## Transitional Rules
+
+Accepted transitional state:
+
+- compiled formulas may still retain both trusted-subset IR and lowered kernel
+  `Expr`
+- SDK-facing results continue using `EvaluationResult`, `RuntimeError`, and
+  `Value`
+
+Rejected transitional state:
+
+- `Engine` carrying its own evaluator semantics
+- a second SDK-only execution path beside kernel evaluation
+- duplicate runtime-error projection logic outside the kernel bridge
+
+## Tests Required
+
+The bridge contract is covered when tests prove:
+
+- staging lowers trusted-subset IR into kernel expressions
+- bridge evaluation honors SDK bindings and schema constants
+- runtime failures project to SDK runtime error codes
+- registered host functions execute through the kernel path
+- `Engine::evaluate` remains a thin delegation layer
+
+## Next Cleanup
+
+The bridge is explicit now, but the remaining migration cleanup is still:
+
+- reduce retained trusted-subset state once no SDK surface needs it
+- keep bridge tests focused on kernel semantics rather than facade behavior
+- remove stale docs that still imply two long-term execution cores

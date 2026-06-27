@@ -41,6 +41,8 @@ public:
 
     EvaluationContext(const EvaluationContext& other)
         : symbol_values(other.symbol_values),
+          symbol_metadata(other.symbol_metadata),
+          definition_records(other.definition_records),
           function_definitions(other.function_definitions),
           owned_bindings_(other.owned_bindings_),
           owned_constants_(other.owned_constants_),
@@ -54,6 +56,8 @@ public:
 
     EvaluationContext(EvaluationContext&& other) noexcept
         : symbol_values(std::move(other.symbol_values)),
+          symbol_metadata(std::move(other.symbol_metadata)),
+          definition_records(std::move(other.definition_records)),
           function_definitions(std::move(other.function_definitions)),
           owned_bindings_(std::move(other.owned_bindings_)),
           owned_constants_(std::move(other.owned_constants_)),
@@ -68,6 +72,8 @@ public:
     EvaluationContext& operator=(const EvaluationContext& other) {
         if (this != &other) {
             symbol_values = other.symbol_values;
+            symbol_metadata = other.symbol_metadata;
+            definition_records = other.definition_records;
             function_definitions = other.function_definitions;
             owned_bindings_ = other.owned_bindings_;
             owned_constants_ = other.owned_constants_;
@@ -82,6 +88,8 @@ public:
     EvaluationContext& operator=(EvaluationContext&& other) noexcept {
         if (this != &other) {
             symbol_values = std::move(other.symbol_values);
+            symbol_metadata = std::move(other.symbol_metadata);
+            definition_records = std::move(other.definition_records);
             function_definitions = std::move(other.function_definitions);
             owned_bindings_ = std::move(other.owned_bindings_);
             owned_constants_ = std::move(other.owned_constants_);
@@ -134,6 +142,8 @@ public:
     }
 
     symbols::SymbolValueTable symbol_values;
+    symbols::SymbolMetadataTable symbol_metadata;
+    symbols::SymbolDefinitionTable definition_records;
     symbols::FunctionDefinitionTable function_definitions;
 
     std::unordered_map<std::string, ExprPtr>& variables;

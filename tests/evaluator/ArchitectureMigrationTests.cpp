@@ -6,6 +6,7 @@
 #include "kernel/EvaluationContext.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/Lowering.hpp"
+#include "kernel/Rewrite.hpp"
 #include "kernel/TrustedSubsetBridge.hpp"
 #include "packs/PackRegistry.hpp"
 #include "parser/Parser.hpp"
@@ -72,12 +73,24 @@ TEST_CASE("Kernel evaluation context can carry symbolic and SDK runtime state", 
 
     kernel::EvaluationContext ctx(bindings, constants, host_functions, policy);
     ctx.symbol_values.set("offset", make_expr<Number>(5.0));
+    ctx.symbol_metadata.set("Clamp", {
+        "Clamp",
+        {symbols::SymbolAttribute::numeric_function},
+        "Clamp values into a numeric range.",
+        symbols::DefinitionOrigin::builtin,
+        "core"});
+    ctx.definition_records.add("Clamp", {
+        symbols::SymbolDefinitionKind::registered_handler,
+        symbols::DefinitionOrigin::builtin,
+        "core"});
 
     REQUIRE(ctx.variables.contains("offset"));
     REQUIRE(ctx.bindings().contains("x"));
     REQUIRE(ctx.constants().contains("pi"));
     REQUIRE(ctx.host_functions().contains("Clamp"));
     REQUIRE(ctx.policy().budget().max_evaluation_steps == 77);
+    REQUIRE(ctx.symbol_metadata.contains("Clamp"));
+    REQUIRE(ctx.definition_records.contains("Clamp"));
 }
 
 TEST_CASE("Kernel diagnostic taxonomy maps symbolic and runtime surfaces", "[architecture][kernel]") {
@@ -97,6 +110,10 @@ TEST_CASE("Kernel diagnostic taxonomy maps symbolic and runtime surfaces", "[arc
 TEST_CASE("Kernel function registry backs symbolic and host registration paths", "[architecture][kernel]") {
     auto& registry = kernel::FunctionRegistry::instance();
     REQUIRE(registry.has_function("StringJoin"));
+    const auto* string_join = registry.find_symbolic_function_spec("StringJoin");
+    REQUIRE(string_join != nullptr);
+    REQUIRE(string_join->metadata.name == "StringJoin");
+    REQUIRE(string_join->metadata.source == kernel::RegistrationSource::builtin);
 
     kernel::HostFunctionRegistry host_registry;
     HostFunctionSpec clamp;
@@ -112,6 +129,26 @@ TEST_CASE("Kernel function registry backs symbolic and host registration paths",
     const auto* host_spec = kernel::FunctionRegistry::find_host_function(host_registry, "Clamp");
     REQUIRE(host_spec != nullptr);
     REQUIRE(host_spec->arity.allows(3));
+}
+
+TEST_CASE("Kernel function registry records minimal pack registration metadata", "[architecture][kernel][packs]") {
+    kernel::FunctionRegistry registry;
+    registry.register_pack_function(
+        "core-algebra",
+        "Expand",
+        [](const FunctionCall& func, EvaluationContext&) -> ExprPtr {
+            return make_expr<FunctionCall>(func.head, func.args);
+        },
+        "Expand products over sums.",
+        true);
+
+    const auto* spec = registry.find_symbolic_function_spec("Expand");
+    REQUIRE(spec != nullptr);
+    REQUIRE(spec->metadata.name == "Expand");
+    REQUIRE(spec->metadata.owning_package == "core-algebra");
+    REQUIRE(spec->metadata.documentation == "Expand products over sums.");
+    REQUIRE(spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(spec->metadata.rewrite_safe);
 }
 
 TEST_CASE("Registered symbolic handlers win before user-defined functions", "[architecture][precedence]") {
@@ -211,6 +248,34 @@ TEST_CASE("Trusted-subset bridge stages frontend and kernel forms together", "[a
     const auto& call = std::get<FunctionCall>(*staged.kernel_expr);
     REQUIRE(call.head == "Clamp");
     REQUIRE(call.args.size() == 3);
+}
+
+TEST_CASE("Kernel rewrite can replace an exact structural match", "[architecture][rewrite]") {
+    const auto expr = parse_expression("f[x]");
+    const Rule rule{
+        parse_expression("f[x]"),
+        parse_expression("g[x]")
+    };
+
+    const auto result = kernel::rewrite_once(expr, rule);
+
+    REQUIRE(result.changed);
+    REQUIRE(result.rewrites_applied == 1);
+    REQUIRE(to_string(result.expr) == "g[x]");
+}
+
+TEST_CASE("Kernel rewrite can traverse and apply repeated exact rewrites", "[architecture][rewrite]") {
+    const auto expr = parse_expression("f[f[x]]");
+    const Rule rule{
+        parse_expression("f[x]"),
+        parse_expression("g[x]")
+    };
+
+    const auto result = kernel::rewrite_repeated(expr, rule, 4);
+
+    REQUIRE(result.changed);
+    REQUIRE(result.rewrites_applied >= 2);
+    REQUIRE(to_string(result.expr) == "g[g[x]]");
 }
 
 TEST_CASE("Trusted-subset bridge evaluates lowered formulas with SDK bindings and constants", "[architecture][kernel]") {

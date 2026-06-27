@@ -2,55 +2,85 @@
 
 ## Status
 
-Draft implementation spec referenced by the
-[Aleph3 Unified Plan](aleph3_unified_plan.md).
+Initial rewrite infrastructure is now implemented as an exact structural rule
+engine.
+
+Primary implementation:
+
+- [include/kernel/Rewrite.hpp](/home/sergio/dev/aleph3/include/kernel/Rewrite.hpp)
+- [src/kernel/Rewrite.cpp](/home/sergio/dev/aleph3/src/kernel/Rewrite.cpp)
 
 ## Purpose
 
-This document will define the rewrite subsystem required for general symbolic
-transformation.
+This document defines the first kernel-owned rewrite contract.
 
-It should specify:
+It is intentionally smaller than the long-term target. The current goal is to
+establish rewrite ownership, traversal semantics, and bounded repeated
+application before adding patterns.
 
-- pattern model
-- matcher scope
-- traversal semantics
-- rewrite application rules
-- bounded repeated-rewrite behavior
+## Current Contract
 
-## Scope
+### Rule Scope
 
-This spec should cover:
+The current rewrite engine accepts exact `Rule` expressions:
 
-- pattern representation
-- match environment representation
-- rule representation
-- traversal APIs
-- rewrite budgets and termination rules
-- interaction with evaluator-driven reductions
+- left-hand side must match structurally
+- right-hand side is substituted structurally
 
-## Required Sections
+There is no pattern language yet.
+This is exact tree rewriting only.
 
-1. initial pattern language scope
-2. match result representation
-3. traversal order semantics
-4. single-pass rewrite semantics
-5. repeated rewrite semantics and budgets
-6. conditional rule support
-7. interaction with assumptions and symbol definitions
-8. testing invariants
+### Equality Model
 
-## Initial Design Questions
+`kernel::structurally_equal(...)` compares expressions structurally across:
 
-- what the minimal first pattern language should be
-- whether rewrites run before, after, or interleaved with builtin evaluation
-- how to avoid non-termination while staying useful
-- which current simplifications should migrate into rewrite-driven behavior
+- atoms
+- function calls
+- rules
+- assignments
+- function definitions
+- lists
 
-## Acceptance Criteria
+This is the equality contract used by the first rewrite slice.
 
-This spec is sufficient when:
+### Traversal Semantics
 
-- traversal semantics are explicit
-- rule application order is defined
-- bounded rewrite behavior is testable
+`rewrite_once(...)` performs:
+
+- top-level exact match first
+- recursive traversal into child expressions otherwise
+- whole-tree reconstruction when any child rewrite happens
+
+`rewrite_repeated(...)` performs repeated application up to a caller-provided
+rewrite bound.
+
+### Bounded Behavior
+
+The first repeated entrypoint is explicitly bounded:
+
+- caller provides `max_rewrites`
+- traversal stops when no rewrite occurs
+- traversal also stops once the bound is reached
+
+## What This Enables Now
+
+The rewrite subsystem can already support:
+
+- exact local transformation tests
+- rule-driven structural cleanup experiments
+- migration of selected hardcoded transforms toward kernel-owned rewrite APIs
+
+## What Is Not Implemented Yet
+
+- symbolic patterns
+- named pattern variables
+- conditional rules
+- rewrite strategy selection
+- integration with assumptions
+- evaluator/rewrite scheduling policy
+
+## Next Steps
+
+- add the first minimal pattern language
+- define rewrite budgeting relative to evaluation budgets
+- decide which existing simplifications should move behind rewrite entrypoints

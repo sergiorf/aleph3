@@ -1,0 +1,256 @@
+#include "kernel/Rewrite.hpp"
+
+#include <type_traits>
+#include <utility>
+
+namespace aleph3::kernel {
+
+namespace {
+
+bool structurally_equal_list(
+    const std::vector<ExprPtr>& left,
+    const std::vector<ExprPtr>& right);
+
+bool structurally_equal_impl(const Expr& left, const Expr& right) {
+    if (left.index() != right.index()) {
+        return false;
+    }
+
+    return std::visit(
+        [&](const auto& lhs) -> bool {
+            using T = std::decay_t<decltype(lhs)>;
+            const auto& rhs = std::get<T>(right);
+
+            if constexpr (std::is_same_v<T, Symbol>) {
+                return lhs.name == rhs.name;
+            } else if constexpr (std::is_same_v<T, Number>) {
+                return lhs.value == rhs.value;
+            } else if constexpr (std::is_same_v<T, Complex>) {
+                return lhs.real == rhs.real && lhs.imag == rhs.imag;
+            } else if constexpr (std::is_same_v<T, Rational>) {
+                return lhs.numerator == rhs.numerator &&
+                       lhs.denominator == rhs.denominator;
+            } else if constexpr (std::is_same_v<T, Boolean>) {
+                return lhs.value == rhs.value;
+            } else if constexpr (std::is_same_v<T, String>) {
+                return lhs.value == rhs.value;
+            } else if constexpr (std::is_same_v<T, FunctionCall>) {
+                return lhs.head == rhs.head &&
+                       structurally_equal_list(lhs.args, rhs.args);
+            } else if constexpr (std::is_same_v<T, FunctionDefinition>) {
+                if (lhs.name != rhs.name ||
+                    lhs.delayed != rhs.delayed ||
+                    lhs.params.size() != rhs.params.size()) {
+                    return false;
+                }
+                for (std::size_t index = 0; index < lhs.params.size(); ++index) {
+                    if (lhs.params[index].name != rhs.params[index].name) {
+                        return false;
+                    }
+                    if (!structurally_equal(lhs.params[index].default_value,
+                                            rhs.params[index].default_value)) {
+                        return false;
+                    }
+                }
+                return structurally_equal(lhs.body, rhs.body);
+            } else if constexpr (std::is_same_v<T, Assignment>) {
+                return lhs.name == rhs.name &&
+                       structurally_equal(lhs.value, rhs.value);
+            } else if constexpr (std::is_same_v<T, Rule>) {
+                return structurally_equal(lhs.lhs, rhs.lhs) &&
+                       structurally_equal(lhs.rhs, rhs.rhs);
+            } else if constexpr (std::is_same_v<T, List>) {
+                return structurally_equal_list(lhs.elements, rhs.elements);
+            } else if constexpr (std::is_same_v<T, Infinity> ||
+                                 std::is_same_v<T, ComplexInfinity> ||
+                                 std::is_same_v<T, Indeterminate>) {
+                return true;
+            } else {
+                return false;
+            }
+        },
+        left);
+}
+
+bool structurally_equal_list(
+    const std::vector<ExprPtr>& left,
+    const std::vector<ExprPtr>& right) {
+    if (left.size() != right.size()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < left.size(); ++index) {
+        if (!structurally_equal(left[index], right[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+ExprPtr clone_expr(const ExprPtr& expr) {
+    return expr == nullptr ? nullptr : std::make_shared<Expr>(*expr);
+}
+
+RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
+    if (expr == nullptr) {
+        return {};
+    }
+
+    if (structurally_equal(expr, rule.lhs)) {
+        RewriteResult result;
+        result.expr = clone_expr(rule.rhs);
+        result.changed = true;
+        result.rewrites_applied = 1;
+        return result;
+    }
+
+    return std::visit(
+        [&](const auto& node) -> RewriteResult {
+            using T = std::decay_t<decltype(node)>;
+
+            if constexpr (std::is_same_v<T, FunctionCall>) {
+                std::vector<ExprPtr> rewritten_args;
+                rewritten_args.reserve(node.args.size());
+                bool changed = false;
+                std::size_t rewrites_applied = 0;
+                for (const auto& arg : node.args) {
+                    auto rewritten = rewrite_once_impl(arg, rule);
+                    changed = changed || rewritten.changed;
+                    rewrites_applied += rewritten.rewrites_applied;
+                    rewritten_args.push_back(rewritten.changed ? rewritten.expr : arg);
+                }
+                if (!changed) {
+                    return RewriteResult{expr, false, 0};
+                }
+                RewriteResult result;
+                result.expr = make_expr<FunctionCall>(node.head, rewritten_args);
+                result.changed = true;
+                result.rewrites_applied = rewrites_applied;
+                return result;
+            } else if constexpr (std::is_same_v<T, List>) {
+                std::vector<ExprPtr> rewritten_elements;
+                rewritten_elements.reserve(node.elements.size());
+                bool changed = false;
+                std::size_t rewrites_applied = 0;
+                for (const auto& element : node.elements) {
+                    auto rewritten = rewrite_once_impl(element, rule);
+                    changed = changed || rewritten.changed;
+                    rewrites_applied += rewritten.rewrites_applied;
+                    rewritten_elements.push_back(rewritten.changed ? rewritten.expr : element);
+                }
+                if (!changed) {
+                    return RewriteResult{expr, false, 0};
+                }
+                RewriteResult result;
+                result.expr = std::make_shared<Expr>(List{rewritten_elements});
+                result.changed = true;
+                result.rewrites_applied = rewrites_applied;
+                return result;
+            } else if constexpr (std::is_same_v<T, Rule>) {
+                auto lhs = rewrite_once_impl(node.lhs, rule);
+                if (lhs.changed) {
+                    RewriteResult result;
+                    result.expr = make_expr<Rule>(lhs.expr, node.rhs);
+                    result.changed = true;
+                    result.rewrites_applied = lhs.rewrites_applied;
+                    return result;
+                }
+                auto rhs = rewrite_once_impl(node.rhs, rule);
+                if (rhs.changed) {
+                    RewriteResult result;
+                    result.expr = make_expr<Rule>(node.lhs, rhs.expr);
+                    result.changed = true;
+                    result.rewrites_applied = rhs.rewrites_applied;
+                    return result;
+                }
+                return RewriteResult{expr, false, 0};
+            } else if constexpr (std::is_same_v<T, Assignment>) {
+                auto value = rewrite_once_impl(node.value, rule);
+                if (!value.changed) {
+                    return RewriteResult{expr, false, 0};
+                }
+                RewriteResult result;
+                result.expr = make_expr<Assignment>(node.name, value.expr);
+                result.changed = true;
+                result.rewrites_applied = value.rewrites_applied;
+                return result;
+            } else if constexpr (std::is_same_v<T, FunctionDefinition>) {
+                for (std::size_t index = 0; index < node.params.size(); ++index) {
+                    if (node.params[index].default_value == nullptr) {
+                        continue;
+                    }
+                    auto rewritten = rewrite_once_impl(node.params[index].default_value, rule);
+                    if (rewritten.changed) {
+                        auto params = node.params;
+                        params[index].default_value = rewritten.expr;
+                        RewriteResult result;
+                        result.expr = make_expr<FunctionDefinition>(
+                            node.name,
+                            params,
+                            node.body,
+                            node.delayed);
+                        result.changed = true;
+                        result.rewrites_applied = rewritten.rewrites_applied;
+                        return result;
+                    }
+                }
+                auto body = rewrite_once_impl(node.body, rule);
+                if (!body.changed) {
+                    return RewriteResult{expr, false, 0};
+                }
+                RewriteResult result;
+                result.expr = make_expr<FunctionDefinition>(
+                    node.name,
+                    node.params,
+                    body.expr,
+                    node.delayed);
+                result.changed = true;
+                result.rewrites_applied = body.rewrites_applied;
+                return result;
+            } else {
+                return RewriteResult{expr, false, 0};
+            }
+        },
+        *expr);
+}
+
+}  // namespace
+
+bool structurally_equal(const ExprPtr& left, const ExprPtr& right) {
+    if (left == right) {
+        return true;
+    }
+    if (left == nullptr || right == nullptr) {
+        return left == nullptr && right == nullptr;
+    }
+    return structurally_equal_impl(*left, *right);
+}
+
+RewriteResult rewrite_once(const ExprPtr& expr, const Rule& rule) {
+    auto result = rewrite_once_impl(expr, rule);
+    if (result.expr == nullptr) {
+        result.expr = expr;
+    }
+    return result;
+}
+
+RewriteResult rewrite_repeated(
+    const ExprPtr& expr,
+    const Rule& rule,
+    std::size_t max_rewrites) {
+    RewriteResult accumulated;
+    accumulated.expr = expr;
+
+    for (std::size_t iteration = 0; iteration < max_rewrites; ++iteration) {
+        auto step = rewrite_once(accumulated.expr, rule);
+        if (!step.changed) {
+            break;
+        }
+        accumulated.expr = std::move(step.expr);
+        accumulated.changed = true;
+        accumulated.rewrites_applied += step.rewrites_applied;
+    }
+
+    return accumulated;
+}
+
+}  // namespace aleph3::kernel

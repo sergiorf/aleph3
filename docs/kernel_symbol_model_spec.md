@@ -2,58 +2,126 @@
 
 ## Status
 
-Draft implementation spec referenced by the
-[Aleph3 Unified Plan](aleph3_unified_plan.md).
+Initial symbol metadata and definition contract is now implemented.
+
+Primary implementation:
+
+- [include/symbols/SymbolState.hpp](/home/sergio/dev/aleph3/include/symbols/SymbolState.hpp)
+- [include/kernel/EvaluationContext.hpp](/home/sergio/dev/aleph3/include/kernel/EvaluationContext.hpp)
+- [include/kernel/FunctionRegistry.hpp](/home/sergio/dev/aleph3/include/kernel/FunctionRegistry.hpp)
 
 ## Purpose
 
-This document will define the kernel symbol model in enough detail to drive
-implementation.
+This document defines the first kernel-owned symbol model that evaluator,
+registration, and rewrite work can share.
 
-It should specify:
+## Current Contract
 
-- definition kinds
-- attributes
-- precedence
-- lookup rules
-- mutation rules
-- interaction with built-ins, user definitions, rewrites, and packs
+### Symbol Metadata
 
-## Scope
+Kernel-owned symbol metadata now has an explicit shape:
 
-This spec should cover:
+- symbol name
+- attribute list
+- documentation string
+- definition origin
+- provider identifier
 
-- symbol identity and metadata
-- symbol values and callable definitions
-- attribute model
-- precedence and resolution rules
-- definition storage APIs
-- evaluation-facing lookup contracts
+This is represented by `symbols::SymbolMetadata` and stored in
+`symbols::SymbolMetadataTable`.
 
-## Required Sections
+### Definition Records
 
-1. symbol identity and naming model
-2. definition kinds and data structures
-3. attribute set and meaning
-4. precedence between built-ins, user definitions, pack definitions, and
-   rewrites
-5. lookup algorithm
-6. mutation/update rules
-7. cycle and recursion handling
-8. testing invariants
+The kernel now has a lightweight definition-record layer beyond raw value and
+function maps.
 
-## Initial Design Questions
+`symbols::SymbolDefinitionRecord` tracks:
 
-- which definition categories should exist first
-- whether to model ownvalue/downvalue-style behavior directly or through a
-  narrower intermediate design
-- how user-defined functions should migrate from current evaluator structures
-- how pack registration participates in lookup without bypassing kernel rules
+- definition kind
+- definition origin
+- provider identifier
 
-## Acceptance Criteria
+The current definition kinds are:
 
-This spec is sufficient when:
+- `own_value`
+- `user_function`
+- `registered_handler`
+- `rewrite_rule`
 
-- symbol resolution order is explicit
-- mutation and lookup semantics are unambiguous
-- evaluator and rewrite subsystems can depend on the same symbol contract
+These records are stored in `symbols::SymbolDefinitionTable`.
+
+### Evaluation Context
+
+`kernel::EvaluationContext` now carries:
+
+- `symbol_values`
+- `symbol_metadata`
+- `definition_records`
+- `function_definitions`
+
+That means symbol metadata, symbolic values, and registered-definition facts can
+travel through one kernel execution context.
+
+## Registration Contract
+
+The kernel registry now exposes the minimal symbolic registration contract that
+future packs can build on.
+
+`kernel::SymbolicFunctionSpec` includes:
+
+- `metadata.name`
+- `metadata.owning_package`
+- `metadata.documentation`
+- `metadata.source`
+- `metadata.rewrite_safe`
+- callable handler
+
+For pack-style registration, the first explicit helper is:
+
+- `FunctionRegistry::register_pack_function(...)`
+
+That is the current minimum contract a future pack must satisfy:
+
+- declare the public symbol name
+- declare which package owns it
+- provide its handler
+- optionally document it
+- declare whether it is safe to use from rewrite-driven transformations
+
+## Current Precedence Facts
+
+Current evaluator precedence is still:
+
+1. special forms
+2. registered symbolic handlers
+3. builtin evaluator functions
+4. user-defined functions
+5. host functions
+6. symbolic fallback
+
+The new symbol model does not replace that precedence yet.
+It makes metadata and definition ownership explicit so precedence can migrate
+away from evaluator branching.
+
+## What Is Implemented Versus Deferred
+
+Implemented now:
+
+- kernel-owned symbol metadata records
+- kernel-owned definition records
+- registry metadata for symbolic functions
+- explicit pack-registration metadata path
+
+Deferred:
+
+- attribute-driven evaluation control
+- ownvalue/downvalue-style lookup
+- mutation semantics beyond current tables
+- evaluator dispatch driven directly from symbol-definition records
+
+## Next Steps
+
+- make evaluator dispatch consult richer symbol-definition facts
+- migrate more builtin identity and precedence knowledge out of evaluator
+  branches
+- define how rewrite rules register against the same symbol contract

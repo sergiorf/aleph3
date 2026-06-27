@@ -8,6 +8,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -22,6 +23,25 @@ namespace aleph3::kernel {
 using SymbolicFunctionHandler = std::function<ExprPtr(const FunctionCall&, EvaluationContext&)>;
 using HostFunctionRegistry = std::unordered_map<std::string, HostFunctionSpec>;
 
+enum class RegistrationSource {
+    builtin,
+    pack,
+    host_bridge
+};
+
+struct SymbolicFunctionMetadata {
+    std::string name;
+    std::string owning_package;
+    std::string documentation;
+    RegistrationSource source = RegistrationSource::builtin;
+    bool rewrite_safe = false;
+};
+
+struct SymbolicFunctionSpec {
+    SymbolicFunctionMetadata metadata;
+    SymbolicFunctionHandler handler;
+};
+
 class FunctionRegistry {
 public:
     static FunctionRegistry& instance() {
@@ -30,7 +50,31 @@ public:
     }
 
     void register_symbolic_function(std::string name, SymbolicFunctionHandler handler) {
-        symbolic_handlers_[std::move(name)] = std::move(handler);
+        SymbolicFunctionSpec spec;
+        spec.metadata.name = name;
+        spec.metadata.source = RegistrationSource::builtin;
+        spec.handler = std::move(handler);
+        register_symbolic_function(std::move(spec));
+    }
+
+    void register_symbolic_function(SymbolicFunctionSpec spec) {
+        symbolic_functions_[spec.metadata.name] = std::move(spec);
+    }
+
+    void register_pack_function(
+        std::string package_name,
+        std::string symbol_name,
+        SymbolicFunctionHandler handler,
+        std::string documentation = {},
+        bool rewrite_safe = false) {
+        SymbolicFunctionSpec spec;
+        spec.metadata.name = std::move(symbol_name);
+        spec.metadata.owning_package = std::move(package_name);
+        spec.metadata.documentation = std::move(documentation);
+        spec.metadata.source = RegistrationSource::pack;
+        spec.metadata.rewrite_safe = rewrite_safe;
+        spec.handler = std::move(handler);
+        register_symbolic_function(std::move(spec));
     }
 
     void register_function(std::string name, SymbolicFunctionHandler handler) {
@@ -38,7 +82,7 @@ public:
     }
 
     [[nodiscard]] bool has_symbolic_function(const std::string& name) const {
-        return symbolic_handlers_.find(name) != symbolic_handlers_.end();
+        return symbolic_functions_.find(name) != symbolic_functions_.end();
     }
 
     [[nodiscard]] bool has_function(const std::string& name) const {
@@ -46,8 +90,8 @@ public:
     }
 
     [[nodiscard]] const SymbolicFunctionHandler* find_symbolic_function(const std::string& name) const {
-        auto it = symbolic_handlers_.find(name);
-        return it == symbolic_handlers_.end() ? nullptr : &it->second;
+        const auto* spec = find_symbolic_function_spec(name);
+        return spec == nullptr ? nullptr : &spec->handler;
     }
 
     [[nodiscard]] const SymbolicFunctionHandler* find_function(const std::string& name) const {
@@ -65,6 +109,11 @@ public:
         return get_symbolic_function(name);
     }
 
+    [[nodiscard]] const SymbolicFunctionSpec* find_symbolic_function_spec(const std::string& name) const {
+        auto it = symbolic_functions_.find(name);
+        return it == symbolic_functions_.end() ? nullptr : &it->second;
+    }
+
     static void register_host_function(HostFunctionRegistry& registry, HostFunctionSpec spec) {
         registry[spec.name] = std::move(spec);
     }
@@ -77,7 +126,7 @@ public:
     }
 
 private:
-    std::unordered_map<std::string, SymbolicFunctionHandler> symbolic_handlers_;
+    std::unordered_map<std::string, SymbolicFunctionSpec> symbolic_functions_;
 };
 
 }  // namespace aleph3::kernel

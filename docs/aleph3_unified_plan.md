@@ -72,6 +72,8 @@ What is already true:
   execution state rather than trusted-subset IR
 - the public SDK surface is documented and split into stable versus
   transitional API areas
+- the kernel now has an initial symbolic registration contract, symbol
+  metadata/definition records, and exact-rule rewrite infrastructure
 
 What is still unresolved:
 
@@ -437,12 +439,11 @@ Goals:
 
 - move from narrow evaluator dispatch toward a symbol-centric kernel
 
-Tasks:
+Current status:
 
-- introduce symbol definition storage beyond narrow UDF call definitions
-- define precedence between built-ins, user definitions, and future rewrite
-  rules
-- make registration and metadata the primary extensibility path
+- initial registration metadata is implemented
+- initial symbol metadata and definition records are implemented
+- evaluator precedence still needs to migrate onto those kernel contracts
 
 Success criteria:
 
@@ -455,12 +456,11 @@ Goals:
 
 - add the general symbolic transformation machinery higher-level features need
 
-Tasks:
+Current status:
 
-- introduce expression pattern matching
-- add replace and rewrite traversal APIs
-- support conditional rules
-- define bounded repeated-rewrite semantics
+- exact structural rule rewriting is implemented
+- bounded repeated rewrite entrypoints exist
+- pattern matching and conditional rules are still open
 
 Success criteria:
 
@@ -590,9 +590,10 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. define the minimal registration contract future packs will require
-3. strengthen the symbol-definition and metadata model behind that contract
-4. begin the rewrite infrastructure that future kernel growth depends on
+2. make evaluator dispatch consult the new symbol-definition and registration
+   contracts
+3. extend rewrite from exact structural rules to the first pattern language
+4. define rewrite budgeting relative to evaluation budgets
 5. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 

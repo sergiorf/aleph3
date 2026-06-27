@@ -147,6 +147,19 @@ symbolic `evaluate(...)`
 
 - shared registration surface for symbolic handlers
 - shared helper surface for SDK/runtime host function registration
+- now carries symbolic registration metadata for built-ins and future packs
+
+`symbols::*`
+
+- now includes kernel-owned symbol metadata and definition-record tables
+- provides the first explicit storage layer beyond raw symbol values and
+  function definitions
+
+`kernel::Rewrite`
+
+- now provides exact structural rule rewriting with bounded repeated
+  application
+- is the first rewrite subsystem slice, not a full pattern engine
 
 `PackRegistry`
 

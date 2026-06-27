@@ -7,6 +7,15 @@ namespace aleph3 {
 
 namespace {
 
+void ensure_user_symbol_metadata(const std::string& name, EvaluationContext& ctx) {
+    ctx.symbol_metadata.ensure(name, symbols::SymbolMetadata{
+        name,
+        {},
+        {},
+        symbols::DefinitionOrigin::user,
+        {}});
+}
+
 std::vector<ExprPtr> bind_user_function_arguments(
     const FunctionDefinition& def,
     const FunctionCall& func) {
@@ -58,6 +67,12 @@ ExprPtr evaluate_user_defined_function(const FunctionCall& func, EvaluationConte
 }
 
 ExprPtr register_user_defined_function(const FunctionDefinition& def, EvaluationContext& ctx) {
+    ensure_user_symbol_metadata(def.name, ctx);
+    ctx.definition_records.add_unique(def.name, symbols::SymbolDefinitionRecord{
+        symbols::SymbolDefinitionKind::user_function,
+        symbols::DefinitionOrigin::user,
+        {}});
+
     if (def.delayed) {
         ctx.function_definitions.set(def.name, def);
         return make_expr<FunctionDefinition>(def.name, def.params, def.body, true);

@@ -24,6 +24,54 @@ namespace {
 
 ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordered_set<std::string>& visited);
 
+void ensure_symbol_metadata(
+    EvaluationContext& ctx,
+    const std::string& name,
+    symbols::DefinitionOrigin origin,
+    std::string provider = {},
+    std::vector<symbols::SymbolAttribute> attributes = {},
+    std::string documentation = {}) {
+    ctx.symbol_metadata.ensure(name, symbols::SymbolMetadata{
+        name,
+        std::move(attributes),
+        std::move(documentation),
+        origin,
+        std::move(provider)});
+}
+
+void ensure_definition_record(
+    EvaluationContext& ctx,
+    const std::string& name,
+    symbols::SymbolDefinitionKind kind,
+    symbols::DefinitionOrigin origin,
+    std::string provider = {}) {
+    ctx.definition_records.add_unique(name, symbols::SymbolDefinitionRecord{
+        kind,
+        origin,
+        std::move(provider)});
+}
+
+void sync_registered_symbolic_function_metadata(
+    const kernel::SymbolicFunctionSpec& spec,
+    EvaluationContext& ctx) {
+    const auto origin = spec.metadata.source == kernel::RegistrationSource::pack
+        ? symbols::DefinitionOrigin::pack
+        : symbols::DefinitionOrigin::builtin;
+    ensure_symbol_metadata(
+        ctx,
+        spec.metadata.name,
+        origin,
+        spec.metadata.owning_package,
+        {},
+        spec.metadata.documentation);
+    ensure_definition_record(
+        ctx,
+        spec.metadata.name,
+        symbols::SymbolDefinitionKind::registered_handler,
+        origin,
+        spec.metadata.owning_package);
+}
+
 bool matches_value_type(const Value& value, ValueType expected) noexcept {
     switch (expected) {
         case ValueType::any:
@@ -203,8 +251,9 @@ std::optional<ExprPtr> try_resolve_special_form(const FunctionCall& func, Evalua
 
 std::optional<ExprPtr> try_resolve_registered_symbolic_function(const FunctionCall& func, EvaluationContext& ctx) {
     auto& registry = packs::PackRegistry::instance();
-    if (registry.has_function(func.head)) {
-        return registry.get_function(func.head)(func, ctx);
+    if (const auto* spec = registry.find_symbolic_function_spec(func.head)) {
+        sync_registered_symbolic_function_metadata(*spec, ctx);
+        return spec->handler(func, ctx);
     }
     return std::nullopt;
 }
@@ -344,6 +393,12 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
             return register_user_defined_function(def, ctx);
         },
         [&](const Assignment& assign) -> ExprPtr {
+            ensure_symbol_metadata(ctx, assign.name, symbols::DefinitionOrigin::user);
+            ensure_definition_record(
+                ctx,
+                assign.name,
+                symbols::SymbolDefinitionKind::own_value,
+                symbols::DefinitionOrigin::user);
             ctx.symbol_values.set(assign.name, evaluate(assign.value, ctx));
             return make_expr<Symbol>(assign.name);
         },

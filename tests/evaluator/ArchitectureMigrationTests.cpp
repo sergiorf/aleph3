@@ -158,6 +158,8 @@ TEST_CASE("Registered symbolic handlers win before user-defined functions", "[ar
     auto result = evaluate(parse_expression("Length[{1, 2, 3}]"), ctx);
     REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(std::get<Number>(*result).value == 3.0);
+    REQUIRE(ctx.symbol_metadata.contains("Length"));
+    REQUIRE(ctx.definition_records.contains("Length", symbols::SymbolDefinitionKind::registered_handler));
 }
 
 TEST_CASE("Builtin evaluator functions win before user-defined functions", "[architecture][precedence]") {
@@ -178,6 +180,30 @@ TEST_CASE("Unknown symbolic functions remain symbolic when no handler owns the n
     const auto& call = std::get<FunctionCall>(*result);
     REQUIRE(call.head == "f");
     REQUIRE(call.args.size() == 1);
+}
+
+TEST_CASE("Assignments populate kernel symbol metadata and definition records", "[architecture][symbols]") {
+    EvaluationContext ctx;
+
+    auto result = evaluate(parse_expression("answer = 42"), ctx);
+
+    REQUIRE(std::holds_alternative<Symbol>(*result));
+    REQUIRE(std::get<Symbol>(*result).name == "answer");
+    REQUIRE(ctx.symbol_metadata.contains("answer"));
+    REQUIRE(ctx.definition_records.contains("answer", symbols::SymbolDefinitionKind::own_value));
+    REQUIRE(ctx.variables.contains("answer"));
+    REQUIRE(std::holds_alternative<Number>(*ctx.variables.at("answer")));
+}
+
+TEST_CASE("User-defined functions populate kernel definition records", "[architecture][symbols]") {
+    EvaluationContext ctx;
+
+    auto result = evaluate(parse_expression("f[x_] := x + 1"), ctx);
+
+    REQUIRE(std::holds_alternative<FunctionDefinition>(*result));
+    REQUIRE(ctx.symbol_metadata.contains("f"));
+    REQUIRE(ctx.definition_records.contains("f", symbols::SymbolDefinitionKind::user_function));
+    REQUIRE(ctx.user_functions.contains("f"));
 }
 
 TEST_CASE("Trusted-subset IR lowers into kernel Expr heads", "[architecture][lowering]") {
@@ -265,7 +291,7 @@ TEST_CASE("Kernel rewrite can replace an exact structural match", "[architecture
 }
 
 TEST_CASE("Kernel rewrite can traverse and apply repeated exact rewrites", "[architecture][rewrite]") {
-    const auto expr = parse_expression("f[f[x]]");
+    const auto expr = parse_expression("f[x] + f[x]");
     const Rule rule{
         parse_expression("f[x]"),
         parse_expression("g[x]")
@@ -275,7 +301,7 @@ TEST_CASE("Kernel rewrite can traverse and apply repeated exact rewrites", "[arc
 
     REQUIRE(result.changed);
     REQUIRE(result.rewrites_applied >= 2);
-    REQUIRE(to_string(result.expr) == "g[g[x]]");
+    REQUIRE(kernel::structurally_equal(result.expr, parse_expression("g[x] + g[x]")));
 }
 
 TEST_CASE("Trusted-subset bridge evaluates lowered formulas with SDK bindings and constants", "[architecture][kernel]") {

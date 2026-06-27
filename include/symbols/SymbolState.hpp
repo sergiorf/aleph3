@@ -3,6 +3,7 @@
 #include "expr/Expr.hpp"
 
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -100,6 +101,23 @@ public:
         metadata_[std::move(name)] = std::move(metadata);
     }
 
+    void ensure(std::string name, SymbolMetadata metadata) {
+        metadata_.try_emplace(std::move(name), std::move(metadata));
+    }
+
+    [[nodiscard]] bool has_attribute(const std::string& name, SymbolAttribute attribute) const {
+        const auto* metadata = lookup(name);
+        if (metadata == nullptr) {
+            return false;
+        }
+        for (const auto candidate : metadata->attributes) {
+            if (candidate == attribute) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     [[nodiscard]] MapType& entries() {
         return metadata_;
     }
@@ -130,7 +148,48 @@ public:
         return it == definitions_.end() ? nullptr : &it->second;
     }
 
+    [[nodiscard]] bool contains(
+        const std::string& name,
+        SymbolDefinitionKind kind) const {
+        const auto* records = lookup(name);
+        if (records == nullptr) {
+            return false;
+        }
+        for (const auto& record : *records) {
+            if (record.kind == kind) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    [[nodiscard]] bool contains(
+        const std::string& name,
+        SymbolDefinitionKind kind,
+        DefinitionOrigin origin,
+        std::string_view provider) const {
+        const auto* records = lookup(name);
+        if (records == nullptr) {
+            return false;
+        }
+        for (const auto& record : *records) {
+            if (record.kind == kind &&
+                record.origin == origin &&
+                record.provider == provider) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void add(std::string name, SymbolDefinitionRecord record) {
+        definitions_[std::move(name)].push_back(std::move(record));
+    }
+
+    void add_unique(std::string name, SymbolDefinitionRecord record) {
+        if (contains(name, record.kind, record.origin, record.provider)) {
+            return;
+        }
         definitions_[std::move(name)].push_back(std::move(record));
     }
 

@@ -14,6 +14,9 @@ It replaces the previous split across:
 Supporting architecture and contract documents remain valid, but they should
 refer back to this file for roadmap, sequencing, and implementation priority.
 
+For the stable, high-level system picture, see
+[Architecture](architecture.md).
+
 Implementation specs referenced by this plan:
 
 - [Kernel Design Spec](kernel_design_spec.md)
@@ -74,6 +77,8 @@ What is already true:
   transitional API areas
 - the kernel now has an initial symbolic registration contract, symbol
   metadata/definition records, and exact-rule rewrite infrastructure
+- evaluator flow now populates those kernel contracts during registered
+  symbolic resolution, assignment, and user-definition registration
 
 What is still unresolved:
 

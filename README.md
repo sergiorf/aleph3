@@ -93,6 +93,7 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    ```
 
 ## Documentation
+- High-level architecture: [docs/architecture.md](docs/architecture.md)
 - Algebra supported subset: [docs/algebra_supported_subset.md](docs/algebra_supported_subset.md)
 - Symbolic core architecture: [docs/symbolic_core_architecture.md](docs/symbolic_core_architecture.md)
 - Class collaboration: [docs/class_collaboration.md](docs/class_collaboration.md)

@@ -18,6 +18,48 @@ It is intentionally smaller than the long-term target. The current goal is to
 establish rewrite ownership, traversal semantics, and bounded repeated
 application before adding patterns.
 
+## What "Rewrite" Means
+
+In Aleph3, a rewrite is a rule-based symbolic transformation.
+
+Example rule:
+
+```text
+f[x] -> g[x]
+```
+
+Example input:
+
+```text
+f[f[x]]
+```
+
+Example output after repeated rewriting:
+
+```text
+g[g[x]]
+```
+
+That is different from ordinary numeric evaluation.
+
+Numeric evaluation asks:
+
+- what is `2 + 3`?
+
+Rewrite asks:
+
+- how should one expression shape be transformed into another expression
+  shape?
+
+This matters because symbolic algebra depends heavily on transformations such
+as:
+
+- replacing one form with an equivalent form
+- distributing or factoring structure
+- canonicalizing expressions
+- applying user or pack rules without hardcoding every case into evaluator
+  branches
+
 ## Current Contract
 
 ### Rule Scope
@@ -29,6 +71,10 @@ The current rewrite engine accepts exact `Rule` expressions:
 
 There is no pattern language yet.
 This is exact tree rewriting only.
+
+That means the left-hand side must already match the expression tree exactly.
+The current engine does not yet understand placeholders such as "any
+expression" or named pattern variables.
 
 ### Equality Model
 
@@ -69,6 +115,18 @@ The rewrite subsystem can already support:
 - exact local transformation tests
 - rule-driven structural cleanup experiments
 - migration of selected hardcoded transforms toward kernel-owned rewrite APIs
+
+Example of what works now:
+
+- rule: `f[x] -> g[x]`
+- input: `f[f[x]]`
+- repeated rewrite output: `g[g[x]]`
+
+Example of what does not work yet:
+
+- rule: `f[a_] -> g[a]`
+
+Pattern variables such as `a_` are not implemented yet.
 
 ## What Is Not Implemented Yet
 

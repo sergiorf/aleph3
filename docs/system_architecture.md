@@ -1,5 +1,10 @@
 # Aleph3 System Architecture
 
+This is the detailed architecture document.
+
+If you want the stable, high-level picture first, read
+[Architecture](architecture.md) before this file.
+
 ## Purpose
 
 This document defines the target architecture for Aleph3 as a layered symbolic

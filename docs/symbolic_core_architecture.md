@@ -1,5 +1,10 @@
 # Symbolic Core Architecture
 
+This is a detailed symbolic-core architecture document.
+
+If you want the stable, high-level system view first, read
+[Architecture](architecture.md).
+
 ## Purpose
 
 This document defines the intended architecture boundary between:

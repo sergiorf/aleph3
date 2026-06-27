@@ -10,6 +10,7 @@ It is the collaboration view across the current refactor state.
 
 Related documents:
 
+- [Architecture](architecture.md)
 - [System Architecture](system_architecture.md)
 - [SDK Stable Interfaces](sdk/stable_interfaces.md)
 - [Symbolic Core Architecture](symbolic_core_architecture.md)
@@ -154,6 +155,8 @@ symbolic `evaluate(...)`
 - now includes kernel-owned symbol metadata and definition-record tables
 - provides the first explicit storage layer beyond raw symbol values and
   function definitions
+- is now populated during registered symbolic resolution, user-function
+  registration, and assignment evaluation
 
 `kernel::Rewrite`
 
@@ -248,8 +251,9 @@ These collaborations are not unified yet:
 If you want to understand the project quickly, read in this order:
 
 1. [Class Collaboration](class_collaboration.md)
-2. [System Architecture](system_architecture.md)
-3. [Symbolic Core Architecture](symbolic_core_architecture.md)
-4. [Kernel Representation Decision](kernel_representation_decision.md)
-5. [Kernel Execution Bridge Spec](kernel_execution_bridge_spec.md)
-6. [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)
+2. [Architecture](architecture.md)
+3. [System Architecture](system_architecture.md)
+4. [Symbolic Core Architecture](symbolic_core_architecture.md)
+5. [Kernel Representation Decision](kernel_representation_decision.md)
+6. [Kernel Execution Bridge Spec](kernel_execution_bridge_spec.md)
+7. [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)

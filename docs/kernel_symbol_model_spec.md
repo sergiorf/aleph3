@@ -111,13 +111,16 @@ Implemented now:
 - kernel-owned definition records
 - registry metadata for symbolic functions
 - explicit pack-registration metadata path
+- evaluator-side population of metadata/definition records for registered
+  symbolic handlers, user-defined functions, and assignments
 
 Deferred:
 
 - attribute-driven evaluation control
 - ownvalue/downvalue-style lookup
 - mutation semantics beyond current tables
-- evaluator dispatch driven directly from symbol-definition records
+- evaluator dispatch driven primarily from symbol-definition records rather than
+  evaluator-local precedence code
 
 ## Next Steps
 

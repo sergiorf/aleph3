@@ -27,7 +27,7 @@ flowchart TD
 - `tests/semantics/ValidatorTests.cpp`
   Verifies unknown-symbol, arity, feature-gate, structural-limit, constant-condition branch pruning, schema-valued constant reasoning, constant runtime-trap detection, branch-compatibility, and composed-type checks.
 - `tests/evaluator/ArchitectureMigrationTests.cpp`
-  Verifies the lowering bridge, shared kernel execution context, and kernel-side host-function behavior used by SDK evaluation.
+  Verifies the lowering bridge, shared kernel execution context, kernel-side host-function behavior, and direct parity between SDK evaluation and kernel evaluation for success, failure, and budget semantics.
 
 ## What Legacy Tests Still Mean
 
@@ -43,5 +43,6 @@ flowchart TD
 4. Obvious type errors, incompatible `If` result shapes, and constant runtime traps should fail during validation instead of waiting for runtime.
 5. Compiled formulas must be reusable opaque handles rather than reparsed SDK state.
 6. Engine-scoped function registration must avoid global mutable behavior.
-7. Evaluation budgets must fail with structured runtime errors.
-8. CLI binding parsing must stay deterministic enough for manual SDK checks.
+7. SDK evaluation and direct kernel evaluation must agree on runtime result and failure codes for the trusted subset.
+8. Evaluation budgets must fail with structured runtime errors.
+9. CLI binding parsing must stay deterministic enough for manual SDK checks.

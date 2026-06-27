@@ -85,6 +85,8 @@ The bridge contract is covered when tests prove:
 - bridge evaluation honors SDK bindings and schema constants
 - runtime failures project to SDK runtime error codes
 - registered host functions execute through the kernel path
+- SDK evaluation agrees with direct kernel evaluation on trusted-subset
+  results and failure codes
 - `Engine::evaluate` remains a thin delegation layer
 
 ## Next Cleanup

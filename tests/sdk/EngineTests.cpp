@@ -1,11 +1,203 @@
 #include "sdk/Engine.hpp"
 
+#include "evaluator/BuiltInFunctions.hpp"
+#include "evaluator/EvaluationContext.hpp"
+#include "evaluator/Evaluator.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
+#include "frontend/Parser.hpp"
+#include "kernel/Diagnostics.hpp"
+#include "kernel/FunctionRegistry.hpp"
+#include "kernel/TrustedSubsetBridge.hpp"
+#include "semantics/Validator.hpp"
+
 #include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include <limits>
+#include <mutex>
+#include <optional>
 #include <stdexcept>
 
 using namespace aleph3;
+
+namespace {
+
+std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
+    if (expr == nullptr) {
+        return std::nullopt;
+    }
+
+    if (const auto* number = std::get_if<Number>(&*expr)) {
+        double value = number->value;
+        if (value == 0.0) {
+            value = 0.0;
+        }
+        return Value(value);
+    }
+    if (const auto* rational = std::get_if<Rational>(&*expr)) {
+        return Value(static_cast<double>(rational->numerator) / rational->denominator);
+    }
+    if (const auto* boolean = std::get_if<Boolean>(&*expr)) {
+        return Value(boolean->value);
+    }
+    if (const auto* string = std::get_if<String>(&*expr)) {
+        return Value(string->value);
+    }
+    if (const auto* list = std::get_if<List>(&*expr)) {
+        Value::List values;
+        values.reserve(list->elements.size());
+        for (const auto& element : list->elements) {
+            auto converted = expr_to_sdk_value(element);
+            if (!converted.has_value()) {
+                return std::nullopt;
+            }
+            values.push_back(std::move(*converted));
+        }
+        return Value(std::move(values));
+    }
+
+    return std::nullopt;
+}
+
+ExprPtr sdk_value_to_expr(const Value& value) {
+    if (const auto* number = value.as_number()) {
+        return make_expr<Number>(*number);
+    }
+    if (const auto* boolean = value.as_boolean()) {
+        return make_expr<Boolean>(*boolean);
+    }
+    if (const auto* string = value.as_string()) {
+        return make_expr<String>(*string);
+    }
+    if (const auto* list = value.as_list()) {
+        std::vector<ExprPtr> elements;
+        elements.reserve(list->size());
+        for (const auto& element : *list) {
+            elements.push_back(sdk_value_to_expr(element));
+        }
+        return std::make_shared<Expr>(List{elements});
+    }
+    return make_expr<Indeterminate>();
+}
+
+void seed_kernel_symbols(
+    EvaluationContext& ctx,
+    const Bindings& constants,
+    const Bindings& bindings) {
+    for (const auto& [name, value] : constants) {
+        ctx.symbol_values.set(name, sdk_value_to_expr(value));
+    }
+    for (const auto& [name, value] : bindings) {
+        ctx.symbol_values.set(name, sdk_value_to_expr(value));
+    }
+}
+
+ExprPtr stage_sdk_source_as_kernel_expr(
+    std::string_view source,
+    const Schema& schema,
+    const Policy& policy) {
+    frontend::Parser parser(source);
+    auto parse_result = parser.parse();
+    REQUIRE(parse_result.ok());
+
+    semantics::Validator validator(schema, policy);
+    auto validation = validator.validate(parse_result.root);
+    REQUIRE(validation.ok());
+
+    const auto staged = kernel::stage_trusted_subset_formula(parse_result.root);
+    REQUIRE(staged.ok());
+    return staged.kernel_expr;
+}
+
+EvaluationResult evaluate_direct_kernel_expr(
+    const ExprPtr& expr,
+    const Bindings& bindings,
+    const Bindings& constants,
+    const kernel::HostFunctionRegistry& host_functions,
+    const Policy& policy) {
+    static std::once_flag builtins_once;
+    std::call_once(builtins_once, []() {
+        register_built_in_functions();
+    });
+
+    try {
+        EvaluationContext ctx(bindings, constants, host_functions, policy);
+        ctx.enable_runtime_strict_semantics(true);
+        ctx.reset_runtime_step_counter();
+        seed_kernel_symbols(ctx, constants, bindings);
+
+        auto result_expr = evaluate(expr, ctx);
+        auto value = expr_to_sdk_value(result_expr);
+        if (value.has_value()) {
+            EvaluationResult result;
+            result.value = std::move(*value);
+            return result;
+        }
+
+        return {};
+    } catch (const kernel::RuntimeFailure& failure) {
+        EvaluationResult result;
+        result.error = failure.error();
+        return result;
+    } catch (const EvaluatorError& error) {
+        EvaluationResult result;
+        result.error = kernel::make_runtime_error(error.code(), error.what());
+        return result;
+    } catch (const std::runtime_error& error) {
+        EvaluationResult result;
+        result.error = kernel::make_runtime_error(
+            kernel::ErrorCode::internal_inconsistency,
+            error.what());
+        return result;
+    }
+}
+
+void require_same_value(const Value& left, const Value& right) {
+    REQUIRE(left.storage().index() == right.storage().index());
+
+    if (const auto* number = left.as_number()) {
+        REQUIRE(right.as_number() != nullptr);
+        REQUIRE(*number == *right.as_number());
+        return;
+    }
+    if (const auto* boolean = left.as_boolean()) {
+        REQUIRE(right.as_boolean() != nullptr);
+        REQUIRE(*boolean == *right.as_boolean());
+        return;
+    }
+    if (const auto* string = left.as_string()) {
+        REQUIRE(right.as_string() != nullptr);
+        REQUIRE(*string == *right.as_string());
+        return;
+    }
+    if (const auto* list = left.as_list()) {
+        REQUIRE(right.as_list() != nullptr);
+        REQUIRE(list->size() == right.as_list()->size());
+        for (std::size_t index = 0; index < list->size(); ++index) {
+            require_same_value((*list)[index], (*right.as_list())[index]);
+        }
+        return;
+    }
+
+    REQUIRE(left.is_null());
+    REQUIRE(right.is_null());
+}
+
+void require_same_evaluation_result(
+    const EvaluationResult& sdk_result,
+    const EvaluationResult& kernel_result) {
+    REQUIRE(sdk_result.ok() == kernel_result.ok());
+    REQUIRE(sdk_result.error.has_value() == kernel_result.error.has_value());
+    REQUIRE(sdk_result.value.has_value() == kernel_result.value.has_value());
+
+    if (sdk_result.ok()) {
+        require_same_value(*sdk_result.value, *kernel_result.value);
+        return;
+    }
+
+    REQUIRE(sdk_result.error->code == kernel_result.error->code);
+}
+
+}  // namespace
 
 TEST_CASE("Engine compile rejects blank source with structured diagnostics", "[sdk][engine]") {
     Engine engine;
@@ -360,4 +552,139 @@ TEST_CASE("Engine evaluate enforces registered host function contracts", "[sdk][
     REQUIRE_FALSE(evaluation_result.ok());
     REQUIRE(evaluation_result.error.has_value());
     REQUIRE(evaluation_result.error->code == "runtime.invalid_host_result");
+}
+
+TEST_CASE("Engine evaluate matches direct kernel evaluation for trusted-subset success semantics", "[sdk][engine][kernel]") {
+    Engine engine;
+    Schema schema;
+    schema.allow_variable({"enabled", ValueType::boolean, true});
+    schema.allow_variable({"x", ValueType::number, true});
+    schema.allow_constant({"Offset", Value(1.5)});
+
+    Policy policy = Policy::default_policy();
+    policy.set_enable_optional_builtins(true);
+
+    constexpr std::string_view source = "If[enabled, Clamp[x + Offset, 0, 10], 0]";
+
+    const auto compile_result = engine.compile(source, schema, policy);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const Bindings bindings = {
+        {"enabled", Value(true)},
+        {"x", Value(12.0)}
+    };
+
+    const auto sdk_result = engine.evaluate(*compile_result.formula, bindings);
+    const auto kernel_expr = stage_sdk_source_as_kernel_expr(source, schema, policy);
+    const auto kernel_result = evaluate_direct_kernel_expr(
+        kernel_expr,
+        bindings,
+        schema.constant_values(),
+        {},
+        policy);
+
+    require_same_evaluation_result(sdk_result, kernel_result);
+    REQUIRE(sdk_result.ok());
+    REQUIRE(*sdk_result.value->as_number() == 10.0);
+}
+
+TEST_CASE("Engine evaluate matches direct kernel evaluation for runtime failures", "[sdk][engine][kernel]") {
+    Engine engine;
+    Schema schema;
+    schema.allow_variable({"x", ValueType::number, true});
+
+    constexpr std::string_view source = "1 / x";
+
+    const auto compile_result = engine.compile(source, schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const Bindings bindings = {
+        {"x", Value(0.0)}
+    };
+
+    const auto sdk_result = engine.evaluate(*compile_result.formula, bindings);
+    const auto kernel_expr = stage_sdk_source_as_kernel_expr(source, schema, Policy::default_policy());
+    const auto kernel_result = evaluate_direct_kernel_expr(
+        kernel_expr,
+        bindings,
+        schema.constant_values(),
+        {},
+        Policy::default_policy());
+
+    require_same_evaluation_result(sdk_result, kernel_result);
+    REQUIRE_FALSE(sdk_result.ok());
+    REQUIRE(sdk_result.error->code == "runtime.division_by_zero");
+}
+
+TEST_CASE("Engine evaluate matches direct kernel evaluation for host functions", "[sdk][engine][kernel]") {
+    Engine engine;
+
+    HostFunctionSpec scale_add;
+    scale_add.name = "ScaleAdd";
+    scale_add.arity = FunctionArity::exact(3);
+    scale_add.parameters = {
+        {"value", ValueType::number, true},
+        {"scale", ValueType::number, true},
+        {"offset", ValueType::number, true}
+    };
+    scale_add.return_type = ValueType::number;
+    scale_add.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = Value(*args[0].as_number() * *args[1].as_number() + *args[2].as_number());
+        return result;
+    };
+
+    engine.register_function(scale_add);
+    kernel::HostFunctionRegistry host_functions;
+    kernel::FunctionRegistry::register_host_function(host_functions, scale_add);
+
+    Schema schema;
+    schema.allow_function({"ScaleAdd", FunctionArity::exact(3), {ValueType::number, ValueType::number, ValueType::number}, ValueType::number, true});
+
+    constexpr std::string_view source = "ScaleAdd[4, 1.5, 2]";
+
+    const auto compile_result = engine.compile(source, schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto sdk_result = engine.evaluate(*compile_result.formula, {});
+    const auto kernel_expr = stage_sdk_source_as_kernel_expr(source, schema, Policy::default_policy());
+    const auto kernel_result = evaluate_direct_kernel_expr(
+        kernel_expr,
+        {},
+        schema.constant_values(),
+        host_functions,
+        Policy::default_policy());
+
+    require_same_evaluation_result(sdk_result, kernel_result);
+    REQUIRE(sdk_result.ok());
+    REQUIRE(*sdk_result.value->as_number() == 8.0);
+}
+
+TEST_CASE("Engine evaluate matches direct kernel evaluation for step-budget exhaustion", "[sdk][engine][kernel]") {
+    Engine engine;
+    Schema schema;
+    Policy policy = Policy::default_policy();
+    policy.budget().max_evaluation_steps = 1;
+
+    constexpr std::string_view source = "1 + 2";
+
+    const auto compile_result = engine.compile(source, schema, policy);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto sdk_result = engine.evaluate(*compile_result.formula, {});
+    const auto kernel_expr = stage_sdk_source_as_kernel_expr(source, schema, policy);
+    const auto kernel_result = evaluate_direct_kernel_expr(
+        kernel_expr,
+        {},
+        schema.constant_values(),
+        {},
+        policy);
+
+    require_same_evaluation_result(sdk_result, kernel_result);
+    REQUIRE_FALSE(sdk_result.ok());
+    REQUIRE(sdk_result.error->code == "runtime.step_budget_exhausted");
 }

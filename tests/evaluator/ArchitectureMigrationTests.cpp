@@ -206,7 +206,6 @@ TEST_CASE("Trusted-subset bridge stages frontend and kernel forms together", "[a
     const auto staged = kernel::stage_trusted_subset_formula(root);
 
     REQUIRE(staged.ok());
-    REQUIRE(staged.trusted_root == root);
     REQUIRE(std::holds_alternative<FunctionCall>(*staged.kernel_expr));
 
     const auto& call = std::get<FunctionCall>(*staged.kernel_expr);

@@ -10,8 +10,7 @@ Architecture status note:
 - this document describes the SDK/trusted-subset architecture track
 - the repository also contains a symbolic-core track that is converging toward
   a single kernel
-- SDK evaluation is now kernel-backed rather than routed through a separate
-  runtime evaluator
+- SDK evaluation is now kernel-backed through the trusted-subset bridge
 
 Related architecture documents:
 
@@ -265,7 +264,7 @@ Header:
 Responsibility:
 
 - opaque handle returned by `compile`
-- holds validated IR and internal metadata
+- holds lowered kernel execution state and internal metadata
 - reused across evaluations
 
 Key rule:
@@ -276,7 +275,7 @@ Likely implementation:
 
 - pimpl
 - opaque shared state
-- internal pointer to `ir::Node`
+- internal pointer to lowered kernel execution state
 
 ## Value
 
@@ -662,7 +661,7 @@ Behavior:
 
 `CompiledFormula` should own:
 
-- validated IR
+- lowered kernel execution state
 - compile-time metadata
 - source hash or canonical source if useful
 

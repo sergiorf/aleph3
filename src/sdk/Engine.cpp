@@ -89,9 +89,6 @@ FrontendPassResult parse_and_validate(
 
 namespace sdk_detail {
 struct CompiledFormulaData {
-    ir::NodePtr root;
-    // Migration-only: cache the lowered kernel form beside the trusted-subset
-    // IR so SDK execution can move without preserving both as semantic peers.
     ExprPtr kernel_expr;
     Policy policy;
     Bindings constants;
@@ -169,7 +166,6 @@ CompileResult Engine::compile(
     }
 
     auto state = std::make_shared<sdk_detail::CompiledFormulaData>();
-    state->root = staged_formula.trusted_root;
     state->kernel_expr = staged_formula.kernel_expr;
     state->policy = policy;
     state->constants = schema.constant_values();

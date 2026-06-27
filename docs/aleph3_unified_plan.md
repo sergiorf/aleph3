@@ -427,6 +427,9 @@ The bridge simplification step is now in place: trusted-subset SDK evaluation
 flows through explicit kernel bridge entrypoints rather than ad hoc execution
 logic inside `Engine`.
 
+Compiled formulas now retain lowered kernel execution state rather than
+trusted-subset IR, so `ir::Node` is limited to parser and validator concerns.
+
 Success criteria:
 
 - the SDK no longer owns a separate semantic runtime
@@ -591,13 +594,12 @@ Success criteria:
 If work starts now, the next implementation tranche should be:
 
 1. finish documentation consolidation and stale-plan removal
-2. keep `ir::Node` as validated/lowered input only
-3. add regression coverage proving SDK and symbolic execution share kernel
+2. add regression coverage proving SDK and symbolic execution share kernel
    semantics
-4. define the public SDK surface that should survive after kernel convergence
-5. identify which SDK APIs are stable versus transitional
-6. define the minimal registration contract future packs will require
-7. only then start designing richer interactive surfaces such as a notebook
+3. define the public SDK surface that should survive after kernel convergence
+4. identify which SDK APIs are stable versus transitional
+5. define the minimal registration contract future packs will require
+6. only then start designing richer interactive surfaces such as a notebook
     around the unified execution path
 
 ## Deferred Work

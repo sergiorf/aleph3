@@ -14,9 +14,7 @@ Related documents:
 
 - [Class Collaboration](class_collaboration.md)
 - [Aleph3 Unified Plan](aleph3_unified_plan.md)
-- [Kernel Evaluation Context](kernel_evaluation_context.md)
-- [Kernel Diagnostic Taxonomy](kernel_diagnostic_taxonomy.md)
-- [Kernel Registration Interfaces](kernel_registration_interfaces.md)
+- [System Architecture](system_architecture.md)
 - [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)
 
 ## Top-Level Layers

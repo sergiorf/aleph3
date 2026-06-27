@@ -12,8 +12,6 @@ Related documents:
 
 - [System Architecture](system_architecture.md)
 - [Symbolic Core Architecture](symbolic_core_architecture.md)
-- [Kernel Evaluation Context](kernel_evaluation_context.md)
-- [Kernel Registration Interfaces](kernel_registration_interfaces.md)
 - [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)
 - [Kernel Representation Decision](kernel_representation_decision.md)
 
@@ -78,7 +76,8 @@ flowchart LR
 `CompiledFormula`
 
 - opaque compiled artifact returned by `Engine::compile`
-- currently stores validated `ir::Node`, policy, constants, and optional source
+- currently stores lowered kernel `Expr`, policy, constants, and optional
+  source
 
 `frontend::Parser`
 
@@ -133,8 +132,7 @@ flowchart LR
 
 - shared kernel-owned execution context
 - carries symbolic symbol values and user-defined function definitions
-- also carries runtime bindings, constants, host functions, and policy during
-  the migration
+- also carries SDK bindings, constants, host functions, and policy
 
 symbolic `evaluate(...)`
 
@@ -184,7 +182,7 @@ These classes are part of the convergence work between the two tracks.
 This is the first major shared contract.
 
 It allows both tracks to talk about execution state through one kernel-owned
-shape, even though the evaluators are still separate.
+shape.
 
 Current compatibility names:
 
@@ -225,7 +223,6 @@ That is documented in:
 
 These collaborations are not unified yet:
 
-- symbolic evaluator and runtime evaluator are still separate implementations
 - frontend/validator diagnostics are not fully unified with kernel diagnostics
 - host functions are still engine-owned in the SDK path
 - user-defined symbolic functions are not yet registered through the same API
@@ -239,6 +236,5 @@ If you want to understand the project quickly, read in this order:
 2. [System Architecture](system_architecture.md)
 3. [Symbolic Core Architecture](symbolic_core_architecture.md)
 4. [Kernel Representation Decision](kernel_representation_decision.md)
-5. [Kernel Evaluation Context](kernel_evaluation_context.md)
-6. [Kernel Registration Interfaces](kernel_registration_interfaces.md)
-7. [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)
+5. [Kernel Execution Bridge Spec](kernel_execution_bridge_spec.md)
+6. [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)

@@ -24,7 +24,6 @@ that has already passed SDK parsing and validation.
 
 It returns:
 
-- the validated trusted-subset root for transitional storage
 - the lowered kernel `Expr`
 - any lowering diagnostics
 
@@ -69,8 +68,6 @@ Kernel owns:
 
 Accepted transitional state:
 
-- compiled formulas may still retain both trusted-subset IR and lowered kernel
-  `Expr`
 - SDK-facing results continue using `EvaluationResult`, `RuntimeError`, and
   `Value`
 
@@ -94,6 +91,5 @@ The bridge contract is covered when tests prove:
 
 The bridge is explicit now, but the remaining migration cleanup is still:
 
-- reduce retained trusted-subset state once no SDK surface needs it
 - keep bridge tests focused on kernel semantics rather than facade behavior
 - remove stale docs that still imply two long-term execution cores

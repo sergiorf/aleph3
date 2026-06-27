@@ -18,12 +18,11 @@
 namespace aleph3::kernel {
 
 struct StagedTrustedSubsetFormula {
-    ir::NodePtr trusted_root;
     ExprPtr kernel_expr;
     std::vector<Diagnostic> diagnostics;
 
     [[nodiscard]] bool ok() const noexcept {
-        return trusted_root != nullptr && kernel_expr != nullptr && diagnostics.empty();
+        return kernel_expr != nullptr && diagnostics.empty();
     }
 };
 

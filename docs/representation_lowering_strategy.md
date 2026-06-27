@@ -55,16 +55,11 @@ The lowering seam should live in a kernel-owned migration adapter:
 - input: validated `ir::Node`
 - output: kernel `Expr`
 
-The repository may also keep a temporary staging object that carries both:
-
-- trusted-subset `ir::Node` for frontend and validation ownership
-- lowered `Expr` for future kernel-backed execution
-
 That seam exists so:
 
 - SDK compile and validation stay narrow
 - kernel execution can converge on one semantic path
-- migration code is explicit and temporary rather than spread through the repo
+- migration code is explicit rather than spread through the repo
 
 ## Initial Lowering Contract
 
@@ -92,26 +87,15 @@ separate SDK operator-specific execution tree.
 
 ## `CompiledFormula` Strategy
 
-During the transition, `CompiledFormula` may continue to cache validated
-trusted-subset `ir::Node` trees because:
+`CompiledFormula` should cache only kernel execution state plus SDK-facing
+metadata needed after validation.
 
-- validation already runs on that form
-- source spans remain useful there
-- the SDK API keeps `CompiledFormula` opaque
-
-However, the long-term direction should be:
+Current direction:
 
 1. compile and validate into `ir::Node`
-2. lower into `Expr` before execution
-3. optionally cache the lowered `Expr` inside `CompiledFormula`
-4. treat the cached `ir::Node` as frontend metadata, not execution truth
-
-That means `CompiledFormula` may temporarily hold both:
-
-- validated `ir::Node` for frontend concerns
-- lowered `Expr` for execution
-
-If both are cached, only `Expr` is the semantic execution representation.
+2. lower into `Expr`
+3. store the lowered `Expr`, policy, constants, and optional source text
+4. discard trusted-subset IR from the compiled execution artifact
 
 ## What Is Explicitly Temporary
 
@@ -123,7 +107,6 @@ It is temporary in these senses:
 - it should stay narrow and translation-oriented
 - it should not accumulate host policy logic
 - it should not become a rich second interpreter API
-- if a staging object carries both forms, that object is transitional as well
 
 ## What Should Not Be Added Here
 
@@ -136,8 +119,8 @@ Do not use the lowering layer to:
 
 ## Near-Term Follow-On Work
 
-1. add a kernel-owned lowering module for trusted-subset nodes
-2. route SDK execution through that module before symbolic evaluation collapse
-3. decide whether `CompiledFormula` should cache lowered `Expr`, `ir::Node`, or
-   both during the transition
-4. simplify the remaining bridge once kernel execution owns the trusted subset
+1. keep lowering and execution entrypoints kernel-owned
+2. keep trusted-subset IR limited to parser and validator concerns
+3. simplify any remaining bridge helpers that duplicate evaluator-side value
+   conversion or projection logic
+4. add regression coverage for SDK-only builds and kernel-backed execution

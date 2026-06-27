@@ -110,7 +110,6 @@ symbolic semantics, not only trusted-subset execution.
 
 - parser output for the SDK trusted subset
 - validator input for the SDK trusted subset
-- compile-time artifact cached inside `CompiledFormula`
 - migration adapter input lowered into kernel execution
 
 It should not become:

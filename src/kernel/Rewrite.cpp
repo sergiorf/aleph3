@@ -754,6 +754,11 @@ bool structurally_equal(const ExprPtr& left, const ExprPtr& right) {
     return structurally_equal_impl(*left, *right);
 }
 
+bool matches_pattern(const ExprPtr& pattern, const ExprPtr& expr) {
+    PatternBindings bindings;
+    return match_pattern(pattern, expr, bindings);
+}
+
 RewriteResult rewrite_once(const ExprPtr& expr, const Rule& rule) {
     auto result = rewrite_once_impl(expr, rule);
     if (result.expr == nullptr) {

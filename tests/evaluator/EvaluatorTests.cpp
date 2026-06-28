@@ -4,6 +4,9 @@
 #include "evaluator/EvaluatorSemantics.hpp"
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
+#include "kernel/FunctionRegistry.hpp"
+#include "kernel/Diagnostics.hpp"
+#include "sdk/Policy.hpp"
 #include "Constants.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_all.hpp>
@@ -1020,6 +1023,59 @@ TEST_CASE("Evaluator handles StringTake", "[evaluator][string]") {
     // Test StringTake["Hello", 0] (invalid index)
     expr = parse_expression("StringTake[\"Hello\", 0]");
     REQUIRE_THROWS_WITH(evaluate(expr, ctx), "StringTake expects a valid index or range");
+}
+
+TEST_CASE("Evaluator exposes rule-driven symbolic transforms", "[evaluator][rewrite]") {
+    EvaluationContext ctx;
+
+    auto expr = parse_expression("Replace[f[x], f[a_] -> g[a]]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "g[x]");
+
+    expr = parse_expression("ReplaceRepeated[f[f[x]], f[a_] -> g[a]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "g[g[x]]");
+
+    expr = parse_expression("MatchQ[f[x, x], f[a_, a_]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("MatchQ[f[x, y], f[a_, a_]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE_FALSE(std::get<Boolean>(*result).value);
+}
+
+TEST_CASE("Evaluator keeps replacement explicit and bounded", "[evaluator][rewrite]") {
+    EvaluationContext ctx;
+
+    auto expr = parse_expression("Replace[f[y + x], f[a_] -> g[a]]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "g[x + y]");
+
+    expr = parse_expression("Replace[f[x], 3]");
+    REQUIRE_THROWS_WITH(evaluate(expr, ctx), "Replace expects the second argument to be a Rule");
+
+    expr = parse_expression("ReplaceRepeated[f[x], 3]");
+    REQUIRE_THROWS_WITH(
+        evaluate(expr, ctx),
+        "ReplaceRepeated expects the second argument to be a Rule");
+}
+
+TEST_CASE("Evaluator applies rewrite budget to ReplaceRepeated", "[evaluator][rewrite]") {
+    Bindings bindings;
+    Bindings constants;
+    kernel::HostFunctionRegistry host_functions;
+    Policy policy = Policy::default_policy();
+    policy.budget().max_evaluation_steps = 1;
+
+    EvaluationContext ctx(bindings, constants, host_functions, policy);
+    ctx.enable_runtime_strict_semantics(true);
+    ctx.reset_runtime_step_counter();
+
+    auto expr = parse_expression("ReplaceRepeated[f[f[x]], f[a_] -> g[a]]");
+    REQUIRE_THROWS_AS(evaluate(expr, ctx), kernel::RuntimeFailure);
 }
 
 TEST_CASE("Evaluator throws error for invalid StringJoin arguments", "[evaluator][string]") {

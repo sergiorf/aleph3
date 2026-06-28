@@ -128,6 +128,26 @@ TEST_CASE("Symbolic CLI support preserves builtin numeric and symbolic contracts
     const auto sec_pi = tooling::symbolic_evaluate_expression("Sec[Pi]");
     REQUIRE(sec_pi.ok);
     REQUIRE(sec_pi.output == "-1");
+
+    const auto replace_once =
+        tooling::symbolic_evaluate_expression("Replace[f[x], f[a_] -> g[a]]");
+    REQUIRE(replace_once.ok);
+    REQUIRE(replace_once.output == "g[x]");
+
+    const auto replace_repeated =
+        tooling::symbolic_evaluate_expression("ReplaceRepeated[f[f[x]], f[a_] -> g[a]]");
+    REQUIRE(replace_repeated.ok);
+    REQUIRE(replace_repeated.output == "g[g[x]]");
+
+    const auto match_true =
+        tooling::symbolic_evaluate_expression("MatchQ[f[x, x], f[a_, a_]]");
+    REQUIRE(match_true.ok);
+    REQUIRE(match_true.output == "True");
+
+    const auto match_false =
+        tooling::symbolic_evaluate_expression("MatchQ[f[x, y], f[a_, a_]]");
+    REQUIRE(match_false.ok);
+    REQUIRE(match_false.output == "False");
 }
 
 TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[tooling][symbolic-cli]") {
@@ -165,4 +185,9 @@ TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[toolin
         tooling::symbolic_evaluate_expression("Expand[(1/2) * (x + 1)]");
     REQUIRE(rational_expand_result.ok);
     REQUIRE(rational_expand_result.output == "1/2 * x + 1/2");
+
+    const auto replace_failure =
+        tooling::symbolic_evaluate_expression("Replace[f[x], 3]");
+    REQUIRE_FALSE(replace_failure.ok);
+    REQUIRE(replace_failure.error_message == "Replace expects the second argument to be a Rule");
 }

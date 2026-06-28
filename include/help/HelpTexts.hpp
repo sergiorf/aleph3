@@ -58,6 +58,9 @@ namespace aleph3 {
             {"Round", "Round[x]: Round x to the nearest integer", "Other"},
             {"Gamma", "Gamma[x]: Gamma function of x", "Other"},
             {"Rational", "Rational[n, d]: Rational number n/d (exact)", "Other"},
+            {"Replace", "Replace[expr, rule]: Apply one structural or pattern rule to expr", "Symbolic"},
+            {"ReplaceRepeated", "ReplaceRepeated[expr, rule]: Reapply a rule until it no longer changes expr", "Symbolic"},
+            {"MatchQ", "MatchQ[expr, pattern]: Test whether expr matches a supported symbolic pattern", "Symbolic"},
 
             // Polynomial manipulation
             {"Expand", "Expand[expr]: Expand out products and powers in a polynomial expression", "Polynomial"},

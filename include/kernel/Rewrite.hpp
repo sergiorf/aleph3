@@ -23,6 +23,7 @@ struct RewriteResult {
 };
 
 [[nodiscard]] bool structurally_equal(const ExprPtr& left, const ExprPtr& right);
+[[nodiscard]] bool matches_pattern(const ExprPtr& pattern, const ExprPtr& expr);
 
 [[nodiscard]] RewriteResult rewrite_once(const ExprPtr& expr, const Rule& rule);
 

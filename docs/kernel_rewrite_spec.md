@@ -75,6 +75,12 @@ Practical examples:
 - later, a future calculus pack could express rules such as
   `D[x^2, x] -> 2*x`
 
+Practical user-facing workflows now exposed on top of this kernel surface:
+
+- `Replace[f[x], f[a_] -> g[a]] -> g[x]`
+- `ReplaceRepeated[f[f[x]], f[a_] -> g[a]] -> g[g[x]]`
+- `MatchQ[f[x, x], f[a_, a_]] -> True`
+
 ## Current Contract
 
 ### Rule Scope
@@ -103,6 +109,21 @@ In plain terms:
 - `f[a_, a_]` means both inputs must match the same expression
 - there is not yet a way to say "match any number of arguments" or "match only
   integers"
+
+Current product-facing transformation surface:
+
+- `Replace[expr, rule]` applies one rewrite traversal
+- `ReplaceRepeated[expr, rule]` re-applies a rule with an explicit safety cap
+- `MatchQ[expr, pattern]` tests the same supported matcher surface without
+  rewriting
+
+Still intentionally unsupported:
+
+- rule lists
+- conditions
+- sequence patterns
+- typed patterns
+- hold-sensitive pattern evaluation
 
 ### Equality Model
 

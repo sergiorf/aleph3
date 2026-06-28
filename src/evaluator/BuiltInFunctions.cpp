@@ -10,6 +10,10 @@
 
 namespace aleph3 {
 
+    namespace {
+
+    constexpr std::size_t REPLACE_REPEATED_MAX_REWRITES = 16;
+
     // Helper for numeric evaluation of constants and expressions
     inline ExprPtr numeric_eval(const ExprPtr& expr) {
         return std::visit(overloaded{
@@ -61,6 +65,15 @@ namespace aleph3 {
             }
             }, *expr);
     }
+
+    const Rule& require_rule_argument(const ExprPtr& expr, const std::string& name) {
+        if (const auto* rule = std::get_if<Rule>(&(*expr))) {
+            return *rule;
+        }
+        throw_invalid_form(name + " expects the second argument to be a Rule");
+    }
+
+    }  // namespace
 
     void register_built_in_functions() {
         auto& registry = packs::PackRegistry::instance();
@@ -220,6 +233,38 @@ namespace aleph3 {
             auto arg = evaluate(func.args[0], ctx);
             auto num_arg = numeric_eval(arg);
             return evaluate(num_arg, ctx);
+            });
+
+        registry.register_function("Replace", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() != 2) {
+                throw_invalid_arity_exact("Replace", 2);
+            }
+            auto expr = evaluate(func.args[0], ctx);
+            const Rule& rule = require_rule_argument(func.args[1], "Replace");
+            const auto rewritten = kernel::rewrite_once(expr, rule);
+            return rewritten.changed ? rewritten.expr : expr;
+            });
+
+        registry.register_function("ReplaceRepeated", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() != 2) {
+                throw_invalid_arity_exact("ReplaceRepeated", 2);
+            }
+            auto expr = evaluate(func.args[0], ctx);
+            const Rule& rule = require_rule_argument(func.args[1], "ReplaceRepeated");
+            const auto rewritten = kernel::rewrite_repeated(
+                expr,
+                rule,
+                ctx,
+                REPLACE_REPEATED_MAX_REWRITES);
+            return rewritten.changed ? rewritten.expr : expr;
+            });
+
+        registry.register_function("MatchQ", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() != 2) {
+                throw_invalid_arity_exact("MatchQ", 2);
+            }
+            auto expr = evaluate(func.args[0], ctx);
+            return make_expr<Boolean>(kernel::matches_pattern(func.args[1], expr));
             });
     }
 

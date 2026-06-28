@@ -295,6 +295,8 @@ void print_help() {
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
         << "  symbolic-* commands use the broader symbolic engine, including\n"
         << "  polynomial functions such as Expand, Factor, Collect, GCD, and PolynomialQuotient.\n"
+        << "  It also supports first-step symbolic rule workflows through Replace,\n"
+        << "  ReplaceRepeated, and MatchQ over the current named-binder pattern subset.\n"
         << "  Factor currently supports common-content extraction and integer-coefficient\n"
         << "  univariate rational-root factorization in the supported subset.\n"
 #endif
@@ -346,6 +348,8 @@ void print_examples() {
         << "  aleph3_cli evaluate \"If[3 < 4, 10, 20]\"\n"
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
         << "  aleph3_cli symbolic-evaluate \"Expand[(x + 1) * (x + 2)]\"\n"
+        << "  aleph3_cli symbolic-evaluate \"Replace[f[x], f[a_] -> g[a]]\"\n"
+        << "  aleph3_cli symbolic-evaluate \"MatchQ[f[x, x], f[a_, a_]]\"\n"
         << "  aleph3_cli symbolic-simplify \"0 + (1 * x)\"\n"
         << "  aleph3_cli symbolic-evaluate \"PolynomialQuotient[x^2 - 1, x - 1, x]\"\n"
 #endif
@@ -361,6 +365,7 @@ void print_examples() {
         << style_stdout("REPL examples", cli_palette().highlight) << '\n'
         << "  > 1 + 1\n"
         << "  > Factor[x^2 - 1]\n"
+        << "  > Replace[f[x], f[a_] -> g[a]]\n"
         << "  > :mode\n"
         << "  > :mode sdk\n"
         << "  > :help\n"

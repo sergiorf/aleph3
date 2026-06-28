@@ -820,6 +820,18 @@ TEST_CASE("Kernel rewrite does not normalize rewritten output implicitly", "[arc
     REQUIRE(to_string(normalize_expr(rewritten.expr)) == "g[x + y]");
 }
 
+TEST_CASE("Kernel matcher query helper exposes named-binder matching directly", "[architecture][rewrite][match]") {
+    REQUIRE(kernel::matches_pattern(
+        parse_expression("f[a_, a_]"),
+        parse_expression("f[x, x]")));
+    REQUIRE_FALSE(kernel::matches_pattern(
+        parse_expression("f[a_, a_]"),
+        parse_expression("f[x, y]")));
+    REQUIRE(kernel::matches_pattern(
+        parse_expression("{f[a_], g[b_]}"),
+        parse_expression("{f[x + 1], g[y]}")));
+}
+
 TEST_CASE("Trusted-subset bridge evaluates lowered formulas with SDK bindings and constants", "[architecture][kernel]") {
     using namespace aleph3::ir;
 

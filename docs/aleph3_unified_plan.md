@@ -42,6 +42,19 @@ That program is:
 
 Aleph3 is a layered symbolic math system.
 
+Near-term external positioning should stay honest:
+
+- Aleph3 is already a strong embeddable formula and symbolic engine
+- the most product-ready surface today is the trusted SDK subset plus the
+  kernel-backed symbolic surface around it
+- Aleph3 is not yet close enough to Mathematica-class CAS breadth to market
+  itself that way without inviting the wrong comparison
+
+Recommended near-term message:
+
+- a safe embeddable symbolic/formula engine in C++20, with a path toward
+  richer CAS features
+
 The intended product stack is:
 
 1. `aleph3_kernel`
@@ -83,9 +96,20 @@ What is already true:
 
 What is still unresolved:
 
+- the best-supported product surface is still the trusted SDK subset rather
+  than a broad CAS workflow
+- exact rational internals are ahead of exact value exposure in the public SDK
+  runtime surface
+- polynomial and algebra internals still mix narrow exact support with
+  floating-point foundations
 - higher math boundaries are still blended into evaluator-oriented code
 - symbol definition and extension contracts are not yet strong enough for the
   intended pack model
+- the current global mutable registration model is still too prototype-like
+  for long-term embedding, plugin isolation, and thread-safe multi-tenant use
+- the architecture writing is ahead of the finished product surface in several
+  areas
+- CI and repository hygiene still need product-grade hardening
 - several advanced roadmap areas still depend on stronger kernel contracts
 
 The main remaining architectural risk is not the old runtime split anymore.
@@ -126,6 +150,21 @@ The SDK should be treated as the first practical product surface:
 - the easiest open-source adoption path for external developers
 - a bridge from host applications into kernel-backed symbolic evaluation
 - a validation layer for whether kernel contracts are usable from the outside
+- the first monetizable surface Aleph3 should make excellent before broader
+  CAS or notebook claims
+
+### Near-Term Product Honesty
+
+Until exact algebra, assumptions, richer matching, and pack extensibility are
+materially stronger, Aleph3 should be positioned as:
+
+- an embeddable symbolic/formula engine
+- a kernel-first system with a safe trusted SDK subset
+- a project on the road to richer CAS features
+
+It should not yet be positioned as:
+
+- a modern Mathematica-like CAS with near-parity expectations
 
 ### Pack Position
 
@@ -231,7 +270,8 @@ The intended sequence is:
 
 1. harden `aleph3_kernel` as the single semantic core
 2. make `aleph3_sdk` a clean consumer and adoption layer over that kernel
-3. use the SDK to validate kernel contracts from an external developer
+3. make the SDK V1 excellent as the first real product and use it to validate
+   kernel contracts from an external developer
    perspective
 4. implement one serious pack to prove the extension model
 5. only then build richer tools such as notebooks, engineering workbenches,
@@ -259,6 +299,8 @@ These rules apply to all implementation work until the migration is complete:
 - no new feature may deepen both evaluator stacks independently
 - SDK constraints should be implemented as validation or policy over kernel
   semantics, not as a second semantic system
+- external positioning should describe Aleph3 as an embeddable symbolic/formula
+  engine until the broader CAS foundation is materially stronger
 - broad differentiation, integration, solver work, or large special-function
   expansion should wait until the kernel boundary is stronger
 - bug fixes, regression tests, documentation cleanup, and narrow contract
@@ -275,9 +317,11 @@ The order of work is:
 4. add general rewrite infrastructure
 5. replace weak algebra foundations with exact infrastructure
 6. add assumptions and domain-aware semantics
-7. extract higher math behind explicit pack boundaries
-8. expand product-facing symbolic capabilities on top of the stronger kernel
-9. build richer interactive product surfaces such as a notebook-like
+7. decide the durable registration and extension lifetime model for embedding
+8. extract higher math behind explicit pack boundaries
+9. expand product-facing symbolic capabilities on top of the stronger kernel
+10. harden the SDK and product surfaces around the stronger kernel
+11. build richer interactive product surfaces such as a notebook-like
    application on top of the unified kernel
 
 ## Milestones
@@ -297,6 +341,7 @@ Active milestone:
 
 Outcome:
 
+- Aleph3 remains honest about being SDK-first and kernel-first during this phase
 - symbol definition model exists
 - registration and metadata replace more evaluator branching
 - rewrite infrastructure begins to support symbolic growth
@@ -373,6 +418,25 @@ Success criteria:
 - embedded and symbolic evaluation can be expressed through one kernel context
   model
 
+### D. SDK V1 As First Product
+
+Goals:
+
+- make the trusted SDK subset the first polished commercial and adoption-ready
+  surface
+
+Tasks:
+
+- keep the stable SDK subset small, explicit, and well-documented
+- improve host-integration examples and fast-start embedding documentation
+- keep public runtime exactness boundaries honest and explicit
+- defer broader CAS positioning until the kernel can support it credibly
+
+Success criteria:
+
+- Aleph3 can be presented confidently as an embeddable formula/symbolic engine
+- SDK adoption does not depend on unfinished broader CAS claims
+
 ### E. Symbol Definition And Extension Model
 
 Goals:
@@ -396,11 +460,16 @@ Remaining tasks:
 - define how rewrite rules register against the same symbol contract
 - decide how much attribute metadata should control dispatch versus remain
   descriptive
+- decide whether symbolic handlers, builtins, and rewrites are registered
+  globally, per engine, per context, or per environment
+- make test-isolation and thread-safety expectations explicit for the
+  registration model
 
 Success criteria:
 
 - new symbolic behavior can increasingly be added through definitions and
   registration rather than evaluator branching
+- the extension model is credible for long-lived embedding and future packs
 
 ### F. Pattern Matching And Rewrite Engine
 
@@ -466,6 +535,7 @@ Tasks:
 - support exact rational polynomial coefficients
 - harden multivariate polynomial algorithms
 - make overflow and large-integer strategy explicit
+- remove growth-facing dependence on `double` polynomial internals
 
 Success criteria:
 
@@ -550,10 +620,14 @@ Tasks:
 - add invariant-oriented regression coverage
 - strengthen UDF, cross-subsystem, diagnostics, and unsupported-case coverage
 - keep supported-subset behavior documented and testable
+- expand CI beyond the current basic matrix with Debug, Clang, sanitizers,
+  formatting, and lightweight performance checks over time
 
 Success criteria:
 
 - the supported symbolic subset behaves like a documented product contract
+- engineering quality is credible for a C++ math runtime, not just for a
+  prototype
 
 ### L. Transitional Removal And Cleanup
 
@@ -567,10 +641,13 @@ Tasks:
 - remove duplicate runtime paths once kernel execution is live
 - clean up docs, tests, and class-collaboration descriptions that imply two
   lasting semantic cores
+- remove tracked build artifacts and keep `.gitignore` aligned with actual
+  generated directories such as `build-sdk/` and `build-test/`
 
 Success criteria:
 
 - the repository no longer normalizes the transitional dual-core state
+- repository hygiene matches a maintained product codebase
 
 ## Immediate Action Queue
 
@@ -605,6 +682,7 @@ These can proceed without waiting for the whole program:
 - documentation cleanup
 - narrow builtin contract hardening
 - limited symbolic-domain corrections that reduce future migration risk
+- SDK tutorials, host-integration examples, and other adoption-facing polish
 
 ## Product Standard
 

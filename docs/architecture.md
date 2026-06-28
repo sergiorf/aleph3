@@ -34,6 +34,28 @@ tools / products
       kernel
 ```
 
+## Plain-Language Terms
+
+These are the core terms used across the docs.
+
+- kernel
+  The math engine itself. If Aleph3 needs to know what `x + x` means, how
+  `If[...]` behaves, or whether `1/2 + 1/3` stays exact, that logic belongs in
+  the kernel.
+- pack
+  An add-on math library on top of the kernel. A future calculus pack could
+  add rules such as `D[x^2, x] -> 2*x` without changing the kernel core.
+- SDK
+  The embedding API for applications. If a host app wants to validate a
+  formula, supply variables, and run it safely, it goes through the SDK.
+- rewrite
+  A rule-based expression change. Example: `f[x] -> g[x]` rewrites `f[f[x]]`
+  into `g[g[x]]`.
+- host function
+  A function implemented by the embedding application instead of Aleph3.
+  Example: an app may register `Clamp` or `PriceForSku` and let formulas call
+  it during evaluation.
+
 ## Kernel
 
 The kernel is the semantic center of Aleph3.
@@ -123,7 +145,7 @@ Both paths are converging on the same kernel semantics.
 
 ## Rewrite, In Plain Terms
 
-A rewrite is a rule-based expression transformation.
+A rewrite is a symbolic edit step driven by a rule.
 
 Example:
 
@@ -137,18 +159,22 @@ Applied to:
 f[f[x]]
 ```
 
-A rewrite engine can produce:
+Result:
 
 ```text
 g[g[x]]
 ```
 
-In Aleph3, rewrite infrastructure is the subsystem that applies such symbolic
-transformation rules in a controlled way. The current kernel supports exact
-structural rules plus a first minimal pattern language with named binders such
-as `a_`. It also now underpins a small fixed-arity arithmetic identity
-simplification slice, while broader simplification still remains evaluator
-owned.
+Practical examples:
+
+- rewrite can simplify shape: `0 + x -> x`
+- rewrite can normalize shape: `x + x -> 2*x` within a limited supported class
+- rewrite is different from plain numeric evaluation: `2 + 3 = 5` is numeric
+  reduction, while `f[x] -> g[x]` is structural transformation
+
+In Aleph3 today, rewrite is a kernel subsystem used for controlled symbolic
+transformations. It already supports exact structural rules, simple named
+patterns like `a_`, and a narrow arithmetic simplification layer.
 
 ## Stable Architectural Rules
 

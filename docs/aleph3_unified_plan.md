@@ -78,7 +78,8 @@ What is already true:
 - the kernel now has an initial symbolic registration contract, symbol
   metadata/definition records, and exact-rule rewrite infrastructure
 - evaluator flow now populates those kernel contracts during registered
-  symbolic resolution, assignment, and user-definition registration
+  symbolic resolution, builtin execution, host execution, assignment, and
+  user-definition registration
 
 What is still unresolved:
 
@@ -218,8 +219,8 @@ Aleph3 should remain kernel-first for the current phase.
 The project should avoid investing heavily in product surfaces built on top of
 transitional semantics.
 
-Until SDK execution routes through the kernel, Aleph3 should not invest heavily
-in:
+Aleph3 still should not invest heavily in the following until the kernel
+contracts are stronger:
 
 - notebook-style applications
 - large domain packs
@@ -281,48 +282,17 @@ The order of work is:
 
 ## Milestones
 
-### M0. Canonical Plan And Direction Freeze
+Completed foundation:
 
-Outcome:
+- canonical plan and one-kernel direction are in place
+- kernel boundary and representation choice are explicit
+- shared execution contracts exist for evaluation context, diagnostics, and
+  registration
+- SDK evaluation is kernel-backed and no longer acts as a peer runtime
+- the SDK is substantially complete as the first external adoption layer
 
-- one plan document exists
-- repo docs consistently describe the dual-evaluator state as transitional
-- no roadmap ambiguity remains about the long-term architecture
+Active milestone:
 
-### M1. Kernel Boundary Chosen
-
-Outcome:
-
-- kernel representation decision is explicit
-- ownership boundaries are documented
-- `aleph3_kernel` is the acknowledged semantic core
-
-### M2. Shared Execution Contracts
-
-Outcome:
-
-- one evaluation context model
-- one diagnostic taxonomy
-- one registration path
-
-### M3. SDK Uses The Kernel
-
-Outcome:
-
-- SDK evaluation no longer depends on a peer semantic runtime
-
-### M4. SDK Becomes The First Adoption Layer
-
-Outcome:
-
-- the public SDK surface is small, stable, and clearly documented
-- SDK diagnostics and evaluation flow are recognizably kernel-backed
-- external developers can adopt Aleph3 through the SDK without needing kernel
-  internals
-
-Current status:
-
-- substantially complete
 ### M5. Kernel Extensibility Becomes Real
 
 Outcome:
@@ -382,13 +352,6 @@ Goals:
 
 - make the build graph and ownership model reflect the intended architecture
 
-Current status:
-
-- partially complete
-- `aleph3_kernel` exists
-- `aleph3_sdk` depends on it
-- pack placeholder targets exist
-
 Remaining tasks:
 
 - keep target ownership clear as code moves
@@ -405,39 +368,10 @@ Goals:
 
 - define the kernel contracts that both symbolic and SDK-facing execution use
 
-Tasks:
-
-- define one kernel evaluation context
-- define one kernel diagnostic taxonomy
-- define one symbol/function registration path
-- define how host functions map into kernel execution
-
 Success criteria:
 
 - embedded and symbolic evaluation can be expressed through one kernel context
   model
-
-### D. SDK Runtime Collapse
-
-Goals:
-
-- remove the SDK’s status as a peer execution engine
-- make the SDK a clean kernel-backed adoption layer
-
-Current status:
-
-- complete for the current migration slice
-- SDK evaluation is kernel-backed
-- trusted-subset IR is limited to parser and validator concerns
-- the legacy runtime evaluator path is retired
-- SDK/runtime diagnostics are projected from kernel-owned errors
-- regression coverage compares SDK evaluation against direct kernel evaluation
-- the stable versus transitional SDK API split is now documented
-
-Success criteria:
-
-- the SDK no longer owns a separate semantic runtime
-- the SDK can be understood and used without understanding kernel internals
 
 ### E. Symbol Definition And Extension Model
 
@@ -454,8 +388,14 @@ Current status:
   functions, and host functions
 - builtin and host ownership are now explicit in kernel definition records
 - evaluator dispatch now derives a primary owner from shared symbol and
-  registration facts, but builtin execution semantics still live in evaluator
-  code
+  registration facts, and builtin execution is now registry-backed
+
+Remaining tasks:
+
+- move more execution semantics behind registry- or definition-backed contracts
+- define how rewrite rules register against the same symbol contract
+- decide how much attribute metadata should control dispatch versus remain
+  descriptive
 
 Success criteria:
 
@@ -634,17 +574,16 @@ Success criteria:
 
 ## Immediate Action Queue
 
-If work starts now, the next implementation tranche should be:
+If work starts now, the next active tranche should be:
 
-1. finish documentation consolidation and stale-plan removal
-2. keep the symbolic coefficient contract limited to single-symbol and
-   single-power bases until stronger exact algebra exists
-3. keep the algebra-aware layer limited to same-symbol exponent accumulation
-   and numeric nested-power collapse until stronger exact algebra exists
-4. keep division cancellation, power-domain-sensitive behavior, list-aware
-   arithmetic, and special-function shortcuts explicitly out of that slice
-5. only then start designing richer interactive surfaces such as a notebook
-    around the unified execution path
+1. keep the current rewrite-owned arithmetic layers within their documented
+   boundaries until exact algebra is stronger
+2. define the exact algebra backbone so symbolic coefficient and algebra-aware
+   layers have a stable long-term foundation
+3. define how rewrite rules register against the shared symbol and extension
+   model
+4. tighten tests and docs around the supported symbolic subset as a product
+   contract
 
 ## Deferred Work
 

@@ -17,7 +17,6 @@ This is the current precedence contract for the symbolic `Expr` evaluator.
 
 It does not yet define a fully unified precedence model for:
 
-- SDK host functions versus symbolic functions
 - future rewrite rules
 - future assumptions-driven transformations
 - future richer symbol metadata such as upvalues/downvalues
@@ -71,12 +70,21 @@ Meaning:
 - special forms such as `If`, `And`, and `Or` win first
 - registered symbolic built-ins and pack functions win before user-defined
   functions
-- builtin evaluator branches win before user-defined functions
+- builtin evaluator functions win before user-defined functions
 - user-defined functions are only used when no earlier symbolic dispatch owns
   the name
 - host functions are resolved through the shared kernel context after symbolic
   function ownership checks
 - if nothing owns the name, the function call remains symbolic
+
+Plain-language examples:
+
+- if a user defines `Plus[x_, y_] := 99`, `Plus[1, 2]` still uses builtin
+  arithmetic and returns `3`
+- if a user defines `Length[x_] := 99`, `Length[{1,2,3}]` still uses the
+  registered symbolic handler and returns `3`
+- if a host app registers `Clamp`, it is only used when no earlier symbolic
+  owner wins for that name
 
 ## Current Assignment And Definition Rules
 
@@ -125,6 +133,6 @@ Current answer:
 
 ## Next Follow-On Steps
 
-1. define how SDK host functions and symbolic registrations relate long-term
-2. define precedence for future rewrite rules
-3. define richer symbol metadata and attribute-driven dispatch
+1. define precedence for future rewrite rules
+2. define richer symbol metadata and attribute-driven dispatch
+3. reduce the remaining evaluator-local execution paths after owner selection

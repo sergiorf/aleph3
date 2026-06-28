@@ -17,6 +17,22 @@ Primary implementation:
 This document defines the first kernel-owned symbol model that evaluator,
 registration, and rewrite work can share.
 
+Plain-language summary:
+
+- a symbol is a name such as `x`, `Plus`, or `Clamp`
+- symbol metadata is descriptive information about that name
+- a definition record answers "who currently owns behavior for this name?"
+- the symbol model gives the evaluator one shared place to look instead of
+  scattering ownership facts across local branches
+
+Practical examples:
+
+- `answer = 42` creates an `own_value` record for `answer`
+- `f[x_] := x + 1` creates a `user_function` record for `f`
+- `Length[{1,2,3}]` resolves through a registered symbolic handler
+- `Clamp[x, 0, 10]` can resolve through a builtin or a host function,
+  depending on which ownership records exist
+
 ## Current Contract
 
 ### Symbol Metadata
@@ -95,6 +111,15 @@ That is the current minimum contract a future pack must satisfy:
 - optionally document it
 - declare whether it is safe to use from rewrite-driven transformations
 
+In plain terms, registration is how Aleph3 learns that a name has executable
+behavior.
+
+Examples:
+
+- built-in symbolic behavior such as `StringJoin[...]` is registered up front
+- a future pack could register `Differentiate[...]`
+- an embedding app can register a host function such as `Clamp[...]`
+
 ## Current Precedence Facts
 
 Current evaluator precedence is still:
@@ -110,7 +135,8 @@ The new symbol model now participates in that precedence directly by making
 callable ownership explicit and allowing dispatch to derive a primary owner
 from shared symbol-definition and registration facts.
 
-Execution still remains evaluator-owned once an owner is selected.
+Execution still remains partly evaluator-owned once an owner is selected,
+especially for host execution and some remaining builtin behavior families.
 
 ## What Is Implemented Versus Deferred
 
@@ -131,15 +157,14 @@ Deferred:
 - attribute-driven evaluation control
 - ownvalue/downvalue-style lookup
 - mutation semantics beyond current tables
-- fully registry- or definition-driven execution once an owner is selected,
-  instead of evaluator-local builtin and host execution handlers
+- fully registry- or definition-driven execution for the remaining host and
+  richer builtin behavior paths once an owner is selected
 
 ## Next Steps
 
-- make evaluator dispatch consult richer symbol-definition facts
-- migrate more builtin execution identity and precedence knowledge out of
-  evaluator branches
 - decide how the small symbolic coefficient contract should attach to
   symbol-definition metadata if it grows beyond the current builtin-owned
   implementation
 - define how rewrite rules register against the same symbol contract
+- decide how far attribute metadata should influence dispatch and argument
+  evaluation

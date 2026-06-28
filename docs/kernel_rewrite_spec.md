@@ -18,6 +18,13 @@ It is intentionally smaller than the long-term target. The current goal is to
 establish rewrite ownership, traversal semantics, bounded repeated
 application, and the first reusable pattern contract.
 
+Plain-language summary:
+
+- rewrite means "change this expression shape into that expression shape"
+- it is used for symbolic manipulation, not just numeric calculation
+- Aleph3 uses rewrite for things like structural cleanup and a small supported
+  simplification layer
+
 ## What "Rewrite" Means
 
 In Aleph3, a rewrite is a rule-based symbolic transformation.
@@ -60,6 +67,14 @@ as:
 - applying user or pack rules without hardcoding every case into evaluator
   branches
 
+Practical examples:
+
+- `0 + x -> x`
+- `1 * x -> x`
+- `f[a_] -> g[a]`
+- later, a future calculus pack could express rules such as
+  `D[x^2, x] -> 2*x`
+
 ## Current Contract
 
 ### Rule Scope
@@ -81,6 +96,13 @@ Examples:
 This is still intentionally small.
 There are no typed patterns, predicates, conditions, sequence patterns, or
 attribute-aware matcher rules yet.
+
+In plain terms:
+
+- `a_` means "match any one expression and remember it as `a`"
+- `f[a_, a_]` means both inputs must match the same expression
+- there is not yet a way to say "match any number of arguments" or "match only
+  integers"
 
 ### Equality Model
 
@@ -146,6 +168,12 @@ That means rewrite does not automatically:
 
 Callers that need canonical ordering should normalize explicitly before or
 after rewrite, depending on the intended contract.
+
+Practical reading:
+
+- rewrite is currently a tool the evaluator or another caller uses on purpose
+- it is not yet a global "always-on symbolic simplifier"
+- if you need canonical ordering before matching, normalize first
 
 Today the general evaluator still does:
 

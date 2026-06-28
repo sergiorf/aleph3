@@ -2,10 +2,22 @@
 
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
+#include "normalizer/Normalizer.hpp"
+
+#include <array>
+#include <cmath>
 
 namespace aleph3::kernel {
 
 namespace {
+
+constexpr unsigned kPositiveSign = 1u;
+constexpr unsigned kZeroSign = 2u;
+constexpr unsigned kNegativeSign = 4u;
+
+bool is_integral_number_value(double value) {
+    return std::floor(value) == value;
+}
 
 bool is_sign_predicate(std::string_view head) {
     return head == "Positive" || head == "Negative" ||
@@ -59,6 +71,65 @@ ExprPtr make_negated(const ExprPtr& expr) {
     return make_times({make_expr<Number>(-1), expr});
 }
 
+ExprPtr negate_known_nonpositive_expr(const ExprPtr& expr) {
+    auto normalize_times_with_updated_lead = [](std::vector<ExprPtr> factors) -> ExprPtr {
+        if (const auto* number = std::get_if<Number>(&*factors.front()); number != nullptr &&
+            number->value == 1.0) {
+            factors.erase(factors.begin());
+        } else if (const auto* rational = std::get_if<Rational>(&*factors.front());
+                   rational != nullptr &&
+                   rational->numerator == 1 && rational->denominator == 1) {
+            factors.erase(factors.begin());
+        }
+
+        if (factors.empty()) {
+            return make_expr<Number>(1.0);
+        }
+        if (factors.size() == 1) {
+            return factors.front();
+        }
+        return normalize_expr(make_expr<FunctionCall>("Times", factors));
+    };
+
+    if (const auto* number = std::get_if<Number>(&*expr)) {
+        return make_expr<Number>(-number->value);
+    }
+    if (const auto* rational = std::get_if<Rational>(&*expr)) {
+        return make_expr<Rational>(-rational->numerator, rational->denominator);
+    }
+
+    if (const auto* func = std::get_if<FunctionCall>(&*expr);
+        func != nullptr && func->head == "Times" && !func->args.empty()) {
+        std::vector<ExprPtr> factors = func->args;
+        if (const auto* number = std::get_if<Number>(&*factors.front())) {
+            factors.front() = make_expr<Number>(-number->value);
+            return normalize_times_with_updated_lead(std::move(factors));
+        }
+        if (const auto* rational = std::get_if<Rational>(&*factors.front())) {
+            factors.front() = make_expr<Rational>(-rational->numerator, rational->denominator);
+            return normalize_times_with_updated_lead(std::move(factors));
+        }
+    }
+
+    return normalize_expr(make_negated(expr));
+}
+
+std::optional<int64_t> exact_integer_value(const ExprPtr& expr) {
+    if (const auto* number = std::get_if<Number>(&*expr)) {
+        if (!is_integral_number_value(number->value)) {
+            return std::nullopt;
+        }
+        return static_cast<int64_t>(number->value);
+    }
+    if (const auto* rational = std::get_if<Rational>(&*expr)) {
+        if (rational->denominator != 1) {
+            return std::nullopt;
+        }
+        return rational->numerator;
+    }
+    return std::nullopt;
+}
+
 void apply_sign_fact(SymbolAssumptionFacts& facts, std::string_view head) {
     if (head == "Greater" || head == "Positive") {
         facts.positive = true;
@@ -91,59 +162,238 @@ void apply_sign_fact(SymbolAssumptionFacts& facts, std::string_view head) {
     }
 }
 
-std::optional<bool> evaluate_sign_predicate(
+unsigned sign_mask_from_facts(const SymbolAssumptionFacts& facts) {
+    unsigned signs = kPositiveSign | kZeroSign | kNegativeSign;
+
+    if (facts.positive) {
+        signs &= kPositiveSign;
+    }
+    if (facts.negative) {
+        signs &= kNegativeSign;
+    }
+    if (facts.zero) {
+        signs &= kZeroSign;
+    }
+    if (facts.nonnegative) {
+        signs &= (kPositiveSign | kZeroSign);
+    }
+    if (facts.nonpositive) {
+        signs &= (kZeroSign | kNegativeSign);
+    }
+    if (facts.nonzero) {
+        signs &= (kPositiveSign | kNegativeSign);
+    }
+
+    return signs;
+}
+
+unsigned negate_sign_mask(unsigned signs) {
+    unsigned result = 0u;
+    if ((signs & kPositiveSign) != 0u) {
+        result |= kNegativeSign;
+    }
+    if ((signs & kNegativeSign) != 0u) {
+        result |= kPositiveSign;
+    }
+    if ((signs & kZeroSign) != 0u) {
+        result |= kZeroSign;
+    }
+    return result;
+}
+
+unsigned multiply_sign_masks(unsigned left, unsigned right) {
+    unsigned result = 0u;
+    const std::array<unsigned, 3> sign_values{kNegativeSign, kZeroSign, kPositiveSign};
+
+    for (const unsigned left_sign : sign_values) {
+        if ((left & left_sign) == 0u) {
+            continue;
+        }
+        for (const unsigned right_sign : sign_values) {
+            if ((right & right_sign) == 0u) {
+                continue;
+            }
+            if (left_sign == kZeroSign || right_sign == kZeroSign) {
+                result |= kZeroSign;
+            } else if (left_sign == right_sign) {
+                result |= kPositiveSign;
+            } else {
+                result |= kNegativeSign;
+            }
+        }
+    }
+
+    return result;
+}
+
+std::optional<unsigned> derive_sign_mask(const ExprPtr& expr, const AssumptionStore& assumptions);
+
+std::optional<unsigned> derive_symbol_sign_mask(
+    const std::string& name,
+    const AssumptionStore& assumptions) {
+    const auto* facts = assumptions.find_symbol_facts(name);
+    if (facts == nullptr) {
+        return std::nullopt;
+    }
+
+    const unsigned signs = sign_mask_from_facts(*facts);
+    if (signs == 0u) {
+        return std::nullopt;
+    }
+    return signs;
+}
+
+std::optional<unsigned> derive_power_sign_mask(
+    const ExprPtr& base,
+    const ExprPtr& exponent,
+    const AssumptionStore& assumptions) {
+    const auto exact_exponent = exact_integer_value(exponent);
+    if (!exact_exponent.has_value() || *exact_exponent <= 0) {
+        return std::nullopt;
+    }
+
+    const auto base_signs = derive_sign_mask(base, assumptions);
+    if (!base_signs.has_value()) {
+        return std::nullopt;
+    }
+
+    if ((*exact_exponent % 2) == 0) {
+        unsigned result = 0u;
+        if (((*base_signs) & kZeroSign) != 0u) {
+            result |= kZeroSign;
+        }
+        if (((*base_signs) & (kPositiveSign | kNegativeSign)) != 0u) {
+            result |= kPositiveSign;
+        }
+        return result == 0u ? std::nullopt : std::optional<unsigned>(result);
+    }
+
+    return base_signs;
+}
+
+std::optional<unsigned> derive_times_sign_mask(
+    const FunctionCall& func,
+    const AssumptionStore& assumptions) {
+    if (func.args.empty()) {
+        return std::nullopt;
+    }
+
+    unsigned combined = kPositiveSign;
+    for (const auto& arg : func.args) {
+        const auto factor_signs = derive_sign_mask(arg, assumptions);
+        if (!factor_signs.has_value()) {
+            return std::nullopt;
+        }
+        combined = multiply_sign_masks(combined, *factor_signs);
+    }
+
+    if (combined == 0u) {
+        return std::nullopt;
+    }
+    return combined;
+}
+
+std::optional<unsigned> derive_sign_mask(const ExprPtr& expr, const AssumptionStore& assumptions) {
+    if (expr == nullptr) {
+        return std::nullopt;
+    }
+
+    const auto normalized = normalize_expr(expr);
+    if (const auto relation = compare_numeric_to_zero(normalized); relation.has_value()) {
+        if (*relation > 0) {
+            return kPositiveSign;
+        }
+        if (*relation < 0) {
+            return kNegativeSign;
+        }
+        return kZeroSign;
+    }
+
+    if (const auto* symbol = std::get_if<Symbol>(&*normalized)) {
+        return derive_symbol_sign_mask(symbol->name, assumptions);
+    }
+
+    const auto* func = std::get_if<FunctionCall>(&*normalized);
+    if (func == nullptr) {
+        return std::nullopt;
+    }
+
+    if (func->head == "Negate" && func->args.size() == 1) {
+        const auto inner_signs = derive_sign_mask(func->args[0], assumptions);
+        if (!inner_signs.has_value()) {
+            return std::nullopt;
+        }
+        return negate_sign_mask(*inner_signs);
+    }
+
+    if (func->head == "Times") {
+        return derive_times_sign_mask(*func, assumptions);
+    }
+
+    if (func->head == "Power" && func->args.size() == 2) {
+        return derive_power_sign_mask(func->args[0], func->args[1], assumptions);
+    }
+
+    return std::nullopt;
+}
+
+std::optional<bool> evaluate_sign_predicate_from_mask(
     std::string_view predicate_name,
-    const SymbolAssumptionFacts& facts) {
+    unsigned signs) {
+    if (signs == 0u) {
+        return std::nullopt;
+    }
+
     if (predicate_name == "Positive") {
-        if (facts.positive || (facts.nonnegative && facts.nonzero)) {
+        if (signs == kPositiveSign) {
             return true;
         }
-        if (facts.nonpositive || facts.zero) {
+        if ((signs & kPositiveSign) == 0u) {
             return false;
         }
         return std::nullopt;
     }
     if (predicate_name == "Negative") {
-        if (facts.negative || (facts.nonpositive && facts.nonzero)) {
+        if (signs == kNegativeSign) {
             return true;
         }
-        if (facts.nonnegative || facts.zero) {
+        if ((signs & kNegativeSign) == 0u) {
             return false;
         }
         return std::nullopt;
     }
     if (predicate_name == "NonNegative") {
-        if (facts.nonnegative || facts.positive || facts.zero) {
+        if ((signs & kNegativeSign) == 0u) {
             return true;
         }
-        if (facts.negative) {
+        if ((signs & (kPositiveSign | kZeroSign)) == 0u) {
             return false;
         }
         return std::nullopt;
     }
     if (predicate_name == "NonPositive") {
-        if (facts.nonpositive || facts.negative || facts.zero) {
+        if ((signs & kPositiveSign) == 0u) {
             return true;
         }
-        if (facts.positive) {
+        if ((signs & (kNegativeSign | kZeroSign)) == 0u) {
             return false;
         }
         return std::nullopt;
     }
     if (predicate_name == "ZeroQ") {
-        if (facts.zero) {
+        if (signs == kZeroSign) {
             return true;
         }
-        if (facts.nonzero || facts.positive || facts.negative) {
+        if ((signs & kZeroSign) == 0u) {
             return false;
         }
         return std::nullopt;
     }
     if (predicate_name == "NonZeroQ") {
-        if (facts.nonzero || facts.positive || facts.negative) {
+        if ((signs & kZeroSign) == 0u) {
             return true;
         }
-        if (facts.zero) {
+        if (signs == kZeroSign) {
             return false;
         }
         return std::nullopt;
@@ -153,24 +403,24 @@ std::optional<bool> evaluate_sign_predicate(
 
 std::optional<bool> evaluate_zero_comparison(
     const std::string& head,
-    const SymbolAssumptionFacts& facts) {
+    unsigned signs) {
     if (head == "Greater") {
-        return evaluate_sign_predicate("Positive", facts);
+        return evaluate_sign_predicate_from_mask("Positive", signs);
     }
     if (head == "GreaterEqual") {
-        return evaluate_sign_predicate("NonNegative", facts);
+        return evaluate_sign_predicate_from_mask("NonNegative", signs);
     }
     if (head == "Less") {
-        return evaluate_sign_predicate("Negative", facts);
+        return evaluate_sign_predicate_from_mask("Negative", signs);
     }
     if (head == "LessEqual") {
-        return evaluate_sign_predicate("NonPositive", facts);
+        return evaluate_sign_predicate_from_mask("NonPositive", signs);
     }
     if (head == "Equal") {
-        return evaluate_sign_predicate("ZeroQ", facts);
+        return evaluate_sign_predicate_from_mask("ZeroQ", signs);
     }
     if (head == "NotEqual") {
-        return evaluate_sign_predicate("NonZeroQ", facts);
+        return evaluate_sign_predicate_from_mask("NonZeroQ", signs);
     }
     return std::nullopt;
 }
@@ -199,15 +449,13 @@ ExprPtr refine_function_call_with_assumptions(
     }
 
     if (func.head == "Abs" && refined_args.size() == 1) {
-        if (const auto* symbol = std::get_if<Symbol>(&*refined_args[0])) {
-            if (const auto* facts = assumptions.find_symbol_facts(symbol->name)) {
-                if (facts->nonnegative || facts->positive || facts->zero) {
-                    return refined_args[0];
-                }
-                if (facts->nonpositive || facts->negative) {
-                    return make_negated(refined_args[0]);
-                }
-            }
+        if (auto nonnegative = assumptions.evaluate_predicate("NonNegative", refined_args[0]);
+            nonnegative == std::optional<bool>(true)) {
+            return refined_args[0];
+        }
+        if (auto nonpositive = assumptions.evaluate_predicate("NonPositive", refined_args[0]);
+            nonpositive == std::optional<bool>(true)) {
+            return negate_known_nonpositive_expr(refined_args[0]);
         }
     }
 
@@ -215,15 +463,13 @@ ExprPtr refine_function_call_with_assumptions(
         if (const auto* power = std::get_if<FunctionCall>(&*refined_args[0]);
             power != nullptr && power->head == "Power" && power->args.size() == 2 &&
             is_exact_two(power->args[1])) {
-            if (const auto* symbol = std::get_if<Symbol>(&*power->args[0])) {
-                if (const auto* facts = assumptions.find_symbol_facts(symbol->name)) {
-                    if (facts->nonnegative || facts->positive || facts->zero) {
-                        return power->args[0];
-                    }
-                    if (facts->nonpositive || facts->negative) {
-                        return make_negated(power->args[0]);
-                    }
-                }
+            if (auto nonnegative = assumptions.evaluate_predicate("NonNegative", power->args[0]);
+                nonnegative == std::optional<bool>(true)) {
+                return power->args[0];
+            }
+            if (auto nonpositive = assumptions.evaluate_predicate("NonPositive", power->args[0]);
+                nonpositive == std::optional<bool>(true)) {
+                return negate_known_nonpositive_expr(power->args[0]);
             }
         }
     }
@@ -363,16 +609,11 @@ std::optional<bool> AssumptionStore::evaluate_predicate(
         }
     }
 
-    const auto* symbol = std::get_if<Symbol>(&*expr);
-    if (symbol == nullptr) {
-        return std::nullopt;
+    if (const auto derived_signs = derive_sign_mask(expr, *this); derived_signs.has_value()) {
+        return evaluate_sign_predicate_from_mask(predicate_name, *derived_signs);
     }
 
-    const auto* facts = find_symbol_facts(symbol->name);
-    if (facts == nullptr) {
-        return std::nullopt;
-    }
-    return evaluate_sign_predicate(predicate_name, *facts);
+    return std::nullopt;
 }
 
 std::optional<bool> AssumptionStore::evaluate_comparison(
@@ -387,16 +628,31 @@ std::optional<bool> AssumptionStore::evaluate_comparison(
         return true;
     }
 
-    const auto* symbol = std::get_if<Symbol>(&*left);
-    if (symbol == nullptr || !is_zero_literal(right)) {
-        return std::nullopt;
+    if (is_zero_literal(right)) {
+        if (const auto signs = derive_sign_mask(left, *this); signs.has_value()) {
+            return evaluate_zero_comparison(head, *signs);
+        }
     }
-
-    const auto* facts = find_symbol_facts(symbol->name);
-    if (facts == nullptr) {
-        return std::nullopt;
+    if (is_zero_literal(left)) {
+        if (const auto signs = derive_sign_mask(right, *this); signs.has_value()) {
+            if (head == "Greater") {
+                return evaluate_zero_comparison("Less", *signs);
+            }
+            if (head == "GreaterEqual") {
+                return evaluate_zero_comparison("LessEqual", *signs);
+            }
+            if (head == "Less") {
+                return evaluate_zero_comparison("Greater", *signs);
+            }
+            if (head == "LessEqual") {
+                return evaluate_zero_comparison("GreaterEqual", *signs);
+            }
+            if (head == "Equal" || head == "NotEqual") {
+                return evaluate_zero_comparison(head, *signs);
+            }
+        }
     }
-    return evaluate_zero_comparison(head, *facts);
+    return std::nullopt;
 }
 
 const SymbolAssumptionFacts* AssumptionStore::find_symbol_facts(std::string_view symbol_name) const {

@@ -80,6 +80,33 @@ TEST_CASE("Assumption store resolves explicit sign predicates", "[architecture][
             std::optional<bool>(true));
 }
 
+TEST_CASE("Assumption store derives sign facts for simple arithmetic forms", "[architecture][assumptions]") {
+    EvaluationContext ctx;
+    ctx.assumptions.assume(parse_expression("x > 0"));
+    ctx.assumptions.assume(parse_expression("y != 0"));
+
+    REQUIRE(ctx.assumptions.evaluate_predicate("Negative", parse_expression("-x")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("Positive", parse_expression("2 * x")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("Negative", parse_expression("(-3/2) * x")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("NonNegative", parse_expression("y^2")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("Positive", parse_expression("y^2")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_comparison(
+                "Greater",
+                parse_expression("2 * x"),
+                make_expr<Number>(0.0)) == std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_comparison(
+                "Less",
+                make_expr<Number>(0.0),
+                parse_expression("-x")) == std::optional<bool>(false));
+    REQUIRE(ctx.assumptions.evaluate_predicate("Positive", parse_expression("x + 1")) ==
+            std::nullopt);
+}
+
 TEST_CASE("Built-in symbolic surface is registered through the pack registry", "[architecture][packs]") {
     register_built_in_functions();
 

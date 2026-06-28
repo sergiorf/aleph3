@@ -168,6 +168,16 @@ TEST_CASE("Symbolic CLI support preserves builtin numeric and symbolic contracts
         tooling::symbolic_evaluate_expression("Assuming[NonPositive[x], NonPositive[x]]");
     REQUIRE(assuming_predicate.ok);
     REQUIRE(assuming_predicate.output == "True");
+
+    const auto derived_sign =
+        tooling::symbolic_evaluate_expression("Refine[Positive[-x], x < 0]");
+    REQUIRE(derived_sign.ok);
+    REQUIRE(derived_sign.output == "True");
+
+    const auto derived_abs =
+        tooling::symbolic_evaluate_expression("Refine[Abs[-x], x > 0]");
+    REQUIRE(derived_abs.ok);
+    REQUIRE(derived_abs.output == "x");
 }
 
 TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[tooling][symbolic-cli]") {

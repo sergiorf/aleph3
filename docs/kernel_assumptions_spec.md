@@ -84,6 +84,36 @@ ZeroQ[0] -> True
 Refine[NonPositive[x], x <= 0] -> True
 ```
 
+### Simple Derived Sign Reasoning
+
+The kernel can now answer a few direct sign questions for simple arithmetic
+forms built from those symbol facts.
+
+Supported forms in this slice:
+
+- unary negation such as `-x`
+- multiplication by exact numeric factors such as `2*x` or `(-3/2) * x`
+- exact integer powers with positive exponents such as `x^2` and `x^3`
+
+Examples:
+
+```text
+Refine[Positive[-x], x < 0] -> True
+Refine[Negative[(-2) * x], x > 0] -> True
+Refine[NonNegative[x^2], x != 0] -> True
+Refine[Positive[x^2], x != 0] -> True
+Refine[Abs[-x], x > 0] -> x
+Refine[Sqrt[(-x)^2], x > 0] -> x
+```
+
+Plain-language rule of thumb:
+
+- a negative sign flips the sign
+- multiplying by a known positive or negative exact number keeps or flips the
+  sign in the expected way
+- an even positive power is never negative
+- an odd positive power keeps the original sign
+
 ## Supported Assumption Forms In This Slice
 
 This first slice intentionally supports only a small set of forms:
@@ -115,8 +145,11 @@ The current kernel uses those facts in a few specific places:
 - resolving direct assumed comparisons such as `x > 3` when asked again
 - resolving sign-based comparisons against zero
 - resolving direct sign predicates such as `Positive[x]`
+- resolving a small derived-sign subset for `-x`, exact numeric scaling, and
+  exact integer powers
 - refining `Abs[x]` from sign facts
-- refining `Sqrt[x^2]` from sign facts
+- refining `Abs[...]` and `Sqrt[expr^2]` when the inner expression has a known
+  sign in that same narrow subset
 
 This keeps the slice practical without pretending there is already a full
 domain engine underneath it.
@@ -131,6 +164,9 @@ Still intentionally out of scope:
 - contradiction solving
 - broad domain propagation across arbitrary algebra
 - assumption-aware global simplification scheduling
+- sign inference for general sums such as `x + 1`
+- sign inference for arbitrary products where one factor has no known sign
+- zero-exponent or non-integer-exponent power reasoning
 
 Examples that are still out of scope:
 
@@ -138,6 +174,7 @@ Examples that are still out of scope:
 - proving `x != 2` changes a larger algebraic expression
 - rich real/complex/integer domain tracking
 - predicate assumptions over arbitrary expressions such as `Positive[x + 1]`
+- proving `Positive[x + 1]` from `x > 0`
 
 ## Contract Notes
 

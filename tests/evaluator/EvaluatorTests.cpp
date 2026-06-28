@@ -1151,6 +1151,42 @@ TEST_CASE("Evaluator resolves explicit sign predicates from assumptions", "[eval
     REQUIRE(std::get<Boolean>(*result).value);
 }
 
+TEST_CASE("Evaluator derives sign facts for simple arithmetic forms", "[evaluator][assumptions]") {
+    EvaluationContext ctx;
+
+    auto expr = parse_expression("Refine[Positive[-x], x < 0]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("Refine[Negative[(-2) * x], x > 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("Refine[NonNegative[x^2], x != 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("Refine[Positive[x^2], x != 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("Refine[Abs[-x], x > 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "x");
+
+    expr = parse_expression("Refine[Sqrt[(-x)^2], x > 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "x");
+
+    expr = parse_expression("Refine[Positive[x + 1], x > 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "Positive[x + 1]");
+}
+
 TEST_CASE("Evaluator rejects unsupported assumption forms explicitly", "[evaluator][assumptions]") {
     EvaluationContext ctx;
 

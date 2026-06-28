@@ -145,6 +145,8 @@ Current practical surface:
 - targeted refinement through `Refine[expr, assumptions]`
 - narrow boolean and sign facts used by comparisons and a small symbolic
   refinement layer
+- a small derived-sign query layer for simple arithmetic forms such as `-x`,
+  `2*x`, and `x^2`
 
 ### `diagnostics`
 

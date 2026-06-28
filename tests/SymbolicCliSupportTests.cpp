@@ -161,9 +161,8 @@ TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[toolin
     REQUIRE_FALSE(mixed_inferred_gcd_failure.ok);
     REQUIRE(mixed_inferred_gcd_failure.error_message == "gcd: only univariate GCD is implemented");
 
-    const auto rational_expand_failure =
+    const auto rational_expand_result =
         tooling::symbolic_evaluate_expression("Expand[(1/2) * (x + 1)]");
-    REQUIRE_FALSE(rational_expand_failure.ok);
-    REQUIRE(rational_expand_failure.error_message ==
-            "Polynomial functions do not yet support exact rational coefficients");
+    REQUIRE(rational_expand_result.ok);
+    REQUIRE(rational_expand_result.output == "1/2 * x + 1/2");
 }

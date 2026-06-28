@@ -63,8 +63,8 @@ Examples of explicit failures:
 Exact rationals are a supported core value type in the parser, evaluator, and
 general simplification paths.
 
-That support does not yet extend to polynomial coefficients inside the algebra
-helpers above.
+That support now extends to a narrow exact-polynomial path for the safe helpers
+above, but not to the whole algebra stack.
 
 Current boundary:
 
@@ -72,16 +72,20 @@ Current boundary:
 - mixed rational and integer arithmetic stays exact when no inexact numeric
   value is introduced
 - mixed rational and floating-point arithmetic demotes to inexact `Number`
-- polynomial helpers currently reject exact rational coefficients explicitly
-  instead of demoting them to floating-point or pretending to preserve
-  exactness
+- `Expand`, `Collect`, supported univariate `GCD`, and supported univariate
+  `PolynomialQuotient` preserve exact rational coefficients
+- inexact `Number` inputs stay on the existing floating-point path
+- `Factor` still rejects exact rational coefficients explicitly instead of
+  demoting them to floating-point or pretending to preserve exactness
 
 Examples:
 
 - `1/2 + 1/3` -> `5/6`
 - `1/2 + 2` -> `5/2`
 - `1/2 + 0.5` -> inexact `Number`
-- `Expand[(1/2) * (x + 1)]` -> unsupported exact-rational polynomial input
+- `Expand[(1/2) * (x + 1)]` -> `1/2 * x + 1/2`
+- `PolynomialQuotient[x^2 - 1/4, x - 1/2, x]` -> `{x + 1/2, 0}`
+- `Factor[(1/2) * x^2 + x]` -> unsupported exact-rational factor input
 
 ## Symbolic Rewrite Product Contracts
 
@@ -158,7 +162,6 @@ known limitation.
 Not part of the current supported subset:
 
 - multivariate polynomial GCD and division
-- exact rational polynomial coefficients
 - symbolic differentiation
 - broader factorization algorithms
 - arbitrary-precision exact algebra

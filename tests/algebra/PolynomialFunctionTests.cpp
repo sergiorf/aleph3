@@ -185,25 +185,37 @@ TEST_CASE("Polynomial factor rejects unsupported non integer univariate coeffici
     }
 }
 
-TEST_CASE("Polynomial algebra rejects exact rational coefficients explicitly", "[algebra][functions][rational]") {
+TEST_CASE("Polynomial algebra preserves exact rationals for supported helpers", "[algebra][functions][rational]") {
     EvaluationContext ctx;
 
-    const std::vector<std::string> inputs = {
-        "Expand[(1/2) * (x + 1)]",
-        "Collect[(1/2) * x + 1, x]",
-        "Factor[(1/2) * x^2 + x]"
-    };
+    REQUIRE(to_string(*evaluate_source("Expand[(1/2) * (x + 1)]", ctx))
+            == "1/2 * x + 1/2");
+    REQUIRE(to_string(*evaluate_source("Collect[(1/2) * x + 1, x]", ctx))
+            == "1/2 * x + 1");
+    REQUIRE(simplify_string(evaluate_source("GCD[x^2 - 1/4, x - 1/2, x]", ctx))
+            == "x - 1/2");
 
-    for (const auto& input : inputs) {
-        DYNAMIC_SECTION(input) {
-            try {
-                static_cast<void>(evaluate_source(input, ctx));
-                FAIL("Expected exact rational polynomial coefficient rejection");
-            } catch (const EvaluatorError& ex) {
-                REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
-                REQUIRE(std::string(ex.what()) ==
-                        "Polynomial functions do not yet support exact rational coefficients");
-            }
-        }
+    const auto quotient_result =
+        evaluate_source("PolynomialQuotient[x^2 - 1/4, x - 1/2, x]", ctx);
+    REQUIRE(std::holds_alternative<List>(*quotient_result));
+    const auto& result_list = std::get<List>(*quotient_result);
+    REQUIRE(result_list.elements.size() == 2);
+    REQUIRE(simplify_string(result_list.elements[0]) == "x + 1/2");
+    REQUIRE(simplify_string(result_list.elements[1]) == "0");
+}
+
+TEST_CASE("Polynomial factor keeps exact rational coefficients out of scope", "[algebra][functions][rational]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(*evaluate_source("Expand[0.5 * (x + 1)]", ctx))
+            == "0.5 * x + 0.5");
+
+    try {
+        static_cast<void>(evaluate_source("Factor[(1/2) * x^2 + x]", ctx));
+        FAIL("Expected exact rational factorization rejection");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(ex.what()) ==
+                "Polynomial functions do not yet support exact rational coefficients");
     }
 }

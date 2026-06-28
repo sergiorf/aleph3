@@ -21,6 +21,7 @@
 namespace aleph3::kernel {
 
 using SymbolicFunctionHandler = std::function<ExprPtr(const FunctionCall&, EvaluationContext&)>;
+using BuiltinFunctionHandler = SymbolicFunctionHandler;
 using HostFunctionRegistry = std::unordered_map<std::string, HostFunctionSpec>;
 
 enum class RegistrationSource {
@@ -40,6 +41,11 @@ struct SymbolicFunctionMetadata {
 struct SymbolicFunctionSpec {
     SymbolicFunctionMetadata metadata;
     SymbolicFunctionHandler handler;
+};
+
+struct BuiltinFunctionSpec {
+    SymbolicFunctionMetadata metadata;
+    BuiltinFunctionHandler handler;
 };
 
 class FunctionRegistry {
@@ -81,12 +87,28 @@ public:
         register_symbolic_function(std::move(name), std::move(handler));
     }
 
+    void register_builtin_function(std::string name, BuiltinFunctionHandler handler) {
+        BuiltinFunctionSpec spec;
+        spec.metadata.name = std::move(name);
+        spec.metadata.source = RegistrationSource::builtin;
+        spec.handler = std::move(handler);
+        register_builtin_function(std::move(spec));
+    }
+
+    void register_builtin_function(BuiltinFunctionSpec spec) {
+        builtin_functions_[spec.metadata.name] = std::move(spec);
+    }
+
     [[nodiscard]] bool has_symbolic_function(const std::string& name) const {
         return symbolic_functions_.find(name) != symbolic_functions_.end();
     }
 
     [[nodiscard]] bool has_function(const std::string& name) const {
         return has_symbolic_function(name);
+    }
+
+    [[nodiscard]] bool has_builtin_function(const std::string& name) const {
+        return builtin_functions_.find(name) != builtin_functions_.end();
     }
 
     [[nodiscard]] const SymbolicFunctionHandler* find_symbolic_function(const std::string& name) const {
@@ -96,6 +118,11 @@ public:
 
     [[nodiscard]] const SymbolicFunctionHandler* find_function(const std::string& name) const {
         return find_symbolic_function(name);
+    }
+
+    [[nodiscard]] const BuiltinFunctionHandler* find_builtin_function(const std::string& name) const {
+        const auto* spec = find_builtin_function_spec(name);
+        return spec == nullptr ? nullptr : &spec->handler;
     }
 
     [[nodiscard]] SymbolicFunctionHandler get_symbolic_function(const std::string& name) const {
@@ -109,9 +136,21 @@ public:
         return get_symbolic_function(name);
     }
 
+    [[nodiscard]] BuiltinFunctionHandler get_builtin_function(const std::string& name) const {
+        if (const auto* handler = find_builtin_function(name)) {
+            return *handler;
+        }
+        throw_unsupported_construct("Unknown builtin function: " + name);
+    }
+
     [[nodiscard]] const SymbolicFunctionSpec* find_symbolic_function_spec(const std::string& name) const {
         auto it = symbolic_functions_.find(name);
         return it == symbolic_functions_.end() ? nullptr : &it->second;
+    }
+
+    [[nodiscard]] const BuiltinFunctionSpec* find_builtin_function_spec(const std::string& name) const {
+        auto it = builtin_functions_.find(name);
+        return it == builtin_functions_.end() ? nullptr : &it->second;
     }
 
     static void register_host_function(HostFunctionRegistry& registry, HostFunctionSpec spec) {
@@ -127,6 +166,7 @@ public:
 
 private:
     std::unordered_map<std::string, SymbolicFunctionSpec> symbolic_functions_;
+    std::unordered_map<std::string, BuiltinFunctionSpec> builtin_functions_;
 };
 
 }  // namespace aleph3::kernel

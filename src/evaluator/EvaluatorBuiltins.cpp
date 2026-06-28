@@ -9,6 +9,7 @@
 #include "evaluator/SimplificationRules.hpp"
 #include "expr/ExprUtils.hpp"
 #include "kernel/Diagnostics.hpp"
+#include "kernel/FunctionRegistry.hpp"
 #include "util/Logging.hpp"
 
 #include <algorithm>
@@ -16,6 +17,7 @@
 #include <complex>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <string_view>
 #include <unordered_map>
@@ -587,94 +589,69 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
     return make_fcall(func.head, {left, right});
 }
 
-}  // namespace
-
-bool is_builtin_evaluator_function(std::string_view name) {
-    const std::string owned_name{name};
-    const auto* semantics = lookup_function_semantics(owned_name);
-    if (semantics != nullptr) {
-        return semantics->dispatch_kind == DispatchKind::Default && !semantics->special_form;
+ExprPtr evaluate_builtin_negate(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) {
+        throw_invalid_arity_exact("Negate", 1);
     }
 
-    return simplification_rules.find(owned_name) != simplification_rules.end();
+    auto arg = evaluate(func.args[0], ctx);
+    if (std::holds_alternative<Number>(*arg)) {
+        return make_expr<Number>(-get_number_value(arg));
+    }
+    if (std::holds_alternative<Complex>(*arg)) {
+        const auto& c = std::get<Complex>(*arg);
+        return make_expr<Complex>(-c.real, -c.imag);
+    }
+    if (auto inner = std::get_if<FunctionCall>(arg.get())) {
+        if (inner->head == "Times" && !inner->args.empty()) {
+            if (auto n = std::get_if<Number>(inner->args[0].get()); n && n->value == -1) {
+                return arg;
+            }
+        }
+    }
+    return make_fcall("Times", {make_expr<Number>(-1), arg});
 }
 
-ExprPtr evaluate_builtin_function(const FunctionCall& func, EvaluationContext& ctx) {
-    const auto* semantics = lookup_function_semantics(func.head);
-    if (semantics && !semantics->special_form && !validate_function_arity(func.head, func.args.size())) {
-        if (semantics->min_arity && semantics->max_arity && *semantics->min_arity == *semantics->max_arity) {
-            throw_invalid_arity_exact(func.head, *semantics->min_arity);
-        }
-        if (semantics->min_arity && semantics->max_arity) {
-            throw_invalid_arity_between(func.head, *semantics->min_arity, *semantics->max_arity);
-        }
-        if (semantics->min_arity) {
-            throw_invalid_arity_at_least(func.head, *semantics->min_arity, func.args.size());
-        }
-        if (semantics->max_arity) {
-            throw_invalid_arity_at_most(func.head, *semantics->max_arity, func.args.size());
-        }
-    }
-
-    if (func.head == "Negate") {
-        if (func.args.size() != 1) throw_invalid_arity_exact("Negate", 1);
-        auto arg = evaluate(func.args[0], ctx);
-        if (std::holds_alternative<Number>(*arg)) {
-            return make_expr<Number>(-get_number_value(arg));
-        }
-        if (std::holds_alternative<Complex>(*arg)) {
-            const auto& c = std::get<Complex>(*arg);
-            return make_expr<Complex>(-c.real, -c.imag);
-        }
-        if (auto inner = std::get_if<FunctionCall>(arg.get())) {
-            if (inner->head == "Times" && !inner->args.empty()) {
-                if (auto n = std::get_if<Number>(inner->args[0].get()); n && n->value == -1) {
-                    return arg;
-                }
-            }
-        }
-        return make_fcall("Times", {make_expr<Number>(-1), arg});
-    }
-
-    if (func.head == "Clamp") {
-        if (func.args.size() != 3) {
-            if (ctx.strict_runtime_semantics()) {
-                throw_runtime_invalid_call("Clamp expects three numeric arguments.");
-            }
-            throw_invalid_arity_exact("Clamp", 3);
-        }
-
-        auto value = evaluate(func.args[0], ctx);
-        auto low = evaluate(func.args[1], ctx);
-        auto high = evaluate(func.args[2], ctx);
-        if (!std::holds_alternative<Number>(*value) ||
-            !std::holds_alternative<Number>(*low) ||
-            !std::holds_alternative<Number>(*high)) {
-            if (ctx.strict_runtime_semantics()) {
-                throw_runtime_invalid_call("Clamp expects three numeric arguments.");
-            }
-            return make_fcall("Clamp", {value, low, high});
-        }
-
-        const double numeric_value = std::get<Number>(*value).value;
-        const double numeric_low = std::get<Number>(*low).value;
-        const double numeric_high = std::get<Number>(*high).value;
+ExprPtr evaluate_builtin_clamp(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 3) {
         if (ctx.strict_runtime_semantics()) {
-            ensure_finite_number(numeric_value);
-            ensure_finite_number(numeric_low);
-            ensure_finite_number(numeric_high);
+            throw_runtime_invalid_call("Clamp expects three numeric arguments.");
         }
-        if (numeric_low > numeric_high) {
-            if (ctx.strict_runtime_semantics()) {
-                kernel::throw_runtime_error(
-                    kernel::ErrorCode::invalid_numeric_domain,
-                    "Clamp requires the lower bound to be less than or equal to the upper bound.");
-            }
-            return make_fcall("Clamp", {value, low, high});
-        }
-        return make_expr<Number>(std::clamp(numeric_value, numeric_low, numeric_high));
+        throw_invalid_arity_exact("Clamp", 3);
     }
 
+    auto value = evaluate(func.args[0], ctx);
+    auto low = evaluate(func.args[1], ctx);
+    auto high = evaluate(func.args[2], ctx);
+    if (!std::holds_alternative<Number>(*value) ||
+        !std::holds_alternative<Number>(*low) ||
+        !std::holds_alternative<Number>(*high)) {
+        if (ctx.strict_runtime_semantics()) {
+            throw_runtime_invalid_call("Clamp expects three numeric arguments.");
+        }
+        return make_fcall("Clamp", {value, low, high});
+    }
+
+    const double numeric_value = std::get<Number>(*value).value;
+    const double numeric_low = std::get<Number>(*low).value;
+    const double numeric_high = std::get<Number>(*high).value;
+    if (ctx.strict_runtime_semantics()) {
+        ensure_finite_number(numeric_value);
+        ensure_finite_number(numeric_low);
+        ensure_finite_number(numeric_high);
+    }
+    if (numeric_low > numeric_high) {
+        if (ctx.strict_runtime_semantics()) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::invalid_numeric_domain,
+                "Clamp requires the lower bound to be less than or equal to the upper bound.");
+        }
+        return make_fcall("Clamp", {value, low, high});
+    }
+    return make_expr<Number>(std::clamp(numeric_value, numeric_low, numeric_high));
+}
+
+ExprPtr evaluate_builtin_numeric_or_comparison(const FunctionCall& func, EvaluationContext& ctx) {
     if (is_comparison_function(func.head)) {
         if (auto comparison = evaluate_builtin_comparison(func, ctx)) {
             return comparison;
@@ -708,6 +685,80 @@ ExprPtr evaluate_builtin_function(const FunctionCall& func, EvaluationContext& c
     }
 
     return nullptr;
+}
+
+void register_evaluator_builtin_execution_specs() {
+    auto& registry = kernel::FunctionRegistry::instance();
+
+    registry.register_builtin_function("Negate", evaluate_builtin_negate);
+    registry.register_builtin_function("Clamp", evaluate_builtin_clamp);
+
+    const auto register_family_handler = [&registry](std::string_view name) {
+        registry.register_builtin_function(
+            std::string(name),
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                return evaluate_builtin_numeric_or_comparison(func, ctx);
+            });
+    };
+
+    for (const auto& [name, _] : unary_functions()) {
+        register_family_handler(name);
+    }
+    for (const auto& [name, _] : binary_functions()) {
+        register_family_handler(name);
+    }
+    for (const auto& [name, _] : comparison_functions()) {
+        register_family_handler(name);
+    }
+    for (const auto& [name, _] : simplification_rules) {
+        register_family_handler(name);
+    }
+}
+
+void ensure_evaluator_builtin_execution_specs() {
+    static std::once_flag builtin_registry_once;
+    std::call_once(builtin_registry_once, []() {
+        register_evaluator_builtin_execution_specs();
+    });
+}
+
+void validate_builtin_arity(const FunctionCall& func) {
+    const auto* semantics = lookup_function_semantics(func.head);
+    if (semantics == nullptr || semantics->special_form || validate_function_arity(func.head, func.args.size())) {
+        return;
+    }
+
+    if (semantics->min_arity && semantics->max_arity && *semantics->min_arity == *semantics->max_arity) {
+        throw_invalid_arity_exact(func.head, *semantics->min_arity);
+    }
+    if (semantics->min_arity && semantics->max_arity) {
+        throw_invalid_arity_between(func.head, *semantics->min_arity, *semantics->max_arity);
+    }
+    if (semantics->min_arity) {
+        throw_invalid_arity_at_least(func.head, *semantics->min_arity, func.args.size());
+    }
+    if (semantics->max_arity) {
+        throw_invalid_arity_at_most(func.head, *semantics->max_arity, func.args.size());
+    }
+}
+
+}  // namespace
+
+bool is_builtin_evaluator_function(std::string_view name) {
+    ensure_evaluator_builtin_execution_specs();
+    return kernel::FunctionRegistry::instance().has_builtin_function(std::string(name));
+}
+
+ExprPtr evaluate_builtin_function(const FunctionCall& func, EvaluationContext& ctx) {
+    ensure_evaluator_builtin_execution_specs();
+
+    const auto* spec = kernel::FunctionRegistry::instance().find_builtin_function_spec(func.head);
+    if (spec == nullptr) {
+        return nullptr;
+    }
+
+    validate_builtin_arity(func);
+    return spec->handler(func, ctx);
 }
 
 }  // namespace aleph3

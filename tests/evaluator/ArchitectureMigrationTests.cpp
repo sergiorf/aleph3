@@ -1,4 +1,5 @@
 #include "evaluator/BuiltInFunctions.hpp"
+#include "evaluator/EvaluatorBuiltins.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/Evaluator.hpp"
@@ -115,6 +116,12 @@ TEST_CASE("Kernel function registry backs symbolic and host registration paths",
     REQUIRE(string_join != nullptr);
     REQUIRE(string_join->metadata.name == "StringJoin");
     REQUIRE(string_join->metadata.source == kernel::RegistrationSource::builtin);
+
+    REQUIRE(is_builtin_evaluator_function("Clamp"));
+    const auto* clamp_builtin = registry.find_builtin_function_spec("Clamp");
+    REQUIRE(clamp_builtin != nullptr);
+    REQUIRE(clamp_builtin->metadata.name == "Clamp");
+    REQUIRE(clamp_builtin->metadata.source == kernel::RegistrationSource::builtin);
 
     kernel::HostFunctionRegistry host_registry;
     HostFunctionSpec clamp;

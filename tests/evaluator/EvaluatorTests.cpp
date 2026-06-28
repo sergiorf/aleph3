@@ -477,6 +477,25 @@ TEST_CASE("Evaluator builtins preserve symbolic fallback and exact comparisons",
     REQUIRE(rational.denominator == 2);
 }
 
+TEST_CASE("Evaluator registry-backed builtins preserve Negate and Clamp behavior", "[evaluator][builtins][contract]") {
+    EvaluationContext ctx;
+
+    const auto negated_number = evaluate(parse_expression("-5"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*negated_number));
+    REQUIRE(get_number_value(negated_number) == -5.0);
+
+    const auto symbolic_negate = evaluate(parse_expression("-x"), ctx);
+    REQUIRE(to_string(symbolic_negate) == "-x");
+
+    const auto clamped = evaluate(parse_expression("Clamp[12, 0, 10]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*clamped));
+    REQUIRE(get_number_value(clamped) == 10.0);
+
+    const auto symbolic_clamp = evaluate(parse_expression("Clamp[x, 0, 10]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*symbolic_clamp));
+    REQUIRE(to_string(symbolic_clamp) == "Clamp[x, 0, 10]");
+}
+
 TEST_CASE("Evaluator builtins cover forgotten aliases and inverse trig variants", "[evaluator][builtins]") {
     EvaluationContext ctx;
 

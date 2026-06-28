@@ -170,6 +170,10 @@ TEST_CASE("Builtin evaluator functions win before user-defined functions", "[arc
     auto result = evaluate(parse_expression("Plus[1, 2]"), ctx);
     REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(std::get<Number>(*result).value == 3.0);
+    REQUIRE(ctx.symbol_metadata.contains("Plus"));
+    REQUIRE(ctx.symbol_metadata.has_attribute("Plus", symbols::SymbolAttribute::listable));
+    REQUIRE(ctx.symbol_metadata.has_attribute("Plus", symbols::SymbolAttribute::numeric_function));
+    REQUIRE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::builtin_function));
 }
 
 TEST_CASE("Unknown symbolic functions remain symbolic when no handler owns the name", "[architecture][precedence]") {
@@ -205,6 +209,31 @@ TEST_CASE("User-defined functions populate kernel definition records", "[archite
     REQUIRE(ctx.symbol_metadata.contains("f"));
     REQUIRE(ctx.definition_records.contains("f", symbols::SymbolDefinitionKind::user_function));
     REQUIRE(ctx.user_functions.contains("f"));
+}
+
+TEST_CASE("Host function definitions stay explicit and below builtin evaluator ownership", "[architecture][precedence]") {
+    Bindings bindings;
+    Bindings constants;
+    kernel::HostFunctionRegistry host_functions;
+    Policy policy = Policy::default_policy();
+    EvaluationContext ctx(bindings, constants, host_functions, policy);
+
+    HostFunctionSpec plus;
+    plus.name = "Plus";
+    plus.arity = FunctionArity::exact(2);
+    plus.callback = [](std::span<const Value>) {
+        EvaluationResult result;
+        result.value = Value(99.0);
+        return result;
+    };
+    kernel::FunctionRegistry::register_host_function(host_functions, plus);
+
+    auto result = evaluate(parse_expression("Plus[1, 2]"), ctx);
+
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 3.0);
+    REQUIRE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::builtin_function));
+    REQUIRE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::host_function));
 }
 
 TEST_CASE("Trusted-subset IR lowers into kernel Expr heads", "[architecture][lowering]") {

@@ -24,8 +24,20 @@ namespace {
 
 ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordered_set<std::string>& visited);
 
+enum class FunctionDispatchOwner {
+    special_form,
+    registered_symbolic_handler,
+    builtin_evaluator_function,
+    user_defined_function,
+    host_function,
+    unresolved_symbolic_fallback
+};
+
 struct FunctionDispatchContract {
+    FunctionDispatchOwner primary_owner = FunctionDispatchOwner::unresolved_symbolic_fallback;
+    bool is_special_form = false;
     bool has_registered_symbolic_handler = false;
+    bool has_builtin_evaluator_function = false;
     bool has_user_function = false;
     bool has_host_function = false;
 };
@@ -37,7 +49,27 @@ void ensure_symbol_metadata(
     std::string provider = {},
     std::vector<symbols::SymbolAttribute> attributes = {},
     std::string documentation = {}) {
-    ctx.symbol_metadata.ensure(name, symbols::SymbolMetadata{
+    if (auto* existing = ctx.symbol_metadata.lookup(name)) {
+        for (const auto attribute : attributes) {
+            if (std::find(existing->attributes.begin(), existing->attributes.end(), attribute) ==
+                existing->attributes.end()) {
+                existing->attributes.push_back(attribute);
+            }
+        }
+        if (existing->documentation.empty() && !documentation.empty()) {
+            existing->documentation = std::move(documentation);
+        }
+        if (existing->provider.empty() && !provider.empty()) {
+            existing->provider = std::move(provider);
+        }
+        if (existing->origin == symbols::DefinitionOrigin::user &&
+            origin != symbols::DefinitionOrigin::user) {
+            existing->origin = origin;
+        }
+        return;
+    }
+
+    ctx.symbol_metadata.set(name, symbols::SymbolMetadata{
         name,
         std::move(attributes),
         std::move(documentation),
@@ -78,6 +110,39 @@ void sync_registered_symbolic_function_metadata(
         spec.metadata.owning_package);
 }
 
+std::vector<symbols::SymbolAttribute> builtin_symbol_attributes(const std::string& name) {
+    std::vector<symbols::SymbolAttribute> attributes;
+    const auto* semantics = lookup_function_semantics(name);
+    if (semantics == nullptr) {
+        return attributes;
+    }
+    if (semantics->listable) {
+        attributes.push_back(symbols::SymbolAttribute::listable);
+    }
+    if (semantics->numeric_function) {
+        attributes.push_back(symbols::SymbolAttribute::numeric_function);
+    }
+    return attributes;
+}
+
+void sync_builtin_function_metadata(const std::string& name, EvaluationContext& ctx) {
+    if (!is_builtin_evaluator_function(name)) {
+        return;
+    }
+    ensure_symbol_metadata(
+        ctx,
+        name,
+        symbols::DefinitionOrigin::builtin,
+        "evaluator",
+        builtin_symbol_attributes(name));
+    ensure_definition_record(
+        ctx,
+        name,
+        symbols::SymbolDefinitionKind::builtin_function,
+        symbols::DefinitionOrigin::builtin,
+        "evaluator");
+}
+
 void sync_host_function_metadata(const std::string& name, EvaluationContext& ctx) {
     const auto* host_spec = kernel::FunctionRegistry::find_host_function(ctx.host_functions(), name);
     if (host_spec == nullptr) {
@@ -93,7 +158,7 @@ void sync_host_function_metadata(const std::string& name, EvaluationContext& ctx
     ensure_definition_record(
         ctx,
         name,
-        symbols::SymbolDefinitionKind::registered_handler,
+        symbols::SymbolDefinitionKind::host_function,
         symbols::DefinitionOrigin::builtin,
         "host");
 }
@@ -115,8 +180,28 @@ void sync_symbol_contracts_for_call(const FunctionCall& func, EvaluationContext&
     if (const auto* spec = registry.find_symbolic_function_spec(func.head)) {
         sync_registered_symbolic_function_metadata(*spec, ctx);
     }
+    sync_builtin_function_metadata(func.head, ctx);
     sync_user_function_metadata(func.head, ctx);
     sync_host_function_metadata(func.head, ctx);
+}
+
+FunctionDispatchOwner determine_primary_owner(const FunctionDispatchContract& contract) {
+    if (contract.is_special_form) {
+        return FunctionDispatchOwner::special_form;
+    }
+    if (contract.has_registered_symbolic_handler) {
+        return FunctionDispatchOwner::registered_symbolic_handler;
+    }
+    if (contract.has_builtin_evaluator_function) {
+        return FunctionDispatchOwner::builtin_evaluator_function;
+    }
+    if (contract.has_user_function) {
+        return FunctionDispatchOwner::user_defined_function;
+    }
+    if (contract.has_host_function) {
+        return FunctionDispatchOwner::host_function;
+    }
+    return FunctionDispatchOwner::unresolved_symbolic_fallback;
 }
 
 FunctionDispatchContract build_function_dispatch_contract(
@@ -125,16 +210,21 @@ FunctionDispatchContract build_function_dispatch_contract(
     sync_symbol_contracts_for_call(func, ctx);
 
     FunctionDispatchContract contract;
+    contract.is_special_form = is_special_form_function(func.head);
     auto& registry = packs::PackRegistry::instance();
     contract.has_registered_symbolic_handler =
         ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::registered_handler) &&
         registry.find_symbolic_function_spec(func.head) != nullptr;
+    contract.has_builtin_evaluator_function =
+        ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::builtin_function) &&
+        is_builtin_evaluator_function(func.head);
     contract.has_user_function =
         ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::user_function) &&
         is_user_defined_function(func.head, ctx);
     contract.has_host_function =
-        ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::registered_handler) &&
+        ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::host_function) &&
         kernel::FunctionRegistry::find_host_function(ctx.host_functions(), func.head) != nullptr;
+    contract.primary_owner = determine_primary_owner(contract);
     return contract;
 }
 
@@ -299,15 +389,6 @@ ExprPtr evaluate_host_function(const FunctionCall& func, EvaluationContext& ctx)
     return sdk_value_to_expr(*callback_result.value);
 }
 
-enum class GeneralFunctionResolutionStage {
-    special_form,
-    registered_symbolic_function,
-    builtin_function,
-    user_defined_function,
-    host_function,
-    unresolved_symbolic_fallback
-};
-
 std::optional<ExprPtr> try_resolve_special_form(const FunctionCall& func, EvaluationContext& ctx) {
     if (is_special_form_function(func.head)) {
         return evaluate_special_form(func, ctx);
@@ -363,45 +444,50 @@ ExprPtr unresolved_symbolic_fallback(const FunctionCall& func) {
 ExprPtr evaluate_general_function(const FunctionCall& func, EvaluationContext& ctx) {
     const auto contract = build_function_dispatch_contract(func, ctx);
 
-    constexpr GeneralFunctionResolutionStage stages[] = {
-        GeneralFunctionResolutionStage::special_form,
-        GeneralFunctionResolutionStage::registered_symbolic_function,
-        GeneralFunctionResolutionStage::builtin_function,
-        GeneralFunctionResolutionStage::user_defined_function,
-        GeneralFunctionResolutionStage::host_function,
-        GeneralFunctionResolutionStage::unresolved_symbolic_fallback
-    };
+    switch (contract.primary_owner) {
+        case FunctionDispatchOwner::special_form:
+            if (auto resolved = try_resolve_special_form(func, ctx)) {
+                return *resolved;
+            }
+            break;
+        case FunctionDispatchOwner::registered_symbolic_handler:
+            if (auto resolved = try_resolve_registered_symbolic_function(func, ctx, contract)) {
+                return *resolved;
+            }
+            break;
+        case FunctionDispatchOwner::builtin_evaluator_function:
+            if (auto resolved = try_resolve_builtin_function(func, ctx)) {
+                return *resolved;
+            }
+            break;
+        case FunctionDispatchOwner::user_defined_function:
+            if (auto resolved = try_resolve_user_defined_function(func, ctx, contract)) {
+                return *resolved;
+            }
+            break;
+        case FunctionDispatchOwner::host_function:
+            if (auto resolved = try_resolve_host_function(func, ctx, contract)) {
+                return *resolved;
+            }
+            break;
+        case FunctionDispatchOwner::unresolved_symbolic_fallback:
+            return unresolved_symbolic_fallback(func);
+    }
 
-    for (const auto stage : stages) {
-        switch (stage) {
-            case GeneralFunctionResolutionStage::special_form:
-                if (auto resolved = try_resolve_special_form(func, ctx)) {
-                    return *resolved;
-                }
-                break;
-            case GeneralFunctionResolutionStage::registered_symbolic_function:
-                if (auto resolved = try_resolve_registered_symbolic_function(func, ctx, contract)) {
-                    return *resolved;
-                }
-                break;
-            case GeneralFunctionResolutionStage::builtin_function:
-                if (auto resolved = try_resolve_builtin_function(func, ctx)) {
-                    return *resolved;
-                }
-                break;
-            case GeneralFunctionResolutionStage::user_defined_function:
-                if (auto resolved = try_resolve_user_defined_function(func, ctx, contract)) {
-                    return *resolved;
-                }
-                break;
-            case GeneralFunctionResolutionStage::host_function:
-                if (auto resolved = try_resolve_host_function(func, ctx, contract)) {
-                    return *resolved;
-                }
-                break;
-            case GeneralFunctionResolutionStage::unresolved_symbolic_fallback:
-                return unresolved_symbolic_fallback(func);
-        }
+    if (auto resolved = try_resolve_special_form(func, ctx)) {
+        return *resolved;
+    }
+    if (auto resolved = try_resolve_registered_symbolic_function(func, ctx, contract)) {
+        return *resolved;
+    }
+    if (auto resolved = try_resolve_builtin_function(func, ctx)) {
+        return *resolved;
+    }
+    if (auto resolved = try_resolve_user_defined_function(func, ctx, contract)) {
+        return *resolved;
+    }
+    if (auto resolved = try_resolve_host_function(func, ctx, contract)) {
+        return *resolved;
     }
 
     return unresolved_symbolic_fallback(func);

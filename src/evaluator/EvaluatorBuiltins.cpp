@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 
 namespace aleph3 {
@@ -587,6 +588,16 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
 }
 
 }  // namespace
+
+bool is_builtin_evaluator_function(std::string_view name) {
+    const std::string owned_name{name};
+    const auto* semantics = lookup_function_semantics(owned_name);
+    if (semantics != nullptr) {
+        return semantics->dispatch_kind == DispatchKind::Default && !semantics->special_form;
+    }
+
+    return simplification_rules.find(owned_name) != simplification_rules.end();
+}
 
 ExprPtr evaluate_builtin_function(const FunctionCall& func, EvaluationContext& ctx) {
     const auto* semantics = lookup_function_semantics(func.head);

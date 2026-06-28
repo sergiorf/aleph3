@@ -28,6 +28,8 @@ enum class SymbolDefinitionKind {
     own_value,
     user_function,
     registered_handler,
+    builtin_function,
+    host_function,
     rewrite_rule
 };
 
@@ -151,16 +153,37 @@ public:
     [[nodiscard]] bool contains(
         const std::string& name,
         SymbolDefinitionKind kind) const {
+        return find(name, kind) != nullptr;
+    }
+
+    [[nodiscard]] SymbolDefinitionRecord* find(
+        const std::string& name,
+        SymbolDefinitionKind kind) {
+        auto* records = lookup(name);
+        if (records == nullptr) {
+            return nullptr;
+        }
+        for (auto& record : *records) {
+            if (record.kind == kind) {
+                return &record;
+            }
+        }
+        return nullptr;
+    }
+
+    [[nodiscard]] const SymbolDefinitionRecord* find(
+        const std::string& name,
+        SymbolDefinitionKind kind) const {
         const auto* records = lookup(name);
         if (records == nullptr) {
-            return false;
+            return nullptr;
         }
         for (const auto& record : *records) {
             if (record.kind == kind) {
-                return true;
+                return &record;
             }
         }
-        return false;
+        return nullptr;
     }
 
     [[nodiscard]] bool contains(

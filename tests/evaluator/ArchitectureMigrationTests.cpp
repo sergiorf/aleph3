@@ -46,6 +46,19 @@ TEST_CASE("EvaluationContext copies preserve symbol and function state", "[archi
     REQUIRE(std::get<Number>(*result).value == 12.0);
 }
 
+TEST_CASE("EvaluationContext copies preserve assumptions state", "[architecture][assumptions]") {
+    EvaluationContext ctx;
+    ctx.assumptions.assume(parse_expression("x >= 0"));
+    ctx.assumptions.assume(parse_expression("flag"));
+
+    EvaluationContext copy = ctx;
+    REQUIRE(copy.assumptions.evaluate_comparison(
+                "GreaterEqual",
+                make_expr<Symbol>("x"),
+                make_expr<Number>(0.0)) == std::optional<bool>(true));
+    REQUIRE(copy.assumptions.find_boolean_value("flag") == std::optional<bool>(true));
+}
+
 TEST_CASE("Built-in symbolic surface is registered through the pack registry", "[architecture][packs]") {
     register_built_in_functions();
 

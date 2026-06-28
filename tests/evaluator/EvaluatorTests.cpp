@@ -1078,6 +1078,60 @@ TEST_CASE("Evaluator applies rewrite budget to ReplaceRepeated", "[evaluator][re
     REQUIRE_THROWS_AS(evaluate(expr, ctx), kernel::RuntimeFailure);
 }
 
+TEST_CASE("Evaluator scopes assumptions through Assuming and Refine", "[evaluator][assumptions]") {
+    EvaluationContext ctx;
+
+    auto expr = parse_expression("Assuming[x > 0, If[x > 0, 1, 2]]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 1.0);
+
+    expr = parse_expression("If[x > 0, 1, 2]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "If[x > 0, 1, 2]");
+
+    expr = parse_expression("Refine[Abs[x], x >= 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "x");
+
+    expr = parse_expression("Refine[Sqrt[x^2], x <= 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "-x");
+}
+
+TEST_CASE("Evaluator resolves boolean and comparison facts from assumptions", "[evaluator][assumptions]") {
+    EvaluationContext ctx;
+
+    auto expr = parse_expression("Assuming[flag, If[flag, 7, 9]]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 7.0);
+
+    expr = parse_expression("Refine[x > 0, And[x >= 0, NotEqual[x, 0]]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("Refine[x == 0, x != 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE_FALSE(std::get<Boolean>(*result).value);
+}
+
+TEST_CASE("Evaluator rejects unsupported assumption forms explicitly", "[evaluator][assumptions]") {
+    EvaluationContext ctx;
+
+    auto expr = parse_expression("Assuming[Not[x > 0], x]");
+    REQUIRE_THROWS_WITH(
+        evaluate(expr, ctx),
+        "Assumptions only support Not[symbol] for boolean facts.");
+
+    expr = parse_expression("Refine[x, False]");
+    REQUIRE_THROWS_WITH(
+        evaluate(expr, ctx),
+        "False assumptions are not supported yet.");
+}
+
 TEST_CASE("Evaluator throws error for invalid StringJoin arguments", "[evaluator][string]") {
     EvaluationContext ctx;
 

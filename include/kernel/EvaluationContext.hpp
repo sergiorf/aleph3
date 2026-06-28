@@ -11,6 +11,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "kernel/Assumptions.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "expr/Expr.hpp"
 #include "sdk/Policy.hpp"
@@ -42,6 +43,7 @@ public:
     EvaluationContext(const EvaluationContext& other)
         : symbol_values(other.symbol_values),
           symbol_metadata(other.symbol_metadata),
+          assumptions(other.assumptions),
           definition_records(other.definition_records),
           function_definitions(other.function_definitions),
           owned_bindings_(other.owned_bindings_),
@@ -57,6 +59,7 @@ public:
     EvaluationContext(EvaluationContext&& other) noexcept
         : symbol_values(std::move(other.symbol_values)),
           symbol_metadata(std::move(other.symbol_metadata)),
+          assumptions(std::move(other.assumptions)),
           definition_records(std::move(other.definition_records)),
           function_definitions(std::move(other.function_definitions)),
           owned_bindings_(std::move(other.owned_bindings_)),
@@ -73,6 +76,7 @@ public:
         if (this != &other) {
             symbol_values = other.symbol_values;
             symbol_metadata = other.symbol_metadata;
+            assumptions = other.assumptions;
             definition_records = other.definition_records;
             function_definitions = other.function_definitions;
             owned_bindings_ = other.owned_bindings_;
@@ -89,6 +93,7 @@ public:
         if (this != &other) {
             symbol_values = std::move(other.symbol_values);
             symbol_metadata = std::move(other.symbol_metadata);
+            assumptions = std::move(other.assumptions);
             definition_records = std::move(other.definition_records);
             function_definitions = std::move(other.function_definitions);
             owned_bindings_ = std::move(other.owned_bindings_);
@@ -143,6 +148,7 @@ public:
 
     symbols::SymbolValueTable symbol_values;
     symbols::SymbolMetadataTable symbol_metadata;
+    AssumptionStore assumptions;
     symbols::SymbolDefinitionTable definition_records;
     symbols::FunctionDefinitionTable function_definitions;
 

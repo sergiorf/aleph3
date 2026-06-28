@@ -139,6 +139,13 @@ Owns:
 - domain facts and query API
 - assumption-aware hooks used by `eval`, `normalize`, and `rewrite`
 
+Current practical surface:
+
+- temporary assumptions through `Assuming[assumptions, expr]`
+- targeted refinement through `Refine[expr, assumptions]`
+- narrow boolean and sign facts used by comparisons and a small symbolic
+  refinement layer
+
 ### `diagnostics`
 
 Owns:

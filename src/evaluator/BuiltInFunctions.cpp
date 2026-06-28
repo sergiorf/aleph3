@@ -1,5 +1,6 @@
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "kernel/Assumptions.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/Rewrite.hpp"
 #include "expr/ExprUtils.hpp"
@@ -71,6 +72,11 @@ namespace aleph3 {
             return *rule;
         }
         throw_invalid_form(name + " expects the second argument to be a Rule");
+    }
+
+    EvaluationContext with_added_assumptions(EvaluationContext ctx, const ExprPtr& assumptions) {
+        ctx.assumptions.assume(assumptions);
+        return ctx;
     }
 
     }  // namespace
@@ -265,6 +271,28 @@ namespace aleph3 {
             }
             auto expr = evaluate(func.args[0], ctx);
             return make_expr<Boolean>(kernel::matches_pattern(func.args[1], expr));
+            });
+
+        registry.register_function("Assuming", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() != 2) {
+                throw_invalid_arity_exact("Assuming", 2);
+            }
+            auto scoped_ctx = with_added_assumptions(ctx, func.args[0]);
+            return evaluate(func.args[1], scoped_ctx);
+            });
+
+        registry.register_function("Refine", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() < 1 || func.args.size() > 2) {
+                throw_invalid_arity_between("Refine", 1, 2);
+            }
+
+            EvaluationContext scoped_ctx = ctx;
+            if (func.args.size() == 2) {
+                scoped_ctx = with_added_assumptions(std::move(scoped_ctx), func.args[1]);
+            }
+
+            auto evaluated = evaluate(func.args[0], scoped_ctx);
+            return kernel::refine_expr_with_assumptions(evaluated, scoped_ctx.assumptions);
             });
     }
 

@@ -24,6 +24,7 @@ Implementation specs referenced by this plan:
 - [Kernel Rewrite Spec](kernel_rewrite_spec.md)
 - [Kernel Execution Bridge Spec](kernel_execution_bridge_spec.md)
 - [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md)
+- [Kernel Assumptions Spec](kernel_assumptions_spec.md)
 
 ## Purpose
 
@@ -93,6 +94,8 @@ What is already true:
 - evaluator flow now populates those kernel contracts during registered
   symbolic resolution, builtin execution, host execution, assignment, and
   user-definition registration
+- the first assumptions surface now exists through temporary assumption facts,
+  `Assuming[...]`, and `Refine[...]` for a narrow practical subset
 
 What is still unresolved:
 
@@ -105,6 +108,8 @@ What is still unresolved:
 - higher math boundaries are still blended into evaluator-oriented code
 - symbol definition and extension contracts are not yet strong enough for the
   intended pack model
+- assumptions and domain semantics are still intentionally narrow and mostly
+  sign- and boolean-oriented
 - the current global mutable registration model is still too prototype-like
   for long-term embedding, plugin isolation, and thread-safe multi-tenant use
 - the architecture writing is ahead of the finished product surface in several
@@ -351,7 +356,7 @@ Outcome:
 Outcome:
 
 - exact algebra backbone is in place
-- assumptions and domain semantics start to exist
+- the first assumptions and domain semantics slice exists
 - pack boundaries carry more of the higher math surface
 
 ### M7. Transitional Paths Retired
@@ -547,10 +552,21 @@ Goals:
 
 - make simplification and transformation context-aware where justified
 
+Current status:
+
+- assumption storage now exists in kernel evaluation context
+- the first temporary-assumption surface now exists through `Assuming` and
+  `Refine`
+- the current supported assumption subset covers:
+  - direct boolean symbol facts such as `flag`
+  - direct boolean negation as `Not[flag]`
+  - direct comparison facts
+  - sign facts around zero used by comparisons, `Abs`, and `Sqrt[x^2]`
+
 Tasks:
 
-- define assumptions storage in evaluation context
-- define core domain categories and propagation rules
+- broaden from sign/boolean facts toward explicit domain categories and
+  propagation rules
 - make selected transforms assumption-aware
 - keep unsupported cases explicit
 
@@ -653,12 +669,10 @@ Success criteria:
 
 If work starts now, the next active tranche should be:
 
-1. keep the current rewrite-owned arithmetic layers within their documented
-   boundaries until exact algebra is stronger
-2. define the exact algebra backbone so symbolic coefficient and algebra-aware
-   layers have a stable long-term foundation
-3. define how rewrite rules register against the shared symbol and extension
-   model
+1. broaden the new assumptions and domain semantics slice without widening it
+   into unsafe general inference
+2. decide the durable registration and extension lifetime model for embedding
+3. extract one serious pack-facing math boundary to prove the extension model
 4. tighten tests and docs around the supported symbolic subset as a product
    contract
 

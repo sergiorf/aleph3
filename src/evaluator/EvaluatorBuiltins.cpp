@@ -586,6 +586,11 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
     } else if (ctx.strict_runtime_semantics()) {
         throw_runtime_type_mismatch("Comparison operators require numeric values.");
     }
+
+    if (auto assumed = ctx.assumptions.evaluate_comparison(func.head, left, right); assumed.has_value()) {
+        return make_expr<Boolean>(*assumed);
+    }
+
     return make_fcall(func.head, {left, right});
 }
 

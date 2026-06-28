@@ -500,6 +500,9 @@ ExprPtr resolve_symbol_value(const Symbol& sym, EvaluationContext& ctx, std::uno
 
     const ExprPtr* value = ctx.symbol_values.lookup(sym.name);
     if (value == nullptr) {
+        if (auto assumed_value = ctx.assumptions.find_boolean_value(sym.name); assumed_value.has_value()) {
+            return make_expr<Boolean>(*assumed_value);
+        }
         if (ctx.strict_runtime_semantics()) {
             kernel::throw_runtime_error(
                 kernel::ErrorCode::unknown_binding,

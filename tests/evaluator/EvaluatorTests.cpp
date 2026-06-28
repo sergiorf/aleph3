@@ -1118,6 +1118,39 @@ TEST_CASE("Evaluator resolves boolean and comparison facts from assumptions", "[
     REQUIRE_FALSE(std::get<Boolean>(*result).value);
 }
 
+TEST_CASE("Evaluator resolves explicit sign predicates from assumptions", "[evaluator][assumptions]") {
+    EvaluationContext ctx;
+
+    auto expr = parse_expression("Assuming[Positive[x], If[Positive[x], 5, 9]]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 5.0);
+
+    expr = parse_expression("Refine[NonZeroQ[x], x > 0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("Refine[Positive[x], Positive[x]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("Refine[Negative[x], NonPositive[x]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "Negative[x]");
+
+    expr = parse_expression("Positive[3/2]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("ZeroQ[0]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+}
+
 TEST_CASE("Evaluator rejects unsupported assumption forms explicitly", "[evaluator][assumptions]") {
     EvaluationContext ctx;
 
@@ -1130,6 +1163,11 @@ TEST_CASE("Evaluator rejects unsupported assumption forms explicitly", "[evaluat
     REQUIRE_THROWS_WITH(
         evaluate(expr, ctx),
         "False assumptions are not supported yet.");
+
+    expr = parse_expression("Assuming[Positive[x + 1], x]");
+    REQUIRE_THROWS_WITH(
+        evaluate(expr, ctx),
+        "Assumption predicates only support symbol arguments.");
 }
 
 TEST_CASE("Evaluator throws error for invalid StringJoin arguments", "[evaluator][string]") {

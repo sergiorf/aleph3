@@ -1,6 +1,15 @@
-﻿#pragma once
+/*
+ * CLI Help Text Catalog
+ * ---------------------
+ * Defines the static help entries shown by the Aleph3 CLI. This header owns
+ * the plain-language descriptions for user-facing functions and commands.
+ */
+
+#pragma once
+
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace aleph3 {
 
@@ -61,6 +70,14 @@ namespace aleph3 {
             {"Replace", "Replace[expr, rule]: Apply one structural or pattern rule to expr", "Symbolic"},
             {"ReplaceRepeated", "ReplaceRepeated[expr, rule]: Reapply a rule until it no longer changes expr", "Symbolic"},
             {"MatchQ", "MatchQ[expr, pattern]: Test whether expr matches a supported symbolic pattern", "Symbolic"},
+            {"Assuming", "Assuming[assumptions, expr]: Evaluate expr using temporary boolean or sign facts", "Symbolic"},
+            {"Refine", "Refine[expr, assumptions]: Simplify expr using temporary boolean or sign facts", "Symbolic"},
+            {"Positive", "Positive[x]: Test whether x is known to be greater than zero", "Symbolic"},
+            {"Negative", "Negative[x]: Test whether x is known to be less than zero", "Symbolic"},
+            {"NonNegative", "NonNegative[x]: Test whether x is known to be greater than or equal to zero", "Symbolic"},
+            {"NonPositive", "NonPositive[x]: Test whether x is known to be less than or equal to zero", "Symbolic"},
+            {"ZeroQ", "ZeroQ[x]: Test whether x is known to be exactly zero", "Symbolic"},
+            {"NonZeroQ", "NonZeroQ[x]: Test whether x is known to be nonzero", "Symbolic"},
 
             // Polynomial manipulation
             {"Expand", "Expand[expr]: Expand out products and powers in a polynomial expression", "Polynomial"},

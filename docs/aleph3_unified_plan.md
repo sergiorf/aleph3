@@ -95,7 +95,8 @@ What is already true:
   symbolic resolution, builtin execution, host execution, assignment, and
   user-definition registration
 - the first assumptions surface now exists through temporary assumption facts,
-  `Assuming[...]`, and `Refine[...]` for a narrow practical subset
+  `Assuming[...]`, `Refine[...]`, and explicit sign predicates for a narrow
+  practical subset
 
 What is still unresolved:
 
@@ -109,7 +110,7 @@ What is still unresolved:
 - symbol definition and extension contracts are not yet strong enough for the
   intended pack model
 - assumptions and domain semantics are still intentionally narrow and mostly
-  sign- and boolean-oriented
+  sign- and boolean-oriented rather than a broader domain engine
 - the current global mutable registration model is still too prototype-like
   for long-term embedding, plugin isolation, and thread-safe multi-tenant use
 - the architecture writing is ahead of the finished product surface in several
@@ -387,6 +388,7 @@ Outcome:
 
 - exact algebra backbone is in place
 - the first assumptions and domain semantics slice exists
+- the first broader sign-predicate assumption slice exists
 - pack boundaries carry more of the higher math surface
 
 ### M7. Transitional Paths Retired
@@ -617,12 +619,13 @@ Current status:
   - direct boolean symbol facts such as `flag`
   - direct boolean negation as `Not[flag]`
   - direct comparison facts
+  - direct sign predicates such as `Positive[x]` and `NonZeroQ[x]`
   - sign facts around zero used by comparisons, `Abs`, and `Sqrt[x^2]`
 
 Tasks:
 
-- broaden from sign/boolean facts toward explicit domain categories and
-  propagation rules
+- broaden from sign/boolean facts toward richer but still explicit domain
+  categories and propagation rules
 - make selected transforms assumption-aware
 - keep unsupported cases explicit
 
@@ -726,12 +729,11 @@ Success criteria:
 If work starts now, the next active tranche should be:
 
 1. broaden the new assumptions and domain semantics slice without widening it
-   into unsafe general inference
+   into unsafe general inference around richer domain categories beyond sign
+   facts
 2. decide the durable registration and extension lifetime model for embedding
-3. make the syntax strategy explicit so product identity does not depend on
-   Wolfram-like compatibility syntax alone
-4. extract one serious pack-facing math boundary to prove the extension model
-5. tighten tests and docs around the supported symbolic subset as a product
+3. extract one serious pack-facing math boundary to prove the extension model
+4. tighten tests and docs around the supported symbolic subset as a product
    contract
 
 ## Deferred Work

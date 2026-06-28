@@ -1,3 +1,11 @@
+/*
+ * Kernel Assumptions Contract
+ * ---------------------------
+ * Stores temporary assumption facts used by symbolic evaluation and refinement.
+ * This header owns the narrow sign and boolean fact model behind Assuming and
+ * Refine, along with lookup helpers that other kernel code can reuse.
+ */
+
 #pragma once
 
 #include <optional>
@@ -25,6 +33,9 @@ public:
     void assume(const ExprPtr& expr);
 
     [[nodiscard]] std::optional<bool> find_boolean_value(std::string_view symbol_name) const;
+    [[nodiscard]] std::optional<bool> evaluate_predicate(
+        std::string_view predicate_name,
+        const ExprPtr& expr) const;
     [[nodiscard]] std::optional<bool> evaluate_comparison(
         const std::string& head,
         const ExprPtr& left,

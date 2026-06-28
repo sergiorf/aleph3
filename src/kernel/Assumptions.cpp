@@ -7,6 +7,12 @@ namespace aleph3::kernel {
 
 namespace {
 
+bool is_sign_predicate(std::string_view head) {
+    return head == "Positive" || head == "Negative" ||
+           head == "NonNegative" || head == "NonPositive" ||
+           head == "ZeroQ" || head == "NonZeroQ";
+}
+
 bool is_zero_literal(const ExprPtr& expr) {
     if (const auto* number = std::get_if<Number>(&*expr)) {
         return number->value == 0.0;
@@ -15,6 +21,28 @@ bool is_zero_literal(const ExprPtr& expr) {
         return rational->numerator == 0;
     }
     return false;
+}
+
+std::optional<int> compare_numeric_to_zero(const ExprPtr& expr) {
+    if (const auto* number = std::get_if<Number>(&*expr)) {
+        if (number->value > 0.0) {
+            return 1;
+        }
+        if (number->value < 0.0) {
+            return -1;
+        }
+        return 0;
+    }
+    if (const auto* rational = std::get_if<Rational>(&*expr)) {
+        if (rational->numerator > 0) {
+            return 1;
+        }
+        if (rational->numerator < 0) {
+            return -1;
+        }
+        return 0;
+    }
+    return std::nullopt;
 }
 
 bool is_exact_two(const ExprPtr& expr) {
@@ -31,56 +59,118 @@ ExprPtr make_negated(const ExprPtr& expr) {
     return make_times({make_expr<Number>(-1), expr});
 }
 
-std::optional<bool> evaluate_zero_comparison(
-    const std::string& head,
+void apply_sign_fact(SymbolAssumptionFacts& facts, std::string_view head) {
+    if (head == "Greater" || head == "Positive") {
+        facts.positive = true;
+        facts.nonnegative = true;
+        facts.nonzero = true;
+        return;
+    }
+    if (head == "GreaterEqual" || head == "NonNegative") {
+        facts.nonnegative = true;
+        return;
+    }
+    if (head == "Less" || head == "Negative") {
+        facts.negative = true;
+        facts.nonpositive = true;
+        facts.nonzero = true;
+        return;
+    }
+    if (head == "LessEqual" || head == "NonPositive") {
+        facts.nonpositive = true;
+        return;
+    }
+    if (head == "Equal" || head == "ZeroQ") {
+        facts.zero = true;
+        facts.nonnegative = true;
+        facts.nonpositive = true;
+        return;
+    }
+    if (head == "NotEqual" || head == "NonZeroQ") {
+        facts.nonzero = true;
+    }
+}
+
+std::optional<bool> evaluate_sign_predicate(
+    std::string_view predicate_name,
     const SymbolAssumptionFacts& facts) {
-    if (head == "Greater") {
+    if (predicate_name == "Positive") {
         if (facts.positive || (facts.nonnegative && facts.nonzero)) {
             return true;
         }
         if (facts.nonpositive || facts.zero) {
             return false;
         }
+        return std::nullopt;
     }
-    if (head == "GreaterEqual") {
-        if (facts.nonnegative || facts.positive || facts.zero) {
-            return true;
-        }
-        if (facts.negative) {
-            return false;
-        }
-    }
-    if (head == "Less") {
+    if (predicate_name == "Negative") {
         if (facts.negative || (facts.nonpositive && facts.nonzero)) {
             return true;
         }
         if (facts.nonnegative || facts.zero) {
             return false;
         }
+        return std::nullopt;
     }
-    if (head == "LessEqual") {
+    if (predicate_name == "NonNegative") {
+        if (facts.nonnegative || facts.positive || facts.zero) {
+            return true;
+        }
+        if (facts.negative) {
+            return false;
+        }
+        return std::nullopt;
+    }
+    if (predicate_name == "NonPositive") {
         if (facts.nonpositive || facts.negative || facts.zero) {
             return true;
         }
         if (facts.positive) {
             return false;
         }
+        return std::nullopt;
+    }
+    if (predicate_name == "ZeroQ") {
+        if (facts.zero) {
+            return true;
+        }
+        if (facts.nonzero || facts.positive || facts.negative) {
+            return false;
+        }
+        return std::nullopt;
+    }
+    if (predicate_name == "NonZeroQ") {
+        if (facts.nonzero || facts.positive || facts.negative) {
+            return true;
+        }
+        if (facts.zero) {
+            return false;
+        }
+        return std::nullopt;
+    }
+    return std::nullopt;
+}
+
+std::optional<bool> evaluate_zero_comparison(
+    const std::string& head,
+    const SymbolAssumptionFacts& facts) {
+    if (head == "Greater") {
+        return evaluate_sign_predicate("Positive", facts);
+    }
+    if (head == "GreaterEqual") {
+        return evaluate_sign_predicate("NonNegative", facts);
+    }
+    if (head == "Less") {
+        return evaluate_sign_predicate("Negative", facts);
+    }
+    if (head == "LessEqual") {
+        return evaluate_sign_predicate("NonPositive", facts);
     }
     if (head == "Equal") {
-        if (facts.zero) {
-            return true;
-        }
-        if (facts.nonzero || facts.positive || facts.negative) {
-            return false;
-        }
+        return evaluate_sign_predicate("ZeroQ", facts);
     }
     if (head == "NotEqual") {
-        if (facts.nonzero || facts.positive || facts.negative) {
-            return true;
-        }
-        if (facts.zero) {
-            return false;
-        }
+        return evaluate_sign_predicate("NonZeroQ", facts);
     }
     return std::nullopt;
 }
@@ -96,6 +186,13 @@ ExprPtr refine_function_call_with_assumptions(
 
     if (refined_args.size() == 2) {
         if (auto assumed = assumptions.evaluate_comparison(func.head, refined_args[0], refined_args[1]);
+            assumed.has_value()) {
+            return make_expr<Boolean>(*assumed);
+        }
+    }
+
+    if (is_sign_predicate(func.head) && refined_args.size() == 1) {
+        if (auto assumed = assumptions.evaluate_predicate(func.head, refined_args[0]);
             assumed.has_value()) {
             return make_expr<Boolean>(*assumed);
         }
@@ -142,35 +239,7 @@ void AssumptionStore::assume_boolean_symbol(std::string name, bool value) {
 
 void AssumptionStore::assume_sign_fact(std::string symbol_name, const std::string& head) {
     auto& facts = symbol_facts_[std::move(symbol_name)];
-    if (head == "Greater") {
-        facts.positive = true;
-        facts.nonnegative = true;
-        facts.nonzero = true;
-        return;
-    }
-    if (head == "GreaterEqual") {
-        facts.nonnegative = true;
-        return;
-    }
-    if (head == "Less") {
-        facts.negative = true;
-        facts.nonpositive = true;
-        facts.nonzero = true;
-        return;
-    }
-    if (head == "LessEqual") {
-        facts.nonpositive = true;
-        return;
-    }
-    if (head == "Equal") {
-        facts.zero = true;
-        facts.nonnegative = true;
-        facts.nonpositive = true;
-        return;
-    }
-    if (head == "NotEqual") {
-        facts.nonzero = true;
-    }
+    apply_sign_fact(facts, head);
 }
 
 void AssumptionStore::assume_comparison(const FunctionCall& comparison) {
@@ -236,6 +305,18 @@ void AssumptionStore::assume(const ExprPtr& expr) {
         return;
     }
 
+    if (is_sign_predicate(func->head)) {
+        if (func->args.size() != 1) {
+            throw_invalid_arity_exact(func->head, 1);
+        }
+        const auto* symbol = std::get_if<Symbol>(&*func->args[0]);
+        if (symbol == nullptr) {
+            throw_invalid_form("Assumption predicates only support symbol arguments.");
+        }
+        assume_sign_fact(symbol->name, func->head);
+        return;
+    }
+
     if (func->head == "Equal" || func->head == "NotEqual" ||
         func->head == "Less" || func->head == "LessEqual" ||
         func->head == "Greater" || func->head == "GreaterEqual") {
@@ -252,6 +333,46 @@ std::optional<bool> AssumptionStore::find_boolean_value(std::string_view symbol_
         return std::nullopt;
     }
     return it->second.boolean_value;
+}
+
+std::optional<bool> AssumptionStore::evaluate_predicate(
+    std::string_view predicate_name,
+    const ExprPtr& expr) const {
+    if (expr == nullptr || !is_sign_predicate(predicate_name)) {
+        return std::nullopt;
+    }
+
+    if (const auto relation = compare_numeric_to_zero(expr); relation.has_value()) {
+        if (predicate_name == "Positive") {
+            return *relation > 0;
+        }
+        if (predicate_name == "Negative") {
+            return *relation < 0;
+        }
+        if (predicate_name == "NonNegative") {
+            return *relation >= 0;
+        }
+        if (predicate_name == "NonPositive") {
+            return *relation <= 0;
+        }
+        if (predicate_name == "ZeroQ") {
+            return *relation == 0;
+        }
+        if (predicate_name == "NonZeroQ") {
+            return *relation != 0;
+        }
+    }
+
+    const auto* symbol = std::get_if<Symbol>(&*expr);
+    if (symbol == nullptr) {
+        return std::nullopt;
+    }
+
+    const auto* facts = find_symbol_facts(symbol->name);
+    if (facts == nullptr) {
+        return std::nullopt;
+    }
+    return evaluate_sign_predicate(predicate_name, *facts);
 }
 
 std::optional<bool> AssumptionStore::evaluate_comparison(

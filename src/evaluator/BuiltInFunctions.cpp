@@ -79,6 +79,22 @@ namespace aleph3 {
         return ctx;
     }
 
+    ExprPtr evaluate_assumption_predicate(
+        const std::string& name,
+        const FunctionCall& func,
+        EvaluationContext& ctx) {
+        if (func.args.size() != 1) {
+            throw_invalid_arity_exact(name, 1);
+        }
+
+        auto arg = evaluate(func.args[0], ctx);
+        if (auto assumed = ctx.assumptions.evaluate_predicate(name, arg); assumed.has_value()) {
+            return make_expr<Boolean>(*assumed);
+        }
+
+        return make_expr<FunctionCall>(name, std::vector<ExprPtr>{arg});
+    }
+
     }  // namespace
 
     void register_built_in_functions() {
@@ -271,6 +287,30 @@ namespace aleph3 {
             }
             auto expr = evaluate(func.args[0], ctx);
             return make_expr<Boolean>(kernel::matches_pattern(func.args[1], expr));
+            });
+
+        registry.register_function("Positive", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            return evaluate_assumption_predicate("Positive", func, ctx);
+            });
+
+        registry.register_function("Negative", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            return evaluate_assumption_predicate("Negative", func, ctx);
+            });
+
+        registry.register_function("NonNegative", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            return evaluate_assumption_predicate("NonNegative", func, ctx);
+            });
+
+        registry.register_function("NonPositive", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            return evaluate_assumption_predicate("NonPositive", func, ctx);
+            });
+
+        registry.register_function("ZeroQ", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            return evaluate_assumption_predicate("ZeroQ", func, ctx);
+            });
+
+        registry.register_function("NonZeroQ", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            return evaluate_assumption_predicate("NonZeroQ", func, ctx);
             });
 
         registry.register_function("Assuming", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {

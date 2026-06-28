@@ -24,6 +24,8 @@ Practical examples:
 - `Not[flag]` means treat `flag` as `False`
 - `x > 0` means treat `x` as positive
 - `x >= 0` means treat `x` as nonnegative
+- `Positive[x]` means treat `x` as positive
+- `NonPositive[x]` means treat `x` as nonpositive
 
 ## User-Facing Surface
 
@@ -36,6 +38,7 @@ Examples:
 ```text
 Assuming[x > 0, If[x > 0, 1, 2]] -> 1
 Assuming[flag, If[flag, "ok", "no"]] -> "ok"
+Assuming[Positive[x], Positive[x]] -> True
 ```
 
 ### `Refine[expr]`
@@ -55,6 +58,30 @@ Examples:
 Refine[Abs[x], x >= 0] -> x
 Refine[Sqrt[x^2], x <= 0] -> -x
 Refine[x > 0, And[x >= 0, NotEqual[x, 0]]] -> True
+Refine[Positive[x], x > 0] -> True
+Refine[NonZeroQ[x], Positive[x]] -> True
+```
+
+### Sign Predicates
+
+The kernel now also supports a small family of explicit sign queries:
+
+- `Positive[x]`
+- `Negative[x]`
+- `NonNegative[x]`
+- `NonPositive[x]`
+- `ZeroQ[x]`
+- `NonZeroQ[x]`
+
+These are useful when callers want to ask a direct domain question instead of
+rewriting it as a comparison with zero.
+
+Examples:
+
+```text
+Positive[3/2] -> True
+ZeroQ[0] -> True
+Refine[NonPositive[x], x <= 0] -> True
 ```
 
 ## Supported Assumption Forms In This Slice
@@ -72,6 +99,13 @@ This first slice intentionally supports only a small set of forms:
   - `LessEqual`
   - `Greater`
   - `GreaterEqual`
+- direct sign predicates on symbols:
+  - `Positive`
+  - `Negative`
+  - `NonNegative`
+  - `NonPositive`
+  - `ZeroQ`
+  - `NonZeroQ`
 
 ## What The Kernel Currently Uses Assumptions For
 
@@ -80,6 +114,7 @@ The current kernel uses those facts in a few specific places:
 - resolving unknown boolean symbols such as `flag`
 - resolving direct assumed comparisons such as `x > 3` when asked again
 - resolving sign-based comparisons against zero
+- resolving direct sign predicates such as `Positive[x]`
 - refining `Abs[x]` from sign facts
 - refining `Sqrt[x^2]` from sign facts
 
@@ -102,6 +137,7 @@ Examples that are still out of scope:
 - proving `x > 3` implies `x > 0`
 - proving `x != 2` changes a larger algebraic expression
 - rich real/complex/integer domain tracking
+- predicate assumptions over arbitrary expressions such as `Positive[x + 1]`
 
 ## Contract Notes
 

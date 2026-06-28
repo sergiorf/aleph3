@@ -59,6 +59,27 @@ TEST_CASE("EvaluationContext copies preserve assumptions state", "[architecture]
     REQUIRE(copy.assumptions.find_boolean_value("flag") == std::optional<bool>(true));
 }
 
+TEST_CASE("Assumption store resolves explicit sign predicates", "[architecture][assumptions]") {
+    EvaluationContext ctx;
+    ctx.assumptions.assume(parse_expression("Positive[x]"));
+    ctx.assumptions.assume(parse_expression("NonPositive[y]"));
+
+    REQUIRE(ctx.assumptions.evaluate_predicate("Positive", make_expr<Symbol>("x")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("NonNegative", make_expr<Symbol>("x")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("NonZeroQ", make_expr<Symbol>("x")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("Negative", make_expr<Symbol>("x")) ==
+            std::optional<bool>(false));
+    REQUIRE(ctx.assumptions.evaluate_predicate("NonPositive", make_expr<Symbol>("y")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("Positive", make_expr<Rational>(3, 2)) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("ZeroQ", make_expr<Rational>(0, 1)) ==
+            std::optional<bool>(true));
+}
+
 TEST_CASE("Built-in symbolic surface is registered through the pack registry", "[architecture][packs]") {
     register_built_in_functions();
 

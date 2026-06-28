@@ -8,7 +8,6 @@
 #include "evaluator/EvaluatorSpecialForms.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "kernel/FunctionRegistry.hpp"
-#include "packs/PackRegistry.hpp"
 #include "expr/ExprUtils.hpp"
 #include "normalizer/Normalizer.hpp"
 #include "util/Logging.hpp"
@@ -126,7 +125,7 @@ std::vector<symbols::SymbolAttribute> builtin_symbol_attributes(const std::strin
 }
 
 void sync_builtin_function_metadata(const std::string& name, EvaluationContext& ctx) {
-    if (!is_builtin_evaluator_function(name)) {
+    if (!is_builtin_evaluator_function(name, ctx.function_registry())) {
         return;
     }
     ensure_symbol_metadata(
@@ -176,8 +175,7 @@ void sync_user_function_metadata(const std::string& name, EvaluationContext& ctx
 }
 
 void sync_symbol_contracts_for_call(const FunctionCall& func, EvaluationContext& ctx) {
-    auto& registry = packs::PackRegistry::instance();
-    if (const auto* spec = registry.find_symbolic_function_spec(func.head)) {
+    if (const auto* spec = ctx.function_registry().find_symbolic_function_spec(func.head)) {
         sync_registered_symbolic_function_metadata(*spec, ctx);
     }
     sync_builtin_function_metadata(func.head, ctx);
@@ -211,13 +209,12 @@ FunctionDispatchContract build_function_dispatch_contract(
 
     FunctionDispatchContract contract;
     contract.is_special_form = is_special_form_function(func.head);
-    auto& registry = packs::PackRegistry::instance();
     contract.has_registered_symbolic_handler =
         ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::registered_handler) &&
-        registry.find_symbolic_function_spec(func.head) != nullptr;
+        ctx.function_registry().find_symbolic_function_spec(func.head) != nullptr;
     contract.has_builtin_evaluator_function =
         ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::builtin_function) &&
-        is_builtin_evaluator_function(func.head);
+        is_builtin_evaluator_function(func.head, ctx.function_registry());
     contract.has_user_function =
         ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::user_function) &&
         is_user_defined_function(func.head, ctx);
@@ -403,8 +400,7 @@ std::optional<ExprPtr> try_resolve_registered_symbolic_function(
     if (!contract.has_registered_symbolic_handler) {
         return std::nullopt;
     }
-    auto& registry = packs::PackRegistry::instance();
-    if (const auto* spec = registry.find_symbolic_function_spec(func.head)) {
+    if (const auto* spec = ctx.function_registry().find_symbolic_function_spec(func.head)) {
         return spec->handler(func, ctx);
     }
     return std::nullopt;

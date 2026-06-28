@@ -33,6 +33,14 @@ struct StagedTrustedSubsetFormula {
     const Bindings& bindings,
     const Bindings& constants,
     const HostFunctionRegistry& host_functions,
+    const FunctionRegistry& function_registry,
+    const Policy& policy);
+
+[[nodiscard]] EvaluationResult evaluate_trusted_subset_formula(
+    const ExprPtr& kernel_expr,
+    const Bindings& bindings,
+    const Bindings& constants,
+    const HostFunctionRegistry& host_functions,
     const Policy& policy);
 
 }  // namespace aleph3::kernel

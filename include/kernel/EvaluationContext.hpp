@@ -2,7 +2,8 @@
  * Kernel Evaluation Context
  * -------------------------
  * Shared execution context for symbolic kernel state and embedded runtime
- * state during the kernel-unification refactor.
+ * state, including the active function registry, during the kernel-unification
+ * refactor.
  */
 
 #pragma once
@@ -13,6 +14,7 @@
 
 #include "kernel/Assumptions.hpp"
 #include "kernel/Diagnostics.hpp"
+#include "kernel/FunctionRegistry.hpp"
 #include "expr/Expr.hpp"
 #include "sdk/Policy.hpp"
 #include "sdk/Types.hpp"
@@ -24,6 +26,13 @@ class EvaluationContext {
 public:
     EvaluationContext()
         : runtime_state_(std::make_shared<RuntimeSemanticsState>()),
+          function_registry_ptr_(&default_function_registry()),
+          variables(symbol_values.entries()),
+          user_functions(function_definitions.entries()) {}
+
+    explicit EvaluationContext(const FunctionRegistry& function_registry)
+        : runtime_state_(std::make_shared<RuntimeSemanticsState>()),
+          function_registry_ptr_(&function_registry),
           variables(symbol_values.entries()),
           user_functions(function_definitions.entries()) {}
 
@@ -31,8 +40,10 @@ public:
         const Bindings& bindings,
         const Bindings& constants,
         const std::unordered_map<std::string, HostFunctionSpec>& host_functions,
-        const Policy& policy)
+        const Policy& policy,
+        const FunctionRegistry& function_registry = default_function_registry())
         : runtime_state_(std::make_shared<RuntimeSemanticsState>()),
+          function_registry_ptr_(&function_registry),
           variables(symbol_values.entries()),
           user_functions(function_definitions.entries()),
           bindings_ptr_(&bindings),
@@ -51,6 +62,7 @@ public:
           owned_host_functions_(other.owned_host_functions_),
           owned_policy_(other.owned_policy_),
           runtime_state_(other.runtime_state_),
+          function_registry_ptr_(other.function_registry_ptr_),
           variables(symbol_values.entries()),
           user_functions(function_definitions.entries()) {
         copy_runtime_sources(other);
@@ -67,6 +79,7 @@ public:
           owned_host_functions_(std::move(other.owned_host_functions_)),
           owned_policy_(std::move(other.owned_policy_)),
           runtime_state_(std::move(other.runtime_state_)),
+          function_registry_ptr_(other.function_registry_ptr_),
           variables(symbol_values.entries()),
           user_functions(function_definitions.entries()) {
         move_runtime_sources(other);
@@ -84,6 +97,7 @@ public:
             owned_host_functions_ = other.owned_host_functions_;
             owned_policy_ = other.owned_policy_;
             runtime_state_ = other.runtime_state_;
+            function_registry_ptr_ = other.function_registry_ptr_;
             copy_runtime_sources(other);
         }
         return *this;
@@ -101,6 +115,7 @@ public:
             owned_host_functions_ = std::move(other.owned_host_functions_);
             owned_policy_ = std::move(other.owned_policy_);
             runtime_state_ = std::move(other.runtime_state_);
+            function_registry_ptr_ = other.function_registry_ptr_;
             move_runtime_sources(other);
         }
         return *this;
@@ -120,6 +135,10 @@ public:
 
     [[nodiscard]] const Policy& policy() const noexcept {
         return *policy_ptr_;
+    }
+
+    [[nodiscard]] const FunctionRegistry& function_registry() const noexcept {
+        return *function_registry_ptr_;
     }
 
     void enable_runtime_strict_semantics(bool enabled = true) {
@@ -187,6 +206,7 @@ private:
     const Bindings* constants_ptr_ = &owned_constants_;
     const std::unordered_map<std::string, HostFunctionSpec>* host_functions_ptr_ = &owned_host_functions_;
     const Policy* policy_ptr_ = &owned_policy_;
+    const FunctionRegistry* function_registry_ptr_ = nullptr;
 };
 
 }  // namespace aleph3::kernel

@@ -7,7 +7,6 @@
 #include "kernel/EvaluationContext.hpp"
 
 #include <cmath>
-#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <utility>
@@ -104,6 +103,7 @@ EvaluationResult evaluate_trusted_subset_formula(
     const Bindings& bindings,
     const Bindings& constants,
     const HostFunctionRegistry& host_functions,
+    const FunctionRegistry& function_registry,
     const Policy& policy) {
     if (kernel_expr == nullptr) {
         EvaluationResult result;
@@ -113,13 +113,8 @@ EvaluationResult evaluate_trusted_subset_formula(
         return result;
     }
 
-    static std::once_flag builtins_once;
-    std::call_once(builtins_once, []() {
-        register_built_in_functions();
-    });
-
     try {
-        EvaluationContext ctx(bindings, constants, host_functions, policy);
+        EvaluationContext ctx(bindings, constants, host_functions, policy, function_registry);
         ctx.enable_runtime_strict_semantics(true);
         ctx.reset_runtime_step_counter();
         seed_kernel_symbols(ctx, constants, bindings);
@@ -146,6 +141,21 @@ EvaluationResult evaluate_trusted_subset_formula(
         result.error = make_runtime_error(ErrorCode::internal_inconsistency, error.what());
         return result;
     }
+}
+
+EvaluationResult evaluate_trusted_subset_formula(
+    const ExprPtr& kernel_expr,
+    const Bindings& bindings,
+    const Bindings& constants,
+    const HostFunctionRegistry& host_functions,
+    const Policy& policy) {
+    return evaluate_trusted_subset_formula(
+        kernel_expr,
+        bindings,
+        constants,
+        host_functions,
+        default_function_registry(),
+        policy);
 }
 
 }  // namespace aleph3::kernel

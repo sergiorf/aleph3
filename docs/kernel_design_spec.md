@@ -160,9 +160,18 @@ Owns:
 
 Owns:
 
+- the function catalog used by one engine or symbolic session
 - builtin registration contracts
 - pack registration contracts
 - host-function registration bridge contracts where needed by kernel execution
+
+Plain-language model:
+
+- a function catalog is the set of kernel-registered behaviors available during
+  one evaluation environment
+- the SDK engine owns its own catalog
+- a symbolic CLI session can use the default catalog
+- tests can create local catalogs without affecting other tests
 
 ### `bridge`
 
@@ -228,6 +237,8 @@ Current implementation contract:
   rewrite count
 - `rewrite_repeated(..., EvaluationContext&, max_rewrites)` additionally
   consumes the shared evaluation-step budget, one step per successful rewrite
+- builtin lookup, symbolic-handler lookup, and normalized-head rewrite lookup
+  now read from the active evaluation context's function catalog
 
 Current rewrite migration decision:
 

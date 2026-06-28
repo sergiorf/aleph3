@@ -3,8 +3,9 @@
 ## Status
 
 Initial symbol metadata and definition contract is now implemented, including
-explicit builtin and host ownership records plus a first dispatch contract that
-consults shared symbol-definition facts.
+explicit builtin and host ownership records plus a dispatch contract that
+consults shared symbol-definition facts and an explicit runtime function
+catalog.
 
 Primary implementation:
 
@@ -24,6 +25,8 @@ Plain-language summary:
 - a definition record answers "who currently owns behavior for this name?"
 - the symbol model gives the evaluator one shared place to look instead of
   scattering ownership facts across local branches
+- a function catalog answers "which registered behaviors are available in this
+  engine or session right now?"
 
 Practical examples:
 
@@ -32,6 +35,8 @@ Practical examples:
 - `Length[{1,2,3}]` resolves through a registered symbolic handler
 - `Clamp[x, 0, 10]` can resolve through a builtin or a host function,
   depending on which ownership records exist
+- one test can register a rewrite in its own catalog without changing another
+  test's catalog
 
 ## Current Contract
 
@@ -81,9 +86,11 @@ checks, so evaluator and tests can query specific ownership records directly.
 - `symbol_metadata`
 - `definition_records`
 - `function_definitions`
+- a pointer to the active `FunctionRegistry`
 
 That means symbol metadata, symbolic values, and registered-definition facts can
-travel through one kernel execution context.
+travel through one kernel execution context, together with the catalog of
+registered behavior available for that execution.
 
 ## Registration Contract
 
@@ -112,13 +119,17 @@ That is the current minimum contract a future pack must satisfy:
 - declare whether it is safe to use from rewrite-driven transformations
 
 In plain terms, registration is how Aleph3 learns that a name has executable
-behavior.
+behavior, and the function catalog is where one engine or session stores those
+registrations.
 
 Examples:
 
-- built-in symbolic behavior such as `StringJoin[...]` is registered up front
+- built-in symbolic behavior such as `StringJoin[...]` is loaded into the
+  default catalog up front
 - a future pack could register `Differentiate[...]`
 - an embedding app can register a host function such as `Clamp[...]`
+- two SDK engines can now evaluate against different host-function sets without
+  sharing runtime registration state
 
 ## Current Precedence Facts
 

@@ -2,7 +2,7 @@
 
 struct BuiltInFunctionsFixture {
     BuiltInFunctionsFixture() {
-        aleph3::register_built_in_functions();
+        (void)aleph3::kernel::default_function_registry();
     }
 };
 

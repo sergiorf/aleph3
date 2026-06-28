@@ -108,9 +108,7 @@ TEST_CASE("Assumption store derives sign facts for simple arithmetic forms", "[a
 }
 
 TEST_CASE("Built-in symbolic surface is registered through the pack registry", "[architecture][packs]") {
-    register_built_in_functions();
-
-    auto& registry = packs::PackRegistry::instance();
+    auto registry = kernel::create_default_function_registry();
     REQUIRE(registry.has_function("StringJoin"));
     REQUIRE(registry.has_function("N"));
 }
@@ -171,14 +169,14 @@ TEST_CASE("Kernel diagnostic taxonomy maps symbolic and runtime surfaces", "[arc
 }
 
 TEST_CASE("Kernel function registry backs symbolic and host registration paths", "[architecture][kernel]") {
-    auto& registry = kernel::FunctionRegistry::instance();
+    auto registry = kernel::create_default_function_registry();
     REQUIRE(registry.has_function("StringJoin"));
     const auto* string_join = registry.find_symbolic_function_spec("StringJoin");
     REQUIRE(string_join != nullptr);
     REQUIRE(string_join->metadata.name == "StringJoin");
     REQUIRE(string_join->metadata.source == kernel::RegistrationSource::builtin);
 
-    REQUIRE(is_builtin_evaluator_function("Clamp"));
+    REQUIRE(is_builtin_evaluator_function("Clamp", registry));
     const auto* clamp_builtin = registry.find_builtin_function_spec("Clamp");
     REQUIRE(clamp_builtin != nullptr);
     REQUIRE(clamp_builtin->metadata.name == "Clamp");
@@ -233,6 +231,57 @@ TEST_CASE("Kernel function registry stores ordered head rewrite specs", "[archit
     REQUIRE((*rewrites)[0].priority == 10);
     REQUIRE((*rewrites)[1].rewrite_name == "late");
     REQUIRE((*rewrites)[1].priority == 20);
+}
+
+TEST_CASE("Separate function registries stay isolated", "[architecture][kernel][registry]") {
+    kernel::FunctionRegistry left;
+    kernel::FunctionRegistry right;
+
+    left.register_symbolic_function(
+        "OnlyLeft",
+        [](const FunctionCall&, EvaluationContext&) -> ExprPtr {
+            return make_expr<Number>(11.0);
+        });
+    right.register_head_rewrite(
+        "Plus",
+        "only-right",
+        [](const FunctionCall&, EvaluationContext&) -> std::optional<ExprPtr> {
+            return make_expr<Number>(22.0);
+        },
+        5);
+
+    REQUIRE(left.find_symbolic_function_spec("OnlyLeft") != nullptr);
+    REQUIRE(right.find_symbolic_function_spec("OnlyLeft") == nullptr);
+    REQUIRE(left.find_head_rewrites("Plus") == nullptr);
+    REQUIRE(right.find_head_rewrites("Plus") != nullptr);
+}
+
+TEST_CASE("Evaluation context resolves builtins from its active registry", "[architecture][kernel][registry]") {
+    kernel::FunctionRegistry empty_registry;
+    EvaluationContext empty_ctx(empty_registry);
+    auto unresolved = evaluate(parse_expression("Clamp[5, 0, 10]"), empty_ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*unresolved));
+    REQUIRE(std::get<FunctionCall>(*unresolved).head == "Clamp");
+
+    EvaluationContext default_ctx(kernel::default_function_registry());
+    auto resolved = evaluate(parse_expression("Clamp[5, 0, 10]"), default_ctx);
+    REQUIRE(std::holds_alternative<Number>(*resolved));
+    REQUIRE(std::get<Number>(*resolved).value == 5.0);
+}
+
+TEST_CASE("Normalized head rewrites use the registry from the current context", "[architecture][kernel][rewrite]") {
+    const FunctionCall plus_call{
+        "Plus",
+        {make_expr<Number>(2.0), make_expr<Number>(3.0), make_expr<Symbol>("x")}};
+
+    kernel::FunctionRegistry empty_registry;
+    EvaluationContext empty_ctx(empty_registry);
+    REQUIRE_FALSE(kernel::rewrite_normalized_head(plus_call, empty_ctx).has_value());
+
+    EvaluationContext default_ctx(kernel::default_function_registry());
+    const auto rewritten = kernel::rewrite_normalized_head(plus_call, default_ctx);
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "x + 5");
 }
 
 TEST_CASE("Kernel function registry distinguishes builtin and pack head rewrites", "[architecture][kernel][rewrite][packs]") {

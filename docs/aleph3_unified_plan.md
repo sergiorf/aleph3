@@ -111,8 +111,9 @@ What is still unresolved:
   intended pack model
 - assumptions and domain semantics are still intentionally narrow and mostly
   sign- and boolean-oriented rather than a broader domain engine
-- the current global mutable registration model is still too prototype-like
-  for long-term embedding, plugin isolation, and thread-safe multi-tenant use
+- the new engine-scoped registration catalog is in place, but long-term pack
+  loading, unload boundaries, and stronger thread-safety guarantees still need
+  to be made explicit
 - the architecture writing is ahead of the finished product surface in several
   areas
 - CI and repository hygiene still need product-grade hardening
@@ -516,6 +517,9 @@ Current status:
 - builtin and host ownership are now explicit in kernel definition records
 - evaluator dispatch now derives a primary owner from shared symbol and
   registration facts, and builtin execution is now registry-backed
+- runtime evaluation now reads registrations from an explicit function catalog
+  carried by the current engine or evaluation context instead of consulting
+  singleton global state
 
 Remaining tasks:
 
@@ -523,10 +527,10 @@ Remaining tasks:
 - define how rewrite rules register against the same symbol contract
 - decide how much attribute metadata should control dispatch versus remain
   descriptive
-- decide whether symbolic handlers, builtins, and rewrites are registered
-  globally, per engine, per context, or per environment
-- make test-isolation and thread-safety expectations explicit for the
-  registration model
+- document the remaining mutation and thread-safety rules for registry-backed
+  embedding
+- decide how future pack loading and unload boundaries should work on top of
+  the engine-scoped catalog
 
 Success criteria:
 
@@ -730,12 +734,13 @@ Success criteria:
 
 If work starts now, the next active tranche should be:
 
-1. decide the durable registration and extension lifetime model for embedding
-2. extract one serious pack-facing math boundary to prove the extension model
-3. broaden assumptions from sign facts into one narrow richer domain category
+1. extract one serious pack-facing math boundary to prove the extension model
+2. broaden assumptions from sign facts into one narrow richer domain category
    without widening into unsafe general inference
-4. tighten tests and docs around the supported symbolic subset as a product
+3. tighten tests and docs around the supported symbolic subset as a product
    contract
+4. document the remaining mutation, pack-loading, and thread-safety rules for
+   registry-backed embedding
 
 ## Deferred Work
 

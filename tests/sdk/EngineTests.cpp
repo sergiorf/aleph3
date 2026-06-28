@@ -114,13 +114,10 @@ EvaluationResult evaluate_direct_kernel_expr(
     const Bindings& constants,
     const kernel::HostFunctionRegistry& host_functions,
     const Policy& policy) {
-    static std::once_flag builtins_once;
-    std::call_once(builtins_once, []() {
-        register_built_in_functions();
-    });
+    const auto& registry = kernel::default_function_registry();
 
     try {
-        EvaluationContext ctx(bindings, constants, host_functions, policy);
+        EvaluationContext ctx(bindings, constants, host_functions, policy, registry);
         ctx.enable_runtime_strict_semantics(true);
         ctx.reset_runtime_step_counter();
         seed_kernel_symbols(ctx, constants, bindings);
@@ -661,6 +658,42 @@ TEST_CASE("Engine evaluate matches direct kernel evaluation for host functions",
     require_same_evaluation_result(sdk_result, kernel_result);
     REQUIRE(sdk_result.ok());
     REQUIRE(*sdk_result.value->as_number() == 8.0);
+}
+
+TEST_CASE("Separate engines keep host registrations isolated", "[sdk][engine][kernel]") {
+    Engine with_scale_add;
+    Engine without_scale_add;
+
+    HostFunctionSpec scale_add;
+    scale_add.name = "ScaleAdd";
+    scale_add.arity = FunctionArity::exact(3);
+    scale_add.parameters = {
+        {"value", ValueType::number, true},
+        {"scale", ValueType::number, true},
+        {"offset", ValueType::number, true}
+    };
+    scale_add.return_type = ValueType::number;
+    scale_add.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = Value(*args[0].as_number() * *args[1].as_number() + *args[2].as_number());
+        return result;
+    };
+    with_scale_add.register_function(scale_add);
+
+    Schema schema;
+    schema.allow_function({"ScaleAdd", FunctionArity::exact(3), {ValueType::number, ValueType::number, ValueType::number}, ValueType::number, true});
+
+    const auto compile_result = with_scale_add.compile("ScaleAdd[4, 1.5, 2]", schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto with_result = with_scale_add.evaluate(*compile_result.formula, {});
+    REQUIRE(with_result.ok());
+    REQUIRE(*with_result.value->as_number() == 8.0);
+
+    const auto without_result = without_scale_add.evaluate(*compile_result.formula, {});
+    REQUIRE_FALSE(without_result.ok());
+    REQUIRE_FALSE(without_result.value.has_value());
 }
 
 TEST_CASE("Engine evaluate matches direct kernel evaluation for step-budget exhaustion", "[sdk][engine][kernel]") {

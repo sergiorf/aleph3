@@ -812,7 +812,7 @@ RewriteResult rewrite_repeated(
 std::optional<ExprPtr> rewrite_normalized_head(
     const FunctionCall& func,
     EvaluationContext& ctx) {
-    const auto* specs = FunctionRegistry::instance().find_head_rewrites(func.head);
+    const auto* specs = ctx.function_registry().find_head_rewrites(func.head);
     if (specs == nullptr) {
         return std::nullopt;
     }

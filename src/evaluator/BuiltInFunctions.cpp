@@ -1,10 +1,10 @@
 #include "evaluator/Evaluator.hpp"
+#include "evaluator/EvaluatorBuiltins.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "kernel/Assumptions.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/Rewrite.hpp"
 #include "expr/ExprUtils.hpp"
-#include "packs/PackRegistry.hpp"
 #include "util/Overloaded.hpp"
 #include "Constants.hpp"
 #include <cmath>
@@ -97,41 +97,40 @@ namespace aleph3 {
 
     }  // namespace
 
-    void register_built_in_functions() {
-        auto& registry = packs::PackRegistry::instance();
-        auto& function_registry = kernel::FunctionRegistry::instance();
-
-        function_registry.register_head_rewrite(
+    void register_builtin_rewrite_specs(kernel::FunctionRegistry& registry) {
+        registry.register_head_rewrite(
             "Plus",
             "arithmetic_bucket",
             kernel::rewrite_normalized_arithmetic_head,
             10);
-        function_registry.register_head_rewrite(
+        registry.register_head_rewrite(
             "Plus",
             "symbolic_coefficient",
             kernel::rewrite_normalized_symbolic_coefficient_head,
             20);
-        function_registry.register_head_rewrite(
+        registry.register_head_rewrite(
             "Times",
             "arithmetic_bucket",
             kernel::rewrite_normalized_arithmetic_head,
             10);
-        function_registry.register_head_rewrite(
+        registry.register_head_rewrite(
             "Times",
             "algebraic",
             kernel::rewrite_normalized_algebraic_head,
             20);
-        function_registry.register_head_rewrite(
+        registry.register_head_rewrite(
             "Power",
             "power_identity",
             kernel::rewrite_normalized_power_identity_head,
             10);
-        function_registry.register_head_rewrite(
+        registry.register_head_rewrite(
             "Power",
             "algebraic",
             kernel::rewrite_normalized_algebraic_head,
             20);
+    }
 
+    void register_symbolic_builtins(kernel::FunctionRegistry& registry) {
         // String functions
         registry.register_function("StringJoin", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             std::string result;
@@ -336,4 +335,25 @@ namespace aleph3 {
             });
     }
 
+void register_built_in_functions(kernel::FunctionRegistry& registry) {
+    register_builtin_rewrite_specs(registry);
+    register_symbolic_builtins(registry);
+    register_builtin_evaluator_execution_specs(registry);
 }
+
+namespace kernel {
+
+FunctionRegistry create_default_function_registry() {
+    FunctionRegistry registry;
+    ::aleph3::register_built_in_functions(registry);
+    return registry;
+}
+
+const FunctionRegistry& default_function_registry() {
+    static const FunctionRegistry registry = create_default_function_registry();
+    return registry;
+}
+
+}  // namespace kernel
+
+}  // namespace aleph3

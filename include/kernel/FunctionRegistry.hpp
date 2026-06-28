@@ -1,8 +1,8 @@
 /*
  * Kernel Function Registry
  * ------------------------
- * Shared registration surface for symbolic handlers and SDK/runtime host
- * function adapters during the registry unification phase.
+ * Shared registration catalog for symbolic handlers, builtin execution specs,
+ * and rewrite handlers for one engine, session, or test environment.
  */
 
 #pragma once
@@ -16,11 +16,12 @@
 #include <vector>
 
 #include "evaluator/EvaluatorErrors.hpp"
-#include "evaluator/EvaluationContext.hpp"
 #include "expr/Expr.hpp"
 #include "sdk/Types.hpp"
 
 namespace aleph3::kernel {
+
+class EvaluationContext;
 
 using SymbolicFunctionHandler = std::function<ExprPtr(const FunctionCall&, EvaluationContext&)>;
 using BuiltinFunctionHandler = SymbolicFunctionHandler;
@@ -249,5 +250,8 @@ private:
     std::unordered_map<std::string, BuiltinFunctionSpec> builtin_functions_;
     std::unordered_map<std::string, std::vector<HeadRewriteSpec>> head_rewrites_;
 };
+
+[[nodiscard]] FunctionRegistry create_default_function_registry();
+[[nodiscard]] const FunctionRegistry& default_function_registry();
 
 }  // namespace aleph3::kernel

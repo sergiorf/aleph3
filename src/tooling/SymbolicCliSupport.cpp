@@ -34,9 +34,7 @@ SymbolicCliResult run_symbolic_expression(std::string_view source, Fn&& transfor
     }
 
     try {
-        register_built_in_functions();
-
-        EvaluationContext ctx;
+        EvaluationContext ctx(kernel::default_function_registry());
         auto expr = parse_expression(std::string(source));
         auto result = transform(expr, ctx);
         return make_success(std::move(result));

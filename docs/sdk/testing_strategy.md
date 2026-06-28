@@ -46,3 +46,10 @@ flowchart TD
 7. SDK evaluation and direct kernel evaluation must agree on runtime result and failure codes for the trusted subset.
 8. Evaluation budgets must fail with structured runtime errors.
 9. CLI binding parsing must stay deterministic enough for manual SDK checks.
+
+Practical example:
+
+- one `Engine` can register `ScaleAdd[...]`
+- another `Engine` can omit it
+- evaluating the same compiled formula in those two engines must not share host
+  registrations implicitly

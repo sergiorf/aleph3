@@ -97,9 +97,12 @@ struct CompiledFormulaData {
 }  // namespace sdk_detail
 
 struct Engine::State {
-    explicit State(EngineOptions engine_options) : options(std::move(engine_options)) {}
+    explicit State(EngineOptions engine_options)
+        : options(std::move(engine_options)),
+          function_registry(kernel::create_default_function_registry()) {}
 
     EngineOptions options;
+    kernel::FunctionRegistry function_registry;
     std::unordered_map<std::string, HostFunctionSpec> host_functions;
     mutable std::mutex mutex;
 };
@@ -223,6 +226,7 @@ EvaluationResult Engine::evaluate(
         bindings,
         formula.state_->constants,
         host_functions,
+        state_->function_registry,
         formula.state_->policy);
 }
 

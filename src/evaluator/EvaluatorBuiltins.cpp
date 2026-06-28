@@ -17,7 +17,6 @@
 #include <complex>
 #include <cstdint>
 #include <functional>
-#include <mutex>
 #include <optional>
 #include <string_view>
 #include <unordered_map>
@@ -692,9 +691,7 @@ ExprPtr evaluate_builtin_numeric_or_comparison(const FunctionCall& func, Evaluat
     return nullptr;
 }
 
-void register_evaluator_builtin_execution_specs() {
-    auto& registry = kernel::FunctionRegistry::instance();
-
+void register_builtin_evaluator_execution_specs_impl(kernel::FunctionRegistry& registry) {
     registry.register_builtin_function("Negate", evaluate_builtin_negate);
     registry.register_builtin_function("Clamp", evaluate_builtin_clamp);
 
@@ -720,13 +717,6 @@ void register_evaluator_builtin_execution_specs() {
     }
 }
 
-void ensure_evaluator_builtin_execution_specs() {
-    static std::once_flag builtin_registry_once;
-    std::call_once(builtin_registry_once, []() {
-        register_evaluator_builtin_execution_specs();
-    });
-}
-
 void validate_builtin_arity(const FunctionCall& func) {
     const auto* semantics = lookup_function_semantics(func.head);
     if (semantics == nullptr || semantics->special_form || validate_function_arity(func.head, func.args.size())) {
@@ -749,15 +739,16 @@ void validate_builtin_arity(const FunctionCall& func) {
 
 }  // namespace
 
-bool is_builtin_evaluator_function(std::string_view name) {
-    ensure_evaluator_builtin_execution_specs();
-    return kernel::FunctionRegistry::instance().has_builtin_function(std::string(name));
+void register_builtin_evaluator_execution_specs(kernel::FunctionRegistry& registry) {
+    register_builtin_evaluator_execution_specs_impl(registry);
+}
+
+bool is_builtin_evaluator_function(std::string_view name, const kernel::FunctionRegistry& registry) {
+    return registry.has_builtin_function(std::string(name));
 }
 
 ExprPtr evaluate_builtin_function(const FunctionCall& func, EvaluationContext& ctx) {
-    ensure_evaluator_builtin_execution_specs();
-
-    const auto* spec = kernel::FunctionRegistry::instance().find_builtin_function_spec(func.head);
+    const auto* spec = ctx.function_registry().find_builtin_function_spec(func.head);
     if (spec == nullptr) {
         return nullptr;
     }

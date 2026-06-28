@@ -173,7 +173,9 @@ TEST_CASE("Builtin evaluator functions win before user-defined functions", "[arc
     REQUIRE(ctx.symbol_metadata.contains("Plus"));
     REQUIRE(ctx.symbol_metadata.has_attribute("Plus", symbols::SymbolAttribute::listable));
     REQUIRE(ctx.symbol_metadata.has_attribute("Plus", symbols::SymbolAttribute::numeric_function));
+    REQUIRE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::user_function));
     REQUIRE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::builtin_function));
+    REQUIRE_FALSE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::host_function));
 }
 
 TEST_CASE("Unknown symbolic functions remain symbolic when no handler owns the name", "[architecture][precedence]") {
@@ -185,6 +187,8 @@ TEST_CASE("Unknown symbolic functions remain symbolic when no handler owns the n
     const auto& call = std::get<FunctionCall>(*result);
     REQUIRE(call.head == "f");
     REQUIRE(call.args.size() == 1);
+    REQUIRE_FALSE(ctx.symbol_metadata.contains("f"));
+    REQUIRE_FALSE(ctx.definition_records.contains("f"));
 }
 
 TEST_CASE("Assignments populate kernel symbol metadata and definition records", "[architecture][symbols]") {
@@ -234,6 +238,51 @@ TEST_CASE("Host function definitions stay explicit and below builtin evaluator o
     REQUIRE(std::get<Number>(*result).value == 3.0);
     REQUIRE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::builtin_function));
     REQUIRE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::host_function));
+    REQUIRE_FALSE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::registered_handler));
+}
+
+TEST_CASE("Host-only functions emit host ownership without registered-handler fallback", "[architecture][symbols]") {
+    Bindings bindings;
+    Bindings constants;
+    kernel::HostFunctionRegistry host_functions;
+    Policy policy = Policy::default_policy();
+    EvaluationContext ctx(bindings, constants, host_functions, policy);
+
+    HostFunctionSpec scale_add;
+    scale_add.name = "ScaleAdd";
+    scale_add.arity = FunctionArity::exact(3);
+    scale_add.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = Value(*args[0].as_number() * *args[1].as_number() + *args[2].as_number());
+        return result;
+    };
+    kernel::FunctionRegistry::register_host_function(host_functions, scale_add);
+
+    auto result = evaluate(parse_expression("ScaleAdd[2, 3, 4]"), ctx);
+
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 10.0);
+    REQUIRE(ctx.symbol_metadata.contains("ScaleAdd"));
+    REQUIRE(ctx.definition_records.contains("ScaleAdd", symbols::SymbolDefinitionKind::host_function));
+    REQUIRE_FALSE(ctx.definition_records.contains("ScaleAdd", symbols::SymbolDefinitionKind::registered_handler));
+    REQUIRE_FALSE(ctx.definition_records.contains("ScaleAdd", symbols::SymbolDefinitionKind::builtin_function));
+}
+
+TEST_CASE("Definition records expose explicit kind lookup", "[architecture][symbols]") {
+    EvaluationContext ctx;
+    evaluate(parse_expression("answer = 42"), ctx);
+    evaluate(parse_expression("f[x_] := x + 1"), ctx);
+    evaluate(parse_expression("Plus[1, 2]"), ctx);
+
+    const auto* own_value = ctx.definition_records.find("answer", symbols::SymbolDefinitionKind::own_value);
+    const auto* user_function = ctx.definition_records.find("f", symbols::SymbolDefinitionKind::user_function);
+    const auto* builtin = ctx.definition_records.find("Plus", symbols::SymbolDefinitionKind::builtin_function);
+    const auto* missing = ctx.definition_records.find("ghost", symbols::SymbolDefinitionKind::builtin_function);
+
+    REQUIRE(own_value != nullptr);
+    REQUIRE(user_function != nullptr);
+    REQUIRE(builtin != nullptr);
+    REQUIRE(missing == nullptr);
 }
 
 TEST_CASE("Trusted-subset IR lowers into kernel Expr heads", "[architecture][lowering]") {

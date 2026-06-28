@@ -53,29 +53,40 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    cmake --build build
    ```
 
-   Run the CLI:
+   Start the CLI once, then try commands inside the REPL:
    ```bash
-   ./build/bin/aleph3_cli
-   ./build/bin/aleph3_cli help
-   ./build/bin/aleph3_cli examples
-   ./build/bin/aleph3_cli host-functions
-   ./build/bin/aleph3_cli tokens "If[x >= 1, \"ok\", False]"
-   ./build/bin/aleph3_cli parse "2 + 3 * (x + 1)"
-   ./build/bin/aleph3_cli validate "1 + 2"
-   ./build/bin/aleph3_cli validate "If[True, 1, \"no\"]"
-   ./build/bin/aleph3_cli compile "1 + 2"
-   ./build/bin/aleph3_cli evaluate --var x=3 "x + 1"
-   ./build/bin/aleph3_cli evaluate --var label=hello "label + 1"
-   ./build/bin/aleph3_cli evaluate "If[3 < 4, 10, 20]"
-   ./build/bin/aleph3_cli evaluate-host --var x=12 "Clamp[x, 0, 10]"
-   ./build/bin/aleph3_cli evaluate-host --var x=4 "ScaleAdd[x, 1.5, 2]"
-   ./build/bin/aleph3_cli evaluate-host --var flag=True "PickLabel[flag, \"ok\", \"fail\"]"
-   ./build/bin/aleph3_sdk_example
    ./build/bin/aleph3_cli repl
    ```
 
-   Running `./build/bin/aleph3_cli` with no arguments starts the interactive REPL.
-   `validate`, `compile`, trusted-subset `evaluate`, and demo host-function checks are now live on the primary SDK path.
+   Inside the REPL:
+   ```text
+   > :help
+   > :examples
+   > :host-functions
+   > :tokens If[x >= 1, "ok", False]
+   > :parse 2 + 3 * (x + 1)
+   > :validate 1 + 2
+   > :validate If[True, 1, "no"]
+   > :compile 1 + 2
+   > :evaluate --var x=3 x + 1
+   > :evaluate --var label=hello label + 1
+   > :evaluate If[3 < 4, 10, 20]
+   > :evaluate-host --var x=12 Clamp[x, 0, 10]
+   > :evaluate-host --var x=4 ScaleAdd[x, 1.5, 2]
+   > :evaluate-host --var flag=True PickLabel[flag, "ok", "fail"]
+   > :quit
+   ```
+
+   Running `./build/bin/aleph3_cli` with no arguments also starts the interactive REPL.
+   Use direct one-shot commands only when you want shell-friendly scripting, for example:
+   ```bash
+   ./build/bin/aleph3_cli help
+   ./build/bin/aleph3_cli examples
+   ./build/bin/aleph3_cli host-functions
+   ./build/bin/aleph3_sdk_example
+   ```
+
+   `validate`, `compile`, trusted-subset `evaluate`, and demo host-function checks are all available from the primary SDK-backed CLI path.
 
 3. Build a smaller SDK-only configuration when needed:
    ```bash

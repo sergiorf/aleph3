@@ -6,8 +6,12 @@
 </p>
 
 # Aleph3
-Aleph3 is organized as a layered math system with a symbolic core and product
-surfaces built on top of it.
+Aleph3 is a safe embeddable formula and symbolic engine in C++20, with a path
+toward richer CAS features.
+
+Today, the strongest product surface is the SDK and its trusted embedded
+formula subset. The broader symbolic kernel is real and growing, but it is not
+yet positioned as near-parity with Mathematica-class systems.
 
 The architecture is:
 
@@ -25,6 +29,43 @@ Current architecture warning:
   domain growth
 - the SDK now builds on and evaluates through the kernel directly even when
   the broader symbolic surface is disabled
+
+## What Aleph3 Is Today
+
+Aleph3 currently serves two closely related use cases:
+
+- embedded formula execution through the SDK
+- kernel-backed symbolic evaluation for a documented supported subset
+
+Practical examples:
+
+- embed `If[temp > limit, "alarm", "ok"]` in a host application
+- evaluate `Clamp[x, 0, 10]` through an application-provided function
+- perform bounded symbolic transforms such as `Expand[(1/2) * (x + 1)]`
+
+Aleph3 should currently be read as:
+
+- an embeddable formula engine with symbolic capabilities
+- a kernel-first system growing toward richer CAS features
+
+Aleph3 should not currently be read as:
+
+- a full Mathematica-like CAS
+
+## Syntax
+
+Aleph3 currently accepts a Wolfram-like expression syntax for its symbolic and
+CLI-facing workflows.
+
+Examples:
+
+- `If[x >= 1, "ok", False]`
+- `Clamp[x, 0, 10]`
+- `Replace[f[x], f[a_] -> g[a]]`
+
+That syntax is a current frontend, not the whole product identity.
+The long-term kernel design keeps syntax separate from semantics so Aleph3 can
+support compatibility syntax, a more Aleph3-native syntax, or both over time.
 
 ## Current Repository Tracks
 - Symbolic kernel and early math surface: parser, evaluator, transforms, and
@@ -88,6 +129,14 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
 
    `validate`, `compile`, trusted-subset `evaluate`, and demo host-function checks are all available from the primary SDK-backed CLI path.
 
+   A few practical REPL examples:
+   ```text
+   > :evaluate If[3 < 4, "alarm", "ok"]
+   > :evaluate-host --var x=12 Clamp[x, 0, 10]
+   > :symbolic-evaluate Replace[f[x], f[a_] -> g[a]]
+   > :symbolic-evaluate Refine[Sqrt[x^2], x <= 0]
+   ```
+
 3. Build a smaller SDK-only configuration when needed:
    ```bash
    cmake -S . -B build-sdk -DALEPH3_BUILD_SYMBOLIC_ENGINE=OFF -DBUILD_TESTING=OFF
@@ -104,27 +153,32 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    ```
 
 ## Documentation
-- High-level architecture: [docs/architecture.md](docs/architecture.md)
-- Algebra supported subset: [docs/algebra_supported_subset.md](docs/algebra_supported_subset.md)
-- Symbolic core architecture: [docs/symbolic_core_architecture.md](docs/symbolic_core_architecture.md)
-- Class collaboration: [docs/class_collaboration.md](docs/class_collaboration.md)
-- Unified plan: [docs/aleph3_unified_plan.md](docs/aleph3_unified_plan.md)
-- Kernel design spec: [docs/kernel_design_spec.md](docs/kernel_design_spec.md)
-- Kernel symbol model spec: [docs/kernel_symbol_model_spec.md](docs/kernel_symbol_model_spec.md)
-- Kernel rewrite spec: [docs/kernel_rewrite_spec.md](docs/kernel_rewrite_spec.md)
-- Kernel execution bridge spec: [docs/kernel_execution_bridge_spec.md](docs/kernel_execution_bridge_spec.md)
-- Kernel exact algebra spec: [docs/kernel_exact_algebra_spec.md](docs/kernel_exact_algebra_spec.md)
-- Kernel representation decision: [docs/kernel_representation_decision.md](docs/kernel_representation_decision.md)
-- Representation gap inventory: [docs/representation_gap_inventory.md](docs/representation_gap_inventory.md)
-- Representation lowering strategy: [docs/representation_lowering_strategy.md](docs/representation_lowering_strategy.md)
-- Layer ownership matrix: [docs/layer_ownership_matrix.md](docs/layer_ownership_matrix.md)
-- Kernel symbol definition precedence: [docs/kernel_symbol_definition_precedence.md](docs/kernel_symbol_definition_precedence.md)
-- Header documentation guideline: [docs/header_documentation_guideline.md](docs/header_documentation_guideline.md)
-- Symbolic core gap analysis: [docs/symbolic_core_gap_analysis.md](docs/symbolic_core_gap_analysis.md)
-- SDK overview: [docs/sdk/README.md](docs/sdk/README.md)
-- Embedded formula engine design: [docs/embedded_formula_engine_design.md](docs/embedded_formula_engine_design.md)
-- System architecture: [docs/system_architecture.md](docs/system_architecture.md)
-- Trusted subset scope: [docs/trusted_subset_v1.md](docs/trusted_subset_v1.md)
+- Start here for the product and roadmap view:
+  - [Unified plan](docs/aleph3_unified_plan.md)
+  - [Architecture](docs/architecture.md)
+- Start here for the embedding surface:
+  - [SDK overview](docs/sdk/README.md)
+  - [Trusted subset scope](docs/trusted_subset_v1.md)
+  - [Embedded formula engine design](docs/embedded_formula_engine_design.md)
+- Start here for current symbolic/kernel contracts:
+  - [Kernel design spec](docs/kernel_design_spec.md)
+  - [Kernel symbol model spec](docs/kernel_symbol_model_spec.md)
+  - [Kernel rewrite spec](docs/kernel_rewrite_spec.md)
+  - [Kernel exact algebra spec](docs/kernel_exact_algebra_spec.md)
+  - [Kernel assumptions spec](docs/kernel_assumptions_spec.md)
+- Broader reference:
+  - [Algebra supported subset](docs/algebra_supported_subset.md)
+  - [Symbolic core architecture](docs/symbolic_core_architecture.md)
+  - [Class collaboration](docs/class_collaboration.md)
+  - [Kernel execution bridge spec](docs/kernel_execution_bridge_spec.md)
+  - [Kernel representation decision](docs/kernel_representation_decision.md)
+  - [Representation gap inventory](docs/representation_gap_inventory.md)
+  - [Representation lowering strategy](docs/representation_lowering_strategy.md)
+  - [Layer ownership matrix](docs/layer_ownership_matrix.md)
+  - [Kernel symbol definition precedence](docs/kernel_symbol_definition_precedence.md)
+  - [Header documentation guideline](docs/header_documentation_guideline.md)
+  - [Symbolic core gap analysis](docs/symbolic_core_gap_analysis.md)
+  - [System architecture](docs/system_architecture.md)
 
 ## License
 [MIT License](LICENSE)

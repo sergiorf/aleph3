@@ -171,6 +171,30 @@ It should not yet be positioned as:
 
 - a modern Mathematica-like CAS with near-parity expectations
 
+### Syntax Strategy
+
+Aleph3 should not tie its long-term identity to being only a clone of another
+system's surface syntax.
+
+Current Wolfram-like syntax is useful because:
+
+- it is compact for symbolic work
+- it makes early experimentation faster
+- it lowers friction for users who already know that style
+
+But product strategy should remain independent from that syntax.
+
+Accepted direction:
+
+- Aleph3 may support a Wolfram-like frontend as a compatibility or migration
+  surface
+- Aleph3 should reserve the option to introduce and prefer a clearer
+  Aleph3-native surface syntax over time
+- parser and evaluation architecture should treat syntax as a frontend choice,
+  not as the product identity
+- documentation and positioning should describe expressions in Aleph3 terms
+  first, not as "Mathematica but in C++"
+
 ### Pack Position
 
 Higher math growth should move through pack registration on top of the kernel,
@@ -311,6 +335,10 @@ These rules apply to all implementation work until the migration is complete:
 - bug fixes, regression tests, documentation cleanup, and narrow contract
   hardening are allowed in parallel
 - new semantic behavior must declare whether it belongs to kernel, SDK, or pack
+- every new concept that becomes user-visible or architecturally important must
+  be documented in plain language with small practical examples
+- every created or modified header should carry a short descriptive file header
+  that explains what the interface owns and why it exists
 
 ## Priority Order
 
@@ -323,10 +351,12 @@ The order of work is:
 5. replace weak algebra foundations with exact infrastructure
 6. add assumptions and domain-aware semantics
 7. decide the durable registration and extension lifetime model for embedding
-8. extract higher math behind explicit pack boundaries
-9. expand product-facing symbolic capabilities on top of the stronger kernel
-10. harden the SDK and product surfaces around the stronger kernel
-11. build richer interactive product surfaces such as a notebook-like
+8. make the syntax strategy explicit and keep it separate from kernel
+   semantics
+9. extract higher math behind explicit pack boundaries
+10. expand product-facing symbolic capabilities on top of the stronger kernel
+11. harden the SDK and product surfaces around the stronger kernel
+12. build richer interactive product surfaces such as a notebook-like
    application on top of the unified kernel
 
 ## Milestones
@@ -390,6 +420,10 @@ Tasks:
 - keep `README.md` and architecture docs aligned with the one-kernel message
 - point all roadmap references to this document
 - keep supported-subset and unsupported-area docs explicit
+- keep terminology practical and explain new concepts with short examples rather
+  than internal jargon
+- keep syntax-facing docs honest about what is Aleph3-native versus what is
+  currently Wolfram-like compatibility syntax
 
 Success criteria:
 
@@ -441,6 +475,28 @@ Success criteria:
 
 - Aleph3 can be presented confidently as an embeddable formula/symbolic engine
 - SDK adoption does not depend on unfinished broader CAS claims
+
+### D2. Syntax And Language Surface
+
+Goals:
+
+- separate kernel semantics from frontend syntax choices
+- avoid positioning Aleph3 as only a clone of another system's language
+
+Tasks:
+
+- document the current Wolfram-like syntax as the current input surface, not as
+  the whole product identity
+- decide whether Aleph3 should support dual frontends, with compatibility
+  syntax and a future Aleph3-native syntax
+- keep parser, printer, and docs structured so syntax can evolve without
+  changing kernel semantics
+- add practical examples when syntax behavior is documented or changed
+
+Success criteria:
+
+- syntax decisions are explicit rather than accidental
+- Aleph3 can differentiate product identity from compatibility syntax
 
 ### E. Symbol Definition And Extension Model
 
@@ -672,8 +728,10 @@ If work starts now, the next active tranche should be:
 1. broaden the new assumptions and domain semantics slice without widening it
    into unsafe general inference
 2. decide the durable registration and extension lifetime model for embedding
-3. extract one serious pack-facing math boundary to prove the extension model
-4. tighten tests and docs around the supported symbolic subset as a product
+3. make the syntax strategy explicit so product identity does not depend on
+   Wolfram-like compatibility syntax alone
+4. extract one serious pack-facing math boundary to prove the extension model
+5. tighten tests and docs around the supported symbolic subset as a product
    contract
 
 ## Deferred Work

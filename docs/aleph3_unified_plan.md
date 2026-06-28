@@ -450,9 +450,12 @@ Current status:
 - initial registration metadata is implemented
 - initial symbol metadata and definition records are implemented
 - evaluator dispatch now syncs and consults symbol-definition and registration
-  contracts for registered symbolic handlers, user functions, and host
-  functions
-- builtin evaluator functions still retain local precedence code
+  contracts for registered symbolic handlers, builtin evaluator functions, user
+  functions, and host functions
+- builtin and host ownership are now explicit in kernel definition records
+- evaluator dispatch now derives a primary owner from shared symbol and
+  registration facts, but builtin execution semantics still live in evaluator
+  code
 
 Success criteria:
 

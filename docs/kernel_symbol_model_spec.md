@@ -2,7 +2,9 @@
 
 ## Status
 
-Initial symbol metadata and definition contract is now implemented.
+Initial symbol metadata and definition contract is now implemented, including
+explicit builtin and host ownership records plus a first dispatch contract that
+consults shared symbol-definition facts.
 
 Primary implementation:
 
@@ -46,9 +48,14 @@ The current definition kinds are:
 - `own_value`
 - `user_function`
 - `registered_handler`
+- `builtin_function`
+- `host_function`
 - `rewrite_rule`
 
 These records are stored in `symbols::SymbolDefinitionTable`.
+
+The table also now exposes exact-kind lookup in addition to boolean presence
+checks, so evaluator and tests can query specific ownership records directly.
 
 ### Evaluation Context
 
@@ -99,9 +106,11 @@ Current evaluator precedence is still:
 5. host functions
 6. symbolic fallback
 
-The new symbol model does not replace that precedence yet.
-It makes metadata and definition ownership explicit so precedence can migrate
-away from evaluator branching.
+The new symbol model now participates in that precedence directly by making
+callable ownership explicit and allowing dispatch to derive a primary owner
+from shared symbol-definition and registration facts.
+
+Execution still remains evaluator-owned once an owner is selected.
 
 ## What Is Implemented Versus Deferred
 
@@ -112,21 +121,24 @@ Implemented now:
 - registry metadata for symbolic functions
 - explicit pack-registration metadata path
 - evaluator-side population of metadata/definition records for registered
-  symbolic handlers, user-defined functions, and assignments
+  symbolic handlers, builtin evaluator functions, host functions,
+  user-defined functions, and assignments
+- evaluator dispatch ownership selection derived from shared symbol-definition
+  and registration facts
 
 Deferred:
 
 - attribute-driven evaluation control
 - ownvalue/downvalue-style lookup
 - mutation semantics beyond current tables
-- evaluator dispatch driven primarily from symbol-definition records rather than
-  evaluator-local precedence code
+- fully registry- or definition-driven execution once an owner is selected,
+  instead of evaluator-local builtin and host execution handlers
 
 ## Next Steps
 
 - make evaluator dispatch consult richer symbol-definition facts
-- migrate more builtin identity and precedence knowledge out of evaluator
-  branches
+- migrate more builtin execution identity and precedence knowledge out of
+  evaluator branches
 - decide how the small symbolic coefficient contract should attach to
   symbol-definition metadata if it grows beyond the current builtin-owned
   implementation

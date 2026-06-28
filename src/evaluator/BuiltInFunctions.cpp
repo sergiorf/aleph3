@@ -1,5 +1,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "kernel/FunctionRegistry.hpp"
+#include "kernel/Rewrite.hpp"
 #include "expr/ExprUtils.hpp"
 #include "packs/PackRegistry.hpp"
 #include "util/Overloaded.hpp"
@@ -62,6 +64,38 @@ namespace aleph3 {
 
     void register_built_in_functions() {
         auto& registry = packs::PackRegistry::instance();
+        auto& function_registry = kernel::FunctionRegistry::instance();
+
+        function_registry.register_head_rewrite(
+            "Plus",
+            "arithmetic_bucket",
+            kernel::rewrite_normalized_arithmetic_head,
+            10);
+        function_registry.register_head_rewrite(
+            "Plus",
+            "symbolic_coefficient",
+            kernel::rewrite_normalized_symbolic_coefficient_head,
+            20);
+        function_registry.register_head_rewrite(
+            "Times",
+            "arithmetic_bucket",
+            kernel::rewrite_normalized_arithmetic_head,
+            10);
+        function_registry.register_head_rewrite(
+            "Times",
+            "algebraic",
+            kernel::rewrite_normalized_algebraic_head,
+            20);
+        function_registry.register_head_rewrite(
+            "Power",
+            "power_identity",
+            kernel::rewrite_normalized_power_identity_head,
+            10);
+        function_registry.register_head_rewrite(
+            "Power",
+            "algebraic",
+            kernel::rewrite_normalized_algebraic_head,
+            20);
 
         // String functions
         registry.register_function("StringJoin", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {

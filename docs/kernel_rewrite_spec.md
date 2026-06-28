@@ -138,6 +138,25 @@ evaluation step through the supplied context.
 Rewrite is bounded in two layers:
 
 - caller provides `max_rewrites` as the local rewrite-loop cap
+- normalized-head simplification rewrites are now registered through
+  `kernel::FunctionRegistry` and run in deterministic priority order per head
+
+### Registered Normalized-Head Rewrites
+
+The first rewrite-extension surface above plain `Rule` rewriting is now a
+registered normalized-head contract.
+
+That means:
+
+- `Plus`, `Times`, and `Power` simplification rewrites are registered
+  explicitly instead of being dispatched inline from simplification code
+- each registered rewrite declares a head, owner metadata, and priority
+- simplification consults the registry and stops at the first matching rewrite
+- kernel-owned rewrites register as builtin-owned specs
+- future pack-owned rewrites can use the same registration surface
+
+This slice does not widen rewrite semantics.
+It only changes how existing normalized-head rewrites are owned and reached.
 - traversal stops when no rewrite occurs
 - traversal also stops once the bound is reached
 - when an `EvaluationContext` is supplied, each successful rewrite consumes one

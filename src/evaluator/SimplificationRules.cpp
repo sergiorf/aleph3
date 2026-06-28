@@ -31,6 +31,31 @@ namespace aleph3 {
         }
     }
 
+    ExprPtr apply_registered_normalized_head_rewrites(
+        const ExprPtr& normalized,
+        EvaluationContext& ctx,
+        std::size_t max_passes = 4) {
+        ExprPtr current = normalized;
+        for (std::size_t pass = 0; pass < max_passes; ++pass) {
+            const auto* func = std::get_if<FunctionCall>(current.get());
+            if (func == nullptr) {
+                return current;
+            }
+
+            auto rewritten = kernel::rewrite_normalized_head(*func, ctx);
+            if (!rewritten.has_value()) {
+                return current;
+            }
+
+            auto next = normalize_expr(*rewritten);
+            if (kernel::structurally_equal(current, next)) {
+                return current;
+            }
+            current = std::move(next);
+        }
+        return current;
+    }
+
     }  // namespace
 
     const std::unordered_map<std::string, SimplifyRule> simplification_rules = {
@@ -116,26 +141,7 @@ namespace aleph3 {
         }
 
         ExprPtr current = normalize_expr(make_fcall("Plus", flat_args));
-        if (!std::holds_alternative<FunctionCall>(*current)) {
-            return current;
-        }
-
-        if (const auto* plus = std::get_if<FunctionCall>(current.get())) {
-            if (auto rewritten = kernel::rewrite_normalized_arithmetic_head(*plus, ctx)) {
-                current = normalize_expr(*rewritten);
-            }
-        }
-        if (!std::holds_alternative<FunctionCall>(*current)) {
-            return current;
-        }
-
-        if (const auto* plus = std::get_if<FunctionCall>(current.get())) {
-            if (auto rewritten = kernel::rewrite_normalized_symbolic_coefficient_head(*plus, ctx)) {
-                return *rewritten;
-            }
-        }
-
-        return current;
+        return apply_registered_normalized_head_rewrites(current, ctx);
     }},
     {"Times", [](const std::vector<ExprPtr>& args, EvaluationContext& ctx,
              const std::function<ExprPtr(const ExprPtr&, EvaluationContext&)>& eval) -> ExprPtr {
@@ -145,16 +151,10 @@ namespace aleph3 {
         }
 
         const auto normalized_eval_args = normalize_expr(make_fcall("Times", eval_args));
-        if (const auto* times = std::get_if<FunctionCall>(normalized_eval_args.get())) {
-            if (auto rewritten = kernel::rewrite_normalized_arithmetic_head(*times, ctx)) {
-                return *rewritten;
-            }
-        }
-
-        const auto normalized_after_arithmetic = normalize_expr(make_fcall("Times", eval_args));
-        if (const auto* times = std::get_if<FunctionCall>(normalized_after_arithmetic.get())) {
-            if (auto rewritten = kernel::rewrite_normalized_algebraic_head(*times, ctx)) {
-                return *rewritten;
+        if (std::holds_alternative<FunctionCall>(*normalized_eval_args)) {
+            auto rewritten = apply_registered_normalized_head_rewrites(normalized_eval_args, ctx);
+            if (!kernel::structurally_equal(rewritten, normalized_eval_args)) {
+                return rewritten;
             }
         }
 
@@ -300,12 +300,10 @@ namespace aleph3 {
         auto base = eval(args[0], ctx);
         auto exp = eval(args[1], ctx);
         auto normalized_power = normalize_expr(make_fcall("Power", {base, exp}));
-        if (const auto* power = std::get_if<FunctionCall>(normalized_power.get())) {
-            if (auto rewritten = kernel::rewrite_normalized_power_identity_head(*power, ctx)) {
-                return *rewritten;
-            }
-            if (auto rewritten = kernel::rewrite_normalized_algebraic_head(*power, ctx)) {
-                return *rewritten;
+        if (std::holds_alternative<FunctionCall>(*normalized_power)) {
+            auto rewritten = apply_registered_normalized_head_rewrites(normalized_power, ctx);
+            if (!kernel::structurally_equal(rewritten, normalized_power)) {
+                return rewritten;
             }
         }
         if (std::holds_alternative<Number>(*base) && get_number_value(base) == 0.0 &&

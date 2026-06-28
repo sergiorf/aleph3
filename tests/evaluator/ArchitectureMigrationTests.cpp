@@ -123,6 +123,15 @@ TEST_CASE("Kernel function registry backs symbolic and host registration paths",
     REQUIRE(clamp_builtin->metadata.name == "Clamp");
     REQUIRE(clamp_builtin->metadata.source == kernel::RegistrationSource::builtin);
 
+    REQUIRE(registry.has_head_rewrites("Plus"));
+    const auto* plus_rewrites = registry.find_head_rewrites("Plus");
+    REQUIRE(plus_rewrites != nullptr);
+    REQUIRE(plus_rewrites->size() == 2);
+    REQUIRE((*plus_rewrites)[0].rewrite_name == "arithmetic_bucket");
+    REQUIRE((*plus_rewrites)[0].metadata.source == kernel::RegistrationSource::builtin);
+    REQUIRE((*plus_rewrites)[1].rewrite_name == "symbolic_coefficient");
+    REQUIRE((*plus_rewrites)[1].metadata.source == kernel::RegistrationSource::builtin);
+
     kernel::HostFunctionRegistry host_registry;
     HostFunctionSpec clamp;
     clamp.name = "Clamp";
@@ -137,6 +146,61 @@ TEST_CASE("Kernel function registry backs symbolic and host registration paths",
     const auto* host_spec = kernel::FunctionRegistry::find_host_function(host_registry, "Clamp");
     REQUIRE(host_spec != nullptr);
     REQUIRE(host_spec->arity.allows(3));
+}
+
+TEST_CASE("Kernel function registry stores ordered head rewrite specs", "[architecture][kernel][rewrite]") {
+    kernel::FunctionRegistry registry;
+    registry.register_head_rewrite(
+        "Plus",
+        "late",
+        [](const FunctionCall&, EvaluationContext&) -> std::optional<ExprPtr> {
+            return std::nullopt;
+        },
+        20);
+    registry.register_head_rewrite(
+        "Plus",
+        "early",
+        [](const FunctionCall&, EvaluationContext&) -> std::optional<ExprPtr> {
+            return std::nullopt;
+        },
+        10);
+
+    const auto* rewrites = registry.find_head_rewrites("Plus");
+    REQUIRE(rewrites != nullptr);
+    REQUIRE(rewrites->size() == 2);
+    REQUIRE((*rewrites)[0].rewrite_name == "early");
+    REQUIRE((*rewrites)[0].priority == 10);
+    REQUIRE((*rewrites)[1].rewrite_name == "late");
+    REQUIRE((*rewrites)[1].priority == 20);
+}
+
+TEST_CASE("Kernel function registry distinguishes builtin and pack head rewrites", "[architecture][kernel][rewrite][packs]") {
+    kernel::FunctionRegistry registry;
+    registry.register_head_rewrite(
+        "Power",
+        "identity",
+        [](const FunctionCall&, EvaluationContext&) -> std::optional<ExprPtr> {
+            return std::nullopt;
+        },
+        10);
+    registry.register_pack_head_rewrite(
+        "core-algebra",
+        "Power",
+        "pack-algebraic",
+        [](const FunctionCall&, EvaluationContext&) -> std::optional<ExprPtr> {
+            return std::nullopt;
+        },
+        20,
+        "Pack-owned power rewrite.");
+
+    const auto* rewrites = registry.find_head_rewrites("Power");
+    REQUIRE(rewrites != nullptr);
+    REQUIRE(rewrites->size() == 2);
+    REQUIRE((*rewrites)[0].metadata.source == kernel::RegistrationSource::builtin);
+    REQUIRE((*rewrites)[0].rewrite_name == "identity");
+    REQUIRE((*rewrites)[1].metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE((*rewrites)[1].metadata.owning_package == "core-algebra");
+    REQUIRE((*rewrites)[1].rewrite_name == "pack-algebraic");
 }
 
 TEST_CASE("Kernel function registry records minimal pack registration metadata", "[architecture][kernel][packs]") {
@@ -671,6 +735,44 @@ TEST_CASE("Kernel rewrite entrypoints do not own special-function shortcuts", "[
     REQUIRE_FALSE(arithmetic.has_value());
     REQUIRE_FALSE(coefficients.has_value());
     REQUIRE_FALSE(algebraic.has_value());
+}
+
+TEST_CASE("Kernel registered head rewrites preserve builtin rewrite precedence order", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("x + 2*x + 1/3*x"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "10/3 * x");
+}
+
+TEST_CASE("Kernel registered head rewrites stop at the first matching rewrite", "[architecture][rewrite]") {
+    kernel::FunctionRegistry registry;
+    registry.register_head_rewrite(
+        "Plus",
+        "early",
+        [](const FunctionCall&, EvaluationContext&) -> std::optional<ExprPtr> {
+            return make_expr<Symbol>("early");
+        },
+        10);
+    registry.register_head_rewrite(
+        "Plus",
+        "late",
+        [](const FunctionCall&, EvaluationContext&) -> std::optional<ExprPtr> {
+            return make_expr<Symbol>("late");
+        },
+        20);
+
+    kernel::EvaluationContext ctx;
+    FunctionCall func{"Plus", {make_expr<Number>(1.0), make_expr<Number>(2.0)}};
+    const auto rewritten = registry.find_head_rewrites("Plus");
+    REQUIRE(rewritten != nullptr);
+    REQUIRE((*rewritten)[0].handler(func, ctx).has_value());
+    REQUIRE(to_string(*(*rewritten)[0].handler(func, ctx)) == "early");
 }
 
 TEST_CASE("Kernel rewrite respects explicit rewrite-count bounds", "[architecture][rewrite]") {

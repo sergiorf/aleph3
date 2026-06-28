@@ -1,6 +1,7 @@
 #include "kernel/Rewrite.hpp"
 
 #include "kernel/EvaluationContext.hpp"
+#include "kernel/FunctionRegistry.hpp"
 #include "expr/ExprUtils.hpp"
 #include "normalizer/Normalizer.hpp"
 
@@ -801,6 +802,26 @@ RewriteResult rewrite_repeated(
     }
 
     return accumulated;
+}
+
+std::optional<ExprPtr> rewrite_normalized_head(
+    const FunctionCall& func,
+    EvaluationContext& ctx) {
+    const auto* specs = FunctionRegistry::instance().find_head_rewrites(func.head);
+    if (specs == nullptr) {
+        return std::nullopt;
+    }
+
+    for (const auto& spec : *specs) {
+        if (spec.stage != RewriteStage::normalized_head) {
+            continue;
+        }
+        if (auto rewritten = spec.handler(func, ctx)) {
+            return rewritten;
+        }
+    }
+
+    return std::nullopt;
 }
 
 std::optional<ExprPtr> rewrite_normalized_arithmetic_head(

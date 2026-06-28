@@ -37,6 +37,10 @@ struct RewriteResult {
     EvaluationContext& ctx,
     std::size_t max_rewrites = 16);
 
+[[nodiscard]] std::optional<ExprPtr> rewrite_normalized_head(
+    const FunctionCall& func,
+    EvaluationContext& ctx);
+
 [[nodiscard]] std::optional<ExprPtr> rewrite_normalized_arithmetic_head(
     const FunctionCall& func,
     EvaluationContext& ctx);

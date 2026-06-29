@@ -24,6 +24,18 @@ The current symbolic algebra surface is:
 These functions operate on polynomial expressions only. Unsupported forms fail
 explicitly rather than silently approximating or partially rewriting.
 
+## Ownership Contract
+
+This algebra surface is now pack-owned rather than evaluator-local.
+
+Current ownership boundary:
+
+- polynomial helper functions are registered through the `core-algebra` pack
+- kernel contracts provide the shared expression, diagnostics, registration,
+  and evaluation context layers beneath that pack
+- the current product contract depends on registry-backed pack ownership, not
+  on special evaluator-only dispatch branches
+
 ## Canonical Output Contract
 
 Supported algebra outputs follow these rules:
@@ -32,6 +44,9 @@ Supported algebra outputs follow these rules:
 - monomials are ordered by descending total degree, then lexicographically
 - collected and expanded sums present algebraic terms ahead of opaque calls
 - factoring preserves a deterministic factor order for extracted linear factors
+- zero results normalize to `0`
+- constant-one factors are not retained after normalization
+- extracted negative content stays on the leading scalar factor
 - renormalizing or simplifying a supported algebra result should keep the same
   mathematical structure
 
@@ -40,6 +55,7 @@ Examples:
 - `Expand[(y + x) * (x + z)]` -> `x^2 + x * y + x * z + y * z`
 - `Collect[y*x + x^2 + z*x, x]` -> `x^2 + x * y + x * z`
 - `Factor[x^5 - x^3]` -> `x^3 * (x - 1) * (x + 1)`
+- `Factor[(-2)*x^2 + (-4)*x]` -> `-2 * x * (x + 2)`
 
 ## Variable Policy
 
@@ -57,6 +73,7 @@ Examples of explicit failures:
 - `Collect[x^2 + 1, 3]` -> invalid selector
 - `Collect[x^2 + y, {}]` -> empty selector list
 - `GCD[x^2 - 1, y - 1]` -> unsupported multivariate inference
+- `PolynomialQuotient[x*y, x, {x, y}]` -> unsupported multivariate division
 
 ## Exact Rational Contract
 
@@ -84,6 +101,7 @@ Examples:
 - `1/2 + 2` -> `5/2`
 - `1/2 + 0.5` -> inexact `Number`
 - `Expand[(1/2) * (x + 1)]` -> `1/2 * x + 1/2`
+- `Collect[(1/2) * x + 1, x]` -> `1/2 * x + 1`
 - `PolynomialQuotient[x^2 - 1/4, x - 1/2, x]` -> `{x + 1/2, 0}`
 - `Factor[(1/2) * x^2 + x]` -> unsupported exact-rational factor input
 

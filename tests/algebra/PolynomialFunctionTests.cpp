@@ -219,3 +219,73 @@ TEST_CASE("Polynomial factor keeps exact rational coefficients out of scope", "[
                 "Polynomial functions do not yet support exact rational coefficients");
     }
 }
+
+TEST_CASE("Polynomial helpers preserve documented round-trip invariants", "[algebra][functions][contract]") {
+    EvaluationContext ctx;
+
+    const auto expanded = evaluate_source("Expand[(x + 1) * (x + 2)]", ctx);
+    const auto recollected = evaluate_source("Collect[x^2 + 3*x + 2, x]", ctx);
+    REQUIRE(simplify_string(expanded) == simplify_string(recollected));
+
+    const auto factored = evaluate_source("Factor[x^3 - x]", ctx);
+    const auto refolded = evaluate_source("Expand[x * (x - 1) * (x + 1)]", ctx);
+    REQUIRE(simplify_string(refolded) == "x^3 - x");
+    REQUIRE(simplify_string(factored) == "x * (x - 1) * (x + 1)");
+}
+
+TEST_CASE("Polynomial quotient and gcd satisfy documented consistency identities", "[algebra][functions][contract]") {
+    EvaluationContext ctx;
+
+    const auto quotient_result =
+        evaluate_source("PolynomialQuotient[x^3 - x, x - 1, x]", ctx);
+    REQUIRE(std::holds_alternative<List>(*quotient_result));
+    const auto& result_list = std::get<List>(*quotient_result);
+    REQUIRE(result_list.elements.size() == 2);
+    REQUIRE(simplify_string(result_list.elements[0]) == "x^2 + x");
+    REQUIRE(simplify_string(result_list.elements[1]) == "0");
+
+    const auto reconstructed =
+        evaluate_source("Expand[(x - 1) * (x^2 + x) + 0]", ctx);
+    REQUIRE(simplify_string(reconstructed) == "x^3 - x");
+
+    const auto gcd_result = evaluate_source("GCD[x^3 - x, x^2 - x, x]", ctx);
+    REQUIRE(simplify_string(gcd_result) == "x^2 - x");
+}
+
+TEST_CASE("Polynomial outputs normalize zero one and sign cases deterministically", "[algebra][functions][contract]") {
+    EvaluationContext ctx;
+
+    REQUIRE(simplify_string(evaluate_source("Factor[0]", ctx)) == "0");
+    REQUIRE(simplify_string(evaluate_source("Factor[1]", ctx)) == "1");
+    REQUIRE(simplify_string(evaluate_source("Factor[(-2)*x^2 + (-4)*x]", ctx)) ==
+            "-2 * x * (x + 2)");
+    REQUIRE(simplify_string(evaluate_source("Expand[(y + x) * (x + z)]", ctx)) ==
+            "x^2 + x * y + x * z + y * z");
+}
+
+TEST_CASE("Polynomial helpers keep multivariate support boundaries explicit", "[algebra][functions][contract]") {
+    EvaluationContext ctx;
+
+    REQUIRE(simplify_string(evaluate_source("Expand[(x + y) * (x + z)]", ctx)) ==
+            "x^2 + x * y + x * z + y * z");
+    REQUIRE(simplify_string(evaluate_source("Collect[x*y + y*z, y]", ctx)) ==
+            "x * y + y * z");
+    REQUIRE(simplify_string(evaluate_source("Factor[x*y + y*z]", ctx)) ==
+            "y * (x + z)");
+
+    try {
+        static_cast<void>(evaluate_source("GCD[x*y, x, {x, y}]", ctx));
+        FAIL("Expected multivariate GCD to remain unsupported");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(ex.what()) == "gcd: only univariate GCD is implemented");
+    }
+
+    try {
+        static_cast<void>(evaluate_source("PolynomialQuotient[x*y, x, {x, y}]", ctx));
+        FAIL("Expected multivariate division to remain unsupported");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(ex.what()) == "divide: only univariate division is implemented");
+    }
+}

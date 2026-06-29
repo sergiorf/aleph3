@@ -34,3 +34,28 @@ TEST_CASE("Algebra pack functions evaluate through registry-backed handlers", "[
     REQUIRE(expand_spec->metadata.source == kernel::RegistrationSource::pack);
     REQUIRE(expand_spec->metadata.owning_package == "core-algebra");
 }
+
+TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][algebra]") {
+    kernel::FunctionRegistry registry;
+    packs::register_algebra_pack(registry);
+
+    for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient"}) {
+        const auto* spec = registry.find_symbolic_function_spec(name);
+        REQUIRE(spec != nullptr);
+        REQUIRE(spec->metadata.source == kernel::RegistrationSource::pack);
+        REQUIRE(spec->metadata.owning_package == "core-algebra");
+    }
+}
+
+TEST_CASE("Default registry exposes algebra through the pack path", "[packs][algebra]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+
+    const auto result = evaluate_source("Expand[(x + 1) * (x + 2)]", ctx);
+    REQUIRE(simplify_string(result) == "x^2 + 3 * x + 2");
+
+    const auto* expand =
+        kernel::default_function_registry().find_symbolic_function_spec("Expand");
+    REQUIRE(expand != nullptr);
+    REQUIRE(expand->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(expand->metadata.owning_package == "core-algebra");
+}

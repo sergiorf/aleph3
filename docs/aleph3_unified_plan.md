@@ -774,11 +774,9 @@ Success criteria:
 
 If work starts now, the next active tranche should be:
 
-1. tighten tests and docs around the supported symbolic subset as a product
-   contract
-2. document the remaining mutation, pack-loading, and thread-safety rules for
+1. document the remaining mutation, pack-loading, and thread-safety rules for
    registry-backed embedding
-3. scope the first exact multivariate algebra foundation slice for the algebra
+2. scope the first exact multivariate algebra foundation slice for the algebra
    pack without overstating current support
 
 ## Deferred Work

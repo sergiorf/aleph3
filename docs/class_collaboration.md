@@ -182,12 +182,12 @@ For symbols:
 
 For function calls:
 
-1. algebra dispatch
-2. structural dispatch
-3. special forms
-4. registered symbolic handlers
-5. builtin evaluator functions
-6. user-defined functions
+1. structural dispatch
+2. special forms
+3. registered symbolic handlers
+4. builtin evaluator functions
+5. user-defined functions
+6. host functions
 7. symbolic fallback
 
 This is documented in:

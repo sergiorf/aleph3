@@ -43,16 +43,14 @@ For a symbolic `FunctionCall`, the current evaluator resolves in this order.
 
 ### First-Level Dispatch
 
-1. algebra dispatch
-2. structural dispatch
-3. general function dispatch
+1. structural dispatch
+2. general function dispatch
 
 Meaning:
 
-- algebra entrypoints such as `Expand` and `Factor` are intercepted before the
-  general function path
 - structural functions such as `List` are handled structurally
-- everything else enters general function resolution
+- everything else enters general function resolution through the shared symbol
+  registry and builtin precedence rules
 
 ### General Function Resolution
 

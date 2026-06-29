@@ -12,5 +12,7 @@
 namespace aleph3 {
 
 void register_built_in_functions(kernel::FunctionRegistry& registry);
+void register_builtin_rewrite_specs(kernel::FunctionRegistry& registry);
+void register_builtin_evaluator_execution_specs(kernel::FunctionRegistry& registry);
 
 }  // namespace aleph3

@@ -81,7 +81,7 @@ What is already true:
 
 - `aleph3_kernel` exists as an explicit build target
 - `aleph3_sdk` already depends on `aleph3_kernel`
-- pack placeholder targets already exist
+- the first concrete pack target now exists for polynomial algebra
 - the symbolic engine already has a meaningful supported subset with parser,
   evaluation, normalization, simplification, exact rationals, and a narrow
   algebra layer
@@ -520,6 +520,8 @@ Current status:
 - runtime evaluation now reads registrations from an explicit function catalog
   carried by the current engine or evaluation context instead of consulting
   singleton global state
+- the first serious pack-backed symbolic surface now registers polynomial
+  algebra handlers through that same registry path
 
 Remaining tasks:
 
@@ -601,8 +603,27 @@ Tasks:
 - introduce exact coefficient-ring abstractions
 - support exact rational polynomial coefficients
 - harden multivariate polynomial algorithms
+- define an explicit staged path for multivariate algebra growth:
+  - keep today’s current multivariate support limited to safe expand,
+    collect, and narrow factor-content workflows
+  - move multivariate GCD, division, and factorization growth only after exact
+    coefficient and monomial-ordering contracts are explicit
+  - add exact multivariate term-order, content, and normalization invariants
+    before claiming broader algebra support
 - make overflow and large-integer strategy explicit
 - remove growth-facing dependence on `double` polynomial internals
+
+Near-term multivariate algebra plan:
+
+- do not market current polynomial algebra as broad multivariate CAS support
+- treat multivariate exact arithmetic as the next real algebra-foundation
+  expansion after the first pack extraction
+- target early exact multivariate milestones in this order:
+  1. exact multivariate coefficient preservation
+  2. explicit monomial ordering and canonical form rules
+  3. supported multivariate division contracts
+  4. supported multivariate GCD contracts
+  5. only then broader multivariate factorization growth
 
 Success criteria:
 
@@ -653,6 +674,8 @@ Tasks:
 - keep kernel contracts small and stable while allowing math-surface growth
 - choose one serious early pack that proves the extension model with meaningful
   workflows rather than only placeholder packaging
+- use the algebra pack as the proving ground for staged multivariate algebra
+  growth once exact algebra contracts are stronger
 - keep vertical domains such as electrical engineering out of the kernel and
   implement them only once kernel extension points are stable
 
@@ -701,6 +724,17 @@ Tasks:
 - add invariant-oriented regression coverage
 - strengthen UDF, cross-subsystem, diagnostics, and unsupported-case coverage
 - keep supported-subset behavior documented and testable
+- expand polynomial contract coverage around the current supported surface:
+  - round-trip and invariant tests for `Expand`, `Collect`, `Factor`, `GCD`,
+    and `PolynomialQuotient` on supported inputs
+  - canonical-form assertions for term ordering, coefficient normalization,
+    sign handling, and zero/one behavior
+  - exact-rational boundary tests that prove both supported behavior and
+    explicit rejection paths
+  - explicit multivariate boundary tests that separate supported expansion and
+    collection from unsupported broader algebra inference
+  - pack-ownership tests proving polynomial algebra remains registry-backed and
+    pack-owned rather than drifting back into evaluator-local branching
 - expand CI beyond the current basic matrix with Debug, Clang, sanitizers,
   formatting, and lightweight performance checks over time
 
@@ -734,13 +768,14 @@ Success criteria:
 
 If work starts now, the next active tranche should be:
 
-1. extract one serious pack-facing math boundary to prove the extension model
-2. broaden assumptions from sign facts into one narrow richer domain category
+1. broaden assumptions from sign facts into one narrow richer domain category
    without widening into unsafe general inference
-3. tighten tests and docs around the supported symbolic subset as a product
+2. tighten tests and docs around the supported symbolic subset as a product
    contract
-4. document the remaining mutation, pack-loading, and thread-safety rules for
+3. document the remaining mutation, pack-loading, and thread-safety rules for
    registry-backed embedding
+4. scope the first exact multivariate algebra foundation slice for the algebra
+   pack without overstating current support
 
 ## Deferred Work
 

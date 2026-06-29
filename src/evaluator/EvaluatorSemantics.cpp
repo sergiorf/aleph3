@@ -64,11 +64,11 @@ const std::unordered_map<std::string, FunctionSemantics>& function_semantics_reg
         {"And", arity_range_semantics(EvaluationMode::HoldAll, DispatchKind::SpecialForm, true, false, false, false, false, false, 0, std::numeric_limits<size_t>::max())},
         {"Or", arity_range_semantics(EvaluationMode::HoldAll, DispatchKind::SpecialForm, true, false, false, false, false, false, 0, std::numeric_limits<size_t>::max())},
 
-        {"Expand", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Algebra, false, false, false, false, false, false, 1)},
-        {"Factor", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Algebra, false, false, false, false, false, false, 1)},
-        {"Collect", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Algebra, false, false, false, false, false, false, 2)},
-        {"GCD", arity_range_semantics(EvaluationMode::Eager, DispatchKind::Algebra, false, false, false, false, false, false, 2, 3)},
-        {"PolynomialQuotient", arity_range_semantics(EvaluationMode::Eager, DispatchKind::Algebra, false, false, false, false, false, false, 2, 3)},
+        {"Expand", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"Factor", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"Collect", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 2)},
+        {"GCD", arity_range_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 2, 3)},
+        {"PolynomialQuotient", arity_range_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 2, 3)},
 
         {"Sin", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, true, false, true, false, false, 1)},
         {"Cos", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, true, false, true, false, false, 1)},
@@ -177,11 +177,6 @@ bool is_flat_function(const std::string& name) {
 bool is_structural_function(const std::string& name) {
     const auto* semantics = lookup_function_semantics(name);
     return semantics && semantics->dispatch_kind == DispatchKind::Structural;
-}
-
-bool is_algebra_function(const std::string& name) {
-    const auto* semantics = lookup_function_semantics(name);
-    return semantics && semantics->dispatch_kind == DispatchKind::Algebra;
 }
 
 }  // namespace aleph3

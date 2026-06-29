@@ -1,11 +1,11 @@
 # Pack Tests
 
-This directory is reserved for tests that belong to explicit pack-owned math
-layers rather than the kernel or SDK.
+This directory is for tests that belong to explicit pack-owned math layers
+rather than the kernel or SDK.
 
 Examples:
 
-- algebra pack tests after algebra extraction is real
+- algebra pack registration and polynomial-surface ownership tests
 - special-functions pack tests after pack registration is real
 - future signal-processing and electrical-engineering pack tests
 

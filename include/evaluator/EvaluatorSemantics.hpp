@@ -1,3 +1,10 @@
+/*
+ * Evaluator Semantics Registry
+ * ----------------------------
+ * Describes frontend-facing arity and evaluation-mode metadata for known
+ * symbolic heads without hardwiring extra dispatch paths per subsystem.
+ */
+
 #pragma once
 
 #include <cstddef>
@@ -15,8 +22,7 @@ enum class EvaluationMode {
 enum class DispatchKind {
     Default,
     Structural,
-    SpecialForm,
-    Algebra
+    SpecialForm
 };
 
 struct FunctionSemantics {
@@ -43,6 +49,5 @@ bool is_numeric_function(const std::string& name);
 bool is_orderless_function(const std::string& name);
 bool is_flat_function(const std::string& name);
 bool is_structural_function(const std::string& name);
-bool is_algebra_function(const std::string& name);
 
 }  // namespace aleph3

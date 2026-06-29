@@ -10,6 +10,7 @@
 #include "kernel/Rewrite.hpp"
 #include "kernel/TrustedSubsetBridge.hpp"
 #include "normalizer/Normalizer.hpp"
+#include "packs/AlgebraPack.hpp"
 #include "packs/PackRegistry.hpp"
 #include "parser/Parser.hpp"
 #include "sdk/Policy.hpp"
@@ -111,6 +112,26 @@ TEST_CASE("Built-in symbolic surface is registered through the pack registry", "
     auto registry = kernel::create_default_function_registry();
     REQUIRE(registry.has_function("StringJoin"));
     REQUIRE(registry.has_function("N"));
+    REQUIRE(registry.has_function("Expand"));
+
+    const auto* expand = registry.find_symbolic_function_spec("Expand");
+    REQUIRE(expand != nullptr);
+    REQUIRE(expand->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(expand->metadata.owning_package == "core-algebra");
+}
+
+TEST_CASE("Algebra pack registers polynomial functions with pack ownership", "[architecture][packs]") {
+    kernel::FunctionRegistry registry;
+    packs::register_algebra_pack(registry);
+
+    for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient"}) {
+        const auto* spec = registry.find_symbolic_function_spec(name);
+        REQUIRE(spec != nullptr);
+        REQUIRE(spec->metadata.name == name);
+        REQUIRE(spec->metadata.source == kernel::RegistrationSource::pack);
+        REQUIRE(spec->metadata.owning_package == "core-algebra");
+        REQUIRE(spec->metadata.rewrite_safe);
+    }
 }
 
 TEST_CASE("Kernel evaluation context can carry symbolic and SDK runtime state", "[architecture][kernel]") {

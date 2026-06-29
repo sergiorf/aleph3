@@ -59,11 +59,9 @@ endif()
 if(ALEPH3_BUILD_KERNEL)
     file(GLOB SYMBOLIC_ROOT_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
     file(GLOB SYMBOLIC_COMPONENT_SOURCES CONFIGURE_DEPENDS
-        "src/algebra/*.cpp"
         "src/evaluator/*.cpp"
         "src/expr/*.cpp"
         "src/kernel/*.cpp"
-        "src/packs/*.cpp"
         "src/symbols/*.cpp"
         "src/transforms/*.cpp"
         "src/tooling/SymbolicCliSupport.cpp")
@@ -94,15 +92,18 @@ if(ALEPH3_BUILD_KERNEL)
     add_library(aleph3_pack_core_math INTERFACE)
     target_link_libraries(aleph3_pack_core_math INTERFACE aleph3_kernel)
 
-    add_library(aleph3_pack_algebra INTERFACE)
-    target_link_libraries(aleph3_pack_algebra INTERFACE aleph3_kernel)
+    add_library(aleph3_pack_algebra
+        src/algebra/Polynomial.cpp
+        src/algebra/PolyUtils.cpp
+        src/packs/AlgebraPack.cpp)
+    target_include_directories(aleph3_pack_algebra PUBLIC include PRIVATE third_party/utf8cpp)
 
     if(ALEPH3_BUILD_SDK)
-        target_link_libraries(aleph3_sdk PRIVATE aleph3_kernel)
+        target_link_libraries(aleph3_sdk PUBLIC aleph3_kernel aleph3_pack_algebra)
     endif()
 
     if(ALEPH3_BUILD_SDK AND ALEPH3_BUILD_SYMBOLIC_ENGINE)
-        target_link_libraries(aleph3_cli PRIVATE aleph3_kernel)
+        target_link_libraries(aleph3_cli PRIVATE aleph3_kernel aleph3_pack_algebra)
         target_compile_definitions(aleph3_cli PRIVATE ALEPH3_HAS_SYMBOLIC_ENGINE=1)
     endif()
 endif()
@@ -143,7 +144,12 @@ if(BUILD_TESTING)
             ${KERNEL_TEST_SOURCES}
             ${SYMBOLIC_TOOLING_TEST_SOURCES}
             ${PACK_TEST_SOURCES})
-        target_link_libraries(aleph3_symbolic_tests PRIVATE aleph3_kernel Catch2::Catch2WithMain)
+        target_link_libraries(
+            aleph3_symbolic_tests
+            PRIVATE
+            aleph3_kernel
+            aleph3_pack_algebra
+            Catch2::Catch2WithMain)
         target_include_directories(aleph3_symbolic_tests PRIVATE third_party/utf8cpp tests)
         add_test(NAME aleph3_symbolic_tests COMMAND aleph3_symbolic_tests)
     endif()

@@ -1,3 +1,10 @@
+/*
+ * Polynomial Utilities
+ * --------------------
+ * Pack-owned helpers for converting between expressions and polynomial forms
+ * and for running the current supported polynomial operations.
+ */
+
 #pragma once
 
 #include "Polynomial.hpp"

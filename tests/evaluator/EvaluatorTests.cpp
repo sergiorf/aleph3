@@ -660,13 +660,10 @@ TEST_CASE("Evaluator numeric-function listability preserves edge-case fallback e
     REQUIRE(to_string(sqrt_elements[2]) == "Sqrt[-1]");
 }
 
-TEST_CASE("Evaluator semantics registry drives structural and algebra dispatch", "[evaluator][semantics][dispatch]") {
+TEST_CASE("Evaluator semantics registry drives structural and registry-backed symbolic dispatch", "[evaluator][semantics][dispatch]") {
     EvaluationContext ctx;
 
     REQUIRE(is_structural_function("List"));
-    REQUIRE(is_algebra_function("Expand"));
-    REQUIRE(is_algebra_function("PolynomialQuotient"));
-    REQUIRE_FALSE(is_algebra_function("f"));
     REQUIRE_FALSE(is_structural_function("f"));
 
     const auto list_result = evaluate(parse_expression("{x, 1 + 2, Sin[0]}"), ctx);

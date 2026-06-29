@@ -1,0 +1,172 @@
+#include "packs/AlgebraPack.hpp"
+
+#include "algebra/PolyUtils.hpp"
+#include "evaluator/Evaluator.hpp"
+#include "evaluator/EvaluatorErrors.hpp"
+
+#include <algorithm>
+#include <functional>
+#include <set>
+#include <vector>
+
+namespace aleph3::packs {
+
+namespace {
+
+constexpr std::string_view kPackageName = "core-algebra";
+
+std::vector<std::string> dedupe_variables(const std::vector<std::string>& variables) {
+    std::vector<std::string> deduped;
+    for (const auto& variable : variables) {
+        if (std::find(deduped.begin(), deduped.end(), variable) == deduped.end()) {
+            deduped.push_back(variable);
+        }
+    }
+    return deduped;
+}
+
+std::vector<std::string> extract_variables(const ExprPtr& expr) {
+    if (auto sym = std::get_if<Symbol>(&(*expr))) {
+        return {sym->name};
+    }
+    if (auto func = std::get_if<FunctionCall>(&(*expr))) {
+        if (func->head == "List") {
+            std::vector<std::string> vars;
+            for (const auto& item : func->args) {
+                if (auto s = std::get_if<Symbol>(&(*item))) {
+                    vars.push_back(s->name);
+                } else {
+                    throw_invalid_form("Variable list must contain only symbols");
+                }
+            }
+            vars = dedupe_variables(vars);
+            if (vars.empty()) {
+                throw_invalid_form("Variable list must not be empty");
+            }
+            return vars;
+        }
+    }
+    if (auto list = std::get_if<List>(&(*expr))) {
+        std::vector<std::string> vars;
+        for (const auto& item : list->elements) {
+            if (auto s = std::get_if<Symbol>(&(*item))) {
+                vars.push_back(s->name);
+            } else {
+                throw_invalid_form("Variable list must contain only symbols");
+            }
+        }
+        vars = dedupe_variables(vars);
+        if (vars.empty()) {
+            throw_invalid_form("Variable list must not be empty");
+        }
+        return vars;
+    }
+    throw_invalid_form("Variable argument must be a symbol or list of symbols");
+}
+
+std::vector<std::string> infer_variables(const ExprPtr& expr) {
+    std::set<std::string> vars;
+    std::function<void(const ExprPtr&)> visit = [&](const ExprPtr& current) {
+        if (!current) {
+            return;
+        }
+        if (auto sym = std::get_if<Symbol>(&(*current))) {
+            vars.insert(sym->name);
+        } else if (auto call = std::get_if<FunctionCall>(&(*current))) {
+            for (const auto& arg : call->args) {
+                visit(arg);
+            }
+        }
+    };
+    visit(expr);
+    return {vars.begin(), vars.end()};
+}
+
+std::vector<std::string> infer_variables(const ExprPtr& left, const ExprPtr& right) {
+    auto variables = infer_variables(left);
+    for (const auto& variable : infer_variables(right)) {
+        if (std::find(variables.begin(), variables.end(), variable) == variables.end()) {
+            variables.push_back(variable);
+        }
+    }
+    return variables;
+}
+
+ExprPtr evaluate_expand(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) {
+        throw_invalid_arity_exact("Expand", 1);
+    }
+    return expand_polynomial(func.args[0], ctx);
+}
+
+ExprPtr evaluate_factor(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) {
+        throw_invalid_arity_exact("Factor", 1);
+    }
+    return factor_polynomial(func.args[0], ctx);
+}
+
+ExprPtr evaluate_collect(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) {
+        throw_invalid_arity_exact("Collect", 2);
+    }
+    return collect_polynomial(func.args[0], extract_variables(func.args[1]), ctx);
+}
+
+ExprPtr evaluate_gcd(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2 && func.args.size() != 3) {
+        throw_invalid_arity_between("GCD", 2, 3);
+    }
+    const auto variables = func.args.size() == 3
+        ? extract_variables(func.args[2])
+        : infer_variables(func.args[0], func.args[1]);
+    return gcd_polynomial(func.args[0], func.args[1], variables, ctx);
+}
+
+ExprPtr evaluate_polynomial_quotient(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2 && func.args.size() != 3) {
+        throw_invalid_arity_between("PolynomialQuotient", 2, 3);
+    }
+    const auto variables = func.args.size() == 3
+        ? extract_variables(func.args[2])
+        : infer_variables(func.args[0], func.args[1]);
+    const auto result = divide_polynomial(func.args[0], func.args[1], variables, ctx);
+    return make_expr<List>(std::vector<ExprPtr>{result.first, result.second});
+}
+
+}  // namespace
+
+void register_algebra_pack(kernel::FunctionRegistry& registry) {
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "Expand",
+        evaluate_expand,
+        "Expand products and powers in the current polynomial subset.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "Factor",
+        evaluate_factor,
+        "Factor supported polynomial expressions over the current exact subset.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "Collect",
+        evaluate_collect,
+        "Collect polynomial terms by one explicit variable selector.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "GCD",
+        evaluate_gcd,
+        "Compute polynomial GCD for the current supported selector forms.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "PolynomialQuotient",
+        evaluate_polynomial_quotient,
+        "Return polynomial quotient and remainder for the current supported subset.",
+        true);
+}
+
+}  // namespace aleph3::packs

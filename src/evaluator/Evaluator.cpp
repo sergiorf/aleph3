@@ -1,7 +1,6 @@
 #include "evaluator/Evaluator.hpp"
 
 #include "ExtraMath.hpp"
-#include "evaluator/EvaluatorAlgebra.hpp"
 #include "evaluator/EvaluatorBuiltins.hpp"
 #include "evaluator/EvaluatorFunctions.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
@@ -538,10 +537,6 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
             return resolve_symbol_value(sym, ctx, visited);
         },
         [&](const FunctionCall& func) -> ExprPtr {
-            if (is_algebra_function(func.head)) {
-                return evaluate_algebra_function(func, ctx);
-            }
-
             if (is_structural_function(func.head)) {
                 std::vector<ExprPtr> evaluated_elements;
                 evaluated_elements.reserve(func.args.size());

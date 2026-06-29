@@ -4,6 +4,7 @@
 #include "kernel/Assumptions.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/Rewrite.hpp"
+#include "packs/AlgebraPack.hpp"
 #include "expr/ExprUtils.hpp"
 #include "util/Overloaded.hpp"
 #include "Constants.hpp"
@@ -338,6 +339,7 @@ namespace aleph3 {
 void register_built_in_functions(kernel::FunctionRegistry& registry) {
     register_builtin_rewrite_specs(registry);
     register_symbolic_builtins(registry);
+    packs::register_algebra_pack(registry);
     register_builtin_evaluator_execution_specs(registry);
 }
 

@@ -313,6 +313,18 @@ namespace aleph3 {
             return evaluate_assumption_predicate("NonZeroQ", func, ctx);
             });
 
+        registry.register_function("IntegerQ", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            return evaluate_assumption_predicate("IntegerQ", func, ctx);
+            });
+
+        registry.register_function("RationalQ", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            return evaluate_assumption_predicate("RationalQ", func, ctx);
+            });
+
+        registry.register_function("RealQ", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            return evaluate_assumption_predicate("RealQ", func, ctx);
+            });
+
         registry.register_function("Assuming", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             if (func.args.size() != 2) {
                 throw_invalid_arity_exact("Assuming", 2);

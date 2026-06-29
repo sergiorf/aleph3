@@ -26,6 +26,9 @@ Practical examples:
 - `x >= 0` means treat `x` as nonnegative
 - `Positive[x]` means treat `x` as positive
 - `NonPositive[x]` means treat `x` as nonpositive
+- `IntegerQ[n]` means treat `n` as an integer
+- `RationalQ[q]` means treat `q` as an exact rational
+- `RealQ[x]` means treat `x` as a real quantity
 
 ## User-Facing Surface
 
@@ -39,6 +42,7 @@ Examples:
 Assuming[x > 0, If[x > 0, 1, 2]] -> 1
 Assuming[flag, If[flag, "ok", "no"]] -> "ok"
 Assuming[Positive[x], Positive[x]] -> True
+Assuming[IntegerQ[n], RationalQ[n]] -> True
 ```
 
 ### `Refine[expr]`
@@ -60,6 +64,7 @@ Refine[Sqrt[x^2], x <= 0] -> -x
 Refine[x > 0, And[x >= 0, NotEqual[x, 0]]] -> True
 Refine[Positive[x], x > 0] -> True
 Refine[NonZeroQ[x], Positive[x]] -> True
+Refine[RationalQ[n], IntegerQ[n]] -> True
 ```
 
 ### Sign Predicates
@@ -114,6 +119,35 @@ Plain-language rule of thumb:
 - an even positive power is never negative
 - an odd positive power keeps the original sign
 
+### Symbol Domain Predicates
+
+The kernel now also supports a first narrow family of symbol-domain queries:
+
+- `IntegerQ[x]`
+- `RationalQ[x]`
+- `RealQ[x]`
+
+This slice keeps them intentionally small:
+
+- assumptions only accept symbol arguments such as `IntegerQ[n]`
+- exact numeric literals answer these predicates directly
+- exact implication only flows upward through the small domain chain:
+  - integer implies rational
+  - rational implies real
+- existing sign facts such as `Positive[x]` and `x >= 0` also imply `RealQ[x]`
+  because those facts already live on the ordered real line in the current
+  assumptions model
+
+Examples:
+
+```text
+IntegerQ[2] -> True
+RationalQ[3/2] -> True
+RealQ[0.5] -> True
+Refine[RealQ[x], Positive[x]] -> True
+Refine[RationalQ[n], IntegerQ[n]] -> True
+```
+
 ## Supported Assumption Forms In This Slice
 
 This first slice intentionally supports only a small set of forms:
@@ -136,6 +170,10 @@ This first slice intentionally supports only a small set of forms:
   - `NonPositive`
   - `ZeroQ`
   - `NonZeroQ`
+- direct domain predicates on symbols:
+  - `IntegerQ`
+  - `RationalQ`
+  - `RealQ`
 
 ## What The Kernel Currently Uses Assumptions For
 
@@ -145,8 +183,11 @@ The current kernel uses those facts in a few specific places:
 - resolving direct assumed comparisons such as `x > 3` when asked again
 - resolving sign-based comparisons against zero
 - resolving direct sign predicates such as `Positive[x]`
+- resolving direct symbol-domain predicates such as `IntegerQ[n]`
 - resolving a small derived-sign subset for `-x`, exact numeric scaling, and
   exact integer powers
+- resolving exact domain-literal answers such as `IntegerQ[2]` and
+  `RationalQ[3/2]`
 - refining `Abs[x]` from sign facts
 - refining `Abs[...]` and `Sqrt[expr^2]` when the inner expression has a known
   sign in that same narrow subset
@@ -167,13 +208,18 @@ Still intentionally out of scope:
 - sign inference for general sums such as `x + 1`
 - sign inference for arbitrary products where one factor has no known sign
 - zero-exponent or non-integer-exponent power reasoning
+- arbitrary-expression domain assumptions such as `IntegerQ[x + 1]`
+- broad domain inference from inequalities such as proving `IntegerQ[x]` from
+  unrelated comparison facts
 
 Examples that are still out of scope:
 
 - proving `x > 3` implies `x > 0`
 - proving `x != 2` changes a larger algebraic expression
-- rich real/complex/integer domain tracking
+- rich real/complex/integer domain tracking beyond the current
+  integer/rational/real facts
 - predicate assumptions over arbitrary expressions such as `Positive[x + 1]`
+- arbitrary-expression domain assumptions such as `IntegerQ[x + 1]`
 - proving `Positive[x + 1]` from `x > 0`
 
 ## Contract Notes
@@ -188,7 +234,7 @@ Examples that are still out of scope:
 
 Likely follow-on work:
 
-- richer domain categories
+- richer domain categories beyond integer/rational/real symbol facts
 - assumption-aware rewrite hooks
 - stronger contradiction handling
 - pack-facing domain queries over the same kernel contract

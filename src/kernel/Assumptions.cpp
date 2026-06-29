@@ -25,6 +25,10 @@ bool is_sign_predicate(std::string_view head) {
            head == "ZeroQ" || head == "NonZeroQ";
 }
 
+bool is_domain_predicate(std::string_view head) {
+    return head == "IntegerQ" || head == "RationalQ" || head == "RealQ";
+}
+
 bool is_zero_literal(const ExprPtr& expr) {
     if (const auto* number = std::get_if<Number>(&*expr)) {
         return number->value == 0.0;
@@ -132,26 +136,31 @@ std::optional<int64_t> exact_integer_value(const ExprPtr& expr) {
 
 void apply_sign_fact(SymbolAssumptionFacts& facts, std::string_view head) {
     if (head == "Greater" || head == "Positive") {
+        facts.real = true;
         facts.positive = true;
         facts.nonnegative = true;
         facts.nonzero = true;
         return;
     }
     if (head == "GreaterEqual" || head == "NonNegative") {
+        facts.real = true;
         facts.nonnegative = true;
         return;
     }
     if (head == "Less" || head == "Negative") {
+        facts.real = true;
         facts.negative = true;
         facts.nonpositive = true;
         facts.nonzero = true;
         return;
     }
     if (head == "LessEqual" || head == "NonPositive") {
+        facts.real = true;
         facts.nonpositive = true;
         return;
     }
     if (head == "Equal" || head == "ZeroQ") {
+        facts.real = true;
         facts.zero = true;
         facts.nonnegative = true;
         facts.nonpositive = true;
@@ -160,6 +169,65 @@ void apply_sign_fact(SymbolAssumptionFacts& facts, std::string_view head) {
     if (head == "NotEqual" || head == "NonZeroQ") {
         facts.nonzero = true;
     }
+}
+
+void apply_domain_fact(SymbolAssumptionFacts& facts, std::string_view head) {
+    if (head == "IntegerQ") {
+        facts.integer = true;
+        facts.rational = true;
+        facts.real = true;
+        return;
+    }
+    if (head == "RationalQ") {
+        facts.rational = true;
+        facts.real = true;
+        return;
+    }
+    if (head == "RealQ") {
+        facts.real = true;
+    }
+}
+
+std::optional<bool> evaluate_domain_predicate_from_facts(
+    std::string_view predicate_name,
+    const SymbolAssumptionFacts& facts) {
+    if (predicate_name == "IntegerQ") {
+        return facts.integer ? std::optional<bool>(true) : std::nullopt;
+    }
+    if (predicate_name == "RationalQ") {
+        return facts.rational ? std::optional<bool>(true) : std::nullopt;
+    }
+    if (predicate_name == "RealQ") {
+        return facts.real ? std::optional<bool>(true) : std::nullopt;
+    }
+    return std::nullopt;
+}
+
+std::optional<bool> evaluate_exact_numeric_domain_predicate(
+    std::string_view predicate_name,
+    const ExprPtr& expr) {
+    if (const auto* rational = std::get_if<Rational>(&*expr)) {
+        if (predicate_name == "IntegerQ") {
+            return rational->denominator == 1;
+        }
+        if (predicate_name == "RationalQ" || predicate_name == "RealQ") {
+            return true;
+        }
+    }
+
+    if (const auto* number = std::get_if<Number>(&*expr)) {
+        if (predicate_name == "IntegerQ") {
+            return is_integral_number_value(number->value);
+        }
+        if (predicate_name == "RealQ") {
+            return true;
+        }
+        if (predicate_name == "RationalQ") {
+            return is_integral_number_value(number->value);
+        }
+    }
+
+    return std::nullopt;
 }
 
 unsigned sign_mask_from_facts(const SymbolAssumptionFacts& facts) {
@@ -448,6 +516,13 @@ ExprPtr refine_function_call_with_assumptions(
         }
     }
 
+    if (is_domain_predicate(func.head) && refined_args.size() == 1) {
+        if (auto assumed = assumptions.evaluate_predicate(func.head, refined_args[0]);
+            assumed.has_value()) {
+            return make_expr<Boolean>(*assumed);
+        }
+    }
+
     if (func.head == "Abs" && refined_args.size() == 1) {
         if (auto nonnegative = assumptions.evaluate_predicate("NonNegative", refined_args[0]);
             nonnegative == std::optional<bool>(true)) {
@@ -486,6 +561,10 @@ void AssumptionStore::assume_boolean_symbol(std::string name, bool value) {
 void AssumptionStore::assume_sign_fact(std::string symbol_name, const std::string& head) {
     auto& facts = symbol_facts_[std::move(symbol_name)];
     apply_sign_fact(facts, head);
+}
+
+void assume_domain_fact(SymbolAssumptionFacts& facts, const std::string& head) {
+    apply_domain_fact(facts, head);
 }
 
 void AssumptionStore::assume_comparison(const FunctionCall& comparison) {
@@ -563,6 +642,19 @@ void AssumptionStore::assume(const ExprPtr& expr) {
         return;
     }
 
+    if (is_domain_predicate(func->head)) {
+        if (func->args.size() != 1) {
+            throw_invalid_arity_exact(func->head, 1);
+        }
+        const auto* symbol = std::get_if<Symbol>(&*func->args[0]);
+        if (symbol == nullptr) {
+            throw_invalid_form("Assumption predicates only support symbol arguments.");
+        }
+        auto& facts = symbol_facts_[symbol->name];
+        assume_domain_fact(facts, func->head);
+        return;
+    }
+
     if (func->head == "Equal" || func->head == "NotEqual" ||
         func->head == "Less" || func->head == "LessEqual" ||
         func->head == "Greater" || func->head == "GreaterEqual") {
@@ -584,7 +676,22 @@ std::optional<bool> AssumptionStore::find_boolean_value(std::string_view symbol_
 std::optional<bool> AssumptionStore::evaluate_predicate(
     std::string_view predicate_name,
     const ExprPtr& expr) const {
-    if (expr == nullptr || !is_sign_predicate(predicate_name)) {
+    if (expr == nullptr || (!is_sign_predicate(predicate_name) && !is_domain_predicate(predicate_name))) {
+        return std::nullopt;
+    }
+
+    if (is_domain_predicate(predicate_name)) {
+        if (const auto exact_numeric = evaluate_exact_numeric_domain_predicate(predicate_name, expr);
+            exact_numeric.has_value()) {
+            return exact_numeric;
+        }
+
+        if (const auto* symbol = std::get_if<Symbol>(&*expr)) {
+            if (const auto* facts = find_symbol_facts(symbol->name); facts != nullptr) {
+                return evaluate_domain_predicate_from_facts(predicate_name, *facts);
+            }
+        }
+
         return std::nullopt;
     }
 

@@ -51,6 +51,7 @@ TEST_CASE("EvaluationContext copies preserve assumptions state", "[architecture]
     EvaluationContext ctx;
     ctx.assumptions.assume(parse_expression("x >= 0"));
     ctx.assumptions.assume(parse_expression("flag"));
+    ctx.assumptions.assume(parse_expression("IntegerQ[n]"));
 
     EvaluationContext copy = ctx;
     REQUIRE(copy.assumptions.evaluate_comparison(
@@ -58,6 +59,12 @@ TEST_CASE("EvaluationContext copies preserve assumptions state", "[architecture]
                 make_expr<Symbol>("x"),
                 make_expr<Number>(0.0)) == std::optional<bool>(true));
     REQUIRE(copy.assumptions.find_boolean_value("flag") == std::optional<bool>(true));
+    REQUIRE(copy.assumptions.evaluate_predicate("IntegerQ", make_expr<Symbol>("n")) ==
+            std::optional<bool>(true));
+    REQUIRE(copy.assumptions.evaluate_predicate("RationalQ", make_expr<Symbol>("n")) ==
+            std::optional<bool>(true));
+    REQUIRE(copy.assumptions.evaluate_predicate("RealQ", make_expr<Symbol>("n")) ==
+            std::optional<bool>(true));
 }
 
 TEST_CASE("Assumption store resolves explicit sign predicates", "[architecture][assumptions]") {
@@ -79,6 +86,28 @@ TEST_CASE("Assumption store resolves explicit sign predicates", "[architecture][
             std::optional<bool>(true));
     REQUIRE(ctx.assumptions.evaluate_predicate("ZeroQ", make_expr<Rational>(0, 1)) ==
             std::optional<bool>(true));
+}
+
+TEST_CASE("Assumption store resolves explicit symbol domain predicates", "[architecture][assumptions]") {
+    EvaluationContext ctx;
+    ctx.assumptions.assume(parse_expression("IntegerQ[n]"));
+    ctx.assumptions.assume(parse_expression("RealQ[x]"));
+    ctx.assumptions.assume(parse_expression("Positive[y]"));
+
+    REQUIRE(ctx.assumptions.evaluate_predicate("IntegerQ", make_expr<Symbol>("n")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("RationalQ", make_expr<Symbol>("n")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("RealQ", make_expr<Symbol>("n")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("RealQ", make_expr<Symbol>("x")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("RealQ", make_expr<Symbol>("y")) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("RationalQ", make_expr<Rational>(3, 2)) ==
+            std::optional<bool>(true));
+    REQUIRE(ctx.assumptions.evaluate_predicate("IntegerQ", make_expr<Rational>(3, 2)) ==
+            std::optional<bool>(false));
 }
 
 TEST_CASE("Assumption store derives sign facts for simple arithmetic forms", "[architecture][assumptions]") {

@@ -110,7 +110,16 @@ const std::unordered_map<std::string, FunctionSemantics>& function_semantics_reg
         {"Less", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, true, false, false, false, 2)},
         {"Greater", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, true, false, false, false, 2)},
         {"LessEqual", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, true, false, false, false, 2)},
-        {"GreaterEqual", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, true, false, false, false, 2)}
+        {"GreaterEqual", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, true, false, false, false, 2)},
+        {"Positive", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"Negative", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"NonNegative", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"NonPositive", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"ZeroQ", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"NonZeroQ", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"IntegerQ", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"RationalQ", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"RealQ", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)}
     };
     return value;
 }

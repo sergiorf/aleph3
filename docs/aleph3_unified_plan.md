@@ -97,6 +97,9 @@ What is already true:
 - the first assumptions surface now exists through temporary assumption facts,
   `Assuming[...]`, `Refine[...]`, explicit sign predicates, and a small
   derived-sign layer for simple arithmetic forms
+- the first richer assumptions category now exists through explicit
+  integer/rational/real symbol-domain facts with exact-literal predicate
+  answers
 
 What is still unresolved:
 
@@ -640,19 +643,22 @@ Current status:
 - assumption storage now exists in kernel evaluation context
 - the first temporary-assumption surface now exists through `Assuming` and
   `Refine`
+- the first richer domain category now exists through narrow
+  integer/rational/real symbol facts
 - the current supported assumption subset covers:
   - direct boolean symbol facts such as `flag`
   - direct boolean negation as `Not[flag]`
   - direct comparison facts
   - direct sign predicates such as `Positive[x]` and `NonZeroQ[x]`
+  - direct symbol-domain predicates such as `IntegerQ[n]` and `RealQ[x]`
   - sign facts around zero used by comparisons, `Abs`, and `Sqrt[x^2]`
   - simple derived-sign reasoning for `-x`, exact numeric scaling, and exact
     integer powers such as `x^2`
+  - exact numeric-domain answers for the current integer/rational/real
+    predicate family
 
 Tasks:
 
-- broaden from sign/boolean facts toward richer but still explicit domain
-  categories beyond the current sign-focused subset
 - make selected transforms assumption-aware
 - keep unsupported cases explicit
 
@@ -768,13 +774,11 @@ Success criteria:
 
 If work starts now, the next active tranche should be:
 
-1. broaden assumptions from sign facts into one narrow richer domain category
-   without widening into unsafe general inference
-2. tighten tests and docs around the supported symbolic subset as a product
+1. tighten tests and docs around the supported symbolic subset as a product
    contract
-3. document the remaining mutation, pack-loading, and thread-safety rules for
+2. document the remaining mutation, pack-loading, and thread-safety rules for
    registry-backed embedding
-4. scope the first exact multivariate algebra foundation slice for the algebra
+3. scope the first exact multivariate algebra foundation slice for the algebra
    pack without overstating current support
 
 ## Deferred Work

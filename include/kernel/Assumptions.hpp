@@ -2,8 +2,9 @@
  * Kernel Assumptions Contract
  * ---------------------------
  * Stores temporary assumption facts used by symbolic evaluation and refinement.
- * This header owns the narrow sign and boolean fact model behind Assuming and
- * Refine, along with lookup helpers that other kernel code can reuse.
+ * This header owns the narrow sign, boolean, and symbol-domain fact model
+ * behind Assuming and Refine, along with lookup helpers that other kernel
+ * code can reuse.
  */
 
 #pragma once
@@ -26,6 +27,9 @@ struct SymbolAssumptionFacts {
     bool negative = false;
     bool zero = false;
     bool nonzero = false;
+    bool integer = false;
+    bool rational = false;
+    bool real = false;
 };
 
 class AssumptionStore {

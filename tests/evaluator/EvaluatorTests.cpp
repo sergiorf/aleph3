@@ -1148,6 +1148,58 @@ TEST_CASE("Evaluator resolves explicit sign predicates from assumptions", "[eval
     REQUIRE(std::get<Boolean>(*result).value);
 }
 
+TEST_CASE("Evaluator resolves explicit symbol domain predicates from assumptions", "[evaluator][assumptions]") {
+    EvaluationContext ctx;
+
+    auto expr = parse_expression("Assuming[IntegerQ[n], If[RationalQ[n], 5, 9]]");
+    auto result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 5.0);
+
+    expr = parse_expression("Refine[RealQ[x], Positive[x]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("Refine[RationalQ[n], IntegerQ[n]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("IntegerQ[2]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("RationalQ[3/2]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("IntegerQ[3/2]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE_FALSE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("RealQ[0.5]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("RationalQ[0.5]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*result));
+    REQUIRE_FALSE(std::get<Boolean>(*result).value);
+
+    expr = parse_expression("Refine[Positive[x], IntegerQ[x]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "Positive[x]");
+
+    expr = parse_expression("Refine[RealQ[x], x > 3]");
+    result = evaluate(expr, ctx);
+    REQUIRE(to_string(result) == "RealQ[x]");
+}
+
 TEST_CASE("Evaluator derives sign facts for simple arithmetic forms", "[evaluator][assumptions]") {
     EvaluationContext ctx;
 
@@ -1198,6 +1250,11 @@ TEST_CASE("Evaluator rejects unsupported assumption forms explicitly", "[evaluat
         "False assumptions are not supported yet.");
 
     expr = parse_expression("Assuming[Positive[x + 1], x]");
+    REQUIRE_THROWS_WITH(
+        evaluate(expr, ctx),
+        "Assumption predicates only support symbol arguments.");
+
+    expr = parse_expression("Assuming[IntegerQ[x + 1], x]");
     REQUIRE_THROWS_WITH(
         evaluate(expr, ctx),
         "Assumption predicates only support symbol arguments.");

@@ -532,6 +532,18 @@ Remaining tasks:
 - move more execution semantics behind registry- or definition-backed contracts
 - decide how much attribute metadata should control dispatch versus remain
   descriptive
+- define a staged richer definition model beyond the current narrow
+  own-value and user-function contracts:
+  - make lookup categories explicit
+  - define which definition kinds are symbol-local versus registry-backed
+  - prove at least one new symbolic behavior can be expressed through shared
+    definition state rather than evaluator-local branching
+- stage the first real evaluation-control attribute tranche explicitly:
+  - keep current listability and numeric-function metadata
+  - decide when `HoldFirst`, `HoldRest`, and `HoldAll` become durable kernel
+    contracts
+  - keep broader attribute families out until precedence and evaluation hooks
+    are tested clearly
 - document the remaining mutation and thread-safety rules for registry-backed
   embedding
 - decide how future pack loading and unload boundaries should work on top of
@@ -542,6 +554,9 @@ Success criteria:
 - new symbolic behavior can increasingly be added through definitions and
   registration rather than evaluator branching
 - the extension model is credible for long-lived embedding and future packs
+- precedence between symbol-owned definitions, registered handlers, builtin
+  execution, rewrite-owned simplification, and host functions is explicit
+  enough to support broader symbolic growth safely
 
 ### F. Pattern Matching And Rewrite Engine
 
@@ -579,10 +594,18 @@ Near-term tasks:
   - registered normalized-head rewrites are now being made explicit parts of
     the shared symbol and extension model, while remaining a simplification-
     stage contract rather than ordinary function-call dispatch
+- define the next matcher and rewrite ladder explicitly rather than leaving it
+  as one broad future bucket:
+  1. richer single-expression pattern classes
+  2. conditional rules with bounded evaluation
+  3. targeted traversal and replacement APIs
+  4. only later, if still justified, broader sequence-pattern machinery
 
 Success criteria:
 
 - symbolic transforms no longer depend only on hardcoded evaluator cases
+- at least one nontrivial symbolic workflow beyond arithmetic cleanup can be
+  expressed through rewrite contracts rather than evaluator-local branching
 
 Detailed guidance for the next rewrite migration slice:
 
@@ -597,6 +620,15 @@ Detailed guidance for the next rewrite migration slice:
   instead of broadening arithmetic rewrite
 - keep exponent merging in the separate algebra-aware layer rather than
   broadening arithmetic rewrite
+- keep rewrite families distinct:
+  - structural replacement rules
+  - simplification-stage normalized-head rewrites
+  - future symbol-bound transformation rules
+- require each new matcher feature to declare:
+  - how it is bounded
+  - whether it participates in normal evaluation, explicit replacement, or
+    simplification only
+  - what unsupported pattern forms must still preserve or reject explicitly
 
 ### G. Exact Algebra Backbone
 
@@ -619,6 +651,11 @@ Tasks:
     before claiming broader algebra support
 - make overflow and large-integer strategy explicit
 - remove growth-facing dependence on `double` polynomial internals
+- make downstream consumers explicit:
+  - rewrite-owned symbolic transforms
+  - future calculus output cleanup
+  - pack-owned algebra and special-function rules that need exact coefficient
+    preservation
 
 Near-term multivariate algebra plan:
 
@@ -640,6 +677,8 @@ Near-term multivariate algebra plan:
 Success criteria:
 
 - algebra growth no longer rests on the current narrow floating polynomial core
+- no serious higher symbolic pack depends on the floating polynomial path for
+  its core correctness story
 
 ### H. Assumptions And Domain Semantics
 
@@ -669,11 +708,19 @@ Current status:
 Tasks:
 
 - make selected transforms assumption-aware
+- define a pack-facing domain query surface over the same kernel contract
+- stage richer domain facts in an explicit order:
+  1. stronger exact sign and zero facts for simple forms
+  2. explicit contradiction handling
+  3. selected assumption-aware rewrite hooks
+  4. only later, broader domain categories beyond integer/rational/real
 - keep unsupported cases explicit
 
 Success criteria:
 
 - targeted domain-sensitive rewrites can happen without ad hoc unsafe behavior
+- at least one rewrite-owned or pack-owned transform uses shared assumptions
+  queries instead of evaluator-local domain checks
 
 ### I. Math Packs And Product Surface Growth
 
@@ -693,12 +740,25 @@ Tasks:
   growth once exact algebra contracts are stronger
 - keep vertical domains such as electrical engineering out of the kernel and
   implement them only once kernel extension points are stable
+- tighten what counts as a serious pack proof:
+  - it must register behavior through kernel contracts only
+  - it must rely on shared rewrite, exact, or assumptions contracts where
+    mathematically required
+  - it must carry explicit unsupported boundaries and ownership tests
+  - packaging alone does not count as proof of extensibility
+- likely serious-pack progression:
+  - algebra remains the current proving ground for exactness and ownership
+  - a small calculus transformation pack becomes the preferred next proof once
+    rewrite and assumptions contracts are stronger
 
 Success criteria:
 
 - higher math growth follows pack boundaries instead of evaluator sprawl
 - at least one serious pack proves that meaningful domain behavior can be added
   without modifying evaluator internals
+- that proof pack exercises more than packaging: it demonstrates rule
+  registration, exact/domain usage where needed, and explicit unsupported-case
+  behavior
 
 ### J. Interactive Applications And Product Surfaces
 
@@ -739,6 +799,11 @@ Tasks:
 - add invariant-oriented regression coverage
 - strengthen UDF, cross-subsystem, diagnostics, and unsupported-case coverage
 - keep supported-subset behavior documented and testable
+- add proof-oriented symbolic workflow coverage as core contracts strengthen:
+  - rewrite-driven symbolic transformation beyond arithmetic cleanup
+  - assumptions-aware transformation
+  - exact algebra cleanup after symbolic transforms
+  - serious-pack ownership and no-evaluator-branching assertions
 - expand polynomial contract coverage around the current supported surface:
   - round-trip and invariant tests for `Expand`, `Collect`, `Factor`, `GCD`,
     and `PolynomialQuotient` on supported inputs
@@ -758,6 +823,8 @@ Success criteria:
 - the supported symbolic subset behaves like a documented product contract
 - engineering quality is credible for a C++ math runtime, not just for a
   prototype
+- future claims of “serious symbolic capability” are backed by end-to-end
+  symbolic workflow tests, not only helper-level unit coverage
 
 ### L. Transitional Removal And Cleanup
 
@@ -787,6 +854,8 @@ If work starts now, the next active tranche should be:
    descriptive
 2. move more execution semantics behind registry- or definition-backed
    contracts without widening evaluator-local branching
+3. define the next matcher tranche beyond named binders so rewrite growth is
+   no longer implicit
 
 ## Deferred Work
 

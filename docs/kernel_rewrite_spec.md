@@ -175,6 +175,17 @@ That means:
 - simplification consults the registry and stops at the first matching rewrite
 - kernel-owned rewrites register as builtin-owned specs
 - future pack-owned rewrites can use the same registration surface
+- consulting a registered rewrite now syncs rewrite ownership into shared
+  `symbol_metadata` and `definition_records`
+- those shared records use `rewrite_rule` ownership facts for the rewritten
+  head rather than pretending rewrites are ordinary callable function owners
+
+Practical examples:
+
+- consulting a builtin normalized `Plus` rewrite records builtin rewrite
+  ownership for `Plus`
+- consulting a pack-registered normalized `Power` rewrite can record pack
+  ownership such as provider `core-algebra` for `Power`
 
 This slice does not widen rewrite semantics.
 It only changes how existing normalized-head rewrites are owned and reached.
@@ -214,6 +225,15 @@ Practical reading:
 - rewrite is currently a tool the evaluator or another caller uses on purpose
 - it is not yet a global "always-on symbolic simplifier"
 - if you need canonical ordering before matching, normalize first
+
+Registered normalized-head rewrites have one narrow scheduling role:
+
+- they are consulted only from the simplification-stage normalized-head flow
+- they are not part of ordinary function-call dispatch precedence
+- they do not make `Plus`, `Times`, or `Power` callable through a separate
+  rewrite dispatcher
+- they do not replace evaluator ownership of list-aware arithmetic,
+  domain-sensitive numeric behavior, or special-function shortcuts
 
 Today the general evaluator still does:
 

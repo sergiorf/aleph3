@@ -82,6 +82,14 @@ These records are stored in `symbols::SymbolDefinitionTable`.
 The table also now exposes exact-kind lookup in addition to boolean presence
 checks, so evaluator and tests can query specific ownership records directly.
 
+`rewrite_rule` is now an active contract for registered normalized-head
+rewrites:
+
+- consulting a registered normalized-head rewrite records rewrite ownership for
+  that head in shared kernel definition state
+- this records simplification-stage extension ownership, not ordinary callable
+  dispatch ownership
+
 ### Evaluation Context
 
 `kernel::EvaluationContext` now carries:
@@ -170,6 +178,8 @@ Implemented now:
 - kernel-owned definition records
 - registry metadata for symbolic functions
 - explicit pack-registration metadata path
+- shared rewrite-rule metadata and definition-record sync for registered
+  normalized-head rewrites
 - evaluator-side population of metadata/definition records for registered
   symbolic handlers, builtin evaluator functions, host functions,
   user-defined functions, and assignments
@@ -190,6 +200,7 @@ Deferred:
 - decide how the small symbolic coefficient contract should attach to
   symbol-definition metadata if it grows beyond the current builtin-owned
   implementation
-- define how rewrite rules register against the same symbol contract
+- grow rewrite registration on top of this shared rewrite-rule ownership
+  contract without widening rewrite semantics prematurely
 - decide how far attribute metadata should influence dispatch and argument
   evaluation

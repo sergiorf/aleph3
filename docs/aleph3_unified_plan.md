@@ -530,7 +530,6 @@ Current status:
 Remaining tasks:
 
 - move more execution semantics behind registry- or definition-backed contracts
-- define how rewrite rules register against the same symbol contract
 - decide how much attribute metadata should control dispatch versus remain
   descriptive
 - document the remaining mutation and thread-safety rules for registry-backed
@@ -576,6 +575,10 @@ Near-term tasks:
 - keep division cancellation,
   list-aware arithmetic, and special-function shortcuts evaluator-owned until
   stronger kernel contracts exist
+- active implementation outcome:
+  - registered normalized-head rewrites are now being made explicit parts of
+    the shared symbol and extension model, while remaining a simplification-
+    stage contract rather than ordinary function-call dispatch
 
 Success criteria:
 
@@ -780,10 +783,10 @@ Success criteria:
 
 If work starts now, the next active tranche should be:
 
-1. document the remaining mutation, pack-loading, and thread-safety rules for
-   registry-backed embedding
-2. define how rewrite rules should grow on top of the same symbol and
-   registration contract without reintroducing evaluator-local branching
+1. decide how much attribute metadata should control dispatch versus remain
+   descriptive
+2. move more execution semantics behind registry- or definition-backed
+   contracts without widening evaluator-local branching
 
 ## Deferred Work
 

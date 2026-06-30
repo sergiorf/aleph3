@@ -17,7 +17,6 @@ This is the current precedence contract for the symbolic `Expr` evaluator.
 
 It does not yet define a fully unified precedence model for:
 
-- future rewrite rules
 - future assumptions-driven transformations
 - future richer symbol metadata such as upvalues/downvalues
 
@@ -84,6 +83,31 @@ Plain-language examples:
 - if a host app registers `Clamp`, it is only used when no earlier symbolic
   owner wins for that name
 
+## Registered Normalized-Head Rewrite Scheduling
+
+Registered normalized-head rewrites do not participate in the ordinary
+function-call precedence above.
+
+Current answer:
+
+- they are a simplification-stage extension point, not a callable dispatch
+  owner
+- they are consulted only after normalization inside the existing
+  simplification flow
+- they run in deterministic priority order per head
+- the first matching rewrite wins
+
+That means:
+
+- ordinary function-call dispatch still follows special forms, registered
+  symbolic handlers, builtin evaluator functions, user-defined functions, host
+  functions, then symbolic fallback
+- registered normalized-head rewrites do not make an otherwise unknown head
+  callable
+- list-aware arithmetic, domain-sensitive `Power` behavior, and special-
+  function shortcuts remain evaluator-owned even when a head also has
+  registered rewrites
+
 ## Current Assignment And Definition Rules
 
 - `Assignment` writes evaluated values into `symbol_values`
@@ -131,6 +155,7 @@ Current answer:
 
 ## Next Follow-On Steps
 
-1. define precedence for future rewrite rules
-2. define richer symbol metadata and attribute-driven dispatch
-3. reduce the remaining evaluator-local execution paths after owner selection
+1. define richer symbol metadata and attribute-driven dispatch
+2. reduce the remaining evaluator-local execution paths after owner selection
+3. decide how broader future rewrite categories should register without
+   becoming a second function-call dispatcher

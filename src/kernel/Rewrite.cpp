@@ -18,6 +18,7 @@ namespace aleph3::kernel {
 namespace {
 
 using PatternBindings = std::unordered_map<std::string, ExprPtr>;
+constexpr std::string_view BUILTIN_REWRITE_PROVIDER = "kernel-rewrite";
 
 bool is_integral(double value) {
     return std::floor(value) == value;
@@ -25,6 +26,78 @@ bool is_integral(double value) {
 
 ExprPtr clone_expr(const ExprPtr& expr) {
     return expr == nullptr ? nullptr : std::make_shared<Expr>(*expr);
+}
+
+void ensure_symbol_metadata(
+    EvaluationContext& ctx,
+    const std::string& name,
+    symbols::DefinitionOrigin origin,
+    std::string provider,
+    std::string documentation = {}) {
+    if (auto* existing = ctx.symbol_metadata.lookup(name)) {
+        if (existing->documentation.empty() && !documentation.empty()) {
+            existing->documentation = std::move(documentation);
+        }
+        if (existing->provider.empty() && !provider.empty()) {
+            existing->provider = std::move(provider);
+        }
+        if (existing->origin == symbols::DefinitionOrigin::user &&
+            origin != symbols::DefinitionOrigin::user) {
+            existing->origin = origin;
+        }
+        return;
+    }
+
+    ctx.symbol_metadata.set(name, symbols::SymbolMetadata{
+        name,
+        {},
+        std::move(documentation),
+        origin,
+        std::move(provider)});
+}
+
+void ensure_definition_record(
+    EvaluationContext& ctx,
+    const std::string& name,
+    symbols::SymbolDefinitionKind kind,
+    symbols::DefinitionOrigin origin,
+    std::string provider) {
+    ctx.definition_records.add_unique(name, symbols::SymbolDefinitionRecord{
+        kind,
+        origin,
+        std::move(provider)});
+}
+
+std::string rewrite_provider_for(const HeadRewriteSpec& spec) {
+    if (spec.metadata.source == RegistrationSource::pack) {
+        return spec.metadata.owning_package;
+    }
+    return std::string(BUILTIN_REWRITE_PROVIDER);
+}
+
+symbols::DefinitionOrigin rewrite_origin_for(const HeadRewriteSpec& spec) {
+    return spec.metadata.source == RegistrationSource::pack
+        ? symbols::DefinitionOrigin::pack
+        : symbols::DefinitionOrigin::builtin;
+}
+
+void sync_registered_head_rewrite_metadata(
+    const HeadRewriteSpec& spec,
+    EvaluationContext& ctx) {
+    const auto origin = rewrite_origin_for(spec);
+    auto provider = rewrite_provider_for(spec);
+    ensure_symbol_metadata(
+        ctx,
+        spec.metadata.name,
+        origin,
+        provider,
+        spec.metadata.documentation);
+    ensure_definition_record(
+        ctx,
+        spec.metadata.name,
+        symbols::SymbolDefinitionKind::rewrite_rule,
+        origin,
+        std::move(provider));
 }
 
 struct ScalarCoefficient {
@@ -821,6 +894,7 @@ std::optional<ExprPtr> rewrite_normalized_head(
         if (spec.stage != RewriteStage::normalized_head) {
             continue;
         }
+        sync_registered_head_rewrite_metadata(spec, ctx);
         if (auto rewritten = spec.handler(func, ctx)) {
             return rewritten;
         }

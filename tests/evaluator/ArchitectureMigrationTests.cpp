@@ -357,6 +357,59 @@ TEST_CASE("Normalized head rewrites use the registry from the current context", 
     REQUIRE(to_string(*rewritten) == "x + 5");
 }
 
+TEST_CASE("Consulting builtin normalized-head rewrites records rewrite ownership in symbol state", "[architecture][kernel][rewrite][symbols]") {
+    const auto normalized = normalize_expr(parse_expression("x + 2*x + 1/3*x"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    kernel::EvaluationContext ctx;
+    const auto rewritten = kernel::rewrite_normalized_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(ctx.symbol_metadata.contains("Plus"));
+    const auto* metadata = ctx.symbol_metadata.lookup("Plus");
+    REQUIRE(metadata != nullptr);
+    REQUIRE(metadata->origin == symbols::DefinitionOrigin::builtin);
+    REQUIRE(metadata->provider == "kernel-rewrite");
+    REQUIRE(ctx.definition_records.contains(
+        "Plus",
+        symbols::SymbolDefinitionKind::rewrite_rule,
+        symbols::DefinitionOrigin::builtin,
+        "kernel-rewrite"));
+}
+
+TEST_CASE("Consulting pack normalized-head rewrites records pack ownership in symbol state", "[architecture][kernel][rewrite][packs][symbols]") {
+    kernel::FunctionRegistry registry;
+    registry.register_pack_head_rewrite(
+        "test-pack",
+        "Power",
+        "pack-power",
+        [](const FunctionCall&, EvaluationContext&) -> std::optional<ExprPtr> {
+            return make_expr<Symbol>("pack");
+        },
+        10,
+        "Pack-owned power rewrite.");
+
+    kernel::EvaluationContext ctx(registry);
+    const FunctionCall func{"Power", {make_expr<Symbol>("x"), make_expr<Number>(2.0)}};
+    const auto rewritten = kernel::rewrite_normalized_head(func, ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "pack");
+    REQUIRE(ctx.symbol_metadata.contains("Power"));
+    const auto* metadata = ctx.symbol_metadata.lookup("Power");
+    REQUIRE(metadata != nullptr);
+    REQUIRE(metadata->origin == symbols::DefinitionOrigin::pack);
+    REQUIRE(metadata->provider == "test-pack");
+    REQUIRE(metadata->documentation == "Pack-owned power rewrite.");
+    REQUIRE(ctx.definition_records.contains(
+        "Power",
+        symbols::SymbolDefinitionKind::rewrite_rule,
+        symbols::DefinitionOrigin::pack,
+        "test-pack"));
+}
+
 TEST_CASE("Kernel function registry distinguishes builtin and pack head rewrites", "[architecture][kernel][rewrite][packs]") {
     kernel::FunctionRegistry registry;
     registry.register_head_rewrite(
@@ -956,6 +1009,24 @@ TEST_CASE("Kernel registered head rewrites stop at the first matching rewrite", 
     REQUIRE(rewritten != nullptr);
     REQUIRE((*rewritten)[0].handler(func, ctx).has_value());
     REQUIRE(to_string(*(*rewritten)[0].handler(func, ctx)) == "early");
+}
+
+TEST_CASE("Registered head rewrites are not ordinary function-call dispatch owners", "[architecture][rewrite][precedence]") {
+    kernel::FunctionRegistry registry;
+    registry.register_head_rewrite(
+        "Ghost",
+        "ghost-rewrite",
+        [](const FunctionCall&, EvaluationContext&) -> std::optional<ExprPtr> {
+            return make_expr<Number>(99.0);
+        },
+        10);
+
+    EvaluationContext ctx(registry);
+    auto result = evaluate(parse_expression("Ghost[1]"), ctx);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    REQUIRE(std::get<FunctionCall>(*result).head == "Ghost");
+    REQUIRE_FALSE(ctx.definition_records.contains("Ghost", symbols::SymbolDefinitionKind::rewrite_rule));
 }
 
 TEST_CASE("Kernel rewrite respects explicit rewrite-count bounds", "[architecture][rewrite]") {

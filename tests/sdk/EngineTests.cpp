@@ -16,6 +16,8 @@
 #include <mutex>
 #include <optional>
 #include <stdexcept>
+#include <thread>
+#include <vector>
 
 using namespace aleph3;
 
@@ -694,6 +696,160 @@ TEST_CASE("Separate engines keep host registrations isolated", "[sdk][engine][ke
     const auto without_result = without_scale_add.evaluate(*compile_result.formula, {});
     REQUIRE_FALSE(without_result.ok());
     REQUIRE_FALSE(without_result.value.has_value());
+}
+
+TEST_CASE("Compiled formulas observe later host registration on the same engine", "[sdk][engine][kernel][lifecycle]") {
+    Engine engine;
+
+    Schema schema;
+    schema.allow_function({"ScaleAdd", FunctionArity::exact(3), {ValueType::number, ValueType::number, ValueType::number}, ValueType::number, true});
+
+    const auto compile_result = engine.compile("ScaleAdd[4, 1.5, 2]", schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto before_registration = engine.evaluate(*compile_result.formula, {});
+    REQUIRE_FALSE(before_registration.ok());
+    REQUIRE_FALSE(before_registration.value.has_value());
+
+    HostFunctionSpec scale_add;
+    scale_add.name = "ScaleAdd";
+    scale_add.arity = FunctionArity::exact(3);
+    scale_add.parameters = {
+        {"value", ValueType::number, true},
+        {"scale", ValueType::number, true},
+        {"offset", ValueType::number, true}
+    };
+    scale_add.return_type = ValueType::number;
+    scale_add.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = Value(*args[0].as_number() * *args[1].as_number() + *args[2].as_number());
+        return result;
+    };
+
+    engine.register_function(scale_add);
+
+    const auto after_registration = engine.evaluate(*compile_result.formula, {});
+    REQUIRE(after_registration.ok());
+    REQUIRE(after_registration.value.has_value());
+    REQUIRE(*after_registration.value->as_number() == 8.0);
+}
+
+TEST_CASE("Compiled formulas remain reusable after additional host registrations", "[sdk][engine][kernel][lifecycle]") {
+    Engine engine;
+
+    HostFunctionSpec scale_add;
+    scale_add.name = "ScaleAdd";
+    scale_add.arity = FunctionArity::exact(3);
+    scale_add.parameters = {
+        {"value", ValueType::number, true},
+        {"scale", ValueType::number, true},
+        {"offset", ValueType::number, true}
+    };
+    scale_add.return_type = ValueType::number;
+    scale_add.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = Value(*args[0].as_number() * *args[1].as_number() + *args[2].as_number());
+        return result;
+    };
+    engine.register_function(scale_add);
+
+    Schema schema;
+    schema.allow_function({"ScaleAdd", FunctionArity::exact(3), {ValueType::number, ValueType::number, ValueType::number}, ValueType::number, true});
+    schema.allow_function({"DoubleIt", FunctionArity::exact(1), {ValueType::number}, ValueType::number, true});
+
+    const auto compile_result = engine.compile("ScaleAdd[4, 1.5, 2]", schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    const auto first_result = engine.evaluate(*compile_result.formula, {});
+    REQUIRE(first_result.ok());
+    REQUIRE(*first_result.value->as_number() == 8.0);
+
+    HostFunctionSpec double_it;
+    double_it.name = "DoubleIt";
+    double_it.arity = FunctionArity::exact(1);
+    double_it.parameters = {{"value", ValueType::number, true}};
+    double_it.return_type = ValueType::number;
+    double_it.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = Value(*args[0].as_number() * 2.0);
+        return result;
+    };
+    engine.register_function(double_it);
+
+    const auto second_result = engine.evaluate(*compile_result.formula, {});
+    REQUIRE(second_result.ok());
+    REQUIRE(second_result.value.has_value());
+    REQUIRE(*second_result.value->as_number() == 8.0);
+
+    const auto new_formula = engine.compile("DoubleIt[5]", schema);
+    REQUIRE(new_formula.ok());
+    REQUIRE(new_formula.formula.has_value());
+
+    const auto new_result = engine.evaluate(*new_formula.formula, {});
+    REQUIRE(new_result.ok());
+    REQUIRE(new_result.value.has_value());
+    REQUIRE(*new_result.value->as_number() == 10.0);
+}
+
+TEST_CASE("Concurrent evaluation of one compiled formula on one engine is supported", "[sdk][engine][kernel][threading]") {
+    Engine engine;
+
+    HostFunctionSpec scale_add;
+    scale_add.name = "ScaleAdd";
+    scale_add.arity = FunctionArity::exact(3);
+    scale_add.parameters = {
+        {"value", ValueType::number, true},
+        {"scale", ValueType::number, true},
+        {"offset", ValueType::number, true}
+    };
+    scale_add.return_type = ValueType::number;
+    scale_add.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = Value(*args[0].as_number() * *args[1].as_number() + *args[2].as_number());
+        return result;
+    };
+    engine.register_function(scale_add);
+
+    Schema schema;
+    schema.allow_function({"ScaleAdd", FunctionArity::exact(3), {ValueType::number, ValueType::number, ValueType::number}, ValueType::number, true});
+
+    const auto compile_result = engine.compile("ScaleAdd[4, 1.5, 2]", schema);
+    REQUIRE(compile_result.ok());
+    REQUIRE(compile_result.formula.has_value());
+
+    constexpr int thread_count = 8;
+    constexpr int iterations_per_thread = 32;
+
+    std::mutex result_mutex;
+    std::vector<std::string> failures;
+    std::vector<std::thread> threads;
+    threads.reserve(thread_count);
+
+    for (int thread_index = 0; thread_index < thread_count; ++thread_index) {
+        threads.emplace_back([&, thread_index] {
+            for (int iteration = 0; iteration < iterations_per_thread; ++iteration) {
+                const auto result = engine.evaluate(*compile_result.formula, {});
+                if (!result.ok() ||
+                    !result.value.has_value() ||
+                    result.value->as_number() == nullptr ||
+                    *result.value->as_number() != 8.0) {
+                    std::lock_guard<std::mutex> lock(result_mutex);
+                    failures.push_back(
+                        "thread " + std::to_string(thread_index) +
+                        " iteration " + std::to_string(iteration));
+                    return;
+                }
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    REQUIRE(failures.empty());
 }
 
 TEST_CASE("Engine evaluate matches direct kernel evaluation for step-budget exhaustion", "[sdk][engine][kernel]") {

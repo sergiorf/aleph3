@@ -306,6 +306,29 @@ TEST_CASE("Separate function registries stay isolated", "[architecture][kernel][
     REQUIRE(right.find_head_rewrites("Plus") != nullptr);
 }
 
+TEST_CASE("Fresh default registries copy the same bootstrap surface but remain independently mutable", "[architecture][kernel][registry][packs]") {
+    auto left = kernel::create_default_function_registry();
+    auto right = kernel::create_default_function_registry();
+
+    REQUIRE(left.find_symbolic_function_spec("Expand") != nullptr);
+    REQUIRE(right.find_symbolic_function_spec("Expand") != nullptr);
+    REQUIRE(left.find_symbolic_function_spec("StringJoin") != nullptr);
+    REQUIRE(right.find_symbolic_function_spec("StringJoin") != nullptr);
+
+    left.register_pack_function(
+        "test-pack",
+        "OnlyLeft",
+        [](const FunctionCall& func, EvaluationContext&) -> ExprPtr {
+            return make_expr<FunctionCall>(func.head, func.args);
+        },
+        "Local test registration.",
+        true);
+
+    REQUIRE(left.find_symbolic_function_spec("OnlyLeft") != nullptr);
+    REQUIRE(right.find_symbolic_function_spec("OnlyLeft") == nullptr);
+    REQUIRE(right.find_symbolic_function_spec("Expand") != nullptr);
+}
+
 TEST_CASE("Evaluation context resolves builtins from its active registry", "[architecture][kernel][registry]") {
     kernel::FunctionRegistry empty_registry;
     EvaluationContext empty_ctx(empty_registry);

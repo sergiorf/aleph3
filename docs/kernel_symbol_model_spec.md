@@ -13,6 +13,10 @@ Primary implementation:
 - [include/kernel/EvaluationContext.hpp](/home/sergio/dev/aleph3/include/kernel/EvaluationContext.hpp)
 - [include/kernel/FunctionRegistry.hpp](/home/sergio/dev/aleph3/include/kernel/FunctionRegistry.hpp)
 
+Related lifecycle contract:
+
+- [Kernel Registration Lifecycle Spec](kernel_registration_lifecycle_spec.md)
+
 ## Purpose
 
 This document defines the first kernel-owned symbol model that evaluator,
@@ -131,6 +135,15 @@ Examples:
 - two SDK engines can now evaluate against different host-function sets without
   sharing runtime registration state
 
+Lifecycle note:
+
+- builtin and pack-backed symbolic registrations are fixed when a registry is
+  created
+- host-function registration remains the only public mutable registration
+  surface today
+- `CompiledFormula` does not own host-function registrations; later evaluation
+  consults the engine's current host-function set
+
 ## Current Precedence Facts
 
 Current evaluator precedence is still:
@@ -170,6 +183,7 @@ Deferred:
 - mutation semantics beyond current tables
 - fully registry- or definition-driven execution for the remaining host and
   richer builtin behavior paths once an owner is selected
+- runtime pack loading, pack unload, and broader registry mutation semantics
 
 ## Next Steps
 

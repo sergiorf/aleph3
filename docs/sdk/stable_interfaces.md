@@ -133,9 +133,18 @@ classDiagram
 
 - SDK headers compile independently of symbolic-engine internal headers.
 - The engine facade links with a concrete implementation.
+- `Engine` owns an engine-scoped host-function registry and does not mutate a
+  process-global host registration table.
+- `CompiledFormula` is read-only after successful compilation and does not
+  snapshot engine host-function registrations.
 - Validation produces structured diagnostics for syntax, schema, arity, feature-gates, branch compatibility, schema-valued constants, constant runtime traps, and obvious type failures.
 - Compile produces reusable opaque `CompiledFormula` handles on successful parse + validation.
 - Compiled formulas retain lowered kernel execution state rather than trusted-subset IR.
+- `Engine::evaluate` reads the engine's current host-function set at evaluation
+  time, so formulas compiled earlier can observe later host registration on the
+  same engine.
+- The same compiled formula may evaluate differently across engines because
+  host-function registration remains engine-scoped.
 - Evaluate executes the trusted subset for literals, bindings, arithmetic, comparisons, `If`, and registered host calls.
 - Optional built-ins can be enabled by policy for `Abs`, `Min`, `Max`, `Clamp`, `Floor`, `Ceil`/`Ceiling`, `Round`, and `Sqrt`.
 - Schema-valued constants can participate in validation and runtime evaluation without host bindings.
@@ -146,6 +155,9 @@ classDiagram
 - Zero-valued numeric results are canonicalized to positive zero for deterministic output behavior.
 - Equality comparisons require comparable concrete value types and reject mixed-type equality.
 - Registered host functions enforce arity/parameter metadata at registration and argument/return contracts at runtime.
+- Concurrent evaluation of the same compiled formula on the same engine is a
+  supported usage pattern; in-flight evaluations are not required to observe a
+  concurrent host-function registration change.
 - The IR only models the trusted subset, not the full prototype language.
 
 ## Known Gaps
@@ -155,3 +167,5 @@ classDiagram
 - Optional built-ins and richer host-function tooling ergonomics are still limited on the tooling path.
 - `EngineOptions` needs either contract hardening or reduction before it should
   be treated as stable product configuration.
+- No unregister API, dynamic pack loading API, or pack unload contract exists
+  yet.

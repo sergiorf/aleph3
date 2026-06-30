@@ -24,6 +24,7 @@ Implementation specs referenced by this plan:
 - [Kernel Rewrite Spec](kernel_rewrite_spec.md)
 - [Kernel Execution Bridge Spec](kernel_execution_bridge_spec.md)
 - [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md)
+- [Kernel Registration Lifecycle Spec](kernel_registration_lifecycle_spec.md)
 - [Kernel Assumptions Spec](kernel_assumptions_spec.md)
 
 ## Purpose
@@ -781,8 +782,8 @@ If work starts now, the next active tranche should be:
 
 1. document the remaining mutation, pack-loading, and thread-safety rules for
    registry-backed embedding
-2. scope the first exact multivariate algebra foundation slice for the algebra
-   pack without overstating current support
+2. define how rewrite rules should grow on top of the same symbol and
+   registration contract without reintroducing evaluator-local branching
 
 ## Deferred Work
 

@@ -89,8 +89,10 @@ Current boundary:
 - mixed rational and integer arithmetic stays exact when no inexact numeric
   value is introduced
 - mixed rational and floating-point arithmetic demotes to inexact `Number`
-- `Expand`, `Collect`, supported univariate `GCD`, and supported univariate
-  `PolynomialQuotient` preserve exact rational coefficients
+- `Expand` and `Collect` preserve exact rational coefficients for both
+  univariate and multivariate supported polynomial inputs
+- supported univariate `GCD` and supported univariate `PolynomialQuotient`
+  preserve exact rational coefficients
 - inexact `Number` inputs stay on the existing floating-point path
 - `Factor` still rejects exact rational coefficients explicitly instead of
   demoting them to floating-point or pretending to preserve exactness
@@ -101,7 +103,9 @@ Examples:
 - `1/2 + 2` -> `5/2`
 - `1/2 + 0.5` -> inexact `Number`
 - `Expand[(1/2) * (x + 1)]` -> `1/2 * x + 1/2`
+- `Expand[(1/2) * (x + y)]` -> `1/2 * x + 1/2 * y`
 - `Collect[(1/2) * x + 1, x]` -> `1/2 * x + 1`
+- `Collect[(1/2) * x * y + (3/2) * y, y]` -> `1/2 * x * y + 3/2 * y`
 - `PolynomialQuotient[x^2 - 1/4, x - 1/2, x]` -> `{x + 1/2, 0}`
 - `Factor[(1/2) * x^2 + x]` -> unsupported exact-rational factor input
 
@@ -180,6 +184,7 @@ known limitation.
 Not part of the current supported subset:
 
 - multivariate polynomial GCD and division
+- exact multivariate factorization beyond current content extraction
 - symbolic differentiation
 - broader factorization algorithms
 - arbitrary-precision exact algebra

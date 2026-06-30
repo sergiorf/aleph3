@@ -621,6 +621,11 @@ Near-term multivariate algebra plan:
 - do not market current polynomial algebra as broad multivariate CAS support
 - treat multivariate exact arithmetic as the next real algebra-foundation
   expansion after the first pack extraction
+- active implementation outcome:
+  - exact multivariate coefficient preservation is now being made explicit for
+    `Expand` and `Collect` through a public exact polynomial layer, while
+    multivariate `GCD`, division, and broader factorization remain out of
+    scope
 - target early exact multivariate milestones in this order:
   1. exact multivariate coefficient preservation
   2. explicit monomial ordering and canonical form rules

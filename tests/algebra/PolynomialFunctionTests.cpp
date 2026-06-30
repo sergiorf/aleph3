@@ -190,8 +190,12 @@ TEST_CASE("Polynomial algebra preserves exact rationals for supported helpers", 
 
     REQUIRE(to_string(*evaluate_source("Expand[(1/2) * (x + 1)]", ctx))
             == "1/2 * x + 1/2");
+    REQUIRE(to_string(*evaluate_source("Expand[(1/2) * (x + y)]", ctx))
+            == "1/2 * x + 1/2 * y");
     REQUIRE(to_string(*evaluate_source("Collect[(1/2) * x + 1, x]", ctx))
             == "1/2 * x + 1");
+    REQUIRE(to_string(*evaluate_source("Collect[(1/2) * x * y + (3/2) * y, y]", ctx))
+            == "1/2 * x * y + 3/2 * y");
     REQUIRE(simplify_string(evaluate_source("GCD[x^2 - 1/4, x - 1/2, x]", ctx))
             == "x - 1/2");
 
@@ -268,8 +272,12 @@ TEST_CASE("Polynomial helpers keep multivariate support boundaries explicit", "[
 
     REQUIRE(simplify_string(evaluate_source("Expand[(x + y) * (x + z)]", ctx)) ==
             "x^2 + x * y + x * z + y * z");
+    REQUIRE(simplify_string(evaluate_source("Expand[(1/2) * (y + x)]", ctx)) ==
+            "x * 1/2 + y * 1/2");
     REQUIRE(simplify_string(evaluate_source("Collect[x*y + y*z, y]", ctx)) ==
             "x * y + y * z");
+    REQUIRE(simplify_string(evaluate_source("Collect[(3/2) * y + (1/2) * x * y, y]", ctx)) ==
+            "x * y * 1/2 + y * 3/2");
     REQUIRE(simplify_string(evaluate_source("Factor[x*y + y*z]", ctx)) ==
             "y * (x + z)");
 

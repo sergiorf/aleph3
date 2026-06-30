@@ -17,6 +17,10 @@ std::string simplify_string(const ExprPtr& expr) {
     return to_string(simplify(expr));
 }
 
+ExactCoefficient coeff(int64_t numerator, int64_t denominator = 1) {
+    return ExactCoefficient(numerator, denominator);
+}
+
 }  // namespace
 
 TEST_CASE("expr_to_polynomial converts constants and simple symbolic terms", "[algebra][conversion]") {
@@ -85,6 +89,21 @@ TEST_CASE("polynomial conversion round-trips to a stable canonical form", "[alge
     REQUIRE(simplify_string(round_trip) == "x^2 + 2 * x + 1");
 }
 
+TEST_CASE("exact polynomial conversion preserves multivariate rational coefficients", "[algebra][conversion][exact]") {
+    const auto poly = expr_to_exact_polynomial(parse_expression("3/2*x^2*y + 2/3*y"), {"x", "y"});
+
+    REQUIRE(poly.terms.size() == 2);
+    REQUIRE(poly.terms.at(Monomial{{"x", 2}, {"y", 1}}) == coeff(3, 2));
+    REQUIRE(poly.terms.at(Monomial{{"y", 1}}) == coeff(2, 3));
+}
+
+TEST_CASE("exact polynomial conversion round-trips to a stable canonical form", "[algebra][conversion][exact]") {
+    const auto expr = parse_expression("1/3 + 2/3*x*y + x^2");
+    const auto poly = expr_to_exact_polynomial(expr, {"x", "y"});
+    const auto round_trip = exact_polynomial_to_expr(poly);
+    REQUIRE(simplify_string(round_trip) == "x^2 + x * y * 2/3 + 1/3");
+}
+
 TEST_CASE("polynomial_to_expr emits higher-degree terms before lower-degree ones", "[algebra][conversion]") {
     Polynomial ordered({
         {Monomial{}, 5.0},
@@ -95,11 +114,28 @@ TEST_CASE("polynomial_to_expr emits higher-degree terms before lower-degree ones
     REQUIRE(simplify_string(polynomial_to_expr(ordered)) == "x^3 + 2 * x + 5");
 }
 
+TEST_CASE("exact polynomial_to_expr emits a shared canonical order", "[algebra][conversion][exact]") {
+    ExactPolynomial ordered({
+        {Monomial{}, coeff(-1, 2)},
+        {Monomial{{"x", 1}, {"y", 1}}, coeff(3, 2)},
+        {Monomial{{"x", 2}}, coeff(1)}
+    });
+
+    REQUIRE(simplify_string(exact_polynomial_to_expr(ordered)) == "x^2 + x * y * 3/2 - 1/2");
+}
+
 TEST_CASE("low-level polynomial helpers preserve supported normal forms", "[algebra][conversion]") {
     const auto poly = expr_to_polynomial(parse_expression("x^2 + 2*x + 1"), {"x"});
 
     REQUIRE(expand(poly).terms == poly.terms);
     REQUIRE(collect(poly, {"x"}).terms == poly.terms);
+}
+
+TEST_CASE("low-level exact polynomial helpers preserve supported normal forms", "[algebra][conversion][exact]") {
+    const auto poly = expr_to_exact_polynomial(parse_expression("1/2*x*y + 3/2*y"), {"x", "y"});
+
+    REQUIRE(expand(poly).terms == poly.terms);
+    REQUIRE(collect(poly, {"y"}).terms == poly.terms);
 }
 
 TEST_CASE("low-level polynomial gcd and divide honor explicit variable selection", "[algebra][conversion]") {
@@ -112,6 +148,18 @@ TEST_CASE("low-level polynomial gcd and divide honor explicit variable selection
     const auto [quotient, remainder] = divide(left, right, {"x"});
     REQUIRE(simplify_string(polynomial_to_expr(quotient)) == "x + 1");
     REQUIRE(simplify_string(polynomial_to_expr(remainder)) == "0");
+}
+
+TEST_CASE("low-level exact polynomial gcd and divide honor explicit variable selection", "[algebra][conversion][exact]") {
+    const auto left = expr_to_exact_polynomial(parse_expression("x^2 - 1/4"), {"x"});
+    const auto right = expr_to_exact_polynomial(parse_expression("x - 1/2"), {"x"});
+
+    const auto divisor_gcd = gcd(left, right, {"x"});
+    REQUIRE(simplify_string(exact_polynomial_to_expr(divisor_gcd)) == "x - 1/2");
+
+    const auto [quotient, remainder] = divide(left, right, {"x"});
+    REQUIRE(simplify_string(exact_polynomial_to_expr(quotient)) == "x + 1/2");
+    REQUIRE(simplify_string(exact_polynomial_to_expr(remainder)) == "0");
 }
 
 TEST_CASE("low-level polynomial gcd and divide reject multivariate selectors", "[algebra][conversion]") {
@@ -127,4 +175,21 @@ TEST_CASE("low-level polynomial gcd and divide reject multivariate selectors", "
     } catch (const EvaluatorError& err) {
         REQUIRE(err.kind() == EvaluatorErrorKind::unsupported_construct);
     }
+}
+
+TEST_CASE("low-level exact polynomial conversion rejects inexact inputs and unsupported calls", "[algebra][conversion][exact]") {
+    REQUIRE_THROWS_AS(
+        expr_to_exact_polynomial(parse_expression("0.5*x"), {"x"}),
+        std::runtime_error);
+    REQUIRE_THROWS_AS(
+        expr_to_exact_polynomial(parse_expression("Sin[x]"), {"x"}),
+        std::runtime_error);
+}
+
+TEST_CASE("low-level exact polynomial gcd and divide reject multivariate selectors", "[algebra][conversion][exact]") {
+    const auto left = expr_to_exact_polynomial(parse_expression("1/2*x*y"), {"x", "y"});
+    const auto right = expr_to_exact_polynomial(parse_expression("x"), {"x", "y"});
+
+    REQUIRE_THROWS_AS(gcd(left, right, {"x", "y"}), std::runtime_error);
+    REQUIRE_THROWS_AS(divide(left, right, {"x", "y"}), std::runtime_error);
 }

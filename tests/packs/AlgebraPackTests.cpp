@@ -35,6 +35,27 @@ TEST_CASE("Algebra pack functions evaluate through registry-backed handlers", "[
     REQUIRE(expand_spec->metadata.owning_package == "core-algebra");
 }
 
+TEST_CASE("Algebra pack exact-capable helpers preserve exact multivariate outputs through registration", "[packs][algebra][exact]") {
+    kernel::FunctionRegistry registry;
+    packs::register_algebra_pack(registry);
+    EvaluationContext ctx(registry);
+
+    const auto expanded = evaluate_source("Expand[(1/2) * (x + y)]", ctx);
+    REQUIRE(simplify_string(expanded) == "x * 1/2 + y * 1/2");
+
+    const auto collected = evaluate_source("Collect[(1/2) * x * y + (3/2) * y, y]", ctx);
+    REQUIRE(simplify_string(collected) == "x * y * 1/2 + y * 3/2");
+
+    const auto* expand_spec = registry.find_symbolic_function_spec("Expand");
+    const auto* collect_spec = registry.find_symbolic_function_spec("Collect");
+    REQUIRE(expand_spec != nullptr);
+    REQUIRE(collect_spec != nullptr);
+    REQUIRE(expand_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(collect_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(expand_spec->metadata.owning_package == "core-algebra");
+    REQUIRE(collect_spec->metadata.owning_package == "core-algebra");
+}
+
 TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][algebra]") {
     kernel::FunctionRegistry registry;
     packs::register_algebra_pack(registry);

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "ExactPolynomial.hpp"
 #include "Polynomial.hpp"
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
@@ -31,8 +32,16 @@ namespace aleph3 {
     Polynomial gcd(const Polynomial& a, const Polynomial& b, const std::vector<std::string>& variables);
     std::pair<Polynomial, Polynomial> divide(const Polynomial& dividend, const Polynomial& divisor, const std::vector<std::string>& variables);
 
+    // Low-level exact API: operate directly on ExactPolynomial objects
+    ExactPolynomial expand(const ExactPolynomial& poly);
+    ExactPolynomial collect(const ExactPolynomial& poly, const std::vector<std::string>& variables);
+    ExactPolynomial gcd(const ExactPolynomial& a, const ExactPolynomial& b, const std::vector<std::string>& variables);
+    std::pair<ExactPolynomial, ExactPolynomial> divide(const ExactPolynomial& dividend, const ExactPolynomial& divisor, const std::vector<std::string>& variables);
+
     // Conversion utilities
     Polynomial expr_to_polynomial(const ExprPtr& expr, const std::vector<std::string>& variables);
     ExprPtr polynomial_to_expr(const Polynomial& poly);
+    ExactPolynomial expr_to_exact_polynomial(const ExprPtr& expr, const std::vector<std::string>& variables);
+    ExprPtr exact_polynomial_to_expr(const ExactPolynomial& poly);
 
 } // namespace aleph3

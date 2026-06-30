@@ -67,6 +67,33 @@ That means exact algebra remains the owner of:
 While the near-term symbolic coefficient contract only needs enough exactness
 to preserve today’s supported numeric and rational coefficient behavior.
 
+## Current Exact Polynomial Boundary
+
+The first explicit exact-polynomial layer now lives in the algebra module and
+is public to pack-owned helpers through:
+
+- `ExactCoefficient`
+- `ExactPolynomial`
+- exact conversion helpers between `Expr` and exact polynomial form
+- exact low-level `expand`, `collect`, `gcd`, and `divide` overloads
+
+Ownership in this slice is intentionally narrow:
+
+- the algebra layer owns exact integer/rational coefficient preservation for
+  `Expand`, `Collect`, supported univariate `GCD`, and supported univariate
+  `PolynomialQuotient`
+- the current `Polynomial` type with `double` coefficients remains in place
+  for the existing factorization path
+- multivariate exact `GCD`, division, and broader factorization do not become
+  supported merely because exact coefficients are now public
+
+Practical implication:
+
+- exact multivariate coefficient preservation is now an explicit pack-facing
+  contract for safe helper paths
+- exact factorization remains out of scope until the broader coefficient-ring
+  and algorithm story is stronger
+
 ## Acceptance Criteria
 
 This spec is sufficient when:

@@ -21,6 +21,7 @@ Implementation specs referenced by this plan:
 
 - [Kernel Design Spec](kernel_design_spec.md)
 - [Kernel Symbol Model Spec](kernel_symbol_model_spec.md)
+- [Kernel Attribute Spec](kernel_attribute_spec.md)
 - [Kernel Rewrite Spec](kernel_rewrite_spec.md)
 - [Kernel Execution Bridge Spec](kernel_execution_bridge_spec.md)
 - [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md)
@@ -531,7 +532,7 @@ Remaining tasks:
 
 - move more execution semantics behind registry- or definition-backed contracts
 - decide how much attribute metadata should control dispatch versus remain
-  descriptive
+  descriptive once the first evaluation-control slice settles
 - define a staged richer definition model beyond the current narrow
   own-value and user-function contracts:
   - make lookup categories explicit
@@ -540,8 +541,8 @@ Remaining tasks:
     definition state rather than evaluator-local branching
 - stage the first real evaluation-control attribute tranche explicitly:
   - keep current listability and numeric-function metadata
-  - decide when `HoldFirst`, `HoldRest`, and `HoldAll` become durable kernel
-    contracts
+  - `HoldFirst`, `HoldRest`, and `HoldAll` are now durable kernel contracts
+    for the current builtin-owned held heads
   - keep broader attribute families out until precedence and evaluation hooks
     are tested clearly
 - document the remaining mutation and thread-safety rules for registry-backed
@@ -590,10 +591,10 @@ Near-term tasks:
 - keep division cancellation,
   list-aware arithmetic, and special-function shortcuts evaluator-owned until
   stronger kernel contracts exist
-- active implementation outcome:
-  - registered normalized-head rewrites are now being made explicit parts of
-    the shared symbol and extension model, while remaining a simplification-
-    stage contract rather than ordinary function-call dispatch
+- the registered normalized-head rewrite ownership slice is now completed:
+  - registered normalized-head rewrites are explicit parts of the shared
+    symbol and extension model, while remaining a simplification-stage
+    contract rather than ordinary function-call dispatch
 - define the next matcher and rewrite ladder explicitly rather than leaving it
   as one broad future bucket:
   1. richer single-expression pattern classes
@@ -850,12 +851,12 @@ Success criteria:
 
 If work starts now, the next active tranche should be:
 
-1. decide how much attribute metadata should control dispatch versus remain
-   descriptive
-2. move more execution semantics behind registry- or definition-backed
+1. move more execution semantics behind registry- or definition-backed
    contracts without widening evaluator-local branching
-3. define the next matcher tranche beyond named binders so rewrite growth is
+2. define the next matcher tranche beyond named binders so rewrite growth is
    no longer implicit
+3. make the first selected rewrite-owned transforms assumption-aware through
+   shared kernel queries rather than evaluator-local domain checks
 
 ## Deferred Work
 

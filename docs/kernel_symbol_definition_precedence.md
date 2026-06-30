@@ -22,6 +22,10 @@ It does not yet define a fully unified precedence model for:
 
 Those remain later steps.
 
+Related attribute contract:
+
+- [Kernel Attribute Spec](kernel_attribute_spec.md)
+
 ## Current Symbol Value Precedence
 
 For a symbolic `Symbol`, the current evaluator resolves in this order:
@@ -107,6 +111,25 @@ That means:
 - list-aware arithmetic, domain-sensitive `Power` behavior, and special-
   function shortcuts remain evaluator-owned even when a head also has
   registered rewrites
+
+## Evaluation-Control Attribute Scheduling
+
+Evaluation-control attributes do not replace the precedence above.
+
+Current answer:
+
+- they shape argument scheduling inside the owner that already won dispatch
+- they do not create a second owner-selection layer
+- they do not make an otherwise unknown head callable
+
+In this slice, that means:
+
+- `If`, `And`, and `Or` still resolve as special forms first
+- `Assuming` and `Refine` still resolve as registered symbolic handlers
+- `HoldFirst`, `HoldRest`, and `HoldAll` describe and publish how those
+  already-owned heads schedule arguments
+- user-defined functions and host functions do not gain hold behavior from
+  metadata alone in this slice
 
 ## Current Assignment And Definition Rules
 

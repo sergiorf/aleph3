@@ -63,6 +63,8 @@ const std::unordered_map<std::string, FunctionSemantics>& function_semantics_reg
         {"If", exact_arity_semantics(EvaluationMode::HoldRest, DispatchKind::SpecialForm, true, false, false, false, false, false, 3)},
         {"And", arity_range_semantics(EvaluationMode::HoldAll, DispatchKind::SpecialForm, true, false, false, false, false, false, 0, std::numeric_limits<size_t>::max())},
         {"Or", arity_range_semantics(EvaluationMode::HoldAll, DispatchKind::SpecialForm, true, false, false, false, false, false, 0, std::numeric_limits<size_t>::max())},
+        {"Assuming", exact_arity_semantics(EvaluationMode::HoldFirst, DispatchKind::Default, false, false, false, false, false, false, 2)},
+        {"Refine", arity_range_semantics(EvaluationMode::HoldRest, DispatchKind::Default, false, false, false, false, false, false, 1, 2)},
 
         {"Expand", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
         {"Factor", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},

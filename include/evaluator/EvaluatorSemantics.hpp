@@ -15,6 +15,7 @@ namespace aleph3 {
 
 enum class EvaluationMode {
     Eager,
+    HoldFirst,
     HoldRest,
     HoldAll
 };

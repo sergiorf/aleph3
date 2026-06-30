@@ -427,6 +427,18 @@ TEST_CASE("Evaluator special forms preserve nested branch laziness", "[evaluator
     REQUIRE(get_number_value(nested_false_result) == 7.0);
 }
 
+TEST_CASE("Evaluator boolean special forms preserve short-circuit laziness", "[evaluator][special-forms]") {
+    EvaluationContext ctx;
+
+    auto and_result = evaluate(parse_expression("And[False, 1/0]"), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*and_result));
+    REQUIRE_FALSE(std::get<Boolean>(*and_result).value);
+
+    auto or_result = evaluate(parse_expression("Or[True, 1/0]"), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*or_result));
+    REQUIRE(std::get<Boolean>(*or_result).value);
+}
+
 TEST_CASE("Evaluator special forms reject bad If arity", "[evaluator][special-forms]") {
     EvaluationContext ctx;
 
@@ -584,6 +596,20 @@ TEST_CASE("Evaluator semantics keep comparisons explicit, binary, and non-listab
         "ArcTan",
         std::vector<ExprPtr>{make_expr<Number>(1.0), make_expr<Number>(2.0), make_expr<Number>(3.0)});
     REQUIRE_THROWS_AS(evaluate(too_many, ctx), std::runtime_error);
+}
+
+TEST_CASE("Evaluator semantics expose hold contracts for existing held heads", "[evaluator][semantics][attributes]") {
+    const auto* assuming = lookup_function_semantics("Assuming");
+    REQUIRE(assuming != nullptr);
+    REQUIRE(assuming->evaluation_mode == EvaluationMode::HoldFirst);
+
+    const auto* refine = lookup_function_semantics("Refine");
+    REQUIRE(refine != nullptr);
+    REQUIRE(refine->evaluation_mode == EvaluationMode::HoldRest);
+
+    const auto* and_semantics = lookup_function_semantics("And");
+    REQUIRE(and_semantics != nullptr);
+    REQUIRE(and_semantics->evaluation_mode == EvaluationMode::HoldAll);
 }
 
 TEST_CASE("Evaluator semantics drive numeric-function dispatch and edge-domain fallback", "[evaluator][semantics][numeric]") {
@@ -1094,6 +1120,22 @@ TEST_CASE("Evaluator scopes assumptions through Assuming and Refine", "[evaluato
     expr = parse_expression("Refine[Sqrt[x^2], x <= 0]");
     result = evaluate(expr, ctx);
     REQUIRE(to_string(result) == "-x");
+}
+
+TEST_CASE("Assuming and Refine preserve held-argument scheduling", "[evaluator][assumptions][attributes]") {
+    EvaluationContext ctx;
+
+    REQUIRE_THROWS(evaluate(parse_expression("Assuming[If[False, 1/0, x > 0], 0]"), ctx));
+
+    auto assuming_result = evaluate(parse_expression("Assuming[x > 0, Length[{1, 2, 3}]]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*assuming_result));
+    REQUIRE(std::get<Number>(*assuming_result).value == 3.0);
+
+    REQUIRE_THROWS(evaluate(parse_expression("Refine[x, If[False, 1/0, x > 0]]"), ctx));
+
+    auto refine_result = evaluate(parse_expression("Refine[Length[{1, 2, 3}], x > 0]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*refine_result));
+    REQUIRE(std::get<Number>(*refine_result).value == 3.0);
 }
 
 TEST_CASE("Evaluator resolves boolean and comparison facts from assumptions", "[evaluator][assumptions]") {

@@ -459,6 +459,21 @@ TEST_CASE("Kernel function registry records minimal pack registration metadata",
     REQUIRE(spec->metadata.rewrite_safe);
 }
 
+TEST_CASE("Kernel function registry can carry explicit symbolic attributes", "[architecture][kernel][attributes]") {
+    kernel::FunctionRegistry registry;
+    registry.register_function(
+        "Assuming",
+        [](const FunctionCall& func, EvaluationContext&) -> ExprPtr {
+            return make_expr<FunctionCall>(func.head, func.args);
+        },
+        {symbols::SymbolAttribute::hold_first});
+
+    const auto* spec = registry.find_symbolic_function_spec("Assuming");
+    REQUIRE(spec != nullptr);
+    REQUIRE(spec->metadata.attributes.size() == 1);
+    REQUIRE(spec->metadata.attributes.front() == symbols::SymbolAttribute::hold_first);
+}
+
 TEST_CASE("Registered symbolic handlers win before user-defined functions", "[architecture][precedence]") {
     EvaluationContext ctx;
     evaluate(parse_expression("Length[x_] := 99"), ctx);
@@ -485,6 +500,58 @@ TEST_CASE("Builtin evaluator functions win before user-defined functions", "[arc
     REQUIRE_FALSE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::host_function));
 }
 
+TEST_CASE("Held builtin heads sync active attribute metadata into symbol state", "[architecture][attributes]") {
+    EvaluationContext ctx;
+
+    auto if_result = evaluate(parse_expression("If[x, 1, 2]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*if_result));
+    REQUIRE(ctx.symbol_metadata.has_attribute("If", symbols::SymbolAttribute::hold_rest));
+    REQUIRE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::builtin_function));
+
+    auto and_result = evaluate(parse_expression("And[x, y]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*and_result));
+    REQUIRE(ctx.symbol_metadata.has_attribute("And", symbols::SymbolAttribute::hold_all));
+    REQUIRE(ctx.definition_records.contains("And", symbols::SymbolDefinitionKind::builtin_function));
+
+    auto or_result = evaluate(parse_expression("Or[x, y]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*or_result));
+    REQUIRE(ctx.symbol_metadata.has_attribute("Or", symbols::SymbolAttribute::hold_all));
+    REQUIRE(ctx.definition_records.contains("Or", symbols::SymbolDefinitionKind::builtin_function));
+}
+
+TEST_CASE("Held symbolic builtins sync registered attribute ownership into symbol state", "[architecture][attributes]") {
+    EvaluationContext ctx;
+
+    auto assuming_result = evaluate(parse_expression("Assuming[x > 0, x]"), ctx);
+    REQUIRE(std::holds_alternative<Symbol>(*assuming_result));
+    REQUIRE(ctx.symbol_metadata.has_attribute("Assuming", symbols::SymbolAttribute::hold_first));
+    REQUIRE(ctx.definition_records.contains("Assuming", symbols::SymbolDefinitionKind::registered_handler));
+    REQUIRE_FALSE(ctx.definition_records.contains("Assuming", symbols::SymbolDefinitionKind::builtin_function));
+
+    auto refine_result = evaluate(parse_expression("Refine[x, x > 0]"), ctx);
+    REQUIRE(std::holds_alternative<Symbol>(*refine_result));
+    REQUIRE(ctx.symbol_metadata.has_attribute("Refine", symbols::SymbolAttribute::hold_rest));
+    REQUIRE(ctx.definition_records.contains("Refine", symbols::SymbolDefinitionKind::registered_handler));
+    REQUIRE_FALSE(ctx.definition_records.contains("Refine", symbols::SymbolDefinitionKind::builtin_function));
+}
+
+TEST_CASE("Registered symbolic handlers do not gain hold attributes unless declared", "[architecture][attributes]") {
+    kernel::FunctionRegistry registry;
+    registry.register_function(
+        "Peek",
+        [](const FunctionCall& func, EvaluationContext&) -> ExprPtr {
+            return make_expr<FunctionCall>(func.head, func.args);
+        });
+    EvaluationContext ctx(registry);
+
+    auto result = evaluate(parse_expression("Peek[x]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    REQUIRE(ctx.symbol_metadata.contains("Peek"));
+    REQUIRE_FALSE(ctx.symbol_metadata.has_attribute("Peek", symbols::SymbolAttribute::hold_first));
+    REQUIRE_FALSE(ctx.symbol_metadata.has_attribute("Peek", symbols::SymbolAttribute::hold_rest));
+    REQUIRE_FALSE(ctx.symbol_metadata.has_attribute("Peek", symbols::SymbolAttribute::hold_all));
+}
+
 TEST_CASE("Unknown symbolic functions remain symbolic when no handler owns the name", "[architecture][precedence]") {
     EvaluationContext ctx;
 
@@ -496,6 +563,21 @@ TEST_CASE("Unknown symbolic functions remain symbolic when no handler owns the n
     REQUIRE(call.args.size() == 1);
     REQUIRE_FALSE(ctx.symbol_metadata.contains("f"));
     REQUIRE_FALSE(ctx.definition_records.contains("f"));
+}
+
+TEST_CASE("Attribute metadata alone does not make an unknown head callable", "[architecture][attributes][precedence]") {
+    EvaluationContext ctx;
+    ctx.symbol_metadata.set("ghost", {
+        "ghost",
+        {symbols::SymbolAttribute::hold_all},
+        "Metadata-only ghost head.",
+        symbols::DefinitionOrigin::builtin,
+        "test"});
+
+    auto result = evaluate(parse_expression("ghost[1/0]"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    REQUIRE(to_string(result) == "ghost[Infinity]");
+    REQUIRE_FALSE(ctx.definition_records.contains("ghost"));
 }
 
 TEST_CASE("Assignments populate kernel symbol metadata and definition records", "[architecture][symbols]") {
@@ -573,6 +655,49 @@ TEST_CASE("Host-only functions emit host ownership without registered-handler fa
     REQUIRE(ctx.definition_records.contains("ScaleAdd", symbols::SymbolDefinitionKind::host_function));
     REQUIRE_FALSE(ctx.definition_records.contains("ScaleAdd", symbols::SymbolDefinitionKind::registered_handler));
     REQUIRE_FALSE(ctx.definition_records.contains("ScaleAdd", symbols::SymbolDefinitionKind::builtin_function));
+}
+
+TEST_CASE("User-defined functions do not gain hold semantics from symbol metadata", "[architecture][attributes][boundary]") {
+    EvaluationContext ctx;
+    evaluate(parse_expression("f[x_] := x"), ctx);
+    ctx.symbol_metadata.set("f", {
+        "f",
+        {symbols::SymbolAttribute::hold_all},
+        "Metadata-only hold marker.",
+        symbols::DefinitionOrigin::user,
+        "test"});
+
+    auto result = evaluate(parse_expression("f[Length[{1, 2, 3}]]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 3.0);
+}
+
+TEST_CASE("Host functions do not gain hold semantics from symbol metadata", "[architecture][attributes][boundary]") {
+    Bindings bindings;
+    Bindings constants;
+    kernel::HostFunctionRegistry host_functions;
+    Policy policy = Policy::default_policy();
+    EvaluationContext ctx(bindings, constants, host_functions, policy);
+
+    HostFunctionSpec echo;
+    echo.name = "Echo";
+    echo.arity = FunctionArity::exact(1);
+    echo.callback = [](std::span<const Value> args) {
+        EvaluationResult result;
+        result.value = args[0];
+        return result;
+    };
+    kernel::FunctionRegistry::register_host_function(host_functions, echo);
+    ctx.symbol_metadata.set("Echo", {
+        "Echo",
+        {symbols::SymbolAttribute::hold_first},
+        "Metadata-only hold marker.",
+        symbols::DefinitionOrigin::builtin,
+        "test"});
+
+    auto result = evaluate(parse_expression("Echo[Length[{1, 2, 3}]]"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 3.0);
 }
 
 TEST_CASE("Definition records expose explicit kind lookup", "[architecture][symbols]") {

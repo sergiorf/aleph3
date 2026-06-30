@@ -16,6 +16,7 @@ Primary implementation:
 Related lifecycle contract:
 
 - [Kernel Registration Lifecycle Spec](kernel_registration_lifecycle_spec.md)
+- [Kernel Attribute Spec](kernel_attribute_spec.md)
 
 ## Purpose
 
@@ -31,6 +32,8 @@ Plain-language summary:
   scattering ownership facts across local branches
 - a function catalog answers "which registered behaviors are available in this
   engine or session right now?"
+- evaluation-control attributes now also publish a small active scheduling
+  contract through that same shared symbol state
 
 Practical examples:
 
@@ -56,6 +59,14 @@ Kernel-owned symbol metadata now has an explicit shape:
 
 This is represented by `symbols::SymbolMetadata` and stored in
 `symbols::SymbolMetadataTable`.
+
+Attributes are no longer purely descriptive in every case.
+
+Current answer:
+
+- `HoldFirst`, `HoldRest`, and `HoldAll` are now active kernel contract facts
+  for the small builtin-owned set that already relies on held arguments
+- `listable` and `numeric_function` remain descriptive metadata in this slice
 
 ### Definition Records
 
@@ -114,6 +125,7 @@ future packs can build on.
 - `metadata.name`
 - `metadata.owning_package`
 - `metadata.documentation`
+- `metadata.attributes`
 - `metadata.source`
 - `metadata.rewrite_safe`
 - callable handler
@@ -133,6 +145,14 @@ That is the current minimum contract a future pack must satisfy:
 In plain terms, registration is how Aleph3 learns that a name has executable
 behavior, and the function catalog is where one engine or session stores those
 registrations.
+
+Attribute note:
+
+- symbolic registration metadata can now publish explicit hold attributes
+- that metadata becomes visible through shared symbol state when the
+  registration is consulted
+- publishing attribute metadata does not by itself make a symbol a new
+  evaluation owner
 
 Examples:
 
@@ -178,6 +198,8 @@ Implemented now:
 - kernel-owned definition records
 - registry metadata for symbolic functions
 - explicit pack-registration metadata path
+- shared attribute metadata sync for active held builtins and registered
+  symbolic handlers that declare hold attributes
 - shared rewrite-rule metadata and definition-record sync for registered
   normalized-head rewrites
 - evaluator-side population of metadata/definition records for registered
@@ -188,7 +210,8 @@ Implemented now:
 
 Deferred:
 
-- attribute-driven evaluation control
+- broader attribute-driven evaluation control beyond the current held builtin
+  slice
 - ownvalue/downvalue-style lookup
 - mutation semantics beyond current tables
 - fully registry- or definition-driven execution for the remaining host and
@@ -203,4 +226,4 @@ Deferred:
 - grow rewrite registration on top of this shared rewrite-rule ownership
   contract without widening rewrite semantics prematurely
 - decide how far attribute metadata should influence dispatch and argument
-  evaluation
+  evaluation after the first held-builtin contract

@@ -7,6 +7,7 @@
 #include "evaluator/EvaluatorSpecialForms.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "kernel/FunctionRegistry.hpp"
+#include "kernel/SymbolAttributes.hpp"
 #include "expr/ExprUtils.hpp"
 #include "normalizer/Normalizer.hpp"
 #include "util/Logging.hpp"
@@ -40,41 +41,6 @@ struct FunctionDispatchContract {
     bool has_host_function = false;
 };
 
-void ensure_symbol_metadata(
-    EvaluationContext& ctx,
-    const std::string& name,
-    symbols::DefinitionOrigin origin,
-    std::string provider = {},
-    std::vector<symbols::SymbolAttribute> attributes = {},
-    std::string documentation = {}) {
-    if (auto* existing = ctx.symbol_metadata.lookup(name)) {
-        for (const auto attribute : attributes) {
-            if (std::find(existing->attributes.begin(), existing->attributes.end(), attribute) ==
-                existing->attributes.end()) {
-                existing->attributes.push_back(attribute);
-            }
-        }
-        if (existing->documentation.empty() && !documentation.empty()) {
-            existing->documentation = std::move(documentation);
-        }
-        if (existing->provider.empty() && !provider.empty()) {
-            existing->provider = std::move(provider);
-        }
-        if (existing->origin == symbols::DefinitionOrigin::user &&
-            origin != symbols::DefinitionOrigin::user) {
-            existing->origin = origin;
-        }
-        return;
-    }
-
-    ctx.symbol_metadata.set(name, symbols::SymbolMetadata{
-        name,
-        std::move(attributes),
-        std::move(documentation),
-        origin,
-        std::move(provider)});
-}
-
 void ensure_definition_record(
     EvaluationContext& ctx,
     const std::string& name,
@@ -93,12 +59,15 @@ void sync_registered_symbolic_function_metadata(
     const auto origin = spec.metadata.source == kernel::RegistrationSource::pack
         ? symbols::DefinitionOrigin::pack
         : symbols::DefinitionOrigin::builtin;
-    ensure_symbol_metadata(
+    auto attributes = spec.metadata.attributes;
+    const auto builtin_attributes = kernel::builtin_symbol_attributes(spec.metadata.name);
+    attributes.insert(attributes.end(), builtin_attributes.begin(), builtin_attributes.end());
+    kernel::sync_symbol_attribute_metadata(
         ctx,
         spec.metadata.name,
         origin,
         spec.metadata.owning_package,
-        {},
+        attributes,
         spec.metadata.documentation);
     ensure_definition_record(
         ctx,
@@ -108,31 +77,21 @@ void sync_registered_symbolic_function_metadata(
         spec.metadata.owning_package);
 }
 
-std::vector<symbols::SymbolAttribute> builtin_symbol_attributes(const std::string& name) {
-    std::vector<symbols::SymbolAttribute> attributes;
+void sync_builtin_semantic_metadata(const std::string& name, EvaluationContext& ctx) {
     const auto* semantics = lookup_function_semantics(name);
     if (semantics == nullptr) {
-        return attributes;
-    }
-    if (semantics->listable) {
-        attributes.push_back(symbols::SymbolAttribute::listable);
-    }
-    if (semantics->numeric_function) {
-        attributes.push_back(symbols::SymbolAttribute::numeric_function);
-    }
-    return attributes;
-}
-
-void sync_builtin_function_metadata(const std::string& name, EvaluationContext& ctx) {
-    if (!is_builtin_evaluator_function(name, ctx.function_registry())) {
         return;
     }
-    ensure_symbol_metadata(
+    if (!is_special_form_function(name) &&
+        !is_builtin_evaluator_function(name, ctx.function_registry())) {
+        return;
+    }
+    kernel::sync_symbol_attribute_metadata(
         ctx,
         name,
         symbols::DefinitionOrigin::builtin,
         "evaluator",
-        builtin_symbol_attributes(name));
+        kernel::builtin_symbol_attributes(name));
     ensure_definition_record(
         ctx,
         name,
@@ -146,7 +105,7 @@ void sync_host_function_metadata(const std::string& name, EvaluationContext& ctx
     if (host_spec == nullptr) {
         return;
     }
-    ensure_symbol_metadata(
+    kernel::sync_symbol_attribute_metadata(
         ctx,
         name,
         symbols::DefinitionOrigin::builtin,
@@ -165,7 +124,12 @@ void sync_user_function_metadata(const std::string& name, EvaluationContext& ctx
     if (!ctx.function_definitions.contains(name)) {
         return;
     }
-    ensure_symbol_metadata(ctx, name, symbols::DefinitionOrigin::user);
+    kernel::sync_symbol_attribute_metadata(
+        ctx,
+        name,
+        symbols::DefinitionOrigin::user,
+        {},
+        {});
     ensure_definition_record(
         ctx,
         name,
@@ -177,7 +141,7 @@ void sync_symbol_contracts_for_call(const FunctionCall& func, EvaluationContext&
     if (const auto* spec = ctx.function_registry().find_symbolic_function_spec(func.head)) {
         sync_registered_symbolic_function_metadata(*spec, ctx);
     }
-    sync_builtin_function_metadata(func.head, ctx);
+    sync_builtin_semantic_metadata(func.head, ctx);
     sync_user_function_metadata(func.head, ctx);
     sync_host_function_metadata(func.head, ctx);
 }
@@ -552,7 +516,12 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
             return register_user_defined_function(def, ctx);
         },
         [&](const Assignment& assign) -> ExprPtr {
-            ensure_symbol_metadata(ctx, assign.name, symbols::DefinitionOrigin::user);
+            kernel::sync_symbol_attribute_metadata(
+                ctx,
+                assign.name,
+                symbols::DefinitionOrigin::user,
+                {},
+                {});
             ensure_definition_record(
                 ctx,
                 assign.name,

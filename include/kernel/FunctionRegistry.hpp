@@ -18,6 +18,7 @@
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/Expr.hpp"
 #include "sdk/Types.hpp"
+#include "symbols/SymbolState.hpp"
 
 namespace aleph3::kernel {
 
@@ -38,6 +39,7 @@ struct SymbolicFunctionMetadata {
     std::string name;
     std::string owning_package;
     std::string documentation;
+    std::vector<symbols::SymbolAttribute> attributes;
     RegistrationSource source = RegistrationSource::builtin;
     bool rewrite_safe = false;
 };
@@ -71,9 +73,13 @@ public:
         return registry;
     }
 
-    void register_symbolic_function(std::string name, SymbolicFunctionHandler handler) {
+    void register_symbolic_function(
+        std::string name,
+        SymbolicFunctionHandler handler,
+        std::vector<symbols::SymbolAttribute> attributes = {}) {
         SymbolicFunctionSpec spec;
         spec.metadata.name = name;
+        spec.metadata.attributes = std::move(attributes);
         spec.metadata.source = RegistrationSource::builtin;
         spec.handler = std::move(handler);
         register_symbolic_function(std::move(spec));
@@ -88,19 +94,24 @@ public:
         std::string symbol_name,
         SymbolicFunctionHandler handler,
         std::string documentation = {},
-        bool rewrite_safe = false) {
+        bool rewrite_safe = false,
+        std::vector<symbols::SymbolAttribute> attributes = {}) {
         SymbolicFunctionSpec spec;
         spec.metadata.name = std::move(symbol_name);
         spec.metadata.owning_package = std::move(package_name);
         spec.metadata.documentation = std::move(documentation);
+        spec.metadata.attributes = std::move(attributes);
         spec.metadata.source = RegistrationSource::pack;
         spec.metadata.rewrite_safe = rewrite_safe;
         spec.handler = std::move(handler);
         register_symbolic_function(std::move(spec));
     }
 
-    void register_function(std::string name, SymbolicFunctionHandler handler) {
-        register_symbolic_function(std::move(name), std::move(handler));
+    void register_function(
+        std::string name,
+        SymbolicFunctionHandler handler,
+        std::vector<symbols::SymbolAttribute> attributes = {}) {
+        register_symbolic_function(std::move(name), std::move(handler), std::move(attributes));
     }
 
     void register_builtin_function(std::string name, BuiltinFunctionHandler handler) {

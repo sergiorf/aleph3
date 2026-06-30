@@ -325,27 +325,33 @@ namespace aleph3 {
             return evaluate_assumption_predicate("RealQ", func, ctx);
             });
 
-        registry.register_function("Assuming", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
-            if (func.args.size() != 2) {
-                throw_invalid_arity_exact("Assuming", 2);
-            }
-            auto scoped_ctx = with_added_assumptions(ctx, func.args[0]);
-            return evaluate(func.args[1], scoped_ctx);
-            });
+        registry.register_function(
+            "Assuming",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                if (func.args.size() != 2) {
+                    throw_invalid_arity_exact("Assuming", 2);
+                }
+                auto scoped_ctx = with_added_assumptions(ctx, func.args[0]);
+                return evaluate(func.args[1], scoped_ctx);
+            },
+            {symbols::SymbolAttribute::hold_first});
 
-        registry.register_function("Refine", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
-            if (func.args.size() < 1 || func.args.size() > 2) {
-                throw_invalid_arity_between("Refine", 1, 2);
-            }
+        registry.register_function(
+            "Refine",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                if (func.args.size() < 1 || func.args.size() > 2) {
+                    throw_invalid_arity_between("Refine", 1, 2);
+                }
 
-            EvaluationContext scoped_ctx = ctx;
-            if (func.args.size() == 2) {
-                scoped_ctx = with_added_assumptions(std::move(scoped_ctx), func.args[1]);
-            }
+                EvaluationContext scoped_ctx = ctx;
+                if (func.args.size() == 2) {
+                    scoped_ctx = with_added_assumptions(std::move(scoped_ctx), func.args[1]);
+                }
 
-            auto evaluated = evaluate(func.args[0], scoped_ctx);
-            return kernel::refine_expr_with_assumptions(evaluated, scoped_ctx.assumptions);
-            });
+                auto evaluated = evaluate(func.args[0], scoped_ctx);
+                return kernel::refine_expr_with_assumptions(evaluated, scoped_ctx.assumptions);
+            },
+            {symbols::SymbolAttribute::hold_rest});
     }
 
 void register_built_in_functions(kernel::FunctionRegistry& registry) {

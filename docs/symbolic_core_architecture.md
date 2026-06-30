@@ -22,6 +22,11 @@ Related documents:
 - [System Architecture](system_architecture.md)
 - [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)
 
+Current reading rule:
+
+- use this document for symbolic ownership and pack-boundary guidance
+- use the kernel specs for current low-level contracts
+
 ## Top-Level Layers
 
 Aleph3 should be understood as four layers:

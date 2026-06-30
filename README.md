@@ -159,12 +159,13 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
 - Start here for the embedding surface:
   - [SDK overview](docs/sdk/README.md)
   - [Trusted subset scope](docs/trusted_subset_v1.md)
-  - [Embedded formula engine design](docs/embedded_formula_engine_design.md)
+  - [SDK stable interfaces](docs/sdk/stable_interfaces.md)
 - Start here for current symbolic/kernel contracts:
   - [Kernel design spec](docs/kernel_design_spec.md)
   - [Kernel symbol model spec](docs/kernel_symbol_model_spec.md)
   - [Kernel rewrite spec](docs/kernel_rewrite_spec.md)
   - [Kernel exact algebra spec](docs/kernel_exact_algebra_spec.md)
+  - [Kernel registration lifecycle spec](docs/kernel_registration_lifecycle_spec.md)
   - [Kernel assumptions spec](docs/kernel_assumptions_spec.md)
 - Broader reference:
   - [Algebra supported subset](docs/algebra_supported_subset.md)
@@ -172,7 +173,6 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
   - [Class collaboration](docs/class_collaboration.md)
   - [Kernel execution bridge spec](docs/kernel_execution_bridge_spec.md)
   - [Kernel representation decision](docs/kernel_representation_decision.md)
-  - [Representation gap inventory](docs/representation_gap_inventory.md)
   - [Representation lowering strategy](docs/representation_lowering_strategy.md)
   - [Layer ownership matrix](docs/layer_ownership_matrix.md)
   - [Kernel symbol definition precedence](docs/kernel_symbol_definition_precedence.md)

@@ -17,14 +17,15 @@ Related documents:
 - [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)
 - [Kernel Representation Decision](kernel_representation_decision.md)
 
-## Two Active Collaboration Tracks
+## Two Active Execution Paths
 
-Aleph3 currently has two interacting tracks in the repository:
+Aleph3 currently has two important execution paths in the repository:
 
 1. SDK / trusted-subset track
 2. symbolic kernel track
 
-They are converging, but they are not fully unified yet.
+They already share the kernel execution center, but they still have different
+frontend and product responsibilities.
 
 ## SDK Track
 
@@ -148,7 +149,8 @@ symbolic `evaluate(...)`
 
 - shared registration surface for symbolic handlers
 - shared helper surface for SDK/runtime host function registration
-- now carries symbolic registration metadata for built-ins and future packs
+- now carries symbolic registration metadata for built-ins and current pack
+  registrations
 
 `symbols::*`
 
@@ -238,7 +240,7 @@ The current decision is:
 That is documented in:
 
 - [Kernel Representation Decision](kernel_representation_decision.md)
-- [Representation Gap Inventory](representation_gap_inventory.md)
+- [Representation Lowering Strategy](representation_lowering_strategy.md)
 
 ## What Is Still Separate
 
@@ -253,10 +255,10 @@ These collaborations are not unified yet:
 
 If you want to understand the project quickly, read in this order:
 
-1. [Class Collaboration](class_collaboration.md)
-2. [Architecture](architecture.md)
-3. [System Architecture](system_architecture.md)
-4. [Symbolic Core Architecture](symbolic_core_architecture.md)
+1. [Architecture](architecture.md)
+2. [Aleph3 Unified Plan](aleph3_unified_plan.md)
+3. [Class Collaboration](class_collaboration.md)
+4. [System Architecture](system_architecture.md)
 5. [Kernel Representation Decision](kernel_representation_decision.md)
 6. [Kernel Execution Bridge Spec](kernel_execution_bridge_spec.md)
 7. [Kernel Symbol Definition Precedence](kernel_symbol_definition_precedence.md)

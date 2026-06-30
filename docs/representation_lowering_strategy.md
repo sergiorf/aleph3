@@ -11,7 +11,6 @@ representation to the kernel semantic representation after the decision that:
 Related documents:
 
 - [Kernel Representation Decision](kernel_representation_decision.md)
-- [Representation Gap Inventory](representation_gap_inventory.md)
 - [Layer Ownership Matrix](layer_ownership_matrix.md)
 
 ## Decision

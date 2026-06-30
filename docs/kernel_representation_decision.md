@@ -7,7 +7,7 @@ Accepted for the current refactor program.
 Related documents:
 
 - [Aleph3 Unified Plan](aleph3_unified_plan.md)
-- [Representation Gap Inventory](representation_gap_inventory.md)
+- [Representation Lowering Strategy](representation_lowering_strategy.md)
 
 ## Decision
 
@@ -25,7 +25,7 @@ That means:
 
 ## Why This Decision Exists
 
-The repository currently has two semantic centers:
+The repository historically developed two semantic centers:
 
 - symbolic evaluation built on `Expr`
 - SDK runtime evaluation built on `ir::Node`

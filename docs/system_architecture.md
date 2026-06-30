@@ -7,15 +7,16 @@ If you want the stable, high-level picture first, read
 
 ## Purpose
 
-This document defines the target architecture for Aleph3 as a layered symbolic
-system.
+This document is the detailed execution and module-ownership reference for the
+SDK-facing path in Aleph3.
 
 Architecture status note:
 
-- this document describes the SDK/trusted-subset architecture track
-- the repository also contains a symbolic-core track that is converging toward
-  a single kernel
-- SDK evaluation is now kernel-backed through the trusted-subset bridge
+- this document focuses on the SDK/trusted-subset path
+- SDK evaluation is already kernel-backed through the trusted-subset bridge
+- broader symbolic ownership and pack boundaries are documented separately in
+  [Symbolic Core Architecture](symbolic_core_architecture.md) and the kernel
+  specs
 
 Related architecture documents:
 
@@ -33,6 +34,12 @@ It answers four questions:
 2. what major classes each layer owns
 3. how data flows from source text to evaluated result
 4. whether the system should have an IR and eventually a VM
+
+Current reading rule:
+
+- use this document for detailed SDK execution structure
+- use `architecture.md` and the kernel specs for current architectural
+  contracts
 
 ## Architectural Goals
 

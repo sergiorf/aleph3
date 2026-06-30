@@ -11,9 +11,12 @@ transitional implementation details.
 For roadmap and sequencing, see
 [Aleph3 Unified Plan](aleph3_unified_plan.md).
 
-For detailed implementation structure, see
-[System Architecture](system_architecture.md) and
-[Symbolic Core Architecture](symbolic_core_architecture.md).
+For detailed implementation structure, see:
+
+- [Symbolic Core Architecture](symbolic_core_architecture.md)
+- [System Architecture](system_architecture.md)
+- [Kernel Design Spec](kernel_design_spec.md)
+- [SDK Stable Interfaces](sdk/stable_interfaces.md)
 
 ## System Shape
 

@@ -4,6 +4,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
 #include "kernel/Diagnostics.hpp"
+#include "kernel/FunctionRegistry.hpp"
 
 namespace aleph3 {
 
@@ -90,6 +91,21 @@ ExprPtr evaluate_special_form(const FunctionCall& func, EvaluationContext& ctx) 
     }
 
     throw_unsupported_construct("Unknown special form: " + name);
+}
+
+void register_special_forms(kernel::FunctionRegistry& registry) {
+    registry.register_special_form(
+        "If",
+        evaluate_special_form,
+        {symbols::SymbolAttribute::hold_rest});
+    registry.register_special_form(
+        "And",
+        evaluate_special_form,
+        {symbols::SymbolAttribute::hold_all});
+    registry.register_special_form(
+        "Or",
+        evaluate_special_form,
+        {symbols::SymbolAttribute::hold_all});
 }
 
 }  // namespace aleph3

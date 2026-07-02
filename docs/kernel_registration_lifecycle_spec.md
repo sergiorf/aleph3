@@ -44,6 +44,7 @@ Plain-language summary:
 `kernel::create_default_function_registry()` builds a fresh registry that
 contains:
 
+- builtin special forms
 - builtin symbolic handlers
 - builtin evaluator handlers
 - builtin head rewrites

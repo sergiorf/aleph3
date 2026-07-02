@@ -25,6 +25,7 @@ namespace aleph3::kernel {
 class EvaluationContext;
 
 using SymbolicFunctionHandler = std::function<ExprPtr(const FunctionCall&, EvaluationContext&)>;
+using SpecialFormHandler = SymbolicFunctionHandler;
 using BuiltinFunctionHandler = SymbolicFunctionHandler;
 using HeadRewriteHandler = std::function<std::optional<ExprPtr>(const FunctionCall&, EvaluationContext&)>;
 using HostFunctionRegistry = std::unordered_map<std::string, HostFunctionSpec>;
@@ -47,6 +48,11 @@ struct SymbolicFunctionMetadata {
 struct SymbolicFunctionSpec {
     SymbolicFunctionMetadata metadata;
     SymbolicFunctionHandler handler;
+};
+
+struct SpecialFormSpec {
+    SymbolicFunctionMetadata metadata;
+    SpecialFormHandler handler;
 };
 
 struct BuiltinFunctionSpec {
@@ -112,6 +118,22 @@ public:
         SymbolicFunctionHandler handler,
         std::vector<symbols::SymbolAttribute> attributes = {}) {
         register_symbolic_function(std::move(name), std::move(handler), std::move(attributes));
+    }
+
+    void register_special_form(
+        std::string name,
+        SpecialFormHandler handler,
+        std::vector<symbols::SymbolAttribute> attributes = {}) {
+        SpecialFormSpec spec;
+        spec.metadata.name = std::move(name);
+        spec.metadata.attributes = std::move(attributes);
+        spec.metadata.source = RegistrationSource::builtin;
+        spec.handler = std::move(handler);
+        register_special_form(std::move(spec));
+    }
+
+    void register_special_form(SpecialFormSpec spec) {
+        special_forms_[spec.metadata.name] = std::move(spec);
     }
 
     void register_builtin_function(std::string name, BuiltinFunctionHandler handler) {
@@ -184,6 +206,10 @@ public:
         return builtin_functions_.find(name) != builtin_functions_.end();
     }
 
+    [[nodiscard]] bool has_special_form(const std::string& name) const {
+        return special_forms_.find(name) != special_forms_.end();
+    }
+
     [[nodiscard]] bool has_head_rewrites(const std::string& name) const {
         auto it = head_rewrites_.find(name);
         return it != head_rewrites_.end() && !it->second.empty();
@@ -231,6 +257,11 @@ public:
         return it == builtin_functions_.end() ? nullptr : &it->second;
     }
 
+    [[nodiscard]] const SpecialFormSpec* find_special_form_spec(const std::string& name) const {
+        auto it = special_forms_.find(name);
+        return it == special_forms_.end() ? nullptr : &it->second;
+    }
+
     [[nodiscard]] const std::vector<HeadRewriteSpec>* find_head_rewrites(const std::string& name) const {
         auto it = head_rewrites_.find(name);
         return it == head_rewrites_.end() ? nullptr : &it->second;
@@ -258,6 +289,7 @@ private:
     }
 
     std::unordered_map<std::string, SymbolicFunctionSpec> symbolic_functions_;
+    std::unordered_map<std::string, SpecialFormSpec> special_forms_;
     std::unordered_map<std::string, BuiltinFunctionSpec> builtin_functions_;
     std::unordered_map<std::string, std::vector<HeadRewriteSpec>> head_rewrites_;
 };

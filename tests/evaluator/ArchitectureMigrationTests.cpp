@@ -1,5 +1,6 @@
 #include "evaluator/BuiltInFunctions.hpp"
 #include "evaluator/EvaluatorBuiltins.hpp"
+#include "evaluator/EvaluatorFunctions.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/Evaluator.hpp"
@@ -474,6 +475,24 @@ TEST_CASE("Kernel function registry can carry explicit symbolic attributes", "[a
     REQUIRE(spec->metadata.attributes.front() == symbols::SymbolAttribute::hold_first);
 }
 
+TEST_CASE("Default registry bootstraps held special forms explicitly", "[architecture][kernel][special-forms]") {
+    const auto registry = kernel::create_default_function_registry();
+
+    const auto* if_spec = registry.find_special_form_spec("If");
+    const auto* and_spec = registry.find_special_form_spec("And");
+    const auto* or_spec = registry.find_special_form_spec("Or");
+
+    REQUIRE(if_spec != nullptr);
+    REQUIRE(if_spec->metadata.attributes ==
+            std::vector{symbols::SymbolAttribute::hold_rest});
+    REQUIRE(and_spec != nullptr);
+    REQUIRE(and_spec->metadata.attributes ==
+            std::vector{symbols::SymbolAttribute::hold_all});
+    REQUIRE(or_spec != nullptr);
+    REQUIRE(or_spec->metadata.attributes ==
+            std::vector{symbols::SymbolAttribute::hold_all});
+}
+
 TEST_CASE("Registered symbolic handlers win before user-defined functions", "[architecture][precedence]") {
     EvaluationContext ctx;
     evaluate(parse_expression("Length[x_] := 99"), ctx);
@@ -506,17 +525,64 @@ TEST_CASE("Held builtin heads sync active attribute metadata into symbol state",
     auto if_result = evaluate(parse_expression("If[x, 1, 2]"), ctx);
     REQUIRE(std::holds_alternative<FunctionCall>(*if_result));
     REQUIRE(ctx.symbol_metadata.has_attribute("If", symbols::SymbolAttribute::hold_rest));
-    REQUIRE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::builtin_function));
+    REQUIRE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::special_form));
+    REQUIRE_FALSE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::builtin_function));
 
     auto and_result = evaluate(parse_expression("And[x, y]"), ctx);
     REQUIRE(std::holds_alternative<FunctionCall>(*and_result));
     REQUIRE(ctx.symbol_metadata.has_attribute("And", symbols::SymbolAttribute::hold_all));
-    REQUIRE(ctx.definition_records.contains("And", symbols::SymbolDefinitionKind::builtin_function));
+    REQUIRE(ctx.definition_records.contains("And", symbols::SymbolDefinitionKind::special_form));
+    REQUIRE_FALSE(ctx.definition_records.contains("And", symbols::SymbolDefinitionKind::builtin_function));
 
     auto or_result = evaluate(parse_expression("Or[x, y]"), ctx);
     REQUIRE(std::holds_alternative<FunctionCall>(*or_result));
     REQUIRE(ctx.symbol_metadata.has_attribute("Or", symbols::SymbolAttribute::hold_all));
-    REQUIRE(ctx.definition_records.contains("Or", symbols::SymbolDefinitionKind::builtin_function));
+    REQUIRE(ctx.definition_records.contains("Or", symbols::SymbolDefinitionKind::special_form));
+    REQUIRE_FALSE(ctx.definition_records.contains("Or", symbols::SymbolDefinitionKind::builtin_function));
+}
+
+TEST_CASE("Special forms are isolated to registries that own them", "[architecture][kernel][special-forms]") {
+    kernel::FunctionRegistry registry;
+    EvaluationContext ctx(registry);
+
+    auto result = evaluate(parse_expression("If[True, 1, 2]"), ctx);
+
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    REQUIRE(to_string(result) == "If[True, 1, 2]");
+    REQUIRE_FALSE(ctx.definition_records.contains("If"));
+}
+
+TEST_CASE("Registered special forms retain precedence over user and host definitions", "[architecture][precedence][special-forms]") {
+    Bindings bindings;
+    Bindings constants;
+    kernel::HostFunctionRegistry host_functions;
+    Policy policy = Policy::default_policy();
+
+    HostFunctionSpec host_if;
+    host_if.name = "If";
+    host_if.arity = FunctionArity::exact(3);
+    host_if.callback = [](std::span<const Value>) {
+        EvaluationResult result;
+        result.value = Value(99.0);
+        return result;
+    };
+    kernel::FunctionRegistry::register_host_function(host_functions, host_if);
+
+    EvaluationContext ctx(bindings, constants, host_functions, policy);
+    register_user_defined_function(
+        FunctionDefinition(
+            "If",
+            {Parameter{"x"}, Parameter{"y"}, Parameter{"z"}},
+            make_expr<Number>(88.0),
+            true),
+        ctx);
+    auto result = evaluate(parse_expression("If[True, 1, 2]"), ctx);
+
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 1.0);
+    REQUIRE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::special_form));
+    REQUIRE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::user_function));
+    REQUIRE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::host_function));
 }
 
 TEST_CASE("Held symbolic builtins sync registered attribute ownership into symbol state", "[architecture][attributes]") {

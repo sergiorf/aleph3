@@ -522,6 +522,8 @@ Current status:
 - builtin and host ownership are now explicit in kernel definition records
 - evaluator dispatch now derives a primary owner from shared symbol and
   registration facts, and builtin execution is now registry-backed
+- `If`, `And`, and `Or` now execute through an explicit registry-backed
+  special-form category with shared definition ownership
 - runtime evaluation now reads registrations from an explicit function catalog
   carried by the current engine or evaluation context instead of consulting
   singleton global state
@@ -530,7 +532,8 @@ Current status:
 
 Remaining tasks:
 
-- move more execution semantics behind registry- or definition-backed contracts
+- move the remaining host and richer builtin execution semantics behind
+  registry- or definition-backed contracts
 - decide how much attribute metadata should control dispatch versus remain
   descriptive once the first evaluation-control slice settles
 - define a staged richer definition model beyond the current narrow
@@ -851,12 +854,12 @@ Success criteria:
 
 If work starts now, the next active tranche should be:
 
-1. move more execution semantics behind registry- or definition-backed
-   contracts without widening evaluator-local branching
-2. define the next matcher tranche beyond named binders so rewrite growth is
+1. define the next matcher tranche beyond named binders so rewrite growth is
    no longer implicit
-3. make the first selected rewrite-owned transforms assumption-aware through
+2. make the first selected rewrite-owned transforms assumption-aware through
    shared kernel queries rather than evaluator-local domain checks
+3. continue moving remaining host and richer builtin execution behind shared
+   registry or definition contracts without widening evaluator-local branching
 
 ## Deferred Work
 

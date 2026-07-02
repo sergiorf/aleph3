@@ -83,6 +83,7 @@ The current definition kinds are:
 
 - `own_value`
 - `user_function`
+- `special_form`
 - `registered_handler`
 - `builtin_function`
 - `host_function`
@@ -187,6 +188,11 @@ The new symbol model now participates in that precedence directly by making
 callable ownership explicit and allowing dispatch to derive a primary owner
 from shared symbol-definition and registration facts.
 
+`If`, `And`, and `Or` now use the explicit `special_form` definition kind and
+must be present in the active function catalog. Their held evaluation and
+short-circuit behavior is registry-backed rather than an implicit process-wide
+evaluator branch.
+
 Execution still remains partly evaluator-owned once an owner is selected,
 especially for host execution and some remaining builtin behavior families.
 
@@ -198,6 +204,7 @@ Implemented now:
 - kernel-owned definition records
 - registry metadata for symbolic functions
 - explicit pack-registration metadata path
+- explicit registry-backed special-form specs for `If`, `And`, and `Or`
 - shared attribute metadata sync for active held builtins and registered
   symbolic handlers that declare hold attributes
 - shared rewrite-rule metadata and definition-record sync for registered

@@ -4,7 +4,6 @@
 #include "evaluator/EvaluatorBuiltins.hpp"
 #include "evaluator/EvaluatorFunctions.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
-#include "evaluator/EvaluatorSpecialForms.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/SymbolAttributes.hpp"
@@ -77,13 +76,30 @@ void sync_registered_symbolic_function_metadata(
         spec.metadata.owning_package);
 }
 
+void sync_special_form_metadata(
+    const kernel::SpecialFormSpec& spec,
+    EvaluationContext& ctx) {
+    kernel::sync_symbol_attribute_metadata(
+        ctx,
+        spec.metadata.name,
+        symbols::DefinitionOrigin::builtin,
+        "evaluator",
+        spec.metadata.attributes,
+        spec.metadata.documentation);
+    ensure_definition_record(
+        ctx,
+        spec.metadata.name,
+        symbols::SymbolDefinitionKind::special_form,
+        symbols::DefinitionOrigin::builtin,
+        "evaluator");
+}
+
 void sync_builtin_semantic_metadata(const std::string& name, EvaluationContext& ctx) {
     const auto* semantics = lookup_function_semantics(name);
     if (semantics == nullptr) {
         return;
     }
-    if (!is_special_form_function(name) &&
-        !is_builtin_evaluator_function(name, ctx.function_registry())) {
+    if (!is_builtin_evaluator_function(name, ctx.function_registry())) {
         return;
     }
     kernel::sync_symbol_attribute_metadata(
@@ -138,6 +154,9 @@ void sync_user_function_metadata(const std::string& name, EvaluationContext& ctx
 }
 
 void sync_symbol_contracts_for_call(const FunctionCall& func, EvaluationContext& ctx) {
+    if (const auto* spec = ctx.function_registry().find_special_form_spec(func.head)) {
+        sync_special_form_metadata(*spec, ctx);
+    }
     if (const auto* spec = ctx.function_registry().find_symbolic_function_spec(func.head)) {
         sync_registered_symbolic_function_metadata(*spec, ctx);
     }
@@ -171,7 +190,9 @@ FunctionDispatchContract build_function_dispatch_contract(
     sync_symbol_contracts_for_call(func, ctx);
 
     FunctionDispatchContract contract;
-    contract.is_special_form = is_special_form_function(func.head);
+    contract.is_special_form =
+        ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::special_form) &&
+        ctx.function_registry().find_special_form_spec(func.head) != nullptr;
     contract.has_registered_symbolic_handler =
         ctx.definition_records.contains(func.head, symbols::SymbolDefinitionKind::registered_handler) &&
         ctx.function_registry().find_symbolic_function_spec(func.head) != nullptr;
@@ -349,9 +370,15 @@ ExprPtr evaluate_host_function(const FunctionCall& func, EvaluationContext& ctx)
     return sdk_value_to_expr(*callback_result.value);
 }
 
-std::optional<ExprPtr> try_resolve_special_form(const FunctionCall& func, EvaluationContext& ctx) {
-    if (is_special_form_function(func.head)) {
-        return evaluate_special_form(func, ctx);
+std::optional<ExprPtr> try_resolve_special_form(
+    const FunctionCall& func,
+    EvaluationContext& ctx,
+    const FunctionDispatchContract& contract) {
+    if (!contract.is_special_form) {
+        return std::nullopt;
+    }
+    if (const auto* spec = ctx.function_registry().find_special_form_spec(func.head)) {
+        return spec->handler(func, ctx);
     }
     return std::nullopt;
 }
@@ -405,7 +432,7 @@ ExprPtr evaluate_general_function(const FunctionCall& func, EvaluationContext& c
 
     switch (contract.primary_owner) {
         case FunctionDispatchOwner::special_form:
-            if (auto resolved = try_resolve_special_form(func, ctx)) {
+            if (auto resolved = try_resolve_special_form(func, ctx, contract)) {
                 return *resolved;
             }
             break;
@@ -433,7 +460,7 @@ ExprPtr evaluate_general_function(const FunctionCall& func, EvaluationContext& c
             return unresolved_symbolic_fallback(func);
     }
 
-    if (auto resolved = try_resolve_special_form(func, ctx)) {
+    if (auto resolved = try_resolve_special_form(func, ctx, contract)) {
         return *resolved;
     }
     if (auto resolved = try_resolve_registered_symbolic_function(func, ctx, contract)) {

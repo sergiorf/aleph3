@@ -1,6 +1,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorBuiltins.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "evaluator/EvaluatorSpecialForms.hpp"
 #include "kernel/Assumptions.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/Rewrite.hpp"
@@ -355,6 +356,7 @@ namespace aleph3 {
     }
 
 void register_built_in_functions(kernel::FunctionRegistry& registry) {
+    register_special_forms(registry);
     register_builtin_rewrite_specs(registry);
     register_symbolic_builtins(registry);
     packs::register_algebra_pack(registry);

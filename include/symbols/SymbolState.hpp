@@ -1,3 +1,10 @@
+/*
+ * Kernel Symbol State
+ * -------------------
+ * Stores symbol metadata, definition ownership, values, and user-function
+ * definitions shared by kernel evaluation and extension dispatch.
+ */
+
 #pragma once
 
 #include "expr/Expr.hpp"
@@ -27,6 +34,7 @@ enum class DefinitionOrigin {
 enum class SymbolDefinitionKind {
     own_value,
     user_function,
+    special_form,
     registered_handler,
     builtin_function,
     host_function,

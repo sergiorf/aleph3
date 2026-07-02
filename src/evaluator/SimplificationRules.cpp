@@ -58,7 +58,8 @@ namespace aleph3 {
 
     }  // namespace
 
-    const std::unordered_map<std::string, SimplifyRule> simplification_rules = {
+    const std::unordered_map<std::string, SimplifyRule>& simplification_rules() {
+        static const std::unordered_map<std::string, SimplifyRule> rules = {
     {"Plus", [](const std::vector<ExprPtr>& args, EvaluationContext& ctx,
             const std::function<ExprPtr(const ExprPtr&, EvaluationContext&)>& eval) -> ExprPtr {
         std::vector<ExprPtr> eval_args;
@@ -424,5 +425,7 @@ namespace aleph3 {
 
         return make_fcall("Gamma", {arg});
     }},
-    };
+        };
+        return rules;
+    }
 }

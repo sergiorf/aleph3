@@ -10,5 +10,5 @@ namespace aleph3 {
         EvaluationContext&,
         const std::function<ExprPtr(const ExprPtr&, EvaluationContext&)>&
     )>;
-    extern const std::unordered_map<std::string, SimplifyRule> simplification_rules;
+    const std::unordered_map<std::string, SimplifyRule>& simplification_rules();
 }

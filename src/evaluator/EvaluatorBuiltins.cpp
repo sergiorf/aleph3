@@ -504,8 +504,9 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
         throw_runtime_type_mismatch("Arithmetic operators require numeric values.");
     }
 
-    auto simp_it = simplification_rules.find(func.head);
-    if (simp_it != simplification_rules.end()) {
+    const auto& rules = simplification_rules();
+    auto simp_it = rules.find(func.head);
+    if (simp_it != rules.end()) {
         const std::function<ExprPtr(const ExprPtr&, EvaluationContext&)> evaluator =
             [](const ExprPtr& expr, EvaluationContext& local_ctx) {
                 return evaluate(expr, local_ctx);
@@ -679,8 +680,9 @@ ExprPtr evaluate_builtin_numeric_or_comparison(const FunctionCall& func, Evaluat
         return comparison;
     }
 
-    auto simp_it = simplification_rules.find(func.head);
-    if (simp_it != simplification_rules.end()) {
+    const auto& rules = simplification_rules();
+    auto simp_it = rules.find(func.head);
+    if (simp_it != rules.end()) {
         const std::function<ExprPtr(const ExprPtr&, EvaluationContext&)> evaluator =
             [](const ExprPtr& expr, EvaluationContext& local_ctx) {
                 return evaluate(expr, local_ctx);
@@ -712,7 +714,7 @@ void register_builtin_evaluator_execution_specs_impl(kernel::FunctionRegistry& r
     for (const auto& [name, _] : comparison_functions()) {
         register_family_handler(name);
     }
-    for (const auto& [name, _] : simplification_rules) {
+    for (const auto& [name, _] : simplification_rules()) {
         register_family_handler(name);
     }
 }

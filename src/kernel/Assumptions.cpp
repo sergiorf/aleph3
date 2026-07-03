@@ -1,4 +1,5 @@
 #include "kernel/Assumptions.hpp"
+#include "kernel/Diagnostics.hpp"
 
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
@@ -555,12 +556,28 @@ ExprPtr refine_function_call_with_assumptions(
 }  // namespace
 
 void AssumptionStore::assume_boolean_symbol(std::string name, bool value) {
-    symbol_facts_[std::move(name)].boolean_value = value;
+    auto& facts = symbol_facts_[name];
+    if (facts.boolean_value.has_value() && *facts.boolean_value != value) {
+        kernel::throw_runtime_error(
+            kernel::ErrorCode::assumption_contradiction,
+            "Contradictory boolean assumptions for `" + name + "`.");
+    }
+    facts.boolean_value = value;
 }
 
 void AssumptionStore::assume_sign_fact(std::string symbol_name, const std::string& head) {
-    auto& facts = symbol_facts_[std::move(symbol_name)];
+    auto& facts = symbol_facts_[symbol_name];
     apply_sign_fact(facts, head);
+    validate_symbol_facts(symbol_name);
+}
+
+void AssumptionStore::validate_symbol_facts(std::string_view symbol_name) const {
+    const auto* facts = find_symbol_facts(symbol_name);
+    if (facts != nullptr && sign_mask_from_facts(*facts) == 0u) {
+        kernel::throw_runtime_error(
+            kernel::ErrorCode::assumption_contradiction,
+            "Contradictory sign assumptions for `" + std::string(symbol_name) + "`.");
+    }
 }
 
 void assume_domain_fact(SymbolAssumptionFacts& facts, const std::string& head) {
@@ -583,6 +600,12 @@ void AssumptionStore::assume_comparison(const FunctionCall& comparison) {
 }
 
 void AssumptionStore::assume(const ExprPtr& expr) {
+    AssumptionStore candidate = *this;
+    candidate.assume_unchecked(expr);
+    *this = std::move(candidate);
+}
+
+void AssumptionStore::assume_unchecked(const ExprPtr& expr) {
     if (expr == nullptr) {
         throw_invalid_form("Assumptions cannot be empty.");
     }
@@ -591,7 +614,9 @@ void AssumptionStore::assume(const ExprPtr& expr) {
         if (boolean->value) {
             return;
         }
-        throw_invalid_form("False assumptions are not supported yet.");
+        kernel::throw_runtime_error(
+            kernel::ErrorCode::assumption_contradiction,
+            "The assumption set contains False.");
     }
 
     if (const auto* symbol = std::get_if<Symbol>(&*expr)) {
@@ -601,7 +626,7 @@ void AssumptionStore::assume(const ExprPtr& expr) {
 
     if (const auto* list = std::get_if<List>(&*expr)) {
         for (const auto& item : list->elements) {
-            assume(item);
+            assume_unchecked(item);
         }
         return;
     }
@@ -613,7 +638,14 @@ void AssumptionStore::assume(const ExprPtr& expr) {
 
     if (func->head == "And") {
         for (const auto& arg : func->args) {
-            assume(arg);
+            assume_unchecked(arg);
+        }
+        return;
+    }
+
+    if (func->head == "List") {
+        for (const auto& arg : func->args) {
+            assume_unchecked(arg);
         }
         return;
     }

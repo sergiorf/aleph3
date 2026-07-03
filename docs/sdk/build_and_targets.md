@@ -62,9 +62,9 @@ flowchart TD
     Sdk --> Example["aleph3_sdk_example"]
 ```
 
-This diagram reflects the current build. The notebook-core target has no GUI,
-file format, or persistence layer; it is the tested product-model boundary that
-a later application will consume. The kernel has an explicit build name, the
+This diagram reflects the current build. The notebook-core target has no GUI;
+it is the tested product-model and bounded JSON persistence boundary that a
+later application will consume. The kernel has an explicit build name, the
 SDK depends on it directly, and the algebra pack contains the current
 polynomial implementation. The core-math interface target remains a placeholder
 boundary.

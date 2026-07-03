@@ -1099,8 +1099,12 @@ std::optional<ExprPtr> rewrite_normalized_power_identity_head(
     if (std::holds_alternative<Number>(*exponent)) {
         const double exponent_value = get_number_value(exponent);
         if (exponent_value == 0.0) {
-            ctx.consume_evaluation_step();
-            return make_expr<Number>(1.0);
+            const auto nonzero = ctx.assumptions.evaluate_predicate("NonZeroQ", base);
+            if (nonzero.has_value() && *nonzero) {
+                ctx.consume_evaluation_step();
+                return make_expr<Number>(1.0);
+            }
+            return std::nullopt;
         }
         if (exponent_value == 1.0) {
             ctx.consume_evaluation_step();

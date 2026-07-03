@@ -5,12 +5,15 @@
 #include "session/Session.hpp"
 #include "tooling/DemoHostFunctions.hpp"
 #include "tooling/RewriteCliSupport.hpp"
+#include "json.hpp"
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
 #include "tooling/SymbolicCliSupport.hpp"
 #endif
 
 #include <cctype>
 #include <cstddef>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -269,6 +272,8 @@ void print_help() {
         << "  help                 Show this help text\n"
         << "  examples             Show example formulas and commands\n"
         << "  repl                 Start an interactive prompt\n"
+        << "  script [--json] <path>\n"
+        << "                       Evaluate one expression per non-empty line\n"
         << "  host-functions       List the demo registered host functions\n"
         << "  tokens <formula>     Lex a formula and print the token stream\n"
         << "  parse <formula>      Parse a formula and print the SDK IR tree\n"
@@ -423,7 +428,8 @@ bool is_known_cli_command(std::string_view command) {
     return command == "help" || command == "--help" || command == "-h" ||
            command == "examples" || command == "host-functions" || command == "repl" ||
            command == "tokens" || command == "parse" || command == "validate" ||
-           command == "compile" || command == "evaluate" || command == "evaluate-host"
+           command == "compile" || command == "evaluate" || command == "evaluate-host" ||
+           command == "script"
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
            || command == "symbolic-evaluate" || command == "symbolic-simplify" ||
               command == "symbolic-fullform"
@@ -849,6 +855,81 @@ int run_default_expression(
 #endif
 }
 
+int run_script(const std::filesystem::path& path, bool json_output) {
+#if !defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+    (void)path;
+    (void)json_output;
+    std::cerr << "Script execution requires the symbolic engine.\n";
+    return 3;
+#else
+    constexpr std::uintmax_t max_script_bytes = 8u * 1024u * 1024u;
+    constexpr std::size_t max_line_bytes = 1024u * 1024u;
+    std::error_code size_error;
+    const auto size = std::filesystem::file_size(path, size_error);
+    if (size_error) {
+        std::cerr << "Unable to inspect script `" << path.string() << "`: "
+                  << size_error.message() << '\n';
+        return 3;
+    }
+    if (size > max_script_bytes) {
+        std::cerr << "Script exceeds the 8 MiB limit: " << path.string() << '\n';
+        return 3;
+    }
+
+    std::ifstream stream(path, std::ios::binary);
+    if (!stream) {
+        std::cerr << "Unable to open script `" << path.string() << "`.\n";
+        return 3;
+    }
+
+    aleph3::session::Session session;
+    bool any_failed = false;
+    std::string source;
+    std::size_t line_number = 0;
+    while (std::getline(stream, source)) {
+        ++line_number;
+        if (!source.empty() && source.back() == '\r') source.pop_back();
+        if (source.size() > max_line_bytes) {
+            std::cerr << "Script line " << line_number << " exceeds the 1 MiB limit.\n";
+            return 3;
+        }
+        if (std::all_of(source.begin(), source.end(), [](unsigned char ch) { return std::isspace(ch) != 0; })) {
+            continue;
+        }
+
+        const auto result = session.execute({source, aleph3::session::SessionOperation::evaluate});
+        any_failed = any_failed || !result.ok;
+        if (json_output) {
+            nlohmann::json record = {
+                {"schema_version", 1},
+                {"line", line_number},
+                {"source", source},
+                {"ok", result.ok},
+                {"output", result.output},
+                {"diagnostics", nlohmann::json::array()}};
+            for (const auto& diagnostic : result.diagnostics) {
+                record["diagnostics"].push_back({
+                    {"code", diagnostic.code},
+                    {"message", diagnostic.message}});
+            }
+            std::cout << record.dump() << '\n';
+        } else if (result.ok) {
+            std::cout << result.output << '\n';
+        } else {
+            for (const auto& diagnostic : result.diagnostics) {
+                std::cerr << "line " << line_number << ": " << diagnostic.code
+                          << ": " << diagnostic.message << '\n';
+            }
+        }
+    }
+    if (stream.bad()) {
+        std::cerr << "Unable to read script `" << path.string() << "`.\n";
+        return 3;
+    }
+    return any_failed ? 2 : 0;
+#endif
+}
+
 int run_command(std::string_view command, std::string_view formula) {
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
     if (command == "symbolic-evaluate") {
@@ -1167,6 +1248,26 @@ int main(int argc, char** argv) {
     }
     if (command == "repl") {
         return run_repl();
+    }
+    if (command == "script") {
+        bool json_output = false;
+        std::filesystem::path path;
+        for (int i = 2; i < argc; ++i) {
+            const std::string_view argument = argv[i];
+            if (argument == "--json" && !json_output) {
+                json_output = true;
+            } else if (path.empty()) {
+                path = std::filesystem::path(argv[i]);
+            } else {
+                std::cerr << "Usage: aleph3_cli script [--json] <path>\n";
+                return 2;
+            }
+        }
+        if (path.empty()) {
+            std::cerr << "Usage: aleph3_cli script [--json] <path>\n";
+            return 2;
+        }
+        return run_script(path, json_output);
     }
 
     if (command == "evaluate") {

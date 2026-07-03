@@ -47,6 +47,8 @@ public:
     [[nodiscard]] const SymbolAssumptionFacts* find_symbol_facts(std::string_view symbol_name) const;
 
 private:
+    void assume_unchecked(const ExprPtr& expr);
+    void validate_symbol_facts(std::string_view symbol_name) const;
     void assume_boolean_symbol(std::string name, bool value);
     void assume_comparison(const FunctionCall& comparison);
     void assume_sign_fact(std::string symbol_name, const std::string& head);

@@ -65,7 +65,7 @@ TEST_CASE("Simplify removes additive and multiplicative neutral elements", "[sim
 }
 
 TEST_CASE("Simplify collapses basic power identities and numeric powers", "[simplify]") {
-    expect_simplifies_to("x^0", "1");
+    expect_simplifies_to("x^0", "x^0");
     expect_simplifies_to("x^1", "x");
     expect_simplifies_to("1^x", "1");
     expect_simplifies_to("2^3", "8");

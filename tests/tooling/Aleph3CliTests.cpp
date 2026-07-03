@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -108,6 +110,19 @@ std::string make_direct_command(std::string_view arguments) {
 #endif
 }
 
+class TemporaryScript {
+public:
+    TemporaryScript(std::string name, std::string contents)
+        : path_(std::filesystem::temp_directory_path() / std::move(name)) {
+        std::ofstream stream(path_, std::ios::binary | std::ios::trunc);
+        stream << contents;
+    }
+    ~TemporaryScript() { std::error_code ignored; std::filesystem::remove(path_, ignored); }
+    [[nodiscard]] const std::filesystem::path& path() const { return path_; }
+private:
+    std::filesystem::path path_;
+};
+
 }  // namespace
 
 TEST_CASE("CLI evaluates bare expressions directly", "[tooling][cli]") {
@@ -194,4 +209,47 @@ TEST_CASE("CLI one-shot evaluation is ephemeral and REPL recovers after errors",
     const auto repl = run_shell_command(make_repl_command({"(", "1 + 1", ":quit"}));
     REQUIRE(repl.exit_code == 0);
     REQUIRE(repl.output.find("2\n") != std::string::npos);
+}
+
+TEST_CASE("CLI scripts preserve state and continue after failures", "[tooling][cli][script]") {
+    TemporaryScript script(
+        "aleph3-script-state.txt",
+        "a = 2\n\na + 3\nRefine[x, And[x > 0, x <= 0]]\n1 + 1\n");
+    const auto result = run_shell_command(make_direct_command(
+        "script \"" + script.path().string() + "\""));
+
+    REQUIRE(result.exit_code == 2);
+    REQUIRE(result.output.find("5\n") != std::string::npos);
+    REQUIRE(result.output.find("line 4: runtime.assumption_contradiction") != std::string::npos);
+    REQUIRE(result.output.find("2\n") != std::string::npos);
+}
+
+TEST_CASE("CLI scripts emit deterministic JSON Lines", "[tooling][cli][script][json]") {
+    TemporaryScript script(
+        "aleph3-script-json.txt",
+        "Refine[x, And[x > 0, x <= 0]]\n1 + 1\n");
+    const auto result = run_shell_command(make_direct_command(
+        "script --json \"" + script.path().string() + "\""));
+
+    REQUIRE(result.exit_code == 2);
+    REQUIRE(result.output.find("\"schema_version\":1") != std::string::npos);
+    REQUIRE(result.output.find("\"line\":1") != std::string::npos);
+    REQUIRE(result.output.find("\"code\":\"runtime.assumption_contradiction\"") != std::string::npos);
+    REQUIRE(result.output.find("\"line\":2") != std::string::npos);
+    REQUIRE(result.output.find("\"output\":\"2\"") != std::string::npos);
+    REQUIRE(result.output.find("Aleph3") == std::string::npos);
+}
+
+TEST_CASE("CLI scripts enforce usage and line limits", "[tooling][cli][script][limits]") {
+    const auto usage = run_shell_command(make_direct_command("script"));
+    REQUIRE(usage.exit_code == 2);
+    REQUIRE(usage.output.find("Usage:") != std::string::npos);
+
+    TemporaryScript script(
+        "aleph3-script-oversized-line.txt",
+        std::string(1024u * 1024u + 1u, 'x'));
+    const auto oversized = run_shell_command(make_direct_command(
+        "script \"" + script.path().string() + "\""));
+    REQUIRE(oversized.exit_code == 3);
+    REQUIRE(oversized.output.find("1 MiB limit") != std::string::npos);
 }

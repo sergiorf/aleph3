@@ -455,6 +455,9 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
     if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
         double a = get_number_value(left);
         double b = get_number_value(right);
+        if (func.head == "Power" && a == 0.0 && b == 0.0 && !ctx.strict_runtime_semantics()) {
+            return make_fcall(func.head, {left, right});
+        }
         if (ctx.strict_runtime_semantics()) {
             ensure_finite_number(a);
             ensure_finite_number(b);

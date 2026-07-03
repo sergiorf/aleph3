@@ -24,6 +24,19 @@ The symbolic REPL preserves assignments and definitions. One-shot commands
 start fresh. On supported terminals Tab completes commands and symbols;
 `:complete` is the deterministic, pipe-friendly fallback.
 
+For stateful batch work, a script contains one expression per non-empty line:
+
+```text
+aleph3_cli script calculations.aleph3
+aleph3_cli script --json calculations.aleph3
+```
+
+One session is shared across the file, failures do not stop later lines, and
+the process exits with `2` if any expression fails. JSON mode emits one compact
+object per submitted line with its line number, source, status, canonical
+output, and unchanged session diagnostics. Scripts are limited to 8 MiB and
+individual lines to 1 MiB; comments and multiline expressions are unsupported.
+
 ## Headless Notebook Foundation
 
 The current build includes an experimental `aleph3_notebook_core` library, but
@@ -35,7 +48,14 @@ the previous generated results.
 Definitions flow to later cells during a run. Repeating `Run All` starts clean,
 and one failed input records its session diagnostics without preventing later
 inputs from running. Generated results retain canonical plain text and current
-diagnostic codes/messages; rich display and persistence are not implemented.
+diagnostic codes/messages. The core saves and loads bounded UTF-8 JSON v1
+documents, including optional cached results marked with their producer
+version. Loading never evaluates source.
+
+Saves validate first, write beside the destination, and atomically replace the
+old file using the supported platform API. A failed validation, write, or
+replacement leaves the previous valid destination intact. Autosave, recovery
+journals, and migrations are not implemented.
 
 ## Planned Notebook Application
 
@@ -55,9 +75,9 @@ The GUI owns presentation and documents. The session owns execution state, the
 kernel owns meaning, and packs own domain mathematics.
 
 No notebook application is included in the current build. Until it exists,
-`aleph3_cli repl` is the runnable local interactive surface. The headless core
-has no save/open support yet. Code generation, PDF/HTML export, rich Markdown,
-and paid packs are roadmap features, not current capabilities.
+`aleph3_cli repl` is the runnable local interactive surface. Code generation,
+PDF/HTML export, rich Markdown, and paid packs are roadmap features, not
+current capabilities.
 
 The first notebook should evaluate currently supported examples such as exact
 arithmetic, `Refine[Sqrt[x^2], x >= 0]`, rewriting, and polynomial operations.

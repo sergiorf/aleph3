@@ -156,12 +156,6 @@ namespace aleph3 {
                     return make_number(1);
                 }
 
-                if (auto num = std::get_if<Number>(exponent.get())) {
-                    if (num->value == 0.0) {
-                        return make_number(1);
-                    }
-                }
-
                 // Simplify x^1 → x
                 if (auto num = std::get_if<Number>(exponent.get())) {
                     if (num->value == 1.0) {
@@ -172,6 +166,9 @@ namespace aleph3 {
                 // Simplify n^m where n and m are numbers
                 if (auto base_num = std::get_if<Number>(base.get())) {
                     if (auto exp_num = std::get_if<Number>(exponent.get())) {
+                        if (base_num->value == 0.0 && exp_num->value == 0.0) {
+                            return make_expr<FunctionCall>("Power", std::vector<ExprPtr>{base, exponent});
+                        }
                         return make_number(std::pow(base_num->value, exp_num->value));
                     }
                 }

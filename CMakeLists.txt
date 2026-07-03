@@ -51,6 +51,7 @@ if(ALEPH3_BUILD_SDK)
 
     add_executable(aleph3_cli src/tooling/aleph3_cli.cpp)
     target_link_libraries(aleph3_cli PRIVATE aleph3_sdk)
+    target_include_directories(aleph3_cli PRIVATE third_party/nlohmann)
 
     add_executable(aleph3_sdk_example examples/sdk_host_example.cpp)
     target_link_libraries(aleph3_sdk_example PRIVATE aleph3_sdk)
@@ -104,6 +105,7 @@ if(ALEPH3_BUILD_KERNEL)
         src/notebook/Notebook.cpp
         include/notebook/Notebook.hpp)
     target_include_directories(aleph3_notebook_core PUBLIC include)
+    target_include_directories(aleph3_notebook_core PRIVATE third_party/nlohmann)
     target_link_libraries(aleph3_notebook_core PUBLIC aleph3_kernel)
 
     if(ALEPH3_BUILD_SDK)

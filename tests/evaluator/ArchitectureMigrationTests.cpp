@@ -1058,8 +1058,7 @@ TEST_CASE("Kernel rewrite owns fixed Power identities through a dedicated entryp
     const auto zero_rewritten = kernel::rewrite_normalized_power_identity_head(
         std::get<FunctionCall>(*zero_exponent),
         ctx);
-    REQUIRE(zero_rewritten.has_value());
-    REQUIRE(to_string(*zero_rewritten) == "1");
+    REQUIRE_FALSE(zero_rewritten.has_value());
 
     const auto unit_exponent = normalize_expr(parse_expression("x^1"));
     REQUIRE(std::holds_alternative<FunctionCall>(*unit_exponent));

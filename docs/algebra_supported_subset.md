@@ -75,6 +75,11 @@ Variable selectors follow this contract:
   its order defines variable precedence under fixed graded lexicographic order
 - multivariate `GCD` and inexact multivariate division remain unsupported
 
+The next multivariate `GCD` subset has been specified but is not implemented.
+It will require explicit selectors, exact coefficients, and at least one
+single-term monomial operand. Its proposed examples are plans, not current
+support.
+
 Examples of explicit failures:
 
 - `Collect[x^2 + 1, 3]` -> invalid selector

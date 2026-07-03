@@ -123,3 +123,11 @@ TEST_CASE("Session reports polynomial division by zero with a stable diagnostic"
     REQUIRE(result.diagnostics.size() == 1);
     REQUIRE(result.diagnostics.front().code == "runtime.division_by_zero");
 }
+
+TEST_CASE("Session preserves assumption contradiction diagnostics", "[session][assumptions][diagnostics]") {
+    Session session;
+    const auto result = session.execute({"Refine[x, And[x > 0, x <= 0]]"});
+    REQUIRE_FALSE(result.ok);
+    REQUIRE(result.diagnostics.size() == 1);
+    REQUIRE(result.diagnostics.front().code == "runtime.assumption_contradiction");
+}

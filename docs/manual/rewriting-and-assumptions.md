@@ -52,6 +52,8 @@ Assumptions supply temporary facts that justify selected behavior:
 Refine[Sqrt[x^2], x >= 0]                -> x
 Refine[Abs[x], x >= 0]                   -> x
 Assuming[x > 0, If[x > 0, 1, 2]]         -> 1
+Refine[x^0, x != 0]                       -> 1
+x^0                                       -> x^0
 ```
 
 The current model covers direct booleans, comparisons, signs, nonzero facts,
@@ -59,6 +61,15 @@ and narrow integer/rational/real domains, plus limited derived signs for simple
 exact forms. It is not a general theorem prover. Temporary facts do not leak
 after `Refine` or `Assuming` finishes.
 
+Contradictory direct facts fail atomically with
+`runtime.assumption_contradiction`:
+
+```text
+Refine[x, And[x > 0, x <= 0]]             -> diagnostic
+```
+
+Detection is limited to direct boolean and sign conflicts. It does not attempt
+general inequality solving.
+
 See the [rewrite specification](../kernel_rewrite_spec.md) and
 [assumptions specification](../kernel_assumptions_spec.md) for exact limits.
-

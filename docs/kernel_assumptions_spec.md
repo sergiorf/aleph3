@@ -202,7 +202,8 @@ Still intentionally out of scope:
 - conditions and typed pattern assumptions
 - quantified logic
 - interval arithmetic beyond simple sign facts
-- contradiction solving
+- arbitrary contradiction solving beyond the direct boolean and sign facts
+  described below
 - broad domain propagation across arbitrary algebra
 - assumption-aware global simplification scheduling
 - sign inference for general sums such as `x + 1`
@@ -228,13 +229,18 @@ Examples that are still out of scope:
   `EvaluationContext`
 - unsupported assumption forms fail explicitly instead of being silently
   ignored
+- direct boolean and sign contradictions fail atomically with
+  `runtime.assumption_contradiction`; a rejected list leaves no partial facts
+- `False` is a contradictory assumption rather than an unsupported form
 - this slice is designed for predictable behavior, not broad inference
+
+Direct contradiction detection covers `flag` with `Not[flag]`, positive with
+nonpositive, negative with nonnegative, and zero with nonzero. It does not
+solve arbitrary inequalities or negate domain predicates.
 
 ## Next Growth Areas
 
 Likely follow-on work:
 
 - richer domain categories beyond integer/rational/real symbol facts
-- assumption-aware rewrite hooks
-- stronger contradiction handling
 - pack-facing domain queries over the same kernel contract

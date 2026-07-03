@@ -186,9 +186,7 @@ TEST_CASE("Simplify exponentiation", "[evaluator][simplification]") {
     auto expr = parse_expression("x^0");
     auto result = evaluate(expr, ctx);
 
-    // Ensure the result is a numeric value: 1
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(get_number_value(result) == 1.0);
+    REQUIRE(to_string(result) == "x^0");
 
     expr = parse_expression("x^1");
     result = evaluate(expr, ctx);
@@ -368,8 +366,7 @@ TEST_CASE("Evaluator routes fixed Power identities through the kernel-owned entr
     EvaluationContext ctx;
 
     const auto zero_exponent = evaluate(parse_expression("mystery[x]^0"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*zero_exponent));
-    REQUIRE(get_number_value(zero_exponent) == 1.0);
+    REQUIRE(to_string(zero_exponent) == "(mystery[x])^0");
 
     const auto unit_exponent = evaluate(parse_expression("mystery[x]^1"), ctx);
     REQUIRE(std::holds_alternative<FunctionCall>(*unit_exponent));
@@ -1344,7 +1341,7 @@ TEST_CASE("Evaluator rejects unsupported assumption forms explicitly", "[evaluat
     expr = parse_expression("Refine[x, False]");
     REQUIRE_THROWS_WITH(
         evaluate(expr, ctx),
-        "False assumptions are not supported yet.");
+        "The assumption set contains False.");
 
     expr = parse_expression("Assuming[Positive[x + 1], x]");
     REQUIRE_THROWS_WITH(
@@ -1355,6 +1352,41 @@ TEST_CASE("Evaluator rejects unsupported assumption forms explicitly", "[evaluat
     REQUIRE_THROWS_WITH(
         evaluate(expr, ctx),
         "Assumption predicates only support symbol arguments.");
+}
+
+TEST_CASE("Assumption insertion rejects contradictions transactionally", "[evaluator][assumptions][diagnostics]") {
+    EvaluationContext ctx;
+    ctx.assumptions.assume(parse_expression("x > 0"));
+
+    REQUIRE_THROWS_AS(
+        ctx.assumptions.assume(parse_expression("{flag, Not[flag]}")),
+        kernel::RuntimeFailure);
+    REQUIRE_FALSE(ctx.assumptions.find_boolean_value("flag").has_value());
+    REQUIRE(ctx.assumptions.evaluate_predicate("Positive", parse_expression("x")) == true);
+
+    for (const auto* source : {
+             "{x > 0, x <= 0}",
+             "{x < 0, x >= 0}",
+             "{x == 0, x != 0}",
+             "False"}) {
+        try {
+            ctx.assumptions.assume(parse_expression(source));
+            FAIL("Expected contradictory assumptions to fail");
+        } catch (const kernel::RuntimeFailure& failure) {
+            REQUIRE(failure.error().code == "runtime.assumption_contradiction");
+        }
+    }
+}
+
+TEST_CASE("Power zero identity requires a known nonzero base", "[evaluator][assumptions][rewrite]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("x^0"), ctx)) == "x^0");
+    REQUIRE(to_string(evaluate(parse_expression("0^0"), ctx)) == "0^0");
+    REQUIRE(to_string(evaluate(parse_expression("2^0"), ctx)) == "1");
+    REQUIRE(to_string(evaluate(parse_expression("Refine[x^0, x != 0]"), ctx)) == "1");
+    REQUIRE(to_string(evaluate(parse_expression("x^1"), ctx)) == "x");
+    REQUIRE(to_string(evaluate(parse_expression("1^x"), ctx)) == "1");
 }
 
 TEST_CASE("Evaluator throws error for invalid StringJoin arguments", "[evaluator][string]") {

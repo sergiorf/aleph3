@@ -3,15 +3,15 @@
 ## Status and Goal
 
 This document is the proposed contract for the first Aleph3 notebook. The
-headless document and `Run All` slice described below is implemented; the GUI,
-persistence, and remaining behavior are planned rather than shipped.
+headless document, `Run All`, and JSON persistence slices described below are
+implemented; the GUI and remaining behavior are planned rather than shipped.
 
 The MVP succeeds when a user can launch a local application, create and edit a
 document, evaluate supported symbolic input through one session, understand
 results or failures, save the document, reopen it, and run bundled examples.
 
-The product name, GUI toolkit, and physical file encoding remain open. Those
-choices must preserve the behavioral contract below.
+The product name and GUI toolkit remain open. The physical v1 encoding is
+bounded UTF-8 JSON.
 
 ## Ownership
 
@@ -46,7 +46,8 @@ major versions fail with a structured load diagnostic.
 Notebook files must not contain native pointers, opaque evaluator objects,
 provider secrets, API tokens, or an implicit claim that cached output is still
 valid. The physical encoding may be JSON, an archive, or another inspectable
-format; that decision follows a persistence prototype.
+format. Unknown optional object fields are accepted and ignored in v1; unknown
+cell kinds and incompatible versions fail explicitly.
 
 ## Evaluation Lifecycle
 
@@ -209,12 +210,28 @@ Completion requires the focused tests, both affected existing suites,
 
 ### Deferred Decisions and Non-Goals
 
-The slice does not choose Qt versus webview, a product name, or a physical file
-encoding. It does not add save/load, cached-output compatibility, individual
-cell execution, cancellation, Markdown rendering, rich mathematical display,
-autosave, gallery UI, export, plotting, or packaging. Persistence is the next
-vertical slice after the in-memory model proves stable; the bounded toolkit
-spikes may then run against the same model and representative fixture.
+At delivery this slice did not choose Qt versus webview, a product name, or a
+physical file encoding. It did not add save/load, cached-output compatibility,
+individual cell execution, cancellation, Markdown rendering, rich mathematical
+display, autosave, gallery UI, export, plotting, or packaging. Persistence was
+delivered by the following slice below; the remaining items stay deferred.
+
+## Delivered Persistence Slice
+
+The notebook core now encodes and decodes version-1 UTF-8 JSON in memory and
+loads or atomically saves local files. The persisted document contains ordered
+input/text cells and optional generated results with canonical text,
+diagnostics, and producer version.
+
+Default limits are 8 MiB per file, 10,000 cells, 10,000 cached results, 256
+bytes per cell identifier, 1 MiB per source/output/diagnostic text field, 8 MiB
+aggregate source, and 128 diagnostics per result. Invalid references,
+duplicate identifiers or results, unknown cell kinds, incompatible versions,
+corrupt JSON, and exceeded limits fail with stable notebook errors. Loading
+constructs a new document and never evaluates cells.
+
+Autosave, recovery journals, compression, encryption, schema migrations, and
+GUI file dialogs remain deferred.
 
 ## MVP Acceptance Evidence
 

@@ -147,6 +147,11 @@ What is already true:
 - a GUI-independent notebook core now owns versioned in-memory documents,
   ordered input/text cells, generated results, and deterministic clean
   `Run All` execution over fresh shared sessions
+- direct boolean/sign assumption contradictions now fail atomically through a
+  canonical diagnostic, and zero-power rewriting consults shared nonzero facts
+- the CLI now runs bounded stateful scripts with optional JSON Lines results
+- the notebook core now provides bounded JSON v1 loading and atomic local save,
+  including version-marked cached results
 
 What is still unresolved:
 
@@ -1076,21 +1081,21 @@ Success criteria:
 
 ## Immediate Action Queue
 
-Three balanced tranches have now delivered typed and conditional patterns,
+Four balanced tranches have now delivered typed and conditional patterns,
 depth-controlled replacement, exact rational factorization, explicit
-multivariate ordering and division, and a stateful CLI session with inspection,
-pack discovery, and completion. The next active tranche is:
+multivariate ordering and division, a stateful CLI session with inspection,
+pack discovery and completion, contradiction-safe assumptions, CLI scripts,
+and headless notebook persistence. The next active tranche is:
 
-1. **Kernel and SDK:** add explicit assumption-contradiction handling and the
-   first selected assumption-aware rewrite hook
-2. **Math packs:** specify the first supported exact multivariate GCD contract
-   over the shared division and ordering invariants
-3. **CLI and IDE foundation:** add script execution and a narrow
-   machine-readable result mode over the existing session contract
-4. **Notebook MVP:** specify and implement versioned persistence with bounded
-   loading and atomic save behavior, then run bounded Qt/webview spikes against
-   the delivered document model and shared product fixture described in the
-   [Notebook MVP Design](notebook_mvp_design.md#delivered-first-implementation-slice)
+1. **Kernel and SDK:** expose the first pack-facing domain query over the shared
+   assumption contract and continue diagnostic hardening
+2. **Math packs:** implement the specified exact monomial-bounded multivariate
+   GCD contract over shared division and ordering invariants
+3. **CLI and IDE foundation:** harden script/JSON compatibility and process
+   behavior as a stable session-consumer contract
+4. **Notebook MVP:** run bounded Qt and webview spikes against the delivered
+   document, persistence, and shared product fixture, then record the toolkit
+   decision in architecture
 5. **Cross-cutting validation:** continue closing P0 diagnostic, overflow,
    registry-collision, failure-recovery, and process-level CLI gaps before
    declaring these experimental interfaces stable

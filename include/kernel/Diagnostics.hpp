@@ -23,6 +23,7 @@ enum class ErrorCode {
     invalid_form,
     invalid_arity,
     domain_violation,
+    assumption_contradiction,
     unsupported_construct,
     internal_inconsistency,
     unknown_binding,
@@ -52,6 +53,8 @@ enum class ErrorCode {
             return "kernel.invalid_arity";
         case ErrorCode::domain_violation:
             return "kernel.domain_violation";
+        case ErrorCode::assumption_contradiction:
+            return "kernel.assumption_contradiction";
         case ErrorCode::unsupported_construct:
             return "kernel.unsupported_construct";
         case ErrorCode::internal_inconsistency:
@@ -102,6 +105,8 @@ enum class ErrorCode {
             return "runtime.invalid_arity";
         case ErrorCode::domain_violation:
             return "runtime.domain_violation";
+        case ErrorCode::assumption_contradiction:
+            return "runtime.assumption_contradiction";
         case ErrorCode::unsupported_construct:
             return "runtime.unsupported_construct";
         case ErrorCode::internal_inconsistency:

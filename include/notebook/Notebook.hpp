@@ -4,6 +4,7 @@
 #include "session/Session.hpp"
 
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <stdexcept>
 #include <string>
@@ -25,6 +26,17 @@ struct GeneratedResult {
     bool ok = false;
     std::string output;
     std::vector<session::SessionDiagnostic> diagnostics;
+    std::string producer_version;
+};
+
+struct PersistenceLimits {
+    std::size_t max_file_bytes = 8u * 1024u * 1024u;
+    std::size_t max_cells = 10000;
+    std::size_t max_results = 10000;
+    std::size_t max_cell_id_bytes = 256;
+    std::size_t max_text_bytes = 1024u * 1024u;
+    std::size_t max_aggregate_source_bytes = 8u * 1024u * 1024u;
+    std::size_t max_diagnostics_per_result = 128;
 };
 
 class DocumentError : public std::runtime_error {
@@ -55,5 +67,19 @@ class Runner {
 public:
     void run_all(Document& document) const;
 };
+
+[[nodiscard]] std::string encode_document(
+    const Document& document,
+    const PersistenceLimits& limits = {});
+[[nodiscard]] Document decode_document(
+    std::string_view bytes,
+    const PersistenceLimits& limits = {});
+[[nodiscard]] Document load_document(
+    const std::filesystem::path& path,
+    const PersistenceLimits& limits = {});
+void save_document_atomic(
+    const Document& document,
+    const std::filesystem::path& path,
+    const PersistenceLimits& limits = {});
 
 }  // namespace aleph3::notebook

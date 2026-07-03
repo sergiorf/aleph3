@@ -344,6 +344,9 @@ namespace aleph3 {
         if (std::holds_alternative<Number>(*base) && std::holds_alternative<Number>(*exp)) {
             double b = get_number_value(base);
             double e = get_number_value(exp);
+            if (b == 0.0 && e == 0.0) {
+                return make_fcall("Power", {base, exp});
+            }
             return make_expr<Number>(std::pow(b, e));
         }
         return make_fcall("Power", {base, exp});

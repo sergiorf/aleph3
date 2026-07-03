@@ -261,8 +261,11 @@ The first rewrite-owned simplification slice is now intentionally narrow:
 - binary `Plus` neutral-element identities such as `0 + a -> a`
 - binary `Times` neutral and annihilator identities such as `1 * a -> a` and
   `0 * a -> 0`
-- basic `Power` identities such as `a^0 -> 1`, `a^1 -> a`, and `1^a -> 1`
-  through a dedicated normalized `Power` rewrite entrypoint
+- basic `Power` identities through a dedicated normalized `Power` rewrite
+  entrypoint: `a^1 -> a` and `1^a -> 1` are unconditional, while `a^0 -> 1`
+  requires an exact nonzero base or a shared `NonZeroQ[a]` assumption
+- unknown `a^0` and `0^0` remain symbolic; the rewrite does not invent a
+  domain convention
 
 For this slice, the scheduling contract is:
 

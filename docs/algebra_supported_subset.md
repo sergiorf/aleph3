@@ -39,6 +39,10 @@ Current ownership boundary:
 
 ## Canonical Output Contract
 
+For the underlying vocabulary—coefficient, monomial, total degree, variable
+precedence, and graded lexicographic order—see
+[Polynomial Vocabulary](concepts.md#polynomial-vocabulary).
+
 Supported algebra outputs follow these rules:
 
 - expanded and collected outputs use the engine's canonical commutative order

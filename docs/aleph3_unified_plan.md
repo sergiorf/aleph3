@@ -338,8 +338,10 @@ Each track must consume the same kernel contracts. Pack or interactive work
 that reveals a missing contract should feed that requirement back into the
 kernel rather than create private semantics.
 
-The project should avoid large standalone GUI, hosted-product, solver, or broad
-CAS investments while foundational contracts remain transitional. It should
+The project should avoid a large standalone GUI, hosted-product, solver, or
+broad CAS investment while foundational contracts remain transitional. A thin
+notebook-like v0.1 over the shared session is now an appropriate feedback
+surface; it must not introduce private evaluation semantics. The project should
 not defer narrow user-facing slices that exercise stable contracts. A useful
 tranche therefore delivers one foundation improvement, one mathematical
 capability, and one way for users to experience or inspect it.
@@ -907,8 +909,11 @@ Priority:
 
 - CLI and session foundations proceed now in narrow slices over stable kernel
   contracts
-- a large standalone GUI waits until the reusable session contract has a real
-  CLI consumer
+- the session now has a real CLI consumer, so a thin notebook/workbench can
+  proceed in parallel with session hardening
+- the first GUI slice should prioritize cells, completion, diagnostics,
+  inspection, persistence, and bounded 2D graph workflows
+- a large standalone GUI framework or private execution model remains deferred
 
 Success criteria:
 

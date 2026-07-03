@@ -139,6 +139,9 @@ Organize the plan into small vertical tasks. Each task names:
 - documentation that must change
 - focused verification commands and expected evidence
 
+Every user-visible vertical task includes its documentation work in that task.
+Documentation is not an optional cleanup step after implementation.
+
 Prefer semantic milestones over mechanical file-edit lists. Include file names
 when they prevent ambiguity, not as a substitute for describing behavior.
 
@@ -176,6 +179,45 @@ unsupported behavior changes.
 Do not copy the workflow into feature plans, specifications, or pull requests;
 link here and record only the feature-specific decisions and evidence.
 
+## Documentation Gate
+
+Every new or changed user-visible capability must leave the documentation
+consistent with shipped behavior. Review this ownership map and update every
+applicable document:
+
+- **Manual:** update the relevant chapter under `docs/manual/` with purpose,
+  syntax, runnable examples, evaluation behavior, diagnostics, exact/inexact
+  behavior, and unsupported cases. Extend an existing chapter before creating
+  another one.
+- **Concepts:** update `docs/concepts.md` when the feature introduces vocabulary
+  or a mental model needed to understand its syntax.
+- **Specifications and supported subsets:** record durable contracts,
+  invariants, failure behavior, and precise boundaries in their canonical
+  focused documents.
+- **CLI help and discovery:** update help text, completion metadata, examples,
+  and command descriptions when the feature is interactively visible.
+- **README and documentation index:** update these only for onboarding,
+  navigation, build, or major product-surface changes; do not duplicate the
+  manual there.
+- **Unified Plan:** update it only when delivery changes roadmap state,
+  priorities, milestones, or the immediate action queue.
+
+Documentation must accompany the implementation that makes it true. Do not
+present planned behavior as current behavior; label future notebook, graph,
+pack, or SDK functionality explicitly as direction or planned work.
+
+Validate documentation proportionally:
+
+- execute representative manual examples or cover them with tests
+- ensure displayed canonical output matches the current renderer
+- check local Markdown links and headings
+- search the affected area for stale claims contradicted by the feature
+- make limitations and failure behavior as visible as successful examples
+
+Correct stale documentation found in the affected area in the same change. If
+the correction is materially broader than the feature, report that scope
+expansion explicitly.
+
 ## Completion Checklist
 
 A substantial feature is complete when:
@@ -185,6 +227,9 @@ A substantial feature is complete when:
 - exactness, diagnostics, budgets, and unsupported behavior are explicit
 - focused and affected broader tests pass, or failures are accounted for
 - public contracts and supported-subset documentation match the code
+- relevant manual pages explain the capability with verified examples and
+  explicit limitations
+- affected concepts, help text, README navigation, and links are current
 - the diff contains no unnecessary duplicate semantics or unrelated changes
 - roadmap status is updated only if the delivered work changed it
 - completion evidence and remaining limitations are reported

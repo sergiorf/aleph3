@@ -132,6 +132,24 @@ performs a caller-directed structural transformation.
 Rewrites are bounded because a rule such as `a_ -> f[a]` could otherwise run
 forever.
 
+### Replacement Depth
+
+The root expression is depth `0`; its arguments are depth `1`; their arguments
+are depth `2`, and so on. Function head names are not counted as children.
+
+```text
+expression: f[f[x], x]
+
+Replace[f[f[x], x], x -> y, 1]       -> f[f[x], y]
+Replace[f[f[x], x], x -> y, 2]       -> f[f[y], x]
+Replace[f[f[x], x], x -> y, {1, 2}]  -> f[f[y], y]
+```
+
+The last argument is either one exact depth or an inclusive `{min, max}`
+range. Omitting it preserves the existing whole-expression traversal. Aleph3
+currently supports nonnegative depths only; negative levels and traversal of
+head names are intentionally outside this contract.
+
 A **conditional pattern** adds a predicate after structural matching. Bindings
 are substituted into the predicate, which is evaluated with the same session
 budget as the rewrite:
@@ -167,6 +185,72 @@ approximate: 0.333... + 0.166... (subject to rounding)
 Exactness is a contract, not a claim that every mathematical object is already
 supported. The algebra specifications state the current boundary.
 
+## Polynomial Vocabulary
+
+A **polynomial** is a sum of terms made from coefficients and variables raised
+to nonnegative integer powers:
+
+```text
+3*x^2*y + 1/2*y - 4
+```
+
+In this expression:
+
+- `3`, `1/2`, and `-4` are **coefficients**
+- `x^2*y` and `y` are **monomials**, the variable-and-exponent parts
+- `3*x^2*y`, `1/2*y`, and `-4` are **terms**
+- the polynomial is **multivariate** because it contains more than one
+  variable (`x` and `y`)
+
+A univariate polynomial uses one variable, such as `x^3 - 2*x + 1`.
+Multivariate does not mean “multiple equations”; it means one polynomial whose
+terms may involve multiple variables.
+
+### Canonical Monomial Order
+
+A multivariate polynomial needs a deterministic rule for deciding which term
+comes first. Aleph3's current canonical order compares:
+
+1. total degree, the sum of a monomial's exponents
+2. variable exponents in the declared precedence order
+
+For example, both `x^2*y` and `x*y^2` have total degree three. With precedence
+`{x, y}`, `x^2*y` comes first because it has the larger exponent of `x`. This
+policy is called **graded lexicographic order**.
+
+The order is not cosmetic. Polynomial division repeatedly works with the
+leading term, so changing variable precedence can change the quotient and
+remainder while preserving the same reconstruction identity.
+
+### Multivariate Polynomial Division
+
+`PolynomialQuotient[dividend, divisor, {x, y}]` performs exact division by one
+divisor. `{x, y}` declares that `x` has precedence over `y`.
+
+```text
+PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]
+    -> {x + y, y}
+```
+
+The two outputs are `{quotient, remainder}` and satisfy:
+
+```text
+dividend = divisor * quotient + remainder
+
+x^2*y + x*y^2 + y = x*y * (x + y) + y
+```
+
+The remainder is reduced: none of its terms can be divided by the divisor's
+leading monomial under the selected order. This is the multivariate analogue
+of integer division with a remainder, although the ordering of monomials now
+matters.
+
+Aleph3 currently supports this operation only for exact integer or rational
+coefficients and an explicit variable list. Floating-point multivariate
+division, multiple divisors, multivariate GCD, and broad multivariate
+factorization remain outside the supported subset. See the
+[algebra contract](algebra_supported_subset.md) for the precise boundary.
+
 ## Assumption
 
 An **assumption** is contextual knowledge used to justify a transformation.
@@ -191,8 +275,9 @@ solver, or special-function packs. The kernel provides pattern matching; a
 calculus pack provides differentiation knowledge.
 
 The interactive session can inspect an expression without evaluating or
-storing it, and can discover packs from registry metadata. The CLI exposes
-these shared operations as `:inspect <expression>` and `:packs`.
+storing it, discover packs, and complete registered or session-defined symbols.
+The CLI exposes these shared operations as `:inspect <expression>`, `:packs`,
+and `:complete <prefix>`.
 
 ## Built-in, Host Function, and Registered Function
 

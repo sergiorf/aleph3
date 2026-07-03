@@ -1,12 +1,13 @@
 # The Aleph3 Manual
 
 This is the user-facing manual for Aleph3 and the future source of the Aleph3
-book. It explains the system through workflows and examples while keeping
-normative limits in the focused specifications.
+book. It explains the current CLI, kernel, SDK, and packs while preparing the
+workflow documentation for the planned local notebook.
 
-Aleph3 is both an embeddable formula engine and a focused symbolic system. Both
-uses share one kernel; the SDK constrains it for host applications, sessions
-make it interactive, and packs add mathematical domains.
+Aleph3 is becoming a lightweight local symbolic notebook. Today the CLI makes
+the focused symbolic system interactive, the SDK embeds it in host
+applications, and packs add mathematical domains. All surfaces share one
+kernel.
 
 ## Contents
 
@@ -26,6 +27,8 @@ should read chapters 1, 4, and 2 first.
 - This manual teaches functions and workflows through examples.
 - Specifications define exact supported behavior and remain authoritative.
 - The [unified plan](../aleph3_unified_plan.md) describes unfinished work.
+- The [notebook MVP design](../notebook_mvp_design.md) records the proposed
+  first desktop-product contract; it does not describe shipped behavior.
 
 Examples use the current Wolfram-like syntax and, unless stated otherwise, run
 in the symbolic CLI REPL.
@@ -36,4 +39,3 @@ Aleph3 already provides exact arithmetic, symbolic fallback, persistent
 definitions, bounded rewriting, assumptions, and polynomial algebra. It is not
 yet a broad general-purpose CAS. Unsupported forms are preserved or rejected
 according to documented contracts rather than approximated silently.
-

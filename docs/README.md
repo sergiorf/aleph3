@@ -14,7 +14,13 @@ the SDK, packs, and the notebook/workbench direction.
 2. [Architecture](architecture.md) — system shape and ownership boundaries.
 3. [Concepts and Terminology](concepts.md) — vocabulary with worked examples.
 4. [SDK Guide](sdk/README.md) — embedding surface and SDK-specific references.
-5. [Unified Plan](aleph3_unified_plan.md) — active implementation roadmap.
+5. [Product Plan](product_plan.md) — notebook vision, users, MVP, and business
+   model.
+6. [Notebook MVP Design](notebook_mvp_design.md) — planned cells, evaluation,
+   persistence, display, and acceptance contract.
+7. [IP and Repository Strategy](ip_and_repo_strategy.md) — practical
+   public/private transition guidance.
+8. [Unified Plan](aleph3_unified_plan.md) — the sole active implementation roadmap.
 
 ## Normative References
 

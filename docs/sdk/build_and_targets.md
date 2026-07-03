@@ -1,8 +1,7 @@
 # Build And Targets
 
-The build now distinguishes the symbolic engine from the primary SDK path so
-the new engine can compile without pulling in the broader symbolic parser and
-evaluator internals.
+The current build distinguishes the kernel, SDK, CLI, and packs. It does not
+yet contain a notebook target.
 
 Status note:
 
@@ -23,7 +22,7 @@ Related documents:
 | `aleph3_kernel` | library | Explicit kernel build target for the current symbolic engine surface |
 | `aleph3_symbolic` | alias | Compatibility alias for the current kernel target during migration |
 | `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
-| `aleph3_pack_algebra` | interface library | Placeholder pack boundary for future algebra extraction |
+| `aleph3_pack_algebra` | library | Current polynomial implementation and registered algebra pack |
 | `aleph3_sdk` | library | Public SDK facade over kernel-backed execution |
 | `aleph3_cli` | executable | Thin SDK tooling CLI for manual parser/validator/runtime checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
@@ -58,15 +57,14 @@ flowchart TD
     Sdk --> Example["aleph3_sdk_example"]
 ```
 
-This diagram reflects the current build, not the desired end state.
-The main immediate improvement is that the kernel now has an explicit build
-name, the SDK now depends on it directly, and the first pack targets now exist
-as placeholders even though the runtime collapse and pack extraction work are
-not complete yet.
+This diagram reflects the current build, not the planned notebook target. The
+kernel has an explicit build name, the SDK depends on it directly, and the
+algebra pack contains the current polynomial implementation. The core-math
+interface target remains a placeholder boundary.
 
 ## Practical Guidance
 
-- Use `ALEPH3_BUILD_SDK=ON` to work on the primary SDK path.
+- Use `ALEPH3_BUILD_SDK=ON` to work on the embedding and current CLI path.
 - Expect the kernel to build whenever the SDK is enabled.
 - Use `aleph3_cli` for fast manual checks while broader validation and custom host-function tooling are still under construction.
 - `validate` in the CLI now exercises the real lexer/parser/validator path.
@@ -77,8 +75,8 @@ not complete yet.
 - Use `ALEPH3_BUILD_SYMBOLIC_ENGINE=OFF` when you want the SDK without the
   broader symbolic CLI/test surface, not when you want to remove the kernel
   dependency entirely.
-- Treat `aleph3_pack_core_math` and `aleph3_pack_algebra` as staging boundaries
-  for future extraction, not as proof that pack-owned code has already moved.
+- Treat `aleph3_pack_core_math` as a staging boundary. `aleph3_pack_algebra`
+  already owns the current polynomial implementation and registration code.
 - Use `BUILD_TESTING=OFF` for offline or dependency-restricted compile checks.
 - Keep new SDK components linked only through SDK targets unless a kernel
   dependency is explicitly justified.

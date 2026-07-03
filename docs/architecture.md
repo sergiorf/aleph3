@@ -7,17 +7,19 @@ shape, ownership boundaries, execution paths, and dependency rules. Detailed
 behavior belongs in the focused kernel and SDK specifications linked from the
 [documentation index](README.md).
 
-Aleph3 is a safe embeddable formula and symbolic engine. The SDK is currently
-its strongest product surface; the symbolic kernel is the shared semantic
-foundation and is growing toward richer computer-algebra capabilities.
+Aleph3 is becoming a lightweight, local-first symbolic notebook. The notebook
+is the intended main product; the SDK and CLI are current consumers of the
+shared symbolic kernel, which remains the product-critical semantic asset.
 
 ## System at a Glance
 
 ```mermaid
 flowchart TB
     Host["Host applications"] --> SDK["SDK<br/>Engine · Schema · Policy · Value"]
-    CLI["CLI and future products"] --> SDK
-    CLI --> Kernel
+    Notebook["Planned notebook"] --> Session["Stateful session"]
+    CLI["CLI"] --> Session
+    Session --> Kernel
+    CLI --> SDK
     SDK --> Frontend["Trusted frontend<br/>parse · validate · diagnose"]
     Frontend --> IR["ir::Node<br/>temporary validated form"]
     IR -->|lower once| Expr["Expr<br/>kernel semantic form"]
@@ -31,7 +33,8 @@ Four layers remain stable even as directories move:
 1. **Kernel** — defines what expressions mean.
 2. **Packs** — add domain mathematics through kernel contracts.
 3. **SDK** — validates, constrains, and exposes the kernel to host programs.
-4. **Tools and products** — consume those layers without inventing semantics.
+4. **Tools and products** — the CLI, planned notebook, and other consumers
+   present shared session and kernel behavior without inventing semantics.
 
 Dependencies point downward. A lower layer must not depend on host-facing
 policy or a particular product.
@@ -108,8 +111,31 @@ compose APIs and present results, but semantic rules do not belong there.
 The experimental stateful session layer is the first reusable interactive
 consumer boundary. It owns one kernel evaluation context across requests,
 returns rendered results plus structured diagnostics, and is used by the
-symbolic CLI REPL. Future IDE or workbench consumers should build on this
-boundary rather than owning evaluator state themselves.
+symbolic CLI REPL. The planned notebook and any later IDE consumers should
+build on this boundary rather than owning evaluator state themselves.
+
+### Notebook
+
+The planned `aleph3_notebook` application owns cell ordering, text/Markdown
+cells, output presentation, document persistence, examples, and later export.
+It sends typed requests to a session and receives structured results and
+diagnostics. It must not parse expressions into a private semantic form,
+evaluate formulas, or implement pack behavior.
+
+The initial boundary should support these conceptual operations without
+promising that their final C++ spelling is settled:
+
+```text
+parse(source) -> Expression or diagnostic
+evaluate(expression, context) -> EvaluationResult
+format(result, displayOptions) -> DisplayNode or text
+serializeNotebook(document) -> versioned bytes
+loadNotebook(bytes) -> document or diagnostic
+```
+
+Parsing, evaluation, formatting, and notebook persistence remain separate.
+Notebook files store source and presentation data; persisted rendered output
+is a cache, never semantic authority.
 
 ## Repository Ownership
 
@@ -127,6 +153,7 @@ boundary rather than owning evaluator state themselves.
 | `include/semantics`, `src/semantics` | SDK | schema and policy validation |
 | `include/sdk`, `src/sdk` | SDK | public host API |
 | `include/tooling`, `src/tooling` | tooling | CLI and supporting presentation |
+| future notebook application | product | cells, documents, display, persistence, export |
 
 When ownership is unclear, ask: “Would changing this change expression meaning
 for every consumer?” If yes, it is probably kernel work. If it is a domain
@@ -224,6 +251,9 @@ the SDK.
 - Evaluation budgets and diagnostics cross layers explicitly.
 - Public SDK types do not expose internal expression or IR implementation.
 - Tools and products never become semantic centers.
+- The kernel never depends on the session, notebook, or a GUI toolkit.
+- Notebook documents and render trees are product data, not kernel expression
+  representations.
 - Transitional aliases or adapters must be labeled and prevented from growing
   into permanent parallel systems.
 
@@ -244,4 +274,5 @@ flowchart TD
 
 For current implementation sequencing, see the
 [unified plan](aleph3_unified_plan.md). For vocabulary and worked examples,
-see [Concepts and Terminology](concepts.md).
+see [Concepts and Terminology](concepts.md). The proposed first product
+contract is in the [Notebook MVP Design](notebook_mvp_design.md).

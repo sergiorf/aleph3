@@ -6,8 +6,13 @@
 </p>
 
 # Aleph3
-Aleph3 is a C++20 engine for safely embedding formulas and evaluating a focused
-symbolic-mathematics subset.
+Aleph3 is evolving into a lightweight local symbolic notebook and computation
+environment written in modern C++, designed for fast mathematical exploration,
+clean notation, and developer-friendly formula/code workflows.
+
+The notebook is the intended main product. Today, the repository provides the
+C++20 kernel, SDK, CLI, reusable session layer, and algebra pack that the
+notebook will build on; a desktop notebook executable has not shipped yet.
 
 Use it to:
 
@@ -16,8 +21,9 @@ Use it to:
 - work with exact rationals, assumptions, rewrite rules, and polynomial algebra
 - reuse the same kernel semantics from the SDK, CLI, sessions, and math packs
 
-The SDK is the most stable product surface. Symbolic functionality is real and
-documented, but Aleph3 is not yet a general Mathematica-class CAS. Unsupported
+The SDK is currently the most stable surface and the CLI is the current local
+interactive experience. Aleph3 is deliberately focused rather than a
+Mathematica, SageMath, or general-purpose CAS replacement. Unsupported
 algebraic forms fail explicitly instead of silently guessing.
 
 ## Syntax
@@ -123,6 +129,9 @@ runtime.
   currently owns the polynomial surface.
 - `aleph3_cli` and the reusable session layer expose those same semantics
   interactively.
+- the planned `aleph3_notebook` desktop application will own cells, documents,
+  display, and persistence while delegating all execution to the session and
+  kernel.
 
 `aleph3_symbolic` remains a compatibility target name during migration; it is
 not a second semantic engine.
@@ -136,7 +145,10 @@ Start at the [documentation index](docs/README.md). The main reading path is:
 3. [Supported algebra subset](docs/algebra_supported_subset.md)
 4. [SDK guide](docs/sdk/README.md)
 5. [Architecture](docs/architecture.md)
-6. [Unified implementation plan](docs/aleph3_unified_plan.md)
+6. [Product plan](docs/product_plan.md)
+7. [Notebook MVP design](docs/notebook_mvp_design.md)
+8. [IP and repository strategy](docs/ip_and_repo_strategy.md)
+9. [Unified implementation plan](docs/aleph3_unified_plan.md)
 
 The index separates explanatory guides, normative contracts, and planning so
 there is one obvious home for each kind of information.

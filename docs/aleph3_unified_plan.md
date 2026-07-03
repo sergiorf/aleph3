@@ -39,11 +39,12 @@ That program is:
 1. converge on one symbolic kernel
 2. make the SDK a constrained consumer of that kernel
 3. grow higher mathematics through serious packs
-4. make the CLI a permanent interactive product over the same semantics
-5. build a reusable session foundation for future IDE and workbench surfaces
-6. establish digital signal processing as a serious domain pack after the
+4. make a lightweight local notebook the main product over the same semantics
+5. keep the CLI as a permanent scripting, testing, and fallback surface
+6. build a reusable session foundation shared by CLI and notebook surfaces
+7. establish digital signal processing as a serious domain pack after the
    algebra and calculus foundations are credible
-7. harden the supported symbolic subset into a production-grade core
+8. harden the supported symbolic subset into a production-grade core
 
 ## Strategic Position
 
@@ -57,30 +58,50 @@ Near-term external positioning should stay honest:
 - Aleph3 is not yet close enough to Mathematica-class CAS breadth to market
   itself that way without inviting the wrong comparison
 
-Recommended near-term message:
+Recommended product message:
 
-- a safe embeddable symbolic/formula engine in C++20, with a path toward
-  richer CAS features
+- a lightweight local symbolic notebook and computation environment written
+  in modern C++, designed for fast mathematical exploration, clean notation,
+  and developer-friendly formula/code workflows
 
 The intended product stack is:
 
 1. `aleph3_kernel`
    The core symbolic engine and main strategic asset.
-2. `aleph3_sdk`
-   The host-facing embedding layer built on top of the kernel and the first
-   practical adoption surface for external developers.
-3. `aleph3_packs_*`
+2. `aleph3_notebook`
+   The planned main desktop product, owning cells, documents, display,
+   examples, persistence, and later export over the shared session contract.
+3. `aleph3_cli`
+   The permanent scripting, testing, diagnostics, and fallback interface.
+4. `aleph3_sdk`
+   The host-facing embedding layer built on top of the kernel.
+5. `aleph3_packs_*`
    Domain math growth such as algebra, special functions, calculus, signal,
    and electrical engineering.
-4. tools and future products
-   CLI, notebook-style interactive applications, examples, hosted services,
-   commercial SDK packaging, and other product surfaces.
+6. supporting products and material
+   Examples, documentation, public demos, hosted services, and commercial
+   packaging that consume the same contracts.
 
 The kernel is not just implementation detail beneath the SDK.
 It is the semantic center that all product surfaces depend on.
 The SDK is the primary embedding surface, but it is not the only near-term
-product investment: math packs and the interactive CLI must mature alongside
+investment: the notebook, math packs, and interactive CLI must mature alongside
 it so kernel capability is both meaningful and directly usable.
+
+### Commercial And Repository Direction
+
+Make the free or low-friction notebook useful before implementing paid packs.
+Adoption should begin with simple installation, verified example notebooks,
+screenshots, and demos. Later monetization may include code-generation,
+engineering, education, finance/quant, and provider-backed AI assistant packs.
+Free and paid capability boundaries must remain explicit kernel/pack contracts.
+
+The currently published MIT source cannot be retroactively withdrawn from
+people who received it under that license. Subject to copyright ownership and
+third-party obligations, future original development may move to private
+repositories or different distribution terms. Stabilize interfaces and audit
+provenance before splitting repositories; see
+[IP and Repository Strategy](ip_and_repo_strategy.md).
 
 ## Current Repository Reality
 
@@ -177,14 +198,14 @@ The SDK owns:
 
 The SDK does not own a separate permanent semantic runtime.
 
-The SDK should be treated as the first practical product surface:
+The SDK should be treated as the stable embedding surface beneath products:
 
 - a small, stable, well-documented embedding API
-- the easiest open-source adoption path for external developers
+- an adoption path for external developers
 - a bridge from host applications into kernel-backed symbolic evaluation
 - a validation layer for whether kernel contracts are usable from the outside
-- the first monetizable surface Aleph3 should make excellent before broader
-  CAS or notebook claims
+- a contract proving that the kernel can serve consumers other than the
+  notebook and CLI
 
 ### Near-Term Product Honesty
 
@@ -230,8 +251,9 @@ not through unchecked evaluator branching.
 
 ### Product Surface Position
 
-Interactive products such as a notebook-like application belong above the
-kernel and SDK.
+The notebook is the intended primary product and belongs above the session and
+kernel. It may use the SDK where host-facing validation or policy is required,
+but ordinary symbolic cells need not route through the trusted SDK subset.
 
 They may eventually supersede parts of the CLI surface, but they must remain
 consumers of unified kernel semantics rather than becoming a third execution
@@ -318,7 +340,7 @@ lightweight.
 
 ## Product Sequencing Rule
 
-Aleph3 should remain kernel-first for the current phase.
+Aleph3 should remain kernel-led and product-driven for the current phase.
 
 Kernel-first does not mean product-last. Work should proceed as three
 coordinated tracks:
@@ -326,8 +348,8 @@ coordinated tracks:
 1. kernel and SDK foundations
 2. math-pack capability, beginning with algebra and followed by focused
    calculus
-3. interactive experience, beginning with the CLI and a reusable session
-   layer
+3. interactive experience, using the existing CLI and session as the
+   foundation for the notebook MVP
 
 After algebra proves exact pack workflows and calculus proves assumption-aware
 transformation, digital signal processing becomes the next planned domain-pack
@@ -340,11 +362,11 @@ kernel rather than create private semantics.
 
 The project should avoid a large standalone GUI, hosted-product, solver, or
 broad CAS investment while foundational contracts remain transitional. A thin
-notebook-like v0.1 over the shared session is now an appropriate feedback
-surface; it must not introduce private evaluation semantics. The project should
-not defer narrow user-facing slices that exercise stable contracts. A useful
-tranche therefore delivers one foundation improvement, one mathematical
-capability, and one way for users to experience or inspect it.
+notebook v0.1 over the shared session is now the primary product milestone; it
+must not introduce private evaluation semantics. The project should not defer
+narrow user-facing slices that exercise stable contracts. A useful tranche
+therefore delivers one foundation improvement, one mathematical capability,
+and one way for users to experience or inspect it.
 
 ## End State
 
@@ -360,7 +382,7 @@ The program is complete when all of the following are true:
 - algebra and focused calculus workflows are available through registered
   packs
 - the CLI remains a supported product surface over unified kernel semantics
-- CLI and future IDE/workbench consumers share one stateful session contract
+- CLI, notebook, and any later IDE consumers share one stateful session contract
 - the supported symbolic subset is documented as a product contract, including
   the small coefficient-layer basis class and algebra-aware exponent class
 - tests are organized by layer and validate semantic invariants
@@ -372,8 +394,8 @@ These rules apply to all implementation work until the migration is complete:
 - no new feature may deepen both evaluator stacks independently
 - SDK constraints should be implemented as validation or policy over kernel
   semantics, not as a second semantic system
-- external positioning should describe Aleph3 as an embeddable symbolic/formula
-  engine until the broader CAS foundation is materially stronger
+- external positioning should describe the intended lightweight local
+  notebook while clearly distinguishing shipped CLI/SDK behavior from plans
 - broad differentiation beyond the focused calculus pack, integration, solver
   work, or large special-function expansion should wait until the kernel
   boundary is stronger
@@ -397,6 +419,7 @@ The coordination priorities are:
 2. finish collapsing SDK execution into the kernel
 3. define the symbol and extension model the kernel will grow through
 4. establish the CLI and shared session layer as permanent kernel consumers
+   and specify the notebook document/display boundary
 5. add general rewrite infrastructure
 6. strengthen the algebra pack on exact foundations and expose its workflows
    through SDK and CLI surfaces
@@ -407,8 +430,9 @@ The coordination priorities are:
    semantics
 10. implement a focused calculus pack as the next extension-model proof
 11. harden SDK, CLI, scripts, and structured tooling output as supported
-    product surfaces
-12. add an initial IDE or workbench consumer over the shared session protocol
+    supporting surfaces
+12. deliver the initial notebook create/evaluate/save/reopen loop over the
+    shared session protocol
 13. deliver a focused digital signal processing pack through SDK, CLI, and
     session surfaces
 
@@ -445,7 +469,7 @@ Outcome:
 - supported algebra workflows are reachable through both SDK and CLI paths
 - exactness, unsupported boundaries, and pack ownership are tested end to end
 
-### M7. Calculus Pack And Reusable IDE Session Protocol
+### M7. Calculus Pack And Reusable Interactive Session Protocol
 
 Outcome:
 
@@ -453,16 +477,19 @@ Outcome:
   assumption contracts
 - the interactive session surface provides structured evaluation, diagnostics,
   completion, inspection, and pack discovery
-- CLI and future IDE consumers do not need private execution logic
+- CLI and notebook consumers do not need private execution logic
 
-### M8. Polished CLI And Initial IDE Or Workbench
+### M8. Polished CLI And Notebook MVP
 
 Outcome:
 
 - the CLI supports interactive sessions, scripts, machine-readable results,
   tracing, timing, and pack operations as stable workflows
-- an initial IDE, editor integration, or workbench consumes the shared session
-  protocol
+- a local notebook consumes the shared session protocol and supports input,
+  text, and output cells with structured diagnostics
+- versioned documents save and reopen safely, and `Run All` reconstructs a
+  clean session in document order
+- a tested examples gallery demonstrates the supported symbolic subset
 - the CLI remains supported alongside the richer interactive surface
 
 ### M9. Focused Digital Signal Processing Pack
@@ -531,12 +558,12 @@ Success criteria:
 - embedded and symbolic evaluation can be expressed through one kernel context
   model
 
-### D. SDK V1 Adoption Track
+### D. SDK V1 Embedding Track
 
 Goals:
 
-- make the trusted SDK subset the first polished commercial and adoption-ready
-  embedding surface without crowding out pack and interactive investment
+- keep the trusted SDK subset a polished, adoption-ready embedding surface
+  without displacing the notebook product milestone
 
 Tasks:
 
@@ -868,8 +895,8 @@ Success criteria:
 Goals:
 
 - keep the CLI as a permanent first-class interface
-- provide richer end-user interaction without fragmenting semantics
-- create one reusable session foundation for CLI and future IDE/workbench
+- make a lightweight local notebook the main end-user product
+- create one reusable session foundation for CLI, notebook, and any later IDE
   consumers
 
 Tasks:
@@ -884,10 +911,17 @@ Tasks:
   editor UI outside the kernel
 - make a future IDE, editor extension, notebook, or workbench another consumer
   of the same session service
+- specify a versioned notebook document containing ordered input, output, and
+  text cells without treating cached output as semantic authority
+- deliver the notebook MVP loop: create, edit, evaluate, diagnose, save,
+  reopen, and run verified example notebooks
+- evaluate Qt and a webview/native wrapper with the same session fixture before
+  recording a toolkit decision; keep Dear ImGui, wxWidgets, and a custom UI as
+  documented alternatives rather than implicit commitments
 - ensure every interactive consumer reuses kernel evaluation, diagnostics,
   registration, and budgets
-- defer commitment to a GUI toolkit, editor host, or transport encoding until
-  an initial protocol consumer requires that choice
+- defer toolkit commitment until a bounded spike measures packaging, startup,
+  text/math display, accessibility, and implementation cost
 
 Current status:
 
@@ -910,7 +944,7 @@ Priority:
 - CLI and session foundations proceed now in narrow slices over stable kernel
   contracts
 - the session now has a real CLI consumer, so a thin notebook/workbench can
-  proceed in parallel with session hardening
+  proceed as the primary product track in parallel with session hardening
 - the first GUI slice should prioritize cells, completion, diagnostics,
   inspection, persistence, and bounded 2D graph workflows
 - a large standalone GUI framework or private execution model remains deferred
@@ -921,6 +955,8 @@ Success criteria:
 - CLI and IDE/workbench consumers share session semantics and structured
   results
 - no interactive surface creates a third semantic center
+- users can install the notebook locally, evaluate supported symbolic cells,
+  save/reopen documents, and run a tested examples gallery
 
 ### K. Tests, Validation, And Product Hardening
 
@@ -1048,7 +1084,9 @@ pack discovery, and completion. The next active tranche should be:
    over the shared division and ordering invariants
 3. **CLI and IDE foundation:** add script execution and a narrow
    machine-readable result mode over the existing session contract
-4. **Cross-cutting validation:** continue closing P0 diagnostic, overflow,
+4. **Notebook MVP:** specify the versioned cell/document and display contracts,
+   then run bounded Qt and webview spikes against one session fixture
+5. **Cross-cutting validation:** continue closing P0 diagnostic, overflow,
    registry-collision, failure-recovery, and process-level CLI gaps before
    declaring these experimental interfaces stable
 
@@ -1120,6 +1158,7 @@ This unified plan is succeeding if:
   surfaces
 - focused DSP workflows reach users through a registered pack and the same
   SDK, CLI, and session semantics
-- CLI and future IDE/workbench consumers share one session and execution model
+- CLI, notebook, and any later IDE consumers share one session and execution
+  model
 - future product growth depends on stronger kernel contracts, not on more
   duplicate evaluator logic

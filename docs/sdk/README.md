@@ -5,6 +5,11 @@ points with the kernel. Start with the system-wide [architecture](../architectur
 and [concepts guide](../concepts.md) if terms such as lowering, trusted subset,
 or symbolic fallback are new to you.
 
+The SDK is a supported embedding surface, not the planned desktop product and
+not a semantic layer above the kernel. Notebook symbolic cells may use the
+session/kernel path directly; host applications use the SDK when they need
+schemas, policies, trusted-subset validation, and host-value conversion.
+
 The surviving host-facing SDK surface is:
 
 - `include/sdk/Engine.hpp`

@@ -24,7 +24,7 @@ The symbolic REPL preserves assignments and definitions. One-shot commands
 start fresh. On supported terminals Tab completes commands and symbols;
 `:complete` is the deterministic, pipe-friendly fallback.
 
-## Notebook-Like Workbench
+## Planned Notebook
 
 The first graphical Aleph3 product should be a thin session consumer, not a new
 semantic layer. A useful v0.1 feedback release needs:
@@ -34,11 +34,26 @@ semantic layer. A useful v0.1 feedback release needs:
 - inline structured diagnostics
 - registry- and session-backed completion
 - expression inspection and full form
-- a small versioned save/open format
 - copyable plain-text input and output
+- local save/open with a documented, versioned notebook format
+- a small examples gallery using only verified supported syntax
 
 The GUI owns presentation and documents. The session owns execution state, the
 kernel owns meaning, and packs own domain mathematics.
+
+No notebook application is included in the current build. Until it exists,
+`aleph3_cli repl` is the runnable local interactive surface. Code generation,
+PDF/HTML export, rich Markdown, and paid packs are roadmap features, not
+current capabilities.
+
+The first notebook should evaluate currently supported examples such as exact
+arithmetic, `Refine[Sqrt[x^2], x >= 0]`, rewriting, and polynomial operations.
+Examples such as `D[x^3 + 2*x, x]`, trigonometric identity simplification, and
+C++ code generation must wait until their kernel or pack contracts are
+implemented and tested.
+
+The planned document, evaluation, persistence, and display behavior is defined
+in the [Notebook MVP Design](../notebook_mvp_design.md).
 
 ## Plot And Graph Capabilities
 
@@ -70,4 +85,3 @@ write -> complete -> evaluate -> inspect result/diagnostic
 That loop can expose exact arithmetic, assumptions, rewrites, and the algebra
 pack honestly while gathering feedback about syntax, discovery, performance,
 and desired mathematical workflows.
-

@@ -43,6 +43,32 @@ arithmetic, and assumptions.
 Example: the fact that exact `1/2 + 1/3` produces `5/6` is a kernel concern.
 Whether a host application permits division at all is an SDK policy concern.
 
+## Notebook, Document, Cell, and Display
+
+The planned **notebook** is the local desktop product built above the session.
+A **notebook document** is an ordered collection of cells plus format metadata.
+It is product data, not a second expression representation.
+
+An **input cell** stores Aleph3 source text. A **text cell** stores explanatory
+content. An **output cell** records presentation associated with an evaluation,
+but its cached rendering is not semantic truth: re-evaluation always goes
+through the session and kernel.
+
+A **display node** is a presentation-oriented result such as plain text,
+structured mathematics, a diagnostic, or later a plot. Display nodes describe
+how a result may be shown; they do not evaluate expressions.
+
+## Session
+
+A **session** owns interactive execution state across requests, including user
+definitions and the kernel evaluation context. The CLI already uses this
+boundary. The planned notebook will create or restore a session and submit cell
+requests through it rather than embedding evaluator state in widgets.
+
+Closing a document and saving a document are product operations. Preserving
+kernel state across a reopen requires an explicit replay or serialization
+contract; it must never happen accidentally through hidden process state.
+
 ## SDK and Trusted Subset
 
 The **SDK** is the stable API used to embed Aleph3. Its **trusted subset** is a

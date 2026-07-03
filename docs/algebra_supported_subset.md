@@ -94,8 +94,9 @@ Current boundary:
 - supported univariate `GCD` and supported univariate `PolynomialQuotient`
   preserve exact rational coefficients
 - inexact `Number` inputs stay on the existing floating-point path
-- `Factor` still rejects exact rational coefficients explicitly instead of
-  demoting them to floating-point or pretending to preserve exactness
+- `Factor` supports exact rational coefficients for univariate rational-root
+  factorization by clearing denominators and restoring exact scalar content
+- multivariate rational factorization remains explicitly unsupported
 
 Examples:
 
@@ -107,7 +108,8 @@ Examples:
 - `Collect[(1/2) * x + 1, x]` -> `1/2 * x + 1`
 - `Collect[(1/2) * x * y + (3/2) * y, y]` -> `1/2 * x * y + 3/2 * y`
 - `PolynomialQuotient[x^2 - 1/4, x - 1/2, x]` -> `{x + 1/2, 0}`
-- `Factor[(1/2) * x^2 + x]` -> unsupported exact-rational factor input
+- `Factor[(1/2) * x^2 + x]` -> `1/2 * x * (x + 2)`
+- `Factor[(1/2) * x^2 + x + 1/2]` -> `1/2 * (x + 1) * (x + 1)`
 
 ## Symbolic Rewrite Product Contracts
 
@@ -165,11 +167,13 @@ simplification.
 - monomial-content extraction
 - deterministic linear-factor extraction for supported univariate integer
   polynomials
+- exact rational content and coefficients for supported univariate
+  rational-root factorization
 - rational-root cases that reduce to integer-coefficient linear factors
 
 `Factor` does not yet support:
 
-- exact rational coefficients
+- multivariate exact rational factorization
 - general multivariate factorization beyond content extraction
 - higher-degree irreducible decomposition beyond the supported rational-root
   path

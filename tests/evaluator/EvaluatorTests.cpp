@@ -1086,6 +1086,25 @@ TEST_CASE("Evaluator keeps replacement explicit and bounded", "[evaluator][rewri
         "ReplaceRepeated expects the second argument to be a Rule");
 }
 
+TEST_CASE("Evaluator supports typed single-expression patterns", "[evaluator][rewrite][typed-pattern]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("MatchQ[3, _Integer]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression("MatchQ[1/2, _Rational]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression("MatchQ[x, _Integer]"), ctx)) == "False");
+    REQUIRE(to_string(evaluate(parse_expression("MatchQ[f[2, 2], f[n_Integer, n_Integer]]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression("MatchQ[f[2, 3], f[n_Integer, n_Integer]]"), ctx)) == "False");
+    REQUIRE(to_string(evaluate(parse_expression("Replace[f[2], f[n_Integer] -> g[n]]"), ctx)) == "g[2]");
+    REQUIRE(to_string(evaluate(parse_expression("ReplaceRepeated[f[f[2]], f[n_Integer] -> g[n]]"), ctx)) == "f[g[2]]");
+
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("MatchQ[2, _Matrix]"), ctx),
+        "Unknown pattern type constraint: Matrix");
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("MatchQ[f[1, 2], f[x__]]"), ctx),
+        "Sequence patterns are not supported");
+}
+
 TEST_CASE("Evaluator applies rewrite budget to ReplaceRepeated", "[evaluator][rewrite]") {
     Bindings bindings;
     Bindings constants;

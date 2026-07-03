@@ -153,3 +153,13 @@ TEST_CASE("REPL mode command reports and switches evaluators", "[tooling][cli]")
     REQUIRE(mode_result.output.find("mode set to symbolic") != std::string::npos);
     REQUIRE(mode_result.output.find("(x - 1) * (x + 1)") != std::string::npos);
 }
+
+TEST_CASE("REPL symbolic session preserves state and exposes exact rational factorization", "[tooling][cli][session]") {
+    const auto result = run_shell_command(make_repl_command(
+        {"a = 2", "a + 3", "Factor[(1/2)*x^2 + x + 1/2]", ":quit"}));
+
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output.find("5\n") != std::string::npos);
+    REQUIRE(result.output.find("1/2") != std::string::npos);
+    REQUIRE(result.output.find("x + 1") != std::string::npos);
+}

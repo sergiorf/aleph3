@@ -998,7 +998,30 @@ namespace aleph3 {
 
     ExprPtr factor_polynomial(const ExprPtr& expr, EvaluationContext& ctx) {
         const std::vector<std::string> variables = infer_variables(expr);
-        Polynomial poly = expr_to_polynomial(expr, variables);
+        Polynomial poly;
+        int64_t exact_denominator = 1;
+        if (is_exact_polynomial_candidate(expr)) {
+            const auto exact = expr_to_exact_polynomial(expr, variables);
+            const bool has_rational_coefficient = std::any_of(
+                exact.terms.begin(), exact.terms.end(), [](const auto& term) {
+                    return term.second.denominator != 1;
+                });
+            if (has_rational_coefficient && variables.size() > 1) {
+                throw_unsupported_construct(
+                    "Factor does not support multivariate rational coefficients");
+            }
+            for (const auto& [_, coefficient] : exact.terms) {
+                exact_denominator = std::lcm(exact_denominator, coefficient.denominator);
+            }
+            poly.terms.clear();
+            for (const auto& [monomial, coefficient] : exact.terms) {
+                poly.terms[monomial] = static_cast<double>(
+                    coefficient.numerator * (exact_denominator / coefficient.denominator));
+            }
+            poly.normalize();
+        } else {
+            poly = expr_to_polynomial(expr, variables);
+        }
         if (is_constant_zero(poly)) {
             return polynomial_to_expr(poly);
         }
@@ -1006,9 +1029,19 @@ namespace aleph3 {
         const auto content = split_content(poly);
         std::vector<ExprPtr> factors;
 
-        if (!is_near_zero(content.coefficient - 1.0)
-            || !content.monomial.empty()) {
-            factors.push_back(monomial_to_expr(content.coefficient, content.monomial));
+        const ExactCoefficient scalar_content(
+            rounded_integer(content.coefficient), exact_denominator);
+        if (!scalar_content.is_one() || !content.monomial.empty()) {
+            std::vector<ExprPtr> content_factors;
+            if (!scalar_content.is_one()) {
+                content_factors.push_back(exact_coefficient_to_expr(scalar_content));
+            }
+            if (!content.monomial.empty()) {
+                content_factors.push_back(monomial_to_expr(1.0, content.monomial));
+            }
+            factors.push_back(content_factors.size() == 1
+                ? content_factors.front()
+                : make_times(content_factors));
         }
 
         Polynomial remaining = content.primitive;

@@ -64,6 +64,7 @@ if(ALEPH3_BUILD_KERNEL)
         "src/kernel/*.cpp"
         "src/symbols/*.cpp"
         "src/transforms/*.cpp"
+        "src/session/*.cpp"
         "src/tooling/SymbolicCliSupport.cpp")
     file(GLOB SYMBOLIC_HEADERS CONFIGURE_DEPENDS
         "include/*.hpp"
@@ -76,6 +77,7 @@ if(ALEPH3_BUILD_KERNEL)
         "include/normalizer/*.hpp"
         "include/packs/*.hpp"
         "include/parser/*.hpp"
+        "include/session/*.hpp"
         "include/symbols/*.hpp"
         "include/tooling/*.hpp"
         "include/transforms/*.hpp"
@@ -134,7 +136,8 @@ if(BUILD_TESTING)
             "tests/evaluator/*.cpp"
             "tests/parser/*.cpp")
         file(GLOB SYMBOLIC_TOOLING_TEST_SOURCES CONFIGURE_DEPENDS
-            "tests/SymbolicCliSupportTests.cpp")
+            "tests/SymbolicCliSupportTests.cpp"
+            "tests/session/*.cpp")
         file(GLOB PACK_TEST_SOURCES CONFIGURE_DEPENDS
             "tests/packs/*.cpp")
 

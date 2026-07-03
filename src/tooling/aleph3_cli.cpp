@@ -2,6 +2,7 @@
 #include "frontend/Parser.hpp"
 #include "ir/Node.hpp"
 #include "sdk/Engine.hpp"
+#include "session/Session.hpp"
 #include "tooling/DemoHostFunctions.hpp"
 #include "tooling/RewriteCliSupport.hpp"
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
@@ -788,7 +789,10 @@ bool read_repl_line(const std::string& prompt, std::vector<std::string>& history
 #endif
 }
 
-int run_default_expression(std::string_view input, ReplMode mode = default_repl_mode()) {
+int run_default_expression(
+    std::string_view input,
+    ReplMode mode = default_repl_mode(),
+    aleph3::session::Session* session = nullptr) {
     if (mode == ReplMode::sdk) {
         const auto evaluate_options = aleph3::tooling::parse_evaluate_repl_arguments(input);
         if (!evaluate_options.ok()) {
@@ -799,7 +803,9 @@ int run_default_expression(std::string_view input, ReplMode mode = default_repl_
     }
 
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
-    const auto result = aleph3::tooling::symbolic_evaluate_expression(input);
+    const auto result = session == nullptr
+        ? aleph3::tooling::symbolic_evaluate_expression(input)
+        : aleph3::tooling::symbolic_evaluate_expression(input, *session);
     if (!result.ok) {
         std::cerr << style_stderr(result.error_message, cli_palette().error) << '\n';
         return 2;
@@ -925,6 +931,9 @@ int run_command(std::string_view command, std::string_view formula) {
 int run_repl() {
     print_cli_logo();
     ReplMode repl_mode = default_repl_mode();
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+    aleph3::session::Session symbolic_session;
+#endif
     std::cout
         << style_stdout("Interactive REPL", cli_palette().accent) << '\n'
         << "Type expressions directly. Use `:help` for commands and `:quit` to exit.\n"
@@ -948,7 +957,13 @@ int run_repl() {
         history.push_back(line);
 
         if (line.empty() || line.front() != ':') {
-            const int exit_code = run_default_expression(line, repl_mode);
+            const int exit_code = run_default_expression(
+                line,
+                repl_mode
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+                , &symbolic_session
+#endif
+            );
             if (exit_code != 0) {
                 std::cerr << style_stderr("(expression failed with exit code " + std::to_string(exit_code) + ")",
                                           cli_palette().warning)

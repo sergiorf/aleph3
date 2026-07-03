@@ -208,19 +208,25 @@ TEST_CASE("Polynomial algebra preserves exact rationals for supported helpers", 
     REQUIRE(simplify_string(result_list.elements[1]) == "0");
 }
 
-TEST_CASE("Polynomial factor keeps exact rational coefficients out of scope", "[algebra][functions][rational]") {
+TEST_CASE("Polynomial factor supports exact rational univariate coefficients", "[algebra][functions][rational]") {
     EvaluationContext ctx;
 
     REQUIRE(to_string(*evaluate_source("Expand[0.5 * (x + 1)]", ctx))
             == "0.5 * x + 0.5");
 
+    REQUIRE(to_string(*evaluate_source("Factor[(1/2) * x^2 + x]", ctx))
+            == "1/2 * x * (x + 2)");
+    REQUIRE(to_string(*evaluate_source("Factor[(1/2) * x^2 + x + 1/2]", ctx))
+            == "1/2 * (x + 1) * (x + 1)");
+    REQUIRE(to_string(*evaluate_source("Factor[(-1/2) * x^2 + 1/2]", ctx))
+            == "-1/2 * (x - 1) * (x + 1)");
+
     try {
-        static_cast<void>(evaluate_source("Factor[(1/2) * x^2 + x]", ctx));
-        FAIL("Expected exact rational factorization rejection");
-    } catch (const EvaluatorError& ex) {
-        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
-        REQUIRE(std::string(ex.what()) ==
-                "Polynomial functions do not yet support exact rational coefficients");
+        static_cast<void>(evaluate_source("Factor[(1/2) * x * y + 1]", ctx));
+        FAIL("Expected multivariate rational factorization rejection");
+    } catch (const EvaluatorError& error) {
+        REQUIRE(std::string(error.what()) ==
+                "Factor does not support multivariate rational coefficients");
     }
 }
 

@@ -105,6 +105,12 @@ symbolic semantics.
 The CLI, examples, tests, and future applications are consumers. They may
 compose APIs and present results, but semantic rules do not belong there.
 
+The experimental stateful session layer is the first reusable interactive
+consumer boundary. It owns one kernel evaluation context across requests,
+returns rendered results plus structured diagnostics, and is used by the
+symbolic CLI REPL. Future IDE or workbench consumers should build on this
+boundary rather than owning evaluator state themselves.
+
 ## Repository Ownership
 
 | Area | Owner | Role |

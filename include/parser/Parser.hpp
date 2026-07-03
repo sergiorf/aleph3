@@ -442,7 +442,7 @@ namespace aleph3 {
                 }
             }
             // Handle symbols (variables) or function calls
-            else if (is_letter(peek())) {
+            else if (is_letter(peek()) || peek() == '_') {
                 size_t id_start = pos;
                 std::string name = parse_identifier();
                 skip_whitespace();
@@ -584,6 +584,12 @@ namespace aleph3 {
             if (cp == '_') {
                 cp = utf8::next(it, end);
                 utf8::append(cp, std::back_inserter(name));
+                while (it != end) {
+                    cp = utf8::peek_next(it, end);
+                    if (!is_symbol_body_char(cp)) break;
+                    cp = utf8::next(it, end);
+                    utf8::append(cp, std::back_inserter(name));
+                }
                 pos = std::distance(input.begin(), it);
             } else {
                 // Otherwise, must be a valid identifier start (not '_')

@@ -7,6 +7,7 @@
 #include "expr/FullForm.hpp"
 #include "parser/Parser.hpp"
 #include "transforms/Transforms.hpp"
+#include "session/Session.hpp"
 
 #include <exception>
 
@@ -46,9 +47,22 @@ SymbolicCliResult run_symbolic_expression(std::string_view source, Fn&& transfor
 }  // namespace
 
 SymbolicCliResult symbolic_evaluate_expression(std::string_view source) {
-    return run_symbolic_expression(source, [](const ExprPtr& expr, EvaluationContext& ctx) {
-        return to_string(evaluate(expr, ctx));
-    });
+    session::Session session;
+    return symbolic_evaluate_expression(source, session);
+}
+
+SymbolicCliResult symbolic_evaluate_expression(
+    std::string_view source,
+    session::Session& session) {
+    const auto session_result = session.execute(
+        {std::string(source), session::SessionOperation::evaluate});
+    if (session_result.ok) {
+        return make_success(session_result.output);
+    }
+    return make_failure(
+        session_result.diagnostics.empty()
+            ? "Symbolic evaluation failed."
+            : session_result.diagnostics.front().message);
 }
 
 SymbolicCliResult symbolic_simplify_expression(std::string_view source) {

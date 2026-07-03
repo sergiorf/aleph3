@@ -56,6 +56,20 @@ TEST_CASE("Algebra pack exact-capable helpers preserve exact multivariate output
     REQUIRE(collect_spec->metadata.owning_package == "core-algebra");
 }
 
+TEST_CASE("Algebra pack owns exact rational factorization", "[packs][algebra][exact][factor]") {
+    kernel::FunctionRegistry registry;
+    packs::register_algebra_pack(registry);
+    EvaluationContext ctx(registry);
+
+    const auto factored = evaluate_source("Factor[(1/2) * x^2 + x + 1/2]", ctx);
+    REQUIRE(to_string(*factored) == "1/2 * (x + 1) * (x + 1)");
+
+    const auto* factor = registry.find_symbolic_function_spec("Factor");
+    REQUIRE(factor != nullptr);
+    REQUIRE(factor->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(factor->metadata.owning_package == "core-algebra");
+}
+
 TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][algebra]") {
     kernel::FunctionRegistry registry;
     packs::register_algebra_pack(registry);

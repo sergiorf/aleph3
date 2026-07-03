@@ -38,8 +38,10 @@ That program is:
 
 1. converge on one symbolic kernel
 2. make the SDK a constrained consumer of that kernel
-3. move higher math growth into packs
-4. harden the supported symbolic subset into a production-grade core
+3. grow higher mathematics through serious packs
+4. make the CLI a permanent interactive product over the same semantics
+5. build a reusable session foundation for future IDE and workbench surfaces
+6. harden the supported symbolic subset into a production-grade core
 
 ## Strategic Position
 
@@ -74,6 +76,9 @@ The intended product stack is:
 
 The kernel is not just implementation detail beneath the SDK.
 It is the semantic center that all product surfaces depend on.
+The SDK is the primary embedding surface, but it is not the only near-term
+product investment: math packs and the interactive CLI must mature alongside
+it so kernel capability is both meaningful and directly usable.
 
 ## Current Repository Reality
 
@@ -102,6 +107,12 @@ What is already true:
 - the first richer assumptions category now exists through explicit
   integer/rational/real symbol-domain facts with exact-literal predicate
   answers
+- typed single-expression patterns now support structural type constraints
+  while sequence patterns remain explicitly unsupported
+- univariate `Factor` now preserves exact rational coefficients for the
+  supported rational-root workflow
+- an experimental stateful session contract now owns reusable kernel context,
+  structured results, and diagnostics for the symbolic CLI REPL
 
 What is still unresolved:
 
@@ -291,27 +302,24 @@ Rule:
 
 Aleph3 should remain kernel-first for the current phase.
 
-The project should avoid investing heavily in product surfaces built on top of
-transitional semantics.
+Kernel-first does not mean product-last. Work should proceed as three
+coordinated tracks:
 
-Aleph3 still should not invest heavily in the following until the kernel
-contracts are stronger:
+1. kernel and SDK foundations
+2. math-pack capability, beginning with algebra and followed by focused
+   calculus
+3. interactive experience, beginning with the CLI and a reusable session
+   layer
 
-- notebook-style applications
-- large domain packs
-- hosted products
-- broad CAS expansion that hardens the wrong foundation
+Each track must consume the same kernel contracts. Pack or interactive work
+that reveals a missing contract should feed that requirement back into the
+kernel rather than create private semantics.
 
-The intended sequence is:
-
-1. harden `aleph3_kernel` as the single semantic core
-2. make `aleph3_sdk` a clean consumer and adoption layer over that kernel
-3. make the SDK V1 excellent as the first real product and use it to validate
-   kernel contracts from an external developer
-   perspective
-4. implement one serious pack to prove the extension model
-5. only then build richer tools such as notebooks, engineering workbenches,
-   hosted services, and vertical products
+The project should avoid large standalone GUI, hosted-product, solver, or broad
+CAS investments while foundational contracts remain transitional. It should
+not defer narrow user-facing slices that exercise stable contracts. A useful
+tranche therefore delivers one foundation improvement, one mathematical
+capability, and one way for users to experience or inspect it.
 
 ## End State
 
@@ -324,6 +332,10 @@ The program is complete when all of the following are true:
   definitions, and registration
 - higher math growth follows pack boundaries instead of accumulating in the
   evaluator core
+- algebra and focused calculus workflows are available through registered
+  packs
+- the CLI remains a supported product surface over unified kernel semantics
+- CLI and future IDE/workbench consumers share one stateful session contract
 - the supported symbolic subset is documented as a product contract, including
   the small coefficient-layer basis class and algebra-aware exponent class
 - tests are organized by layer and validate semantic invariants
@@ -337,11 +349,16 @@ These rules apply to all implementation work until the migration is complete:
   semantics, not as a second semantic system
 - external positioning should describe Aleph3 as an embeddable symbolic/formula
   engine until the broader CAS foundation is materially stronger
-- broad differentiation, integration, solver work, or large special-function
-  expansion should wait until the kernel boundary is stronger
+- broad differentiation beyond the focused calculus pack, integration, solver
+  work, or large special-function expansion should wait until the kernel
+  boundary is stronger
 - bug fixes, regression tests, documentation cleanup, and narrow contract
   hardening are allowed in parallel
 - new semantic behavior must declare whether it belongs to kernel, SDK, or pack
+- each active tranche should include a kernel/SDK contract task, a math-pack
+  task, and a CLI or IDE-foundation task
+- CLI and IDE consumers must reuse kernel evaluation, diagnostics,
+  registration, and budgets rather than introducing another runtime
 - every new concept that becomes user-visible or architecturally important must
   be documented in plain language with small practical examples
 - every created or modified header should carry a short descriptive file header
@@ -349,22 +366,24 @@ These rules apply to all implementation work until the migration is complete:
 
 ## Priority Order
 
-The order of work is:
+The coordination priorities are:
 
 1. keep docs and repo messaging aligned with the one-kernel direction
 2. finish collapsing SDK execution into the kernel
 3. define the symbol and extension model the kernel will grow through
-4. add general rewrite infrastructure
-5. replace weak algebra foundations with exact infrastructure
-6. add assumptions and domain-aware semantics
-7. decide the durable registration and extension lifetime model for embedding
-8. make the syntax strategy explicit and keep it separate from kernel
+4. establish the CLI and shared session layer as permanent kernel consumers
+5. add general rewrite infrastructure
+6. strengthen the algebra pack on exact foundations and expose its workflows
+   through SDK and CLI surfaces
+7. add assumptions and domain-aware semantics needed by packs
+8. decide the durable registration and extension lifetime model for embedding
+   and interactive sessions
+9. make the syntax strategy explicit and keep it separate from kernel
    semantics
-9. extract higher math behind explicit pack boundaries
-10. expand product-facing symbolic capabilities on top of the stronger kernel
-11. harden the SDK and product surfaces around the stronger kernel
-12. build richer interactive product surfaces such as a notebook-like
-   application on top of the unified kernel
+10. implement a focused calculus pack as the next extension-model proof
+11. harden SDK, CLI, scripts, and structured tooling output as supported
+    product surfaces
+12. add an initial IDE or workbench consumer over the shared session protocol
 
 ## Milestones
 
@@ -379,39 +398,45 @@ Completed foundation:
 
 Active milestone:
 
-### M5. Kernel Extensibility Becomes Real
+### M5. Kernel Extensibility And Interactive CLI Foundations
 
 Outcome:
 
-- Aleph3 remains honest about being SDK-first and kernel-first during this phase
 - symbol definition model exists
 - registration and metadata replace more evaluator branching
 - rewrite infrastructure begins to support symbolic growth
+- the CLI is established as a permanent product surface
+- a stateful session boundary begins to unify definitions, evaluation,
+  diagnostics, and inspection
 
-### M6. Math Growth Moves To Stronger Foundations
+### M6. Serious Algebra Workflows Through SDK And CLI
 
 Outcome:
 
 - exact algebra backbone is in place
-- the first assumptions and domain semantics slice exists
-- the first broader sign-predicate assumption slice exists
-- pack boundaries carry more of the higher math surface
+- algebra is a serious registered pack rather than packaging alone
+- supported algebra workflows are reachable through both SDK and CLI paths
+- exactness, unsupported boundaries, and pack ownership are tested end to end
 
-### M7. Transitional Paths Retired
-
-Outcome:
-
-- duplicate runtime semantics are removed
-- tests and docs align to the one-kernel architecture
-
-### M8. Interactive Product Surfaces
+### M7. Calculus Pack And Reusable IDE Session Protocol
 
 Outcome:
 
-- a notebook-style application can sit above the kernel without introducing a
-  separate semantic runtime
-- the CLI becomes either a thin developer tool or is partly superseded by the
-  richer interactive surface
+- a focused calculus transformation pack uses shared rewrite, exactness, and
+  assumption contracts
+- the interactive session surface provides structured evaluation, diagnostics,
+  completion, inspection, and pack discovery
+- CLI and future IDE consumers do not need private execution logic
+
+### M8. Polished CLI And Initial IDE Or Workbench
+
+Outcome:
+
+- the CLI supports interactive sessions, scripts, machine-readable results,
+  tracing, timing, and pack operations as stable workflows
+- an initial IDE, editor integration, or workbench consumes the shared session
+  protocol
+- the CLI remains supported alongside the richer interactive surface
 
 ## Workstreams
 
@@ -465,12 +490,12 @@ Success criteria:
 - embedded and symbolic evaluation can be expressed through one kernel context
   model
 
-### D. SDK V1 As First Product
+### D. SDK V1 Adoption Track
 
 Goals:
 
 - make the trusted SDK subset the first polished commercial and adoption-ready
-  surface
+  embedding surface without crowding out pack and interactive investment
 
 Tasks:
 
@@ -483,6 +508,8 @@ Success criteria:
 
 - Aleph3 can be presented confidently as an embeddable formula/symbolic engine
 - SDK adoption does not depend on unfinished broader CAS claims
+- SDK contracts are exercised by pack-backed capabilities where those
+  capabilities belong in the trusted subset
 
 ### D2. Syntax And Language Surface
 
@@ -583,7 +610,8 @@ Current status:
   coefficients
 - a first algebra-aware layer now exists for same-symbol exponent accumulation
   in normalized `Times` and nested numeric `Power` forms
-- conditional rules and richer pattern classes are still open
+- typed single-expression patterns are implemented; conditional rules and
+  broader pattern classes remain open
 
 Near-term tasks:
 
@@ -671,6 +699,8 @@ Near-term multivariate algebra plan:
     `Expand` and `Collect` through a public exact polynomial layer, while
     multivariate `GCD`, division, and broader factorization remain out of
     scope
+- supported univariate rational-root factorization now clears exact rational
+  denominators and restores exact scalar content without using inexact roots
 - target early exact multivariate milestones in this order:
   1. exact multivariate coefficient preservation
   2. explicit monomial ordering and canonical form rules
@@ -731,6 +761,8 @@ Success criteria:
 Goals:
 
 - move higher math out of the kernel core while keeping semantics unified
+- treat math-pack depth as an active product investment, not only an
+  architecture demonstration
 
 Tasks:
 
@@ -742,6 +774,7 @@ Tasks:
   workflows rather than only placeholder packaging
 - use the algebra pack as the proving ground for staged multivariate algebra
   growth once exact algebra contracts are stronger
+- expose supported algebra workflows coherently through SDK and CLI entrypoints
 - keep vertical domains such as electrical engineering out of the kernel and
   implement them only once kernel extension points are stable
 - tighten what counts as a serious pack proof:
@@ -752,8 +785,8 @@ Tasks:
   - packaging alone does not count as proof of extensibility
 - likely serious-pack progression:
   - algebra remains the current proving ground for exactness and ownership
-  - a small calculus transformation pack becomes the preferred next proof once
-    rewrite and assumptions contracts are stronger
+  - a focused calculus transformation pack is the next proof and must use
+    shared rewrite, exactness, and assumptions contracts
 
 Success criteria:
 
@@ -763,33 +796,58 @@ Success criteria:
 - that proof pack exercises more than packaging: it demonstrates rule
   registration, exact/domain usage where needed, and explicit unsupported-case
   behavior
+- algebra workflows are usable and documented through SDK and CLI surfaces
+- the calculus pack proves a second domain can extend the kernel without
+  evaluator-local branches
 
 ### J. Interactive Applications And Product Surfaces
 
 Goals:
 
+- keep the CLI as a permanent first-class interface
 - provide richer end-user interaction without fragmenting semantics
+- create one reusable session foundation for CLI and future IDE/workbench
+  consumers
 
 Tasks:
 
-- define a notebook-style application as a future consumer of the kernel and
-  SDK
-- keep session state, cell execution, rendering, and inspection features out
-  of the kernel
-- decide whether the CLI remains a developer tool, a compatibility surface, or
-  a thin shell over notebook-facing services
-- ensure any interactive surface reuses kernel evaluation, diagnostics, and
-  pack registration rather than adding separate execution logic
+- define a stateful interactive session service above the kernel and SDK
+- preserve definitions and selected session configuration across evaluations
+- provide structured requests and results for evaluation, diagnostics,
+  completion, expression inspection, and pack discovery
+- evolve the CLI around that service with interactive sessions, script
+  execution, machine-readable output, tracing, timing, and pack operations
+- keep presentation concerns such as terminal formatting, cell rendering, and
+  editor UI outside the kernel
+- make a future IDE, editor extension, notebook, or workbench another consumer
+  of the same session service
+- ensure every interactive consumer reuses kernel evaluation, diagnostics,
+  registration, and budgets
+- defer commitment to a GUI toolkit, editor host, or transport encoding until
+  an initial protocol consumer requires that choice
+
+Current status:
+
+- the first experimental session owns one kernel evaluation context
+- evaluation, simplification, and full-form requests return structured results
+  and diagnostics
+- the symbolic CLI REPL reuses one session, preserving assignments and user
+  definitions across inputs
+- one-shot CLI commands remain intentionally ephemeral
 
 Priority:
 
-- after kernel/SDK convergence is stable enough that the interactive surface
-  will not be built on transitional semantics
+- CLI and session foundations proceed now in narrow slices over stable kernel
+  contracts
+- a large standalone GUI waits until the reusable session contract has a real
+  CLI consumer
 
 Success criteria:
 
-- Aleph3 has a path to a notebook-like surface without creating a third
-  semantic center
+- the CLI remains useful and supported even after richer tools exist
+- CLI and IDE/workbench consumers share session semantics and structured
+  results
+- no interactive surface creates a third semantic center
 
 ### K. Tests, Validation, And Product Hardening
 
@@ -821,6 +879,9 @@ Tasks:
     pack-owned rather than drifting back into evaluator-local branching
 - expand CI beyond the current basic matrix with Debug, Clang, sanitizers,
   formatting, and lightweight performance checks over time
+- add contract tests for session persistence, structured diagnostics,
+  machine-readable CLI output, inspection, completion, and pack discovery as
+  those interfaces land
 
 Success criteria:
 
@@ -852,25 +913,33 @@ Success criteria:
 
 ## Immediate Action Queue
 
-If work starts now, the next active tranche should be:
+The first balanced tranche has delivered typed patterns, exact rational
+univariate factorization, and a stateful symbolic CLI session. The next active
+tranche should be:
 
-1. define the next matcher tranche beyond named binders so rewrite growth is
-   no longer implicit
-2. make the first selected rewrite-owned transforms assumption-aware through
-   shared kernel queries rather than evaluator-local domain checks
-3. continue moving remaining host and richer builtin execution behind shared
-   registry or definition contracts without widening evaluator-local branching
+1. **Kernel and SDK:** define bounded conditional-rule semantics over the typed
+   single-expression matcher
+2. **Math packs:** make exact multivariate monomial ordering and canonical-form
+   rules explicit before widening division or GCD
+3. **CLI and IDE foundation:** add expression inspection and pack discovery to
+   the existing structured session contract
+
+Every following tranche should preserve this three-track shape. Tasks may be
+small, but no track should disappear from the active program.
 
 ## Deferred Work
 
 The following should mostly wait until the kernel program is further along:
 
-- broad differentiation work
+- broad differentiation and calculus breadth beyond the focused
+  transformation pack
 - large solver efforts
 - major symbolic special-function expansion beyond targeted contract hardening
 - significant algebra growth on top of the current floating algebra core
 - new domain verticals implemented directly inside evaluator branches
-- notebook-style product work built on top of transitional runtime semantics
+- a large standalone GUI before the shared session contract has a CLI consumer
+- notebook-style product work that introduces execution semantics outside the
+  kernel
 
 ## Allowed Parallel Work
 
@@ -882,6 +951,11 @@ These can proceed without waiting for the whole program:
 - narrow builtin contract hardening
 - limited symbolic-domain corrections that reduce future migration risk
 - SDK tutorials, host-integration examples, and other adoption-facing polish
+- exact algebra-pack slices over stable contracts
+- CLI session, scripting, inspection, diagnostics, and structured-output work
+  over existing kernel behavior
+- IDE protocol design validated through the CLI, without committing to a GUI
+  toolkit or editor host
 
 ## Product Standard
 
@@ -906,5 +980,10 @@ This unified plan is succeeding if:
 - architecture decisions stop being duplicated across roadmap docs
 - new code follows the kernel/SDK/pack split consistently
 - SDK and symbolic execution visibly converge
+- SDK, math packs, and interactive tooling all receive visible incremental
+  investment
+- algebra and focused calculus capabilities reach users through supported
+  surfaces
+- CLI and future IDE/workbench consumers share one session and execution model
 - future product growth depends on stronger kernel contracts, not on more
   duplicate evaluator logic

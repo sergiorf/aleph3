@@ -447,14 +447,41 @@ ExprPtr rebuild_supported_monomial_term(const SupportedMonomialTerm& term) {
 }
 
 bool is_pattern_symbol_name(const std::string& name) {
-    return name == "_" || (!name.empty() && name.back() == '_');
+    return name == "_" || name.find('_') != std::string::npos;
 }
 
 std::string pattern_binding_name(const std::string& name) {
-    if (name == "_") {
+    const auto separator = name.find('_');
+    if (separator == 0 || separator == std::string::npos) {
         return {};
     }
-    return name.substr(0, name.size() - 1);
+    return name.substr(0, separator);
+}
+
+std::string pattern_type_name(const std::string& name) {
+    const auto separator = name.find('_');
+    if (separator == std::string::npos) {
+        return {};
+    }
+    if (separator + 1 < name.size() && name[separator + 1] == '_') {
+        throw_unsupported_construct("Sequence patterns are not supported");
+    }
+    return name.substr(separator + 1);
+}
+
+bool matches_pattern_type(const std::string& type, const ExprPtr& expr) {
+    if (type.empty()) return true;
+    if (type == "Integer") {
+        const auto* number = std::get_if<Number>(&*expr);
+        return number != nullptr && is_integral(number->value);
+    }
+    if (type == "Rational") return std::holds_alternative<Rational>(*expr);
+    if (type == "Real") return std::holds_alternative<Number>(*expr);
+    if (type == "Symbol") return std::holds_alternative<Symbol>(*expr);
+    if (type == "String") return std::holds_alternative<String>(*expr);
+    if (type == "Boolean") return std::holds_alternative<Boolean>(*expr);
+    if (type == "Function") return std::holds_alternative<FunctionCall>(*expr);
+    throw_unsupported_construct("Unknown pattern type constraint: " + type);
 }
 
 bool structurally_equal_list(
@@ -551,6 +578,9 @@ bool match_pattern(
 
     if (const auto* symbol = std::get_if<Symbol>(&*pattern)) {
         if (is_pattern_symbol_name(symbol->name)) {
+            if (!matches_pattern_type(pattern_type_name(symbol->name), expr)) {
+                return false;
+            }
             const auto binding_name = pattern_binding_name(symbol->name);
             if (binding_name.empty()) {
                 return true;
@@ -638,6 +668,23 @@ bool match_list(
         }
     }
     return true;
+}
+
+void validate_pattern_contract(const ExprPtr& pattern) {
+    if (pattern == nullptr) return;
+    if (const auto* symbol = std::get_if<Symbol>(&*pattern)) {
+        if (is_pattern_symbol_name(symbol->name)) {
+            static_cast<void>(matches_pattern_type(pattern_type_name(symbol->name), pattern));
+        }
+        return;
+    }
+    if (const auto* call = std::get_if<FunctionCall>(&*pattern)) {
+        for (const auto& argument : call->args) validate_pattern_contract(argument);
+        return;
+    }
+    if (const auto* list = std::get_if<List>(&*pattern)) {
+        for (const auto& element : list->elements) validate_pattern_contract(element);
+    }
 }
 
 ExprPtr substitute_pattern_bindings(const ExprPtr& expr, const PatternBindings& bindings) {
@@ -828,11 +875,13 @@ bool structurally_equal(const ExprPtr& left, const ExprPtr& right) {
 }
 
 bool matches_pattern(const ExprPtr& pattern, const ExprPtr& expr) {
+    validate_pattern_contract(pattern);
     PatternBindings bindings;
     return match_pattern(pattern, expr, bindings);
 }
 
 RewriteResult rewrite_once(const ExprPtr& expr, const Rule& rule) {
+    validate_pattern_contract(rule.lhs);
     auto result = rewrite_once_impl(expr, rule);
     if (result.expr == nullptr) {
         result.expr = expr;

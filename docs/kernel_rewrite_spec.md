@@ -90,6 +90,9 @@ pattern language:
 
 - exact structural rules still work
 - symbols ending in `_` act as named pattern binders
+- `_Integer`, `_Rational`, `_Real`, `_Symbol`, `_String`, `_Boolean`, and
+  `_Function` constrain one anonymous match by expression kind
+- forms such as `n_Integer` apply the same constraint and bind the match to `n`
 - repeated use of the same named binder must match the same expression
 - the right-hand side substitutes named binders by bare symbol name
 
@@ -99,16 +102,16 @@ Examples:
 - `f[a_] -> g[a]`
 - `f[a_, a_] -> same[a]`
 
-This is still intentionally small.
-There are no typed patterns, predicates, conditions, sequence patterns, or
-attribute-aware matcher rules yet.
+This is still intentionally small. There are no predicate patterns,
+conditions, sequence patterns, or attribute-aware matcher rules yet. Unknown
+type constraints and sequence forms are rejected explicitly.
 
 In plain terms:
 
 - `a_` means "match any one expression and remember it as `a`"
 - `f[a_, a_]` means both inputs must match the same expression
-- there is not yet a way to say "match any number of arguments" or "match only
-  integers"
+- `n_Integer` means "match one integer and remember it as `n`"
+- there is not yet a way to say "match any number of arguments"
 
 Current product-facing transformation surface:
 
@@ -122,7 +125,7 @@ Still intentionally unsupported:
 - rule lists
 - conditions
 - sequence patterns
-- typed patterns
+- predicate-based patterns
 - hold-sensitive pattern evaluation
 
 ### Equality Model

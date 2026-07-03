@@ -3,6 +3,8 @@
 #include <string>
 #include <string_view>
 
+#include "session/Session.hpp"
+
 namespace aleph3::tooling {
 
 struct SymbolicCliResult {
@@ -12,6 +14,9 @@ struct SymbolicCliResult {
 };
 
 SymbolicCliResult symbolic_evaluate_expression(std::string_view source);
+SymbolicCliResult symbolic_evaluate_expression(
+    std::string_view source,
+    session::Session& session);
 
 SymbolicCliResult symbolic_simplify_expression(std::string_view source);
 

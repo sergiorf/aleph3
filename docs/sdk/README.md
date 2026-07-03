@@ -1,7 +1,9 @@
 # SDK Docs
 
-This directory is the working index for the Aleph3 SDK layer and its immediate
-integration points with the symbolic core.
+This directory documents the Aleph3 SDK layer and its immediate integration
+points with the kernel. Start with the system-wide [architecture](../architecture.md)
+and [concepts guide](../concepts.md) if terms such as lowering, trusted subset,
+or symbolic fallback are new to you.
 
 The surviving host-facing SDK surface is:
 
@@ -47,27 +49,4 @@ The surviving host-facing SDK surface is:
 - [Stable Interfaces](stable_interfaces.md)
 - [Build And Targets](build_and_targets.md)
 - [Testing Strategy](testing_strategy.md)
-- [Math Core Audit](math_core_audit.md)
-
-## SDK Layer Diagram
-
-```mermaid
-flowchart LR
-    HostApp["Host Application"] --> SDK["sdk\nEngine / Schema / Policy / Types"]
-    SDK --> Frontend["frontend\nlexer / parser / diagnostics"]
-    Frontend --> IR["ir\ntrusted subset nodes"]
-    IR --> Semantics["semantics\nvalidation / analysis"]
-    Semantics --> Bridge["kernel bridge\nlowering / execution context"]
-    Bridge --> Kernel["kernel\nExpr / evaluate / host dispatch / budgets"]
-    Kernel --> Value["public Value / RuntimeError"]
-    Tooling["tooling\nCLI / examples / tests"] --> SDK
-```
-
-## Build Diagram
-
-```mermaid
-flowchart TD
-    Symbolic["aleph3_symbolic"] --> SymbolicTests["aleph3_symbolic_tests"]
-    Kernel["aleph3_kernel"] --> Sdk["aleph3_sdk"]
-    Sdk --> SdkTests["aleph3_sdk_tests"]
-```
+- System-wide execution and build diagrams: [Architecture](../architecture.md)

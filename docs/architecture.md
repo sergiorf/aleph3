@@ -2,200 +2,240 @@
 
 ## Purpose
 
-This is the stable high-level architecture document for Aleph3.
+This is the architectural source of truth for Aleph3. It explains the system
+shape, ownership boundaries, execution paths, and dependency rules. Detailed
+behavior belongs in the focused kernel and SDK specifications linked from the
+[documentation index](README.md).
 
-It is intentionally short and durable.
-It explains the long-lived structure of the system without depending on
-transitional implementation details.
+Aleph3 is a safe embeddable formula and symbolic engine. The SDK is currently
+its strongest product surface; the symbolic kernel is the shared semantic
+foundation and is growing toward richer computer-algebra capabilities.
 
-For roadmap and sequencing, see
-[Aleph3 Unified Plan](aleph3_unified_plan.md).
+## System at a Glance
 
-For detailed implementation structure, see:
-
-- [Symbolic Core Architecture](symbolic_core_architecture.md)
-- [System Architecture](system_architecture.md)
-- [Kernel Design Spec](kernel_design_spec.md)
-- [SDK Stable Interfaces](sdk/stable_interfaces.md)
-
-## System Shape
-
-Aleph3 has four long-lived layers:
-
-1. kernel
-2. packs
-3. SDK
-4. tools and products
-
-```text
-tools / products
-        |
-       SDK
-        |
-      packs
-        |
-      kernel
+```mermaid
+flowchart TB
+    Host["Host applications"] --> SDK["SDK<br/>Engine · Schema · Policy · Value"]
+    CLI["CLI and future products"] --> SDK
+    CLI --> Kernel
+    SDK --> Frontend["Trusted frontend<br/>parse · validate · diagnose"]
+    Frontend --> IR["ir::Node<br/>temporary validated form"]
+    IR -->|lower once| Expr["Expr<br/>kernel semantic form"]
+    Packs["Math packs<br/>algebra · future calculus · special functions"] -->|register capabilities| Kernel
+    Expr --> Kernel["Kernel<br/>evaluate · symbols · rewrite · exact arithmetic"]
+    Kernel --> Result["Expr or SDK Value / RuntimeError"]
 ```
 
-## Plain-Language Terms
+Four layers remain stable even as directories move:
 
-These are the core terms used across the docs.
+1. **Kernel** — defines what expressions mean.
+2. **Packs** — add domain mathematics through kernel contracts.
+3. **SDK** — validates, constrains, and exposes the kernel to host programs.
+4. **Tools and products** — consume those layers without inventing semantics.
 
-- kernel
-  The math engine itself. If Aleph3 needs to know what `x + x` means, how
-  `If[...]` behaves, or whether `1/2 + 1/3` stays exact, that logic belongs in
-  the kernel.
-- pack
-  An add-on math library on top of the kernel. A future calculus pack could
-  add rules such as `D[x^2, x] -> 2*x` without changing the kernel core.
-- SDK
-  The embedding API for applications. If a host app wants to validate a
-  formula, supply variables, and run it safely, it goes through the SDK.
-- rewrite
-  A rule-based expression change. Example: `f[x] -> g[x]` rewrites `f[f[x]]`
-  into `g[g[x]]`.
-- host function
-  A function implemented by the embedding application instead of Aleph3.
-  Example: an app may register `Clamp` or `PriceForSku` and let formulas call
-  it during evaluation.
+Dependencies point downward. A lower layer must not depend on host-facing
+policy or a particular product.
 
-## Kernel
+## The Central Representation Decision
 
-The kernel is the semantic center of Aleph3.
+Aleph3 has one semantic representation: `Expr`.
 
-It owns:
+The SDK also uses `ir::Node`, but only while parsing and validating the trusted
+formula subset. Once a formula is valid, a one-way adapter lowers it into
+`Expr`. `ir::Node` is therefore a frontend artifact, not a second AST with a
+second evaluator.
 
-- symbolic expression representation
-- evaluation semantics
-- symbol metadata and definition storage
-- rewrite and transformation infrastructure
-- exact arithmetic foundations
-- diagnostics
-- registration contracts used by built-ins, packs, and host integration
+```mermaid
+flowchart LR
+    Source["source text"] --> Node["ir::Node"]
+    Node --> Check["schema + policy validation"]
+    Check -->|valid| Lower["lowering adapter"]
+    Check -->|invalid| Diagnostic["structured diagnostic"]
+    Lower --> Expr["Expr"]
+    Expr --> Eval["kernel evaluation"]
+```
 
-The kernel must not be treated as a private implementation detail under the
-SDK. All other layers depend on its semantics.
+Example: SDK input `x - 2` may first be represented by a subtraction node with
+a source span. Lowering produces the kernel shape `Plus[x, Times[-1, 2]]`.
+The source span helps the SDK report errors; the normalized heads tell the
+kernel what the expression means.
 
-## Packs
+## Layer Responsibilities
 
-Packs are domain libraries built on top of the kernel.
+### Kernel
 
-They should add:
+The kernel owns behavior that affects symbolic meaning globally:
 
-- algebra algorithms
-- special functions
-- calculus rules
-- solver logic
-- other domain-specific symbolic behavior
+- `Expr` construction and structural identity
+- evaluation order and symbolic fallback
+- symbol metadata, values, definitions, and attributes
+- normalization and bounded rewrite execution
+- exact scalar arithmetic and assumptions
+- diagnostics, budgets, and registration contracts
 
-They should not bypass kernel contracts by hardcoding domain growth directly
-into evaluator internals.
+The evaluator orchestrates these subsystems. It must not become a collection
+of unrelated domain algorithms.
 
-## SDK
+### Packs
 
-The SDK is the host-facing embedding layer.
+Packs own domain algorithms over stable kernel primitives: algebra,
+calculus, solvers, linear algebra, and special functions. A pack registers
+functions, metadata, or rules; it does not reach around the kernel to create a
+private evaluation path.
 
-It owns:
+For example, matching a pattern and applying a rule is kernel infrastructure.
+Knowing that `D[x^2, x]` becomes `2*x` belongs in a calculus pack.
 
-- `Engine`
-- `Schema`
-- `Policy`
-- public value and diagnostic types
+### SDK
+
+The SDK owns the public embedding contract:
+
+- `Engine`, `Schema`, `Policy`, `Types`, and opaque compiled formulas
 - trusted-subset parsing and validation
-- operational controls such as budgets and allowlists
+- source-oriented diagnostics
+- allowlists, complexity limits, and evaluation budgets
+- conversion between host values and kernel values
+- engine-scoped host functions
 
-The SDK constrains and packages kernel behavior for host applications.
-It does not own a second semantic runtime.
+The SDK constrains kernel behavior; it does not redefine arithmetic or
+symbolic semantics.
 
-## Tools And Products
+### Tools and Products
 
-Tools and products sit above the SDK and kernel:
+The CLI, examples, tests, and future applications are consumers. They may
+compose APIs and present results, but semantic rules do not belong there.
 
-- CLI
-- examples
-- future notebook-style applications
-- hosted or commercial surfaces
+## Repository Ownership
 
-They must reuse unified kernel semantics rather than introduce separate
-execution models.
+| Area | Owner | Role |
+| --- | --- | --- |
+| `include/expr`, `src/expr` | kernel | symbolic representation |
+| `include/evaluator`, `src/evaluator` | kernel | evaluation orchestration |
+| `include/kernel`, `src/kernel` | kernel | shared contracts and SDK bridge |
+| `include/symbols`, `include/normalizer` | kernel | definitions and canonical form |
+| `include/transforms`, `src/transforms` | kernel or pack | structural transforms stay in kernel; domain transforms move to packs |
+| `include/algebra`, `src/algebra` | algebra pack | domain-specific exact algebra |
+| `include/packs`, `src/packs` | kernel contracts / pack bootstrap | registration boundary |
+| `include/frontend`, `src/frontend` | SDK | trusted parser and diagnostics |
+| `include/ir` | SDK | validated transient representation |
+| `include/semantics`, `src/semantics` | SDK | schema and policy validation |
+| `include/sdk`, `src/sdk` | SDK | public host API |
+| `include/tooling`, `src/tooling` | tooling | CLI and supporting presentation |
 
-## Execution Flow
+When ownership is unclear, ask: “Would changing this change expression meaning
+for every consumer?” If yes, it is probably kernel work. If it is a domain
+algorithm, it is pack work. If it controls what a host is allowed to submit,
+it is SDK work.
 
-There are two important execution paths.
+## Execution Paths
 
-### SDK Path
+### SDK Formula
 
-```text
-source
--> frontend parser
--> trusted-subset IR
--> semantics validation
--> lowering into kernel Expr
--> kernel evaluation
--> SDK Value / RuntimeError
+```mermaid
+sequenceDiagram
+    participant App as Host application
+    participant SDK as SDK Engine
+    participant Front as Frontend + validator
+    participant K as Kernel
+    App->>SDK: compile("Clamp[x, 0, 10]", schema, policy)
+    SDK->>Front: parse and validate
+    Front-->>SDK: validated ir::Node
+    SDK->>K: lower to Expr
+    SDK-->>App: CompiledFormula
+    App->>SDK: evaluate(formula, x = 12)
+    SDK->>K: evaluate Expr with context
+    K-->>SDK: 10
+    SDK-->>App: Value(10)
 ```
 
-### Symbolic Path
+Compilation proves that syntax, variables, calls, and policy are acceptable.
+Evaluation supplies runtime values and executes the already-lowered kernel
+expression.
 
-```text
-symbolic source
--> Expr
--> kernel evaluation / normalization / rewrite
--> Expr
+### Symbolic Expression
+
+```mermaid
+flowchart LR
+    Input["symbolic source"] --> Parse["symbolic parser"]
+    Parse --> Expr["Expr"]
+    Expr --> Evaluate["evaluate definitions and built-ins"]
+    Evaluate --> Normalize["canonicalize structure"]
+    Normalize --> Rewrite["optional bounded rewrites"]
+    Rewrite --> Output["Expr"]
 ```
 
-Both paths are converging on the same kernel semantics.
+Evaluation, normalization, and rewriting are related but distinct. Evaluation
+resolves meanings such as numeric addition or definitions. Normalization gives
+equivalent structures a stable shape. Rewriting applies explicit structural
+rules. Keeping them distinct makes scheduling and budgets visible.
 
-## Rewrite, In Plain Terms
+## Symbol Resolution and Extension
 
-A rewrite is a symbolic edit step driven by a rule.
+At a high level, a function call moves through registered and user-visible
+behavior in a defined order:
 
-Example:
-
-```text
-f[x] -> g[x]
+```mermaid
+flowchart TD
+    Call["head[arguments]"] --> Attr["apply evaluation-control attributes"]
+    Attr --> Builtin{"registered built-in or pack function?"}
+    Builtin -->|yes| Execute["execute registered behavior"]
+    Builtin -->|no| Definition{"matching user definition?"}
+    Definition -->|yes| Apply["apply definition"]
+    Definition -->|no| Rule{"registered normalized-head rewrite?"}
+    Rule -->|yes| Rewrite["bounded rewrite"]
+    Rule -->|no| Symbolic["preserve symbolic call"]
 ```
 
-Applied to:
+This diagram is an orientation, not a substitute for the normative
+[symbol precedence](kernel_symbol_definition_precedence.md),
+[symbol model](kernel_symbol_model_spec.md), and
+[rewrite](kernel_rewrite_spec.md) specifications.
 
-```text
-f[f[x]]
+## Build Graph
+
+```mermaid
+flowchart TD
+    Kernel["aleph3_kernel"] --> SDK["aleph3_sdk"]
+    Kernel --> Algebra["aleph3_pack_algebra"]
+    Algebra --> SDK
+    Kernel -. compatibility alias .-> Symbolic["aleph3_symbolic"]
+    SDK --> CLI["aleph3_cli"]
+    SDK --> Example["aleph3_sdk_example"]
+    Kernel --> KernelTests["aleph3_symbolic_tests"]
+    SDK --> SDKTests["aleph3_sdk_tests"]
 ```
 
-Result:
+`aleph3_symbolic` is a compatibility alias, not another engine. Disabling the
+broader symbolic product surface does not remove the kernel dependency from
+the SDK.
 
-```text
-g[g[x]]
+## Architectural Invariants
+
+- There is one kernel and one source of semantic truth.
+- `Expr` is the kernel form; `ir::Node` is an SDK frontend form.
+- Lowering is one-way and contains translation, not new semantics.
+- Domain mathematics grows through packs over kernel contracts.
+- Evaluation budgets and diagnostics cross layers explicitly.
+- Public SDK types do not expose internal expression or IR implementation.
+- Tools and products never become semantic centers.
+- Transitional aliases or adapters must be labeled and prevented from growing
+  into permanent parallel systems.
+
+## Adding a Feature
+
+Use this path before choosing a directory:
+
+```mermaid
+flowchart TD
+    Feature["new behavior"] --> Meaning{"changes global expression meaning?"}
+    Meaning -->|yes| Kernel["kernel subsystem"]
+    Meaning -->|no| Domain{"domain-specific mathematics?"}
+    Domain -->|yes| Pack["math pack"]
+    Domain -->|no| Host{"host validation, safety, or API?"}
+    Host -->|yes| SDK["SDK"]
+    Host -->|no| Product["tool / product"]
 ```
 
-Practical examples:
-
-- rewrite can simplify shape: `0 + x -> x`
-- rewrite can normalize shape: `x + x -> 2*x` within a limited supported class
-- rewrite is different from plain numeric evaluation: `2 + 3 = 5` is numeric
-  reduction, while `f[x] -> g[x]` is structural transformation
-
-In Aleph3 today, rewrite is a kernel subsystem used for controlled symbolic
-transformations. It already supports exact structural rules, simple named
-patterns like `a_`, and a narrow arithmetic simplification layer.
-
-## Stable Architectural Rules
-
-- There must be one kernel, not two peer semantic runtimes.
-- `Expr` is the long-term kernel representation.
-- `ir::Node` is an SDK-side representation for trusted-subset parsing and
-  validation, not a second kernel AST.
-- Domain math should grow through packs over kernel contracts.
-- The SDK should remain a small, stable adoption layer.
-- Interactive applications should be consumers of kernel and SDK behavior, not
-  new semantic centers.
-
-## What Should Feel Stable To Readers
-
-These statements should remain true even as code moves:
-
-- Aleph3 is kernel-first.
-- The SDK is public and host-facing.
-- Packs are the extension path for domain growth.
-- Rewrite is part of symbolic transformation infrastructure.
-- Products sit above the kernel rather than redefining it.
+For current implementation sequencing, see the
+[unified plan](aleph3_unified_plan.md). For vocabulary and worked examples,
+see [Concepts and Terminology](concepts.md).

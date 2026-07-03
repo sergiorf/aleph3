@@ -7,8 +7,8 @@ with the first minimal pattern language.
 
 Primary implementation:
 
-- [include/kernel/Rewrite.hpp](/home/sergio/dev/aleph3/include/kernel/Rewrite.hpp)
-- [src/kernel/Rewrite.cpp](/home/sergio/dev/aleph3/src/kernel/Rewrite.cpp)
+- [`include/kernel/Rewrite.hpp`](../include/kernel/Rewrite.hpp)
+- [`src/kernel/Rewrite.cpp`](../src/kernel/Rewrite.cpp)
 
 ## Purpose
 

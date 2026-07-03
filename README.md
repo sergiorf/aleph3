@@ -78,7 +78,7 @@ support compatibility syntax, a more Aleph3-native syntax, or both over time.
   expressions and executes them through the shared kernel path
 - Host function contract: engine-scoped registration enforces callback metadata at registration and runtime
 - Host-function tooling: `evaluate-host` and `aleph3_sdk_example` exercise embedded callbacks end-to-end
-- Docs index: [docs/sdk/README.md](docs/sdk/README.md)
+- Docs index: [docs/README.md](docs/README.md)
 
 ## Getting Started
 To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler installed.
@@ -153,32 +153,16 @@ To build Aleph3, ensure you have CMake 3.20+ and a C++20-compatible compiler ins
    ```
 
 ## Documentation
-- Start here for the product and roadmap view:
-  - [Unified plan](docs/aleph3_unified_plan.md)
-  - [Architecture](docs/architecture.md)
-- Start here for the embedding surface:
-  - [SDK overview](docs/sdk/README.md)
-  - [Trusted subset scope](docs/trusted_subset_v1.md)
-  - [SDK stable interfaces](docs/sdk/stable_interfaces.md)
-- Start here for current symbolic/kernel contracts:
-  - [Kernel design spec](docs/kernel_design_spec.md)
-  - [Kernel symbol model spec](docs/kernel_symbol_model_spec.md)
-  - [Kernel rewrite spec](docs/kernel_rewrite_spec.md)
-  - [Kernel exact algebra spec](docs/kernel_exact_algebra_spec.md)
-  - [Kernel registration lifecycle spec](docs/kernel_registration_lifecycle_spec.md)
-  - [Kernel assumptions spec](docs/kernel_assumptions_spec.md)
-- Broader reference:
-  - [Algebra supported subset](docs/algebra_supported_subset.md)
-  - [Symbolic core architecture](docs/symbolic_core_architecture.md)
-  - [Class collaboration](docs/class_collaboration.md)
-  - [Kernel execution bridge spec](docs/kernel_execution_bridge_spec.md)
-  - [Kernel representation decision](docs/kernel_representation_decision.md)
-  - [Representation lowering strategy](docs/representation_lowering_strategy.md)
-  - [Layer ownership matrix](docs/layer_ownership_matrix.md)
-  - [Kernel symbol definition precedence](docs/kernel_symbol_definition_precedence.md)
-  - [Header documentation guideline](docs/header_documentation_guideline.md)
-  - [Symbolic core gap analysis](docs/symbolic_core_gap_analysis.md)
-  - [System architecture](docs/system_architecture.md)
+
+Start at the [documentation index](docs/README.md). The main reading path is:
+
+1. [Architecture](docs/architecture.md)
+2. [Concepts and terminology](docs/concepts.md)
+3. [SDK guide](docs/sdk/README.md) or the focused kernel specifications
+4. [Unified implementation plan](docs/aleph3_unified_plan.md)
+
+The index separates explanatory guides, normative contracts, and planning so
+there is one obvious home for each kind of information.
 
 ## License
 [MIT License](LICENSE)

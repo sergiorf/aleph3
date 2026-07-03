@@ -14,8 +14,7 @@ Status note:
 Related documents:
 
 - [Aleph3 Unified Plan](../aleph3_unified_plan.md)
-- [Kernel Representation Decision](../kernel_representation_decision.md)
-- [Layer Ownership Matrix](../layer_ownership_matrix.md)
+- [Architecture](../architecture.md)
 
 ## Targets
 

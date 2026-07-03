@@ -8,8 +8,8 @@ function resolution in the Aleph3 kernel refactor.
 Related documents:
 
 - [Aleph3 Unified Plan](aleph3_unified_plan.md)
-- [Class Collaboration](class_collaboration.md)
-- [System Architecture](system_architecture.md)
+- [Architecture](architecture.md)
+- [Concepts and Terminology](concepts.md)
 
 ## Scope
 

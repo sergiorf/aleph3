@@ -9,9 +9,9 @@ catalog.
 
 Primary implementation:
 
-- [include/symbols/SymbolState.hpp](/home/sergio/dev/aleph3/include/symbols/SymbolState.hpp)
-- [include/kernel/EvaluationContext.hpp](/home/sergio/dev/aleph3/include/kernel/EvaluationContext.hpp)
-- [include/kernel/FunctionRegistry.hpp](/home/sergio/dev/aleph3/include/kernel/FunctionRegistry.hpp)
+- [`include/symbols/SymbolState.hpp`](../include/symbols/SymbolState.hpp)
+- [`include/kernel/EvaluationContext.hpp`](../include/kernel/EvaluationContext.hpp)
+- [`include/kernel/FunctionRegistry.hpp`](../include/kernel/FunctionRegistry.hpp)
 
 Related lifecycle contract:
 

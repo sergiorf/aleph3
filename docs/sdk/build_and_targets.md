@@ -1,7 +1,7 @@
 # Build And Targets
 
-The current build distinguishes the kernel, SDK, CLI, and packs. It does not
-yet contain a notebook target.
+The current build distinguishes the kernel, SDK, CLI, packs, and the
+GUI-independent notebook core. It does not yet contain a notebook application.
 
 Status note:
 
@@ -23,10 +23,12 @@ Related documents:
 | `aleph3_symbolic` | alias | Compatibility alias for the current kernel target during migration |
 | `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
 | `aleph3_pack_algebra` | library | Current polynomial implementation and registered algebra pack |
+| `aleph3_notebook_core` | library | Experimental notebook document model and session-backed `Run All` consumer |
 | `aleph3_sdk` | library | Public SDK facade over kernel-backed execution |
 | `aleph3_cli` | executable | Thin SDK tooling CLI for manual parser/validator/runtime checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
 | `aleph3_symbolic_tests` | executable | Kernel-oriented symbolic tests plus current symbolic tooling and pack-placeholder coverage |
+| `aleph3_notebook_tests` | executable | Notebook model, isolation, rerun, diagnostics, and shared-session fixture coverage |
 | `aleph3_sdk_tests` | executable | SDK-layer tests and SDK tooling coverage |
 
 ## Build Options
@@ -51,22 +53,29 @@ flowchart TD
     Symbolic["aleph3_symbolic (alias)"] --> Kernel
     CoreMath["aleph3_pack_core_math"] --> Kernel
     Algebra["aleph3_pack_algebra"] --> Kernel
+    Kernel --> NotebookCore["aleph3_notebook_core"]
+    NotebookCore --> NotebookTests["aleph3_notebook_tests"]
+    Algebra --> NotebookTests
     Kernel --> Sdk["aleph3_sdk"]
     Sdk --> SdkTests["aleph3_sdk_tests"]
     Sdk --> Cli["aleph3_cli"]
     Sdk --> Example["aleph3_sdk_example"]
 ```
 
-This diagram reflects the current build, not the planned notebook target. The
-kernel has an explicit build name, the SDK depends on it directly, and the
-algebra pack contains the current polynomial implementation. The core-math
-interface target remains a placeholder boundary.
+This diagram reflects the current build. The notebook-core target has no GUI,
+file format, or persistence layer; it is the tested product-model boundary that
+a later application will consume. The kernel has an explicit build name, the
+SDK depends on it directly, and the algebra pack contains the current
+polynomial implementation. The core-math interface target remains a placeholder
+boundary.
 
 ## Practical Guidance
 
 - Use `ALEPH3_BUILD_SDK=ON` to work on the embedding and current CLI path.
 - Expect the kernel to build whenever the SDK is enabled.
 - Use `aleph3_cli` for fast manual checks while broader validation and custom host-function tooling are still under construction.
+- Use `aleph3_notebook_tests` to exercise the current headless document and
+  clean `Run All` lifecycle. No notebook executable is built yet.
 - `validate` in the CLI now exercises the real lexer/parser/validator path.
 - `evaluate` in the CLI now accepts `--var name=value` bindings for basic runtime checks.
 - `evaluate-host` in the CLI registers demo host functions for end-to-end SDK checks.
@@ -92,5 +101,6 @@ interface target remains a placeholder boundary.
 - `tests/frontend`, `tests/ir`, `tests/semantics`, and `tests/sdk` are SDK-side
   coverage.
 - `tests/tooling` is SDK/tooling consumer coverage.
+- `tests/notebook` is notebook-product model and session-consumer coverage.
 - `tests/packs/` is reserved for explicit future pack-owned test files once
   extraction moves beyond placeholder targets.

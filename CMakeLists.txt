@@ -100,6 +100,12 @@ if(ALEPH3_BUILD_KERNEL)
         src/packs/AlgebraPack.cpp)
     target_include_directories(aleph3_pack_algebra PUBLIC include PRIVATE third_party/utf8cpp)
 
+    add_library(aleph3_notebook_core
+        src/notebook/Notebook.cpp
+        include/notebook/Notebook.hpp)
+    target_include_directories(aleph3_notebook_core PUBLIC include)
+    target_link_libraries(aleph3_notebook_core PUBLIC aleph3_kernel)
+
     if(ALEPH3_BUILD_SDK)
         target_link_libraries(aleph3_sdk PUBLIC aleph3_kernel aleph3_pack_algebra)
     endif()
@@ -155,6 +161,15 @@ if(BUILD_TESTING)
             Catch2::Catch2WithMain)
         target_include_directories(aleph3_symbolic_tests PRIVATE third_party/utf8cpp tests)
         add_test(NAME aleph3_symbolic_tests COMMAND aleph3_symbolic_tests)
+
+        add_executable(aleph3_notebook_tests tests/notebook/NotebookTests.cpp)
+        target_link_libraries(
+            aleph3_notebook_tests
+            PRIVATE
+            aleph3_notebook_core
+            aleph3_pack_algebra
+            Catch2::Catch2WithMain)
+        add_test(NAME aleph3_notebook_tests COMMAND aleph3_notebook_tests)
     endif()
 
     if(ALEPH3_BUILD_SDK)

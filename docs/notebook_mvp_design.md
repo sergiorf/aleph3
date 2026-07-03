@@ -2,8 +2,9 @@
 
 ## Status and Goal
 
-This document is the proposed contract for the first Aleph3 notebook. It is a
-design for planned behavior, not documentation of a shipped application.
+This document is the proposed contract for the first Aleph3 notebook. The
+headless document and `Run All` slice described below is implemented; the GUI,
+persistence, and remaining behavior are planned rather than shipped.
 
 The MVP succeeds when a user can launch a local application, create and edit a
 document, evaluate supported symbolic input through one session, understand
@@ -133,6 +134,88 @@ Record the decision in [Architecture](architecture.md) before production UI
 code depends on a toolkit. Dear ImGui, wxWidgets, and custom UI remain fallback
 options if the measured constraints reject both primary candidates.
 
+## Delivered First Implementation Slice
+
+The first slice is a headless notebook document core and deterministic session
+runner. It deliberately precedes persistence and GUI work so every toolkit
+spike consumes the same tested model instead of defining its own cells or
+execution lifecycle.
+
+### Observable Outcome
+
+A test or small development harness can construct a document containing text
+and input cells, run all inputs through a fresh session in document order, and
+inspect one canonical result record per input. Definitions created by an
+earlier input are visible to later inputs during that run, while separate
+documents and repeated `Run All` operations do not inherit stale session
+state.
+
+This is an internal product foundation, not yet a notebook application or a
+user-visible release. Its behavior is covered by `aleph3_notebook_tests`.
+
+### Slice Contract
+
+- Add a GUI-independent `aleph3_notebook_core` target above the session and
+  kernel. It owns document, cell, generated-result, and runner types; it links
+  to shared session behavior and contains no evaluator or parser logic.
+- A document has the format identity and version fields needed by later
+  persistence plus an ordered cell collection. Physical serialization is not
+  part of this slice.
+- Source cells are `input` or `text`. Evaluation results are generated records
+  associated with an input-cell identifier rather than editable source.
+  Presentation code may later expose those records as output cells.
+- Cell identifiers are opaque, non-empty, document-local strings. Creation
+  receives an identifier generator so tests remain deterministic. Duplicate
+  identifiers are rejected by document validation.
+- `Run All` creates a new `session::Session`, clears all prior generated
+  results, skips text cells, and submits every input cell in order using
+  `SessionOperation::evaluate`.
+- Each attempted input produces exactly one generated record containing the
+  source-cell identifier, success status, canonical plain text when present,
+  and the diagnostics currently returned by the session. A failed input does
+  not stop later cells from running.
+- The runner does not interpret output text, synthesize diagnostics, retry a
+  failed expression, or mutate input source.
+
+Rich display nodes, diagnostic severity and source spans require shared
+session contracts that do not exist yet. The first slice preserves the current
+diagnostic code and message without pretending those richer fields are
+available.
+
+### Ordered Tasks and Gates
+
+1. **Model and validation.** Introduce the notebook-core target and document
+   types with stable ordering, opaque identifiers, input/text source kinds,
+   generated results, format identity, and version. Add tests for construction,
+   ordering, duplicate or empty identifiers, and unsupported format versions.
+2. **Session-backed runner.** Implement deterministic `Run All` over a newly
+   constructed session. Add tests proving definition flow within one run,
+   clean reruns after source edits, document isolation, text-cell skipping,
+   result replacement, and continued execution after a structured failure.
+3. **Representative product fixture.** Build one in-memory example covering
+   exact arithmetic, assignment, assumptions or rewriting, polynomial algebra,
+   and a deliberate failure. Assert canonical outputs and diagnostic codes;
+   this fixture becomes the common input for later toolkit spikes.
+4. **Consumer boundary review.** Confirm the new target depends toward the
+   session/kernel only, no notebook code appears in the kernel, and no semantic
+   logic is duplicated. Update build-target and contributor documentation with
+   the new experimental target, clearly stating that no GUI or file format
+   ships yet.
+
+Baseline verification uses the existing Release symbolic and SDK suites.
+Focused verification builds and runs notebook-core tests after each task.
+Completion requires the focused tests, both affected existing suites,
+`git diff --check`, local Markdown-link validation, and a final diff review.
+
+### Deferred Decisions and Non-Goals
+
+The slice does not choose Qt versus webview, a product name, or a physical file
+encoding. It does not add save/load, cached-output compatibility, individual
+cell execution, cancellation, Markdown rendering, rich mathematical display,
+autosave, gallery UI, export, plotting, or packaging. Persistence is the next
+vertical slice after the in-memory model proves stable; the bounded toolkit
+spikes may then run against the same model and representative fixture.
+
 ## MVP Acceptance Evidence
 
 Completion requires automated document round trips, version and corruption
@@ -140,4 +223,3 @@ tests, session isolation and clean `Run All` tests, diagnostic rendering tests,
 verified gallery examples, packaging smoke tests, and a manual keyboard-only
 workflow check. The kernel and CLI suites must remain green because the
 notebook is a new consumer, not a replacement semantic path.
-

@@ -144,6 +144,9 @@ What is already true:
   structured results, and diagnostics for the symbolic CLI REPL
 - the session and CLI now provide non-mutating expression inspection and
   deterministic pack discovery and completion over registry metadata
+- a GUI-independent notebook core now owns versioned in-memory documents,
+  ordered input/text cells, generated results, and deterministic clean
+  `Run All` execution over fresh shared sessions
 
 What is still unresolved:
 
@@ -1076,7 +1079,7 @@ Success criteria:
 Three balanced tranches have now delivered typed and conditional patterns,
 depth-controlled replacement, exact rational factorization, explicit
 multivariate ordering and division, and a stateful CLI session with inspection,
-pack discovery, and completion. The next active tranche should be:
+pack discovery, and completion. The next active tranche is:
 
 1. **Kernel and SDK:** add explicit assumption-contradiction handling and the
    first selected assumption-aware rewrite hook
@@ -1084,8 +1087,10 @@ pack discovery, and completion. The next active tranche should be:
    over the shared division and ordering invariants
 3. **CLI and IDE foundation:** add script execution and a narrow
    machine-readable result mode over the existing session contract
-4. **Notebook MVP:** specify the versioned cell/document and display contracts,
-   then run bounded Qt and webview spikes against one session fixture
+4. **Notebook MVP:** specify and implement versioned persistence with bounded
+   loading and atomic save behavior, then run bounded Qt/webview spikes against
+   the delivered document model and shared product fixture described in the
+   [Notebook MVP Design](notebook_mvp_design.md#delivered-first-implementation-slice)
 5. **Cross-cutting validation:** continue closing P0 diagnostic, overflow,
    registry-collision, failure-recovery, and process-level CLI gaps before
    declaring these experimental interfaces stable

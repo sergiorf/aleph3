@@ -24,7 +24,20 @@ The symbolic REPL preserves assignments and definitions. One-shot commands
 start fresh. On supported terminals Tab completes commands and symbols;
 `:complete` is the deterministic, pipe-friendly fallback.
 
-## Planned Notebook
+## Headless Notebook Foundation
+
+The current build includes an experimental `aleph3_notebook_core` library, but
+not a graphical notebook executable. The library models ordered input and text
+cells with stable document-local identifiers. Its `Run All` operation starts a
+fresh session, skips text cells, evaluates every input in order, and replaces
+the previous generated results.
+
+Definitions flow to later cells during a run. Repeating `Run All` starts clean,
+and one failed input records its session diagnostics without preventing later
+inputs from running. Generated results retain canonical plain text and current
+diagnostic codes/messages; rich display and persistence are not implemented.
+
+## Planned Notebook Application
 
 The first graphical Aleph3 product should be a thin session consumer, not a new
 semantic layer. A useful v0.1 feedback release needs:
@@ -42,9 +55,9 @@ The GUI owns presentation and documents. The session owns execution state, the
 kernel owns meaning, and packs own domain mathematics.
 
 No notebook application is included in the current build. Until it exists,
-`aleph3_cli repl` is the runnable local interactive surface. Code generation,
-PDF/HTML export, rich Markdown, and paid packs are roadmap features, not
-current capabilities.
+`aleph3_cli repl` is the runnable local interactive surface. The headless core
+has no save/open support yet. Code generation, PDF/HTML export, rich Markdown,
+and paid packs are roadmap features, not current capabilities.
 
 The first notebook should evaluate currently supported examples such as exact
 arithmetic, `Refine[Sqrt[x^2], x >= 0]`, rewriting, and polynomial operations.

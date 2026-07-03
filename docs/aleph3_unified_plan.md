@@ -111,10 +111,14 @@ What is already true:
   answers
 - typed single-expression patterns now support structural type constraints
   while sequence patterns remain explicitly unsupported
+- conditional typed patterns now evaluate predicates through the same bounded
+  kernel context used by `MatchQ`, `Replace`, and `ReplaceRepeated`
 - univariate `Factor` now preserves exact rational coefficients for the
   supported rational-root workflow
 - an experimental stateful session contract now owns reusable kernel context,
   structured results, and diagnostics for the symbolic CLI REPL
+- the session and CLI now provide non-mutating expression inspection and
+  deterministic pack discovery over registry metadata
 
 What is still unresolved:
 
@@ -633,8 +637,8 @@ Current status:
   coefficients
 - a first algebra-aware layer now exists for same-symbol exponent accumulation
   in normalized `Times` and nested numeric `Power` forms
-- typed single-expression patterns are implemented; conditional rules and
-  broader pattern classes remain open
+- typed single-expression patterns and bounded `Condition[pattern, predicate]`
+  rules are implemented; broader traversal and sequence patterns remain open
 
 Near-term tasks:
 
@@ -652,9 +656,8 @@ Near-term tasks:
 - define the next matcher and rewrite ladder explicitly rather than leaving it
   as one broad future bucket:
   1. richer single-expression pattern classes
-  2. conditional rules with bounded evaluation
-  3. targeted traversal and replacement APIs
-  4. only later, if still justified, broader sequence-pattern machinery
+  2. targeted traversal and replacement APIs
+  3. only later, if still justified, broader sequence-pattern machinery
 
 Success criteria:
 
@@ -724,6 +727,9 @@ Near-term multivariate algebra plan:
     scope
 - supported univariate rational-root factorization now clears exact rational
   denominators and restores exact scalar content without using inexact roots
+- exact monomials now have explicit lexicographic, graded-lexicographic, and
+  graded-reverse-lexicographic ordering policies with variable precedence;
+  canonical algebra rendering initially uses graded lexicographic order
 - target early exact multivariate milestones in this order:
   1. exact multivariate coefficient preservation
   2. explicit monomial ordering and canonical form rules
@@ -870,8 +876,13 @@ Current status:
 - the first experimental session owns one kernel evaluation context
 - evaluation, simplification, and full-form requests return structured results
   and diagnostics
+- inspection requests return head, full form, symbols, node count, and depth
+  without evaluating or mutating the expression
+- pack-discovery requests return deterministic package and symbol records from
+  the shared function registry
 - the symbolic CLI REPL reuses one session, preserving assignments and user
   definitions across inputs
+- the CLI consumes those operations through `:inspect` and `:packs`
 - one-shot CLI commands remain intentionally ephemeral
 
 Priority:
@@ -1003,18 +1014,20 @@ Success criteria:
 
 ## Immediate Action Queue
 
-The first balanced tranche has delivered typed patterns, exact rational
-univariate factorization, and a stateful symbolic CLI session. The next active
-tranche should be:
+Two balanced tranches have now delivered typed and conditional patterns, exact
+rational univariate factorization, explicit multivariate monomial ordering, a
+stateful symbolic CLI session, expression inspection, and pack discovery. The
+next active tranche should be:
 
-1. **Kernel and SDK:** define bounded conditional-rule semantics over the typed
-   single-expression matcher
-2. **Math packs:** make exact multivariate monomial ordering and canonical-form
-   rules explicit before widening division or GCD
-3. **CLI and IDE foundation:** add expression inspection and pack discovery to
-   the existing structured session contract
-4. **Cross-cutting validation:** close the P0 session, typed-pattern, rational
-   factorization, and CLI contract gaps before widening those interfaces
+1. **Kernel and SDK:** add targeted traversal and replacement controls without
+   introducing sequence-pattern machinery
+2. **Math packs:** specify and implement the first supported exact multivariate
+   division contract over the explicit monomial-ordering policy
+3. **CLI and IDE foundation:** add completion over session and registry
+   metadata, keeping transport and GUI choices deferred
+4. **Cross-cutting validation:** continue closing P0 diagnostic, overflow,
+   registry-collision, failure-recovery, and process-level CLI gaps before
+   declaring these experimental interfaces stable
 
 Every following tranche should preserve this three-track shape. Tasks may be
 small, but no track should disappear from the active program.

@@ -163,3 +163,26 @@ TEST_CASE("REPL symbolic session preserves state and exposes exact rational fact
     REQUIRE(result.output.find("1/2") != std::string::npos);
     REQUIRE(result.output.find("x + 1") != std::string::npos);
 }
+
+TEST_CASE("REPL exposes session inspection and pack discovery", "[tooling][cli][session]") {
+    const auto result = run_shell_command(make_repl_command(
+        {":inspect f[x + 1]", ":packs", ":quit"}));
+
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output.find("Head: f") != std::string::npos);
+    REQUIRE(result.output.find("FullForm: f[Plus[x, 1]]") != std::string::npos);
+    REQUIRE(result.output.find("core-algebra:") != std::string::npos);
+    REQUIRE(result.output.find("Factor") != std::string::npos);
+}
+
+TEST_CASE("CLI one-shot evaluation is ephemeral and REPL recovers after errors", "[tooling][cli][session]") {
+    const auto assignment = run_shell_command(make_direct_command("\"a = 2\""));
+    REQUIRE(assignment.exit_code == 0);
+    const auto isolated = run_shell_command(make_direct_command("\"a\""));
+    REQUIRE(isolated.exit_code == 0);
+    REQUIRE(isolated.output == "a\n");
+
+    const auto repl = run_shell_command(make_repl_command({"(", "1 + 1", ":quit"}));
+    REQUIRE(repl.exit_code == 0);
+    REQUIRE(repl.output.find("2\n") != std::string::npos);
+}

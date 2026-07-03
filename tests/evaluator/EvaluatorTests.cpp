@@ -1105,6 +1105,21 @@ TEST_CASE("Evaluator supports typed single-expression patterns", "[evaluator][re
         "Sequence patterns are not supported");
 }
 
+TEST_CASE("Evaluator supports bounded conditional typed patterns", "[evaluator][rewrite][condition]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+
+    REQUIRE(to_string(evaluate(parse_expression(
+        "MatchQ[3, Condition[n_Integer, Positive[n]]]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression(
+        "MatchQ[-3, Condition[n_Integer, Positive[n]]]"), ctx)) == "False");
+    REQUIRE(to_string(evaluate(parse_expression(
+        "Replace[3, Condition[n_Integer, Positive[n]] -> g[n]]"), ctx)) == "g[3]");
+    REQUIRE(to_string(evaluate(parse_expression(
+        "Replace[x, Condition[n_Integer, Positive[n]] -> n + 1]"), ctx)) == "x");
+    REQUIRE(to_string(evaluate(parse_expression(
+        "MatchQ[x, Condition[n_, Positive[n]]]"), ctx)) == "False");
+}
+
 TEST_CASE("Evaluator applies rewrite budget to ReplaceRepeated", "[evaluator][rewrite]") {
     Bindings bindings;
     Bindings constants;

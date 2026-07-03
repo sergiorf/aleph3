@@ -267,6 +267,18 @@ public:
         return it == head_rewrites_.end() ? nullptr : &it->second;
     }
 
+    [[nodiscard]] std::vector<SymbolicFunctionMetadata> symbolic_function_metadata() const {
+        std::vector<SymbolicFunctionMetadata> metadata;
+        metadata.reserve(symbolic_functions_.size());
+        for (const auto& [_, spec] : symbolic_functions_) {
+            metadata.push_back(spec.metadata);
+        }
+        std::sort(metadata.begin(), metadata.end(), [](const auto& left, const auto& right) {
+            return left.name < right.name;
+        });
+        return metadata;
+    }
+
     static void register_host_function(HostFunctionRegistry& registry, HostFunctionSpec spec) {
         registry[spec.name] = std::move(spec);
     }

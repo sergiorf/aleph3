@@ -264,7 +264,7 @@ namespace aleph3 {
             }
             auto expr = evaluate(func.args[0], ctx);
             const Rule& rule = require_rule_argument(func.args[1], "Replace");
-            const auto rewritten = kernel::rewrite_once(expr, rule);
+            const auto rewritten = kernel::rewrite_once(expr, rule, ctx);
             return rewritten.changed ? rewritten.expr : expr;
             });
 
@@ -287,7 +287,7 @@ namespace aleph3 {
                 throw_invalid_arity_exact("MatchQ", 2);
             }
             auto expr = evaluate(func.args[0], ctx);
-            return make_expr<Boolean>(kernel::matches_pattern(func.args[1], expr));
+            return make_expr<Boolean>(kernel::matches_pattern(func.args[1], expr, ctx));
             });
 
         registry.register_function("Positive", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {

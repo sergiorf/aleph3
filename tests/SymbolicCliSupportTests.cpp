@@ -192,7 +192,7 @@ TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[toolin
     const auto symbolic_coefficient_collect_sum =
         tooling::symbolic_evaluate_expression("Collect[y*x + x^2 + z*x, x]");
     REQUIRE(symbolic_coefficient_collect_sum.ok);
-    REQUIRE(symbolic_coefficient_collect_sum.output == "x * y + x * z + x^2");
+    REQUIRE(symbolic_coefficient_collect_sum.output == "x^2 + x * y + x * z");
 
     const auto symbolic_coefficient_collect_sum_simplified =
         tooling::symbolic_simplify_expression("Collect[y*x + x^2 + z*x, x]");

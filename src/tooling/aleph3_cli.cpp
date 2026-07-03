@@ -303,6 +303,9 @@ void print_help() {
 #endif
         << "  In the REPL, bare input evaluates as an expression.\n"
         << "  Prefix shell/meta commands with `:` such as `:help`, `:parse`, or `:quit`.\n"
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+        << "  Use `:inspect <expr>` for structural facts and `:packs` for registered packs.\n"
+#endif
         << "  Use `:mode` to inspect the active evaluator, or `:mode symbolic` / `:mode sdk`\n"
         << "  to switch the bare-expression backend.\n"
         << "  In the REPL on Unix-like terminals, up/down arrows walk command history,\n"
@@ -372,6 +375,10 @@ void print_examples() {
         << "  > :help\n"
         << "  > :examples\n"
         << "  > :host-functions\n"
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+        << "  > :inspect Factor[x^2 - 1]\n"
+        << "  > :packs\n"
+#endif
         << "  > :tokens If[x >= 1, \\\"ok\\\", False]\n"
         << "  > :parse 2 + 3 * (x + 1)\n"
         << "  > :validate 1 + 2\n"
@@ -397,6 +404,8 @@ const std::vector<std::string>& repl_commands() {
         ":symbolic-evaluate",
         ":symbolic-simplify",
         ":symbolic-fullform",
+        ":inspect",
+        ":packs",
 #endif
         ":quit",
         ":exit"
@@ -1019,6 +1028,47 @@ int run_repl() {
             print_host_functions();
             continue;
         }
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+        if (normalized_command == "inspect") {
+            if (formula.empty()) {
+                std::cerr << style_stderr("A formula is required", cli_palette().warning)
+                          << " for `" << command << "`.\n";
+                continue;
+            }
+            const auto result = symbolic_session.execute(
+                {formula, aleph3::session::SessionOperation::inspect});
+            if (!result.ok || result.inspections.empty()) {
+                const auto message = result.diagnostics.empty()
+                    ? std::string("Expression inspection failed.")
+                    : result.diagnostics.front().message;
+                std::cerr << style_stderr(message, cli_palette().error) << '\n';
+                continue;
+            }
+            const auto& inspection = result.inspections.front();
+            std::cout << "Head: " << inspection.head << '\n'
+                      << "FullForm: " << inspection.full_form << '\n'
+                      << "Nodes: " << inspection.node_count << '\n'
+                      << "Depth: " << inspection.depth << '\n'
+                      << "Symbols:";
+            for (const auto& symbol : inspection.symbols) std::cout << ' ' << symbol;
+            std::cout << '\n';
+            continue;
+        }
+        if (normalized_command == "packs") {
+            const auto result = symbolic_session.execute(
+                {"", aleph3::session::SessionOperation::discover_packs});
+            if (!result.ok) {
+                std::cerr << style_stderr("Pack discovery failed.", cli_palette().error) << '\n';
+                continue;
+            }
+            for (const auto& pack : result.packs) {
+                std::cout << pack.name << ':';
+                for (const auto& symbol : pack.symbols) std::cout << ' ' << symbol;
+                std::cout << '\n';
+            }
+            continue;
+        }
+#endif
 
         if ((normalized_command == "tokens" || normalized_command == "parse" || normalized_command == "validate" ||
              normalized_command == "compile" || normalized_command == "evaluate" ||

@@ -7,20 +7,94 @@
 #include "transforms/Transforms.hpp"
 
 #include <exception>
+#include <algorithm>
+#include <cmath>
+#include <functional>
+#include <map>
+#include <set>
+#include <sstream>
 
 namespace aleph3::session {
+
+namespace {
+
+std::string expression_head(const ExprPtr& expr) {
+    if (const auto* call = std::get_if<FunctionCall>(expr.get())) return call->head;
+    if (std::holds_alternative<Symbol>(*expr)) return "Symbol";
+    if (const auto* number = std::get_if<Number>(expr.get())) {
+        return std::floor(number->value) == number->value ? "Integer" : "Real";
+    }
+    if (std::holds_alternative<Rational>(*expr)) return "Rational";
+    if (std::holds_alternative<Complex>(*expr)) return "Complex";
+    if (std::holds_alternative<Boolean>(*expr)) return "Boolean";
+    if (std::holds_alternative<String>(*expr)) return "String";
+    if (std::holds_alternative<List>(*expr)) return "List";
+    if (std::holds_alternative<Rule>(*expr)) return "Rule";
+    if (std::holds_alternative<Assignment>(*expr)) return "Assignment";
+    if (std::holds_alternative<FunctionDefinition>(*expr)) return "FunctionDefinition";
+    return "Expression";
+}
+
+SessionInspection inspect_expression(const ExprPtr& expr) {
+    SessionInspection inspection;
+    inspection.head = expression_head(expr);
+    inspection.full_form = to_fullform(expr);
+    std::set<std::string> symbols;
+    std::function<void(const ExprPtr&, std::size_t)> visit =
+        [&](const ExprPtr& current, std::size_t depth) {
+            if (current == nullptr) return;
+            ++inspection.node_count;
+            inspection.depth = std::max(inspection.depth, depth);
+            std::visit([&](const auto& node) {
+                using T = std::decay_t<decltype(node)>;
+                if constexpr (std::is_same_v<T, Symbol>) {
+                    symbols.insert(node.name);
+                } else if constexpr (std::is_same_v<T, FunctionCall>) {
+                    for (const auto& arg : node.args) visit(arg, depth + 1);
+                } else if constexpr (std::is_same_v<T, List>) {
+                    for (const auto& element : node.elements) visit(element, depth + 1);
+                } else if constexpr (std::is_same_v<T, Rule>) {
+                    visit(node.lhs, depth + 1); visit(node.rhs, depth + 1);
+                } else if constexpr (std::is_same_v<T, Assignment>) {
+                    symbols.insert(node.name); visit(node.value, depth + 1);
+                } else if constexpr (std::is_same_v<T, FunctionDefinition>) {
+                    symbols.insert(node.name);
+                    visit(node.body, depth + 1);
+                }
+            }, *current);
+        };
+    visit(expr, 1);
+    inspection.symbols.assign(symbols.begin(), symbols.end());
+    return inspection;
+}
+
+}  // namespace
 
 Session::Session() : context_(kernel::default_function_registry()) {
 }
 
 SessionResult Session::execute(const SessionRequest& request) {
     SessionResult result;
-    if (request.source.empty()) {
+    if (request.operation != SessionOperation::discover_packs && request.source.empty()) {
         result.diagnostics.push_back({"session.empty_source", "An expression is required."});
         return result;
     }
     try {
         context_.reset_runtime_step_counter();
+        if (request.operation == SessionOperation::discover_packs) {
+            std::map<std::string, std::vector<std::string>> packages;
+            for (const auto& metadata : context_.function_registry().symbolic_function_metadata()) {
+                if (metadata.source == kernel::RegistrationSource::pack &&
+                    !metadata.owning_package.empty()) {
+                    packages[metadata.owning_package].push_back(metadata.name);
+                }
+            }
+            for (auto& [name, symbols] : packages) {
+                result.packs.push_back({name, std::move(symbols)});
+            }
+            result.ok = true;
+            return result;
+        }
         const auto parsed = parse_expression(request.source);
         switch (request.operation) {
             case SessionOperation::evaluate:
@@ -31,6 +105,12 @@ SessionResult Session::execute(const SessionRequest& request) {
                 break;
             case SessionOperation::full_form:
                 result.output = to_fullform(parsed);
+                break;
+            case SessionOperation::inspect:
+                result.inspections.push_back(inspect_expression(parsed));
+                result.output = result.inspections.front().full_form;
+                break;
+            case SessionOperation::discover_packs:
                 break;
         }
         result.ok = true;

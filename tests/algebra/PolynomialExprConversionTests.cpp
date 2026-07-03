@@ -124,6 +124,19 @@ TEST_CASE("exact polynomial_to_expr emits a shared canonical order", "[algebra][
     REQUIRE(simplify_string(exact_polynomial_to_expr(ordered)) == "x^2 + x * y * 3/2 - 1/2");
 }
 
+TEST_CASE("exact monomial ordering policies honor explicit variable precedence", "[algebra][ordering][exact]") {
+    const Monomial x2y{{"x", 2}, {"y", 1}};
+    const Monomial xy2{{"x", 1}, {"y", 2}};
+    const Monomial z3{{"z", 3}};
+    const std::vector<std::string> variables{"x", "y", "z"};
+
+    REQUIRE(exact_monomial_precedes(x2y, xy2, MonomialOrder::lexicographic, variables));
+    REQUIRE(exact_monomial_precedes(x2y, xy2, MonomialOrder::graded_lexicographic, variables));
+    REQUIRE(exact_monomial_precedes(x2y, xy2, MonomialOrder::graded_reverse_lexicographic, variables));
+    REQUIRE(exact_monomial_precedes(xy2, z3, MonomialOrder::graded_lexicographic, variables));
+    REQUIRE_FALSE(exact_monomial_precedes(z3, xy2, MonomialOrder::graded_lexicographic, variables));
+}
+
 TEST_CASE("low-level polynomial helpers preserve supported normal forms", "[algebra][conversion]") {
     const auto poly = expr_to_polynomial(parse_expression("x^2 + 2*x + 1"), {"x"});
 

@@ -2,6 +2,7 @@
 
 #include "kernel/EvaluationContext.hpp"
 #include "kernel/FunctionRegistry.hpp"
+#include "evaluator/Evaluator.hpp"
 #include "expr/ExprUtils.hpp"
 #include "normalizer/Normalizer.hpp"
 
@@ -679,6 +680,17 @@ void validate_pattern_contract(const ExprPtr& pattern) {
         return;
     }
     if (const auto* call = std::get_if<FunctionCall>(&*pattern)) {
+        if (call->head == "Condition") {
+            if (call->args.size() != 2) {
+                throw_invalid_form("Condition patterns require a pattern and a predicate");
+            }
+            if (const auto* nested = std::get_if<FunctionCall>(call->args[0].get());
+                nested != nullptr && nested->head == "Condition") {
+                throw_unsupported_construct("Nested conditional patterns are not supported");
+            }
+            validate_pattern_contract(call->args[0]);
+            return;
+        }
         for (const auto& argument : call->args) validate_pattern_contract(argument);
         return;
     }
@@ -738,13 +750,45 @@ ExprPtr substitute_pattern_bindings(const ExprPtr& expr, const PatternBindings& 
         *expr);
 }
 
-RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
+bool match_conditional_pattern(
+    const ExprPtr& pattern,
+    const ExprPtr& expr,
+    PatternBindings& bindings,
+    EvaluationContext* ctx) {
+    const auto* condition = std::get_if<FunctionCall>(pattern.get());
+    if (condition == nullptr || condition->head != "Condition") {
+        return match_pattern(pattern, expr, bindings);
+    }
+    if (condition->args.size() != 2) {
+        throw_invalid_form("Condition patterns require a pattern and a predicate");
+    }
+    if (ctx == nullptr) {
+        throw_unsupported_construct("Conditional patterns require an evaluation context");
+    }
+    PatternBindings candidate = bindings;
+    if (!match_pattern(condition->args[0], expr, candidate)) {
+        return false;
+    }
+    const auto predicate = substitute_pattern_bindings(condition->args[1], candidate);
+    const auto evaluated = evaluate(predicate, *ctx);
+    const auto* boolean = std::get_if<Boolean>(evaluated.get());
+    if (boolean == nullptr || !boolean->value) {
+        return false;
+    }
+    bindings = std::move(candidate);
+    return true;
+}
+
+RewriteResult rewrite_once_impl(
+    const ExprPtr& expr,
+    const Rule& rule,
+    EvaluationContext* ctx) {
     if (expr == nullptr) {
         return {};
     }
 
     PatternBindings bindings;
-    if (match_pattern(rule.lhs, expr, bindings)) {
+    if (match_conditional_pattern(rule.lhs, expr, bindings, ctx)) {
         RewriteResult result;
         result.expr = substitute_pattern_bindings(rule.rhs, bindings);
         result.changed = true;
@@ -762,7 +806,7 @@ RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
                 bool changed = false;
                 std::size_t rewrites_applied = 0;
                 for (const auto& arg : node.args) {
-                    auto rewritten = rewrite_once_impl(arg, rule);
+                    auto rewritten = rewrite_once_impl(arg, rule, ctx);
                     changed = changed || rewritten.changed;
                     rewrites_applied += rewritten.rewrites_applied;
                     rewritten_args.push_back(rewritten.changed ? rewritten.expr : arg);
@@ -781,7 +825,7 @@ RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
                 bool changed = false;
                 std::size_t rewrites_applied = 0;
                 for (const auto& element : node.elements) {
-                    auto rewritten = rewrite_once_impl(element, rule);
+                    auto rewritten = rewrite_once_impl(element, rule, ctx);
                     changed = changed || rewritten.changed;
                     rewrites_applied += rewritten.rewrites_applied;
                     rewritten_elements.push_back(rewritten.changed ? rewritten.expr : element);
@@ -795,7 +839,7 @@ RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
                 result.rewrites_applied = rewrites_applied;
                 return result;
             } else if constexpr (std::is_same_v<T, Rule>) {
-                auto lhs = rewrite_once_impl(node.lhs, rule);
+                auto lhs = rewrite_once_impl(node.lhs, rule, ctx);
                 if (lhs.changed) {
                     RewriteResult result;
                     result.expr = make_expr<Rule>(lhs.expr, node.rhs);
@@ -803,7 +847,7 @@ RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
                     result.rewrites_applied = lhs.rewrites_applied;
                     return result;
                 }
-                auto rhs = rewrite_once_impl(node.rhs, rule);
+                auto rhs = rewrite_once_impl(node.rhs, rule, ctx);
                 if (rhs.changed) {
                     RewriteResult result;
                     result.expr = make_expr<Rule>(node.lhs, rhs.expr);
@@ -813,7 +857,7 @@ RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
                 }
                 return RewriteResult{expr, false, 0};
             } else if constexpr (std::is_same_v<T, Assignment>) {
-                auto value = rewrite_once_impl(node.value, rule);
+                auto value = rewrite_once_impl(node.value, rule, ctx);
                 if (!value.changed) {
                     return RewriteResult{expr, false, 0};
                 }
@@ -827,7 +871,7 @@ RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
                     if (node.params[index].default_value == nullptr) {
                         continue;
                     }
-                    auto rewritten = rewrite_once_impl(node.params[index].default_value, rule);
+                    auto rewritten = rewrite_once_impl(node.params[index].default_value, rule, ctx);
                     if (rewritten.changed) {
                         auto params = node.params;
                         params[index].default_value = rewritten.expr;
@@ -842,7 +886,7 @@ RewriteResult rewrite_once_impl(const ExprPtr& expr, const Rule& rule) {
                         return result;
                     }
                 }
-                auto body = rewrite_once_impl(node.body, rule);
+                auto body = rewrite_once_impl(node.body, rule, ctx);
                 if (!body.changed) {
                     return RewriteResult{expr, false, 0};
                 }
@@ -880,9 +924,30 @@ bool matches_pattern(const ExprPtr& pattern, const ExprPtr& expr) {
     return match_pattern(pattern, expr, bindings);
 }
 
+bool matches_pattern(
+    const ExprPtr& pattern,
+    const ExprPtr& expr,
+    EvaluationContext& ctx) {
+    validate_pattern_contract(pattern);
+    PatternBindings bindings;
+    return match_conditional_pattern(pattern, expr, bindings, &ctx);
+}
+
 RewriteResult rewrite_once(const ExprPtr& expr, const Rule& rule) {
     validate_pattern_contract(rule.lhs);
-    auto result = rewrite_once_impl(expr, rule);
+    auto result = rewrite_once_impl(expr, rule, nullptr);
+    if (result.expr == nullptr) {
+        result.expr = expr;
+    }
+    return result;
+}
+
+RewriteResult rewrite_once(
+    const ExprPtr& expr,
+    const Rule& rule,
+    EvaluationContext& ctx) {
+    validate_pattern_contract(rule.lhs);
+    auto result = rewrite_once_impl(expr, rule, &ctx);
     if (result.expr == nullptr) {
         result.expr = expr;
     }
@@ -918,7 +983,7 @@ RewriteResult rewrite_repeated(
     accumulated.expr = expr;
 
     for (std::size_t iteration = 0; iteration < max_rewrites; ++iteration) {
-        auto step = rewrite_once(accumulated.expr, rule);
+        auto step = rewrite_once(accumulated.expr, rule, ctx);
         if (!step.changed) {
             break;
         }

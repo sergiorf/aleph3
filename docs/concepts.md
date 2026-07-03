@@ -132,6 +132,18 @@ performs a caller-directed structural transformation.
 Rewrites are bounded because a rule such as `a_ -> f[a]` could otherwise run
 forever.
 
+A **conditional pattern** adds a predicate after structural matching. Bindings
+are substituted into the predicate, which is evaluated with the same session
+budget as the rewrite:
+
+```text
+Condition[n_Integer, Positive[n]]
+Replace[3, Condition[n_Integer, Positive[n]] -> g[n]]  -> g[3]
+```
+
+Only an exact `True` accepts the match. `False` and unresolved predicates do
+not match. Sequence and nested conditional patterns remain unsupported.
+
 ## Definition and Attribute
 
 A **definition** attaches behavior or a value to a symbol. An **attribute**
@@ -177,6 +189,10 @@ architecture.
 Examples include the current algebra pack and possible future calculus,
 solver, or special-function packs. The kernel provides pattern matching; a
 calculus pack provides differentiation knowledge.
+
+The interactive session can inspect an expression without evaluating or
+storing it, and can discover packs from registry metadata. The CLI exposes
+these shared operations as `:inspect <expression>` and `:packs`.
 
 ## Built-in, Host Function, and Registered Function
 

@@ -24,8 +24,16 @@ struct RewriteResult {
 
 [[nodiscard]] bool structurally_equal(const ExprPtr& left, const ExprPtr& right);
 [[nodiscard]] bool matches_pattern(const ExprPtr& pattern, const ExprPtr& expr);
+[[nodiscard]] bool matches_pattern(
+    const ExprPtr& pattern,
+    const ExprPtr& expr,
+    EvaluationContext& ctx);
 
 [[nodiscard]] RewriteResult rewrite_once(const ExprPtr& expr, const Rule& rule);
+[[nodiscard]] RewriteResult rewrite_once(
+    const ExprPtr& expr,
+    const Rule& rule,
+    EvaluationContext& ctx);
 
 [[nodiscard]] RewriteResult rewrite_repeated(
     const ExprPtr& expr,

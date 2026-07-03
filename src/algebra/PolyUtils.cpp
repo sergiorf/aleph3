@@ -101,12 +101,10 @@ namespace aleph3 {
     }
 
     bool monomial_precedes(const Monomial& left, const Monomial& right) {
-        const int left_degree = total_degree(left);
-        const int right_degree = total_degree(right);
-        if (left_degree != right_degree) {
-            return left_degree > right_degree;
-        }
-        return left < right;
+        return exact_monomial_precedes(
+            left,
+            right,
+            MonomialOrder::graded_lexicographic);
     }
 
     template <typename Coefficient>

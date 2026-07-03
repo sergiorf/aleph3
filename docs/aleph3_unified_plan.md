@@ -41,7 +41,9 @@ That program is:
 3. grow higher mathematics through serious packs
 4. make the CLI a permanent interactive product over the same semantics
 5. build a reusable session foundation for future IDE and workbench surfaces
-6. harden the supported symbolic subset into a production-grade core
+6. establish digital signal processing as a serious domain pack after the
+   algebra and calculus foundations are credible
+7. harden the supported symbolic subset into a production-grade core
 
 ## Strategic Position
 
@@ -311,6 +313,11 @@ coordinated tracks:
 3. interactive experience, beginning with the CLI and a reusable session
    layer
 
+After algebra proves exact pack workflows and calculus proves assumption-aware
+transformation, digital signal processing becomes the next planned domain-pack
+track. It must reuse those contracts rather than introducing private numeric,
+expression, or session semantics.
+
 Each track must consume the same kernel contracts. Pack or interactive work
 that reveals a missing contract should feed that requirement back into the
 kernel rather than create private semantics.
@@ -384,6 +391,8 @@ The coordination priorities are:
 11. harden SDK, CLI, scripts, and structured tooling output as supported
     product surfaces
 12. add an initial IDE or workbench consumer over the shared session protocol
+13. deliver a focused digital signal processing pack through SDK, CLI, and
+    session surfaces
 
 ## Milestones
 
@@ -437,6 +446,20 @@ Outcome:
 - an initial IDE, editor integration, or workbench consumes the shared session
   protocol
 - the CLI remains supported alongside the richer interactive surface
+
+### M9. Focused Digital Signal Processing Pack
+
+Outcome:
+
+- `aleph3_pack_dsp` is a registered domain pack over the same kernel
+- the first supported workflows cover finite discrete sequences, exact or
+  mixed-exact convolution, and FIR filtering
+- a second stage adds rational transfer-function and z-domain workflows only
+  after their algebra and assumptions requirements are explicit
+- supported DSP operations are reachable through SDK, CLI, and session
+  consumers with structured unsupported-case diagnostics
+- FFT acceleration, streaming audio, file codecs, real-time scheduling,
+  hardware integration, and image processing remain outside the first pack
 
 ## Workstreams
 
@@ -787,6 +810,20 @@ Tasks:
   - algebra remains the current proving ground for exactness and ownership
   - a focused calculus transformation pack is the next proof and must use
     shared rewrite, exactness, and assumptions contracts
+  - a focused digital signal processing pack follows calculus and proves that
+    an applied domain can compose exact algebra, complex values, assumptions,
+    registration, and interactive session contracts
+- stage the DSP pack deliberately:
+  1. define finite discrete-sequence representation and indexing conventions
+     without adding a second expression model
+  2. implement deterministic finite convolution and FIR filtering
+  3. add rational transfer-function and z-domain simplification over shared
+     algebra contracts
+  4. add frequency-response workflows over shared complex-number semantics
+  5. consider optimized FFT and streaming APIs only after correctness,
+     budgets, numeric policy, and performance baselines are explicit
+- keep DSP presentation and I/O outside the pack core: plotting, audio files,
+  devices, and editor widgets belong to product adapters
 
 Success criteria:
 
@@ -799,6 +836,8 @@ Success criteria:
 - algebra workflows are usable and documented through SDK and CLI surfaces
 - the calculus pack proves a second domain can extend the kernel without
   evaluator-local branches
+- the DSP pack proves an applied domain can compose multiple kernel and pack
+  contracts while retaining explicit exact/inexact and unsupported boundaries
 
 ### J. Interactive Applications And Product Surfaces
 
@@ -855,6 +894,18 @@ Goals:
 
 - move from feature-example testing toward product-contract testing
 
+Current coverage audit:
+
+- the repository has broad example and regression coverage across parser,
+  evaluator, SDK, algebra, pack ownership, session, and CLI layers
+- the Release suite currently executes 485 Catch2 test cases, but CI exposes
+  them through two coarse test executables and does not publish line or branch
+  coverage
+- algebra and evaluator behavior have the deepest coverage; the new session,
+  typed-pattern, pack-lifecycle, and process-level CLI contracts are thinner
+- this audit is a contract-coverage review, not a measured source-coverage
+  claim; measured coverage must be added before percentage targets are set
+
 Tasks:
 
 - group tests by kernel, SDK, transitional compatibility, and packs
@@ -882,12 +933,51 @@ Tasks:
 - add contract tests for session persistence, structured diagnostics,
   machine-readable CLI output, inspection, completion, and pack discovery as
   those interfaces land
+- close the following P0 contract gaps before widening the affected surfaces:
+  - session diagnostic codes for parse, evaluation, unsupported, and budget
+    failures; state preservation after failure; per-request budget reset;
+    isolation of definitions and registry state between sessions
+  - every advertised typed pattern in anonymous, named, nested, repeated-name,
+    `MatchQ`, `Replace`, and `ReplaceRepeated` forms; malformed constraints;
+    sequence rejection; and the documented policy for ordinary identifiers
+    containing underscores
+  - exact rational `Factor` invariants for zero, constants, rational content,
+    repeated roots, irreducible remainder, canonical sign/order, expand-factor
+    round trips, multivariate rejection, and checked overflow at denominator
+    and coefficient boundaries
+  - CLI one-shot ephemerality, REPL recovery after errors, nonzero failure exit
+    codes, diagnostic output, EOF handling, mode-switch state behavior, and
+    Windows/Linux argument and pipe behavior
+  - registration collision, duplicate registration, independent registry,
+    ownership metadata, and lifetime behavior before pack unload or dynamic
+    loading is claimed
+- add a P1 cross-surface conformance matrix that runs the same supported
+  expressions through direct kernel, session, CLI, and SDK surfaces where the
+  SDK subset permits them, comparing values, canonical rendering, diagnostics,
+  and budget outcomes
+- add P1 property and round-trip tests for parser/printer stability, expression
+  normalization idempotence, algebra identities, and deterministic pack
+  registration order; use fixed seeds and retain minimized regressions
+- add DSP pack contract coverage with the pack itself:
+  - indexing, empty/singleton signals, unequal lengths, exact and mixed-exact
+    convolution, FIR state conventions, canonical output, and invalid forms
+  - linearity, commutativity and associativity where mathematically applicable,
+    impulse identity, and direct-versus-optimized implementation equivalence
+  - transfer-function normalization, poles/zeros boundary behavior, complex
+    frequency response, pack ownership, and cross-surface workflows
+- evolve CI in an explicit order: split/label suites for useful failures, add
+  Debug and Clang, add ASan/UBSan on Linux, publish measured coverage, then add
+  parser/session fuzzing and lightweight performance regression thresholds
 
 Success criteria:
 
 - the supported symbolic subset behaves like a documented product contract
 - engineering quality is credible for a C++ math runtime, not just for a
   prototype
+- every supported pack has ownership, invariant, unsupported-boundary, and
+  cross-surface tests before its milestone is considered complete
+- coverage reports identify unexecuted production paths, while contract tests
+  remain the acceptance authority rather than a percentage alone
 - future claims of “serious symbolic capability” are backed by end-to-end
   symbolic workflow tests, not only helper-level unit coverage
 
@@ -923,6 +1013,8 @@ tranche should be:
    rules explicit before widening division or GCD
 3. **CLI and IDE foundation:** add expression inspection and pack discovery to
    the existing structured session contract
+4. **Cross-cutting validation:** close the P0 session, typed-pattern, rational
+   factorization, and CLI contract gaps before widening those interfaces
 
 Every following tranche should preserve this three-track shape. Tasks may be
 small, but no track should disappear from the active program.
@@ -933,6 +1025,10 @@ The following should mostly wait until the kernel program is further along:
 
 - broad differentiation and calculus breadth beyond the focused
   transformation pack
+- DSP breadth beyond finite sequences, convolution, FIR filtering, and the
+  later focused transfer-function workflow
+- optimized FFT, streaming media, codecs, devices, and real-time DSP execution
+  before numeric policy and performance contracts exist
 - large solver efforts
 - major symbolic special-function expansion beyond targeted contract hardening
 - significant algebra growth on top of the current floating algebra core
@@ -956,6 +1052,8 @@ These can proceed without waiting for the whole program:
   over existing kernel behavior
 - IDE protocol design validated through the CLI, without committing to a GUI
   toolkit or editor host
+- DSP representation and contract design after algebra/calculus dependencies
+  are explicit, without prematurely adding streaming or hardware APIs
 
 ## Product Standard
 
@@ -984,6 +1082,8 @@ This unified plan is succeeding if:
   investment
 - algebra and focused calculus capabilities reach users through supported
   surfaces
+- focused DSP workflows reach users through a registered pack and the same
+  SDK, CLI, and session semantics
 - CLI and future IDE/workbench consumers share one session and execution model
 - future product growth depends on stronger kernel contracts, not on more
   duplicate evaluator logic

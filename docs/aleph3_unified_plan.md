@@ -304,6 +304,14 @@ Rule:
 - roadmap and priority changes belong here
 - subsystem design detail belongs in the referenced specs
 
+### Feature Planning
+
+Use the [Feature Development Workflow](feature_development_workflow.md) to turn
+substantial roadmap work into researched designs, decision-complete
+implementation plans, and verified delivery. That workflow does not replace
+this plan or the focused subsystem specifications. Small fixes remain
+lightweight.
+
 ## Product Sequencing Rule
 
 Aleph3 should remain kernel-first for the current phase.

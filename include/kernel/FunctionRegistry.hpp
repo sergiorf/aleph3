@@ -50,6 +50,13 @@ struct SymbolicFunctionSpec {
     SymbolicFunctionHandler handler;
 };
 
+enum class CallableCategory { symbolic_function, special_form, builtin_function };
+
+struct CallableMetadata {
+    SymbolicFunctionMetadata metadata;
+    CallableCategory category = CallableCategory::symbolic_function;
+};
+
 struct SpecialFormSpec {
     SymbolicFunctionMetadata metadata;
     SpecialFormHandler handler;
@@ -277,6 +284,27 @@ public:
             return left.name < right.name;
         });
         return metadata;
+    }
+
+    [[nodiscard]] std::vector<CallableMetadata> callable_metadata() const {
+        std::vector<CallableMetadata> result;
+        result.reserve(symbolic_functions_.size() + special_forms_.size() + builtin_functions_.size());
+        for (const auto& [_, spec] : symbolic_functions_) {
+            result.push_back({spec.metadata, CallableCategory::symbolic_function});
+        }
+        for (const auto& [_, spec] : special_forms_) {
+            result.push_back({spec.metadata, CallableCategory::special_form});
+        }
+        for (const auto& [_, spec] : builtin_functions_) {
+            result.push_back({spec.metadata, CallableCategory::builtin_function});
+        }
+        std::sort(result.begin(), result.end(), [](const auto& left, const auto& right) {
+            if (left.metadata.name != right.metadata.name) {
+                return left.metadata.name < right.metadata.name;
+            }
+            return left.category < right.category;
+        });
+        return result;
     }
 
     static void register_host_function(HostFunctionRegistry& registry, HostFunctionSpec spec) {

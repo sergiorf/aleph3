@@ -406,6 +406,7 @@ const std::vector<std::string>& repl_commands() {
         ":symbolic-fullform",
         ":inspect",
         ":packs",
+        ":complete",
 #endif
         ":quit",
         ":exit"
@@ -650,22 +651,38 @@ void print_completion_choices(const std::vector<std::string>& matches) {
     }
 }
 
-bool try_complete_repl_line(const std::string& prompt, std::string& buffer, std::size_t& cursor) {
-    const auto split = buffer.find_first_of(" \t");
-    if (split != std::string::npos && cursor > split) {
-        return false;
+bool try_complete_repl_line(
+    const std::string& prompt,
+    std::string& buffer,
+    std::size_t& cursor,
+    aleph3::session::Session* session) {
+    std::size_t token_start = 0;
+    std::vector<std::string> matches;
+    if (!buffer.empty() && buffer.front() == ':') {
+        const auto split = buffer.find_first_of(" \t");
+        if (split != std::string::npos && cursor > split) return false;
+        matches = complete_command_prefix(buffer.substr(0, cursor));
+    } else {
+        if (session == nullptr) return false;
+        token_start = cursor;
+        while (token_start > 0) {
+            const unsigned char ch = static_cast<unsigned char>(buffer[token_start - 1]);
+            if (!std::isalnum(ch) && ch != '_') break;
+            --token_start;
+        }
+        const auto result = session->execute({
+            buffer.substr(token_start, cursor - token_start),
+            aleph3::session::SessionOperation::complete});
+        for (const auto& completion : result.completions) matches.push_back(completion.name);
     }
-
-    const std::string prefix = buffer.substr(0, cursor);
-    const auto matches = complete_command_prefix(prefix);
     if (matches.empty()) {
         return false;
     }
 
     if (matches.size() == 1) {
-        buffer = matches.front();
-        cursor = buffer.size();
-        if (buffer.find(' ') == std::string::npos) {
+        buffer.replace(token_start, cursor - token_start, matches.front());
+        cursor = token_start + matches.front().size();
+        if (!buffer.empty() && buffer.front() == ':' && buffer.find(' ') == std::string::npos) {
             buffer.push_back(' ');
             ++cursor;
         }
@@ -673,10 +690,11 @@ bool try_complete_repl_line(const std::string& prompt, std::string& buffer, std:
         return true;
     }
 
+    const std::string typed_prefix = buffer.substr(token_start, cursor - token_start);
     const std::string prefix_match = common_prefix(matches);
-    if (prefix_match.size() > prefix.size()) {
-        buffer.replace(0, cursor, prefix_match);
-        cursor = prefix_match.size();
+    if (prefix_match.size() > typed_prefix.size()) {
+        buffer.replace(token_start, cursor - token_start, prefix_match);
+        cursor = token_start + prefix_match.size();
         redraw_prompt_line(prompt, buffer, cursor);
         return true;
     }
@@ -686,7 +704,11 @@ bool try_complete_repl_line(const std::string& prompt, std::string& buffer, std:
     return true;
 }
 
-bool read_repl_line(const std::string& prompt, std::vector<std::string>& history, std::string& line) {
+bool read_repl_line(
+    const std::string& prompt,
+    std::vector<std::string>& history,
+    std::string& line,
+    aleph3::session::Session* completion_session) {
 #if defined(_WIN32)
     std::cout << prompt;
     return static_cast<bool>(std::getline(std::cin, line));
@@ -739,7 +761,7 @@ bool read_repl_line(const std::string& prompt, std::vector<std::string>& history
         }
 
         if (ch == '\t') {
-            try_complete_repl_line(prompt, buffer, cursor);
+            try_complete_repl_line(prompt, buffer, cursor, completion_session);
             continue;
         }
 
@@ -946,14 +968,23 @@ int run_repl() {
     std::cout
         << style_stdout("Interactive REPL", cli_palette().accent) << '\n'
         << "Type expressions directly. Use `:help` for commands and `:quit` to exit.\n"
-        << "Use arrows for history/editing and Tab for command completion.\n"
+        << "Use arrows for history/editing and Tab for command or symbol completion.\n"
         << "Default mode: " << repl_mode_name(repl_mode) << "\n\n";
 
     std::string line;
     std::vector<std::string> history;
     while (true) {
         const std::string prompt = make_repl_prompt(repl_mode);
-        if (!read_repl_line(prompt, history, line)) {
+        if (!read_repl_line(
+                prompt,
+                history,
+                line,
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+                &symbolic_session
+#else
+                nullptr
+#endif
+                )) {
             std::cout << '\n';
             return 0;
         }
@@ -1064,6 +1095,22 @@ int run_repl() {
             for (const auto& pack : result.packs) {
                 std::cout << pack.name << ':';
                 for (const auto& symbol : pack.symbols) std::cout << ' ' << symbol;
+                std::cout << '\n';
+            }
+            continue;
+        }
+        if (normalized_command == "complete") {
+            const auto result = symbolic_session.execute(
+                {formula, aleph3::session::SessionOperation::complete});
+            if (!result.ok) {
+                std::cerr << style_stderr("Completion failed.", cli_palette().error) << '\n';
+                continue;
+            }
+            for (const auto& completion : result.completions) {
+                std::cout << completion.name << '\t' << completion.category;
+                if (!completion.owning_package.empty()) {
+                    std::cout << '\t' << completion.owning_package;
+                }
                 std::cout << '\n';
             }
             continue;

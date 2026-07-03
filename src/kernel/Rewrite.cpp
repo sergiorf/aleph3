@@ -782,18 +782,25 @@ bool match_conditional_pattern(
 RewriteResult rewrite_once_impl(
     const ExprPtr& expr,
     const Rule& rule,
-    EvaluationContext* ctx) {
+    EvaluationContext* ctx,
+    const RewriteTraversal& traversal,
+    std::size_t depth) {
     if (expr == nullptr) {
         return {};
     }
 
     PatternBindings bindings;
-    if (match_conditional_pattern(rule.lhs, expr, bindings, ctx)) {
+    if (depth >= traversal.min_depth && depth <= traversal.max_depth &&
+        match_conditional_pattern(rule.lhs, expr, bindings, ctx)) {
         RewriteResult result;
         result.expr = substitute_pattern_bindings(rule.rhs, bindings);
         result.changed = true;
         result.rewrites_applied = 1;
         return result;
+    }
+
+    if (depth >= traversal.max_depth) {
+        return RewriteResult{expr, false, 0};
     }
 
     return std::visit(
@@ -806,7 +813,7 @@ RewriteResult rewrite_once_impl(
                 bool changed = false;
                 std::size_t rewrites_applied = 0;
                 for (const auto& arg : node.args) {
-                    auto rewritten = rewrite_once_impl(arg, rule, ctx);
+                    auto rewritten = rewrite_once_impl(arg, rule, ctx, traversal, depth + 1);
                     changed = changed || rewritten.changed;
                     rewrites_applied += rewritten.rewrites_applied;
                     rewritten_args.push_back(rewritten.changed ? rewritten.expr : arg);
@@ -825,7 +832,7 @@ RewriteResult rewrite_once_impl(
                 bool changed = false;
                 std::size_t rewrites_applied = 0;
                 for (const auto& element : node.elements) {
-                    auto rewritten = rewrite_once_impl(element, rule, ctx);
+                    auto rewritten = rewrite_once_impl(element, rule, ctx, traversal, depth + 1);
                     changed = changed || rewritten.changed;
                     rewrites_applied += rewritten.rewrites_applied;
                     rewritten_elements.push_back(rewritten.changed ? rewritten.expr : element);
@@ -839,7 +846,7 @@ RewriteResult rewrite_once_impl(
                 result.rewrites_applied = rewrites_applied;
                 return result;
             } else if constexpr (std::is_same_v<T, Rule>) {
-                auto lhs = rewrite_once_impl(node.lhs, rule, ctx);
+                auto lhs = rewrite_once_impl(node.lhs, rule, ctx, traversal, depth + 1);
                 if (lhs.changed) {
                     RewriteResult result;
                     result.expr = make_expr<Rule>(lhs.expr, node.rhs);
@@ -847,7 +854,7 @@ RewriteResult rewrite_once_impl(
                     result.rewrites_applied = lhs.rewrites_applied;
                     return result;
                 }
-                auto rhs = rewrite_once_impl(node.rhs, rule, ctx);
+                auto rhs = rewrite_once_impl(node.rhs, rule, ctx, traversal, depth + 1);
                 if (rhs.changed) {
                     RewriteResult result;
                     result.expr = make_expr<Rule>(node.lhs, rhs.expr);
@@ -857,7 +864,7 @@ RewriteResult rewrite_once_impl(
                 }
                 return RewriteResult{expr, false, 0};
             } else if constexpr (std::is_same_v<T, Assignment>) {
-                auto value = rewrite_once_impl(node.value, rule, ctx);
+                auto value = rewrite_once_impl(node.value, rule, ctx, traversal, depth + 1);
                 if (!value.changed) {
                     return RewriteResult{expr, false, 0};
                 }
@@ -871,7 +878,8 @@ RewriteResult rewrite_once_impl(
                     if (node.params[index].default_value == nullptr) {
                         continue;
                     }
-                    auto rewritten = rewrite_once_impl(node.params[index].default_value, rule, ctx);
+                    auto rewritten = rewrite_once_impl(
+                        node.params[index].default_value, rule, ctx, traversal, depth + 1);
                     if (rewritten.changed) {
                         auto params = node.params;
                         params[index].default_value = rewritten.expr;
@@ -886,7 +894,7 @@ RewriteResult rewrite_once_impl(
                         return result;
                     }
                 }
-                auto body = rewrite_once_impl(node.body, rule, ctx);
+                auto body = rewrite_once_impl(node.body, rule, ctx, traversal, depth + 1);
                 if (!body.changed) {
                     return RewriteResult{expr, false, 0};
                 }
@@ -934,8 +942,15 @@ bool matches_pattern(
 }
 
 RewriteResult rewrite_once(const ExprPtr& expr, const Rule& rule) {
+    return rewrite_once(expr, rule, RewriteTraversal{});
+}
+
+RewriteResult rewrite_once(
+    const ExprPtr& expr,
+    const Rule& rule,
+    RewriteTraversal traversal) {
     validate_pattern_contract(rule.lhs);
-    auto result = rewrite_once_impl(expr, rule, nullptr);
+    auto result = rewrite_once_impl(expr, rule, nullptr, traversal, 0);
     if (result.expr == nullptr) {
         result.expr = expr;
     }
@@ -946,8 +961,16 @@ RewriteResult rewrite_once(
     const ExprPtr& expr,
     const Rule& rule,
     EvaluationContext& ctx) {
+    return rewrite_once(expr, rule, ctx, RewriteTraversal{});
+}
+
+RewriteResult rewrite_once(
+    const ExprPtr& expr,
+    const Rule& rule,
+    EvaluationContext& ctx,
+    RewriteTraversal traversal) {
     validate_pattern_contract(rule.lhs);
-    auto result = rewrite_once_impl(expr, rule, &ctx);
+    auto result = rewrite_once_impl(expr, rule, &ctx, traversal, 0);
     if (result.expr == nullptr) {
         result.expr = expr;
     }
@@ -958,11 +981,19 @@ RewriteResult rewrite_repeated(
     const ExprPtr& expr,
     const Rule& rule,
     std::size_t max_rewrites) {
+    return rewrite_repeated(expr, rule, RewriteTraversal{}, max_rewrites);
+}
+
+RewriteResult rewrite_repeated(
+    const ExprPtr& expr,
+    const Rule& rule,
+    RewriteTraversal traversal,
+    std::size_t max_rewrites) {
     RewriteResult accumulated;
     accumulated.expr = expr;
 
     for (std::size_t iteration = 0; iteration < max_rewrites; ++iteration) {
-        auto step = rewrite_once(accumulated.expr, rule);
+        auto step = rewrite_once(accumulated.expr, rule, traversal);
         if (!step.changed) {
             break;
         }
@@ -979,11 +1010,20 @@ RewriteResult rewrite_repeated(
     const Rule& rule,
     EvaluationContext& ctx,
     std::size_t max_rewrites) {
+    return rewrite_repeated(expr, rule, ctx, RewriteTraversal{}, max_rewrites);
+}
+
+RewriteResult rewrite_repeated(
+    const ExprPtr& expr,
+    const Rule& rule,
+    EvaluationContext& ctx,
+    RewriteTraversal traversal,
+    std::size_t max_rewrites) {
     RewriteResult accumulated;
     accumulated.expr = expr;
 
     for (std::size_t iteration = 0; iteration < max_rewrites; ++iteration) {
-        auto step = rewrite_once(accumulated.expr, rule, ctx);
+        auto step = rewrite_once(accumulated.expr, rule, ctx, traversal);
         if (!step.changed) {
             break;
         }

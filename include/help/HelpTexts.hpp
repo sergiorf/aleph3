@@ -67,8 +67,8 @@ namespace aleph3 {
             {"Round", "Round[x]: Round x to the nearest integer", "Other"},
             {"Gamma", "Gamma[x]: Gamma function of x", "Other"},
             {"Rational", "Rational[n, d]: Rational number n/d (exact)", "Other"},
-            {"Replace", "Replace[expr, rule]: Apply one structural or pattern rule to expr", "Symbolic"},
-            {"ReplaceRepeated", "ReplaceRepeated[expr, rule]: Reapply a rule until it no longer changes expr", "Symbolic"},
+            {"Replace", "Replace[expr, rule, level]: Apply one rule, optionally at a nonnegative depth or range", "Symbolic"},
+            {"ReplaceRepeated", "ReplaceRepeated[expr, rule, level]: Reapply a rule at an optional bounded depth", "Symbolic"},
             {"MatchQ", "MatchQ[expr, pattern]: Test whether expr matches a supported symbolic pattern", "Symbolic"},
             {"Assuming", "Assuming[assumptions, expr]: Evaluate expr using temporary boolean, sign, or domain facts", "Symbolic"},
             {"Refine", "Refine[expr, assumptions]: Simplify expr using temporary boolean, sign, or domain facts", "Symbolic"},
@@ -87,7 +87,7 @@ namespace aleph3 {
             {"Factor", "Factor[expr]: Factor a polynomial expression over the integers", "Polynomial"},
             {"Collect", "Collect[expr, x]: Collect terms in expr by powers of x", "Polynomial"},
             {"GCD", "GCD[a, b]: Greatest common divisor of two polynomials or integers", "Polynomial"},
-            {"PolynomialQuotient", "PolynomialQuotient[a, b, x]: Quotient of a divided by b with respect to variable x", "Polynomial"},
+            {"PolynomialQuotient", "PolynomialQuotient[a, b, vars]: Exact quotient and remainder using explicit variable precedence", "Polynomial"},
             
             // Logical
             {"And", "And[a, b, ...]: Logical AND (True if all arguments are True)", "Logical"},

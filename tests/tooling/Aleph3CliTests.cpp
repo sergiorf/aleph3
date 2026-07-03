@@ -175,6 +175,15 @@ TEST_CASE("REPL exposes session inspection and pack discovery", "[tooling][cli][
     REQUIRE(result.output.find("Factor") != std::string::npos);
 }
 
+TEST_CASE("REPL exposes deterministic session completion", "[tooling][cli][session][completion]") {
+    const auto result = run_shell_command(make_repl_command(
+        {"localValue = 2", ":complete Pol", ":complete local", ":quit"}));
+
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output.find("PolynomialQuotient\tpack\tcore-algebra") != std::string::npos);
+    REQUIRE(result.output.find("localValue\tsymbol") != std::string::npos);
+}
+
 TEST_CASE("CLI one-shot evaluation is ephemeral and REPL recovers after errors", "[tooling][cli][session]") {
     const auto assignment = run_shell_command(make_direct_command("\"a = 2\""));
     REQUIRE(assignment.exit_code == 0);

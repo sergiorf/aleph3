@@ -6,6 +6,7 @@
 #include "transforms/Transforms.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -204,5 +205,13 @@ TEST_CASE("low-level exact polynomial gcd and divide reject multivariate selecto
     const auto right = expr_to_exact_polynomial(parse_expression("x"), {"x", "y"});
 
     REQUIRE_THROWS_AS(gcd(left, right, {"x", "y"}), std::runtime_error);
-    REQUIRE_THROWS_AS(divide(left, right, {"x", "y"}), std::runtime_error);
+    const auto [quotient, remainder] = divide(left, right, {"x", "y"});
+    REQUIRE(simplify_string(exact_polynomial_to_expr(quotient)) == "y * 1/2");
+    REQUIRE(simplify_string(exact_polynomial_to_expr(remainder)) == "0");
+}
+
+TEST_CASE("exact coefficient arithmetic rejects overflow", "[algebra][conversion][exact][overflow]") {
+    const ExactCoefficient large(std::numeric_limits<int64_t>::max(), 1);
+    REQUIRE_THROWS_AS(large * ExactCoefficient(2, 1), std::overflow_error);
+    REQUIRE_THROWS_AS(large + ExactCoefficient(1, 1), std::overflow_error);
 }

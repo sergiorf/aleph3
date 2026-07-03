@@ -130,8 +130,18 @@ ExprPtr evaluate_polynomial_quotient(const FunctionCall& func, EvaluationContext
     const auto variables = func.args.size() == 3
         ? extract_variables(func.args[2])
         : infer_variables(func.args[0], func.args[1]);
-    const auto result = divide_polynomial(func.args[0], func.args[1], variables, ctx);
-    return make_expr<List>(std::vector<ExprPtr>{result.first, result.second});
+    if (func.args.size() == 2 && variables.size() != 1) {
+        throw_unsupported_construct(
+            "divide: multivariate division requires an explicit variable selector");
+    }
+    try {
+        const auto result = divide_polynomial(func.args[0], func.args[1], variables, ctx);
+        return make_expr<List>(std::vector<ExprPtr>{result.first, result.second});
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+    } catch (const std::domain_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+    }
 }
 
 }  // namespace

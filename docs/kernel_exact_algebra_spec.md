@@ -76,16 +76,19 @@ is public to pack-owned helpers through:
 - `ExactPolynomial`
 - exact conversion helpers between `Expr` and exact polynomial form
 - exact low-level `expand`, `collect`, `gcd`, and `divide` overloads
+- exact single-divisor multivariate division using explicit variable
+  precedence and fixed graded-lexicographic leading terms
 
 Ownership in this slice is intentionally narrow:
 
 - the algebra layer owns exact integer/rational coefficient preservation for
   `Expand`, `Collect`, supported univariate `GCD`, and supported univariate
-  `PolynomialQuotient`
+  `PolynomialQuotient`, including explicitly selected multivariate inputs
 - the current `Polynomial` type with `double` coefficients remains in place
   for the existing factorization path
-- multivariate exact `GCD`, division, and broader factorization do not become
-  supported merely because exact coefficients are now public
+- multivariate exact `GCD` and broader factorization remain unsupported
+- multivariate division is limited to one divisor, explicit variable
+  precedence, and the fixed graded-lexicographic order
 
 Practical implication:
 
@@ -93,6 +96,8 @@ Practical implication:
   contract for safe helper paths
 - exact factorization remains out of scope until the broader coefficient-ring
   and algorithm story is stronger
+- exact coefficient operations detect `int64_t` overflow and fail explicitly;
+  arbitrary precision remains outside this contract
 
 ## Acceptance Criteria
 

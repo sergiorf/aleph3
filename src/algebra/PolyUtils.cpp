@@ -342,34 +342,53 @@ namespace aleph3 {
         const ExactPolynomial& dividend,
         const ExactPolynomial& divisor,
         const std::vector<std::string>& variables) {
-        if (variables.size() != 1) {
-            throw_unsupported_construct("divide: only univariate division is implemented");
-        }
-
-        const std::string& var = variables[0];
-        if (!is_univariate_in(dividend, var) || !is_univariate_in(divisor, var)) {
-            throw_unsupported_construct("divide: only univariate division is implemented");
-        }
+        if (variables.empty()) throw_invalid_form("divide: variable selector cannot be empty");
         if (divisor.is_zero()) {
             throw std::domain_error("Polynomial division by zero");
         }
 
-        const int divisor_degree = degree_in_variable(divisor, var);
         ExactPolynomial remainder = dividend;
         ExactPolynomial quotient;
+        ExactPolynomial reduced;
 
-        while (!remainder.is_zero() && degree_in_variable(remainder, var) >= divisor_degree) {
-            const auto [remainder_mono, remainder_coeff] = leading_term(remainder, var);
-            const auto [divisor_mono, divisor_coeff] = leading_term(divisor, var);
-
-            Monomial quotient_mono = remainder_mono;
-            for (const auto& [mono_var, exponent] : divisor_mono) {
-                quotient_mono[mono_var] -= exponent;
-                if (quotient_mono[mono_var] == 0) {
-                    quotient_mono.erase(mono_var);
+        const auto leading = [&](const ExactPolynomial& polynomial) {
+            auto selected = polynomial.terms.end();
+            for (auto it = polynomial.terms.begin(); it != polynomial.terms.end(); ++it) {
+                if (it->second.is_zero()) continue;
+                if (selected == polynomial.terms.end() || exact_monomial_precedes(
+                        it->first,
+                        selected->first,
+                        MonomialOrder::graded_lexicographic,
+                        variables)) {
+                    selected = it;
                 }
             }
+            return std::pair<Monomial, ExactCoefficient>{selected->first, selected->second};
+        };
+        const auto divides = [](const Monomial& divisor_mono, const Monomial& dividend_mono) {
+            for (const auto& [variable, exponent] : divisor_mono) {
+                if (monomial_exponent(dividend_mono, variable) < exponent) return false;
+            }
+            return true;
+        };
+        const auto subtract_monomial = [](Monomial dividend_mono, const Monomial& divisor_mono) {
+            for (const auto& [variable, exponent] : divisor_mono) {
+                dividend_mono[variable] -= exponent;
+                if (dividend_mono[variable] == 0) dividend_mono.erase(variable);
+            }
+            return dividend_mono;
+        };
+        const auto [divisor_mono, divisor_coeff] = leading(divisor);
 
+        while (!remainder.is_zero()) {
+            const auto [remainder_mono, remainder_coeff] = leading(remainder);
+            if (!divides(divisor_mono, remainder_mono)) {
+                const ExactPolynomial remainder_term({{remainder_mono, remainder_coeff}});
+                reduced = reduced + remainder_term;
+                remainder = remainder - remainder_term;
+                continue;
+            }
+            const Monomial quotient_mono = subtract_monomial(remainder_mono, divisor_mono);
             ExactPolynomial quotient_term({
                 {quotient_mono, remainder_coeff / divisor_coeff}
             });
@@ -378,8 +397,8 @@ namespace aleph3 {
         }
 
         quotient.normalize();
-        remainder.normalize();
-        return {quotient, remainder};
+        reduced.normalize();
+        return {quotient, reduced};
     }
 
     ExactPolynomial gcd_exact(

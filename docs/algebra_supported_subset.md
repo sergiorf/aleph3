@@ -20,6 +20,7 @@ The current symbolic algebra surface is:
 - `GCD[a, b, var]`
 - `PolynomialQuotient[a, b]`
 - `PolynomialQuotient[a, b, var]`
+- `PolynomialQuotient[a, b, {var1, ...}]` for exact multivariate inputs
 
 These functions operate on polynomial expressions only. Unsupported forms fail
 explicitly rather than silently approximating or partially rewriting.
@@ -64,16 +65,19 @@ Variable selectors follow this contract:
 - a selector must be a symbol or a non-empty list of symbols
 - duplicate symbols in a selector list are ignored after the first occurrence
 - `Collect` accepts a selector that names variables not present in the input
-- `GCD` and `PolynomialQuotient` infer variables from both operands when no
-  explicit selector is provided
-- multivariate `GCD` and `PolynomialQuotient` remain unsupported for now
+- `GCD` and `PolynomialQuotient` infer a single variable from both operands
+  when no explicit selector is provided
+- exact multivariate `PolynomialQuotient` requires an explicit selector list;
+  its order defines variable precedence under fixed graded lexicographic order
+- multivariate `GCD` and inexact multivariate division remain unsupported
 
 Examples of explicit failures:
 
 - `Collect[x^2 + 1, 3]` -> invalid selector
 - `Collect[x^2 + y, {}]` -> empty selector list
 - `GCD[x^2 - 1, y - 1]` -> unsupported multivariate inference
-- `PolynomialQuotient[x*y, x, {x, y}]` -> unsupported multivariate division
+- `PolynomialQuotient[x*y, x]` -> explicit selector required
+- `PolynomialQuotient[0.5*x*y, x, {x, y}]` -> unsupported inexact division
 
 ## Exact Rational Contract
 
@@ -91,8 +95,8 @@ Current boundary:
 - mixed rational and floating-point arithmetic demotes to inexact `Number`
 - `Expand` and `Collect` preserve exact rational coefficients for both
   univariate and multivariate supported polynomial inputs
-- supported univariate `GCD` and supported univariate `PolynomialQuotient`
-  preserve exact rational coefficients
+- supported univariate `GCD` and univariate or explicitly selected multivariate
+  `PolynomialQuotient` preserve exact rational coefficients
 - inexact `Number` inputs stay on the existing floating-point path
 - `Factor` supports exact rational coefficients for univariate rational-root
   factorization by clearing denominators and restoring exact scalar content
@@ -108,6 +112,7 @@ Examples:
 - `Collect[(1/2) * x + 1, x]` -> `1/2 * x + 1`
 - `Collect[(1/2) * x * y + (3/2) * y, y]` -> `1/2 * x * y + 3/2 * y`
 - `PolynomialQuotient[x^2 - 1/4, x - 1/2, x]` -> `{x + 1/2, 0}`
+- `PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]` -> `{x + y, y}`
 - `Factor[(1/2) * x^2 + x]` -> `1/2 * x * (x + 2)`
 - `Factor[(1/2) * x^2 + x + 1/2]` -> `1/2 * (x + 1) * (x + 1)`
 
@@ -187,7 +192,7 @@ known limitation.
 
 Not part of the current supported subset:
 
-- multivariate polynomial GCD and division
+- multivariate polynomial GCD and configurable or multi-divisor division
 - exact multivariate factorization beyond current content extraction
 - symbolic differentiation
 - broader factorization algorithms

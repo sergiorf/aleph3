@@ -95,15 +95,16 @@ TEST_CASE("Polynomial quotient preserves nonzero remainders", "[algebra][functio
     REQUIRE(simplify_string(result_list.elements[1]) == "2");
 }
 
-TEST_CASE("Polynomial GCD and division reject unsupported multivariate inference", "[algebra][functions]") {
+TEST_CASE("Polynomial GCD rejects multivariate input while exact division accepts explicit precedence", "[algebra][functions]") {
     EvaluationContext ctx;
 
     REQUIRE_THROWS_AS(
         evaluate_source("GCD[x*y, x, {x, y}]", ctx),
         std::runtime_error);
-    REQUIRE_THROWS_AS(
-        evaluate_source("PolynomialQuotient[x*y, x, {x, y}]", ctx),
-        std::runtime_error);
+    const auto division = evaluate_source("PolynomialQuotient[x*y, x, {x, y}]", ctx);
+    const auto& parts = std::get<List>(*division).elements;
+    REQUIRE(simplify_string(parts[0]) == "y");
+    REQUIRE(simplify_string(parts[1]) == "0");
 }
 
 TEST_CASE("Polynomial selectors reject empty lists and infer variables from both operands", "[algebra][functions]") {
@@ -130,7 +131,8 @@ TEST_CASE("Polynomial selectors reject empty lists and infer variables from both
         FAIL("Expected PolynomialQuotient inference across mixed variables to reject unsupported multivariate input");
     } catch (const EvaluatorError& ex) {
         REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
-        REQUIRE(std::string(ex.what()) == "divide: only univariate division is implemented");
+        REQUIRE(std::string(ex.what()) ==
+            "divide: multivariate division requires an explicit variable selector");
     }
 }
 
@@ -295,11 +297,15 @@ TEST_CASE("Polynomial helpers keep multivariate support boundaries explicit", "[
         REQUIRE(std::string(ex.what()) == "gcd: only univariate GCD is implemented");
     }
 
-    try {
-        static_cast<void>(evaluate_source("PolynomialQuotient[x*y, x, {x, y}]", ctx));
-        FAIL("Expected multivariate division to remain unsupported");
-    } catch (const EvaluatorError& ex) {
-        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
-        REQUIRE(std::string(ex.what()) == "divide: only univariate division is implemented");
-    }
+    const auto division = evaluate_source(
+        "PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]", ctx);
+    const auto& parts = std::get<List>(*division).elements;
+    REQUIRE(simplify_string(parts[0]) == "x + y");
+    REQUIRE(simplify_string(parts[1]) == "y");
+    REQUIRE(simplify_string(evaluate_source(
+        "Expand[x*y*(x+y)+y]", ctx)) == "x^2 * y + x * y^2 + y");
+
+    REQUIRE_THROWS_AS(
+        evaluate_source("PolynomialQuotient[0.5*x*y, x, {x, y}]", ctx),
+        EvaluatorError);
 }

@@ -28,6 +28,7 @@ enum class ErrorCode {
     unknown_binding,
     type_mismatch,
     division_by_zero,
+    exact_overflow,
     non_finite_number,
     invalid_numeric_result,
     invalid_numeric_domain,
@@ -61,6 +62,8 @@ enum class ErrorCode {
             return "kernel.type_mismatch";
         case ErrorCode::division_by_zero:
             return "kernel.division_by_zero";
+        case ErrorCode::exact_overflow:
+            return "kernel.exact_overflow";
         case ErrorCode::non_finite_number:
             return "kernel.non_finite_number";
         case ErrorCode::invalid_numeric_result:
@@ -109,6 +112,8 @@ enum class ErrorCode {
             return "runtime.type_mismatch";
         case ErrorCode::division_by_zero:
             return "runtime.division_by_zero";
+        case ErrorCode::exact_overflow:
+            return "runtime.exact_overflow";
         case ErrorCode::non_finite_number:
             return "runtime.non_finite_number";
         case ErrorCode::invalid_numeric_result:

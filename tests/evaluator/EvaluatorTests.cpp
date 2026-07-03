@@ -1086,6 +1086,27 @@ TEST_CASE("Evaluator keeps replacement explicit and bounded", "[evaluator][rewri
         "ReplaceRepeated expects the second argument to be a Rule");
 }
 
+TEST_CASE("Evaluator targets replacement by nonnegative depth", "[evaluator][rewrite][traversal]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("Replace[f[f[x], x], x -> y, 0]"), ctx)) == "f[f[x], x]");
+    REQUIRE(to_string(evaluate(parse_expression("Replace[f[f[x], x], x -> y, 1]"), ctx)) == "f[f[x], y]");
+    REQUIRE(to_string(evaluate(parse_expression("Replace[f[f[x], x], x -> y, 2]"), ctx)) == "f[f[y], x]");
+    REQUIRE(to_string(evaluate(parse_expression("Replace[f[f[x], x], x -> y, {1, 2}]"), ctx)) == "f[f[y], y]");
+    REQUIRE(to_string(evaluate(parse_expression("Replace[{x, {x}}, x -> y, 1]"), ctx)) == "{y, {x}}");
+    REQUIRE(to_string(evaluate(parse_expression("Replace[f[x], f[a_] -> g[a], 0]"), ctx)) == "g[x]");
+    REQUIRE(to_string(evaluate(parse_expression("ReplaceRepeated[f[f[x]], f[a_] -> a, 0]"), ctx)) == "x");
+
+    for (const auto* source : {
+             "Replace[x, x -> y, -1]",
+             "Replace[x, x -> y, 1/2]",
+             "Replace[x, x -> y, {}]",
+             "Replace[x, x -> y, {2, 1}]",
+             "Replace[x, x -> y, {0, 1, 2}]"}) {
+        REQUIRE_THROWS_AS(evaluate(parse_expression(source), ctx), EvaluatorError);
+    }
+}
+
 TEST_CASE("Evaluator supports typed single-expression patterns", "[evaluator][rewrite][typed-pattern]") {
     EvaluationContext ctx;
 

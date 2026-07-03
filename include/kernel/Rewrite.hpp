@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstddef>
+#include <limits>
 #include <optional>
 
 #include "expr/Expr.hpp"
@@ -22,6 +23,11 @@ struct RewriteResult {
     std::size_t rewrites_applied = 0;
 };
 
+struct RewriteTraversal {
+    std::size_t min_depth = 0;
+    std::size_t max_depth = std::numeric_limits<std::size_t>::max();
+};
+
 [[nodiscard]] bool structurally_equal(const ExprPtr& left, const ExprPtr& right);
 [[nodiscard]] bool matches_pattern(const ExprPtr& pattern, const ExprPtr& expr);
 [[nodiscard]] bool matches_pattern(
@@ -34,6 +40,15 @@ struct RewriteResult {
     const ExprPtr& expr,
     const Rule& rule,
     EvaluationContext& ctx);
+[[nodiscard]] RewriteResult rewrite_once(
+    const ExprPtr& expr,
+    const Rule& rule,
+    RewriteTraversal traversal);
+[[nodiscard]] RewriteResult rewrite_once(
+    const ExprPtr& expr,
+    const Rule& rule,
+    EvaluationContext& ctx,
+    RewriteTraversal traversal);
 
 [[nodiscard]] RewriteResult rewrite_repeated(
     const ExprPtr& expr,
@@ -44,6 +59,17 @@ struct RewriteResult {
     const ExprPtr& expr,
     const Rule& rule,
     EvaluationContext& ctx,
+    std::size_t max_rewrites = 16);
+[[nodiscard]] RewriteResult rewrite_repeated(
+    const ExprPtr& expr,
+    const Rule& rule,
+    RewriteTraversal traversal,
+    std::size_t max_rewrites = 16);
+[[nodiscard]] RewriteResult rewrite_repeated(
+    const ExprPtr& expr,
+    const Rule& rule,
+    EvaluationContext& ctx,
+    RewriteTraversal traversal,
     std::size_t max_rewrites = 16);
 
 [[nodiscard]] std::optional<ExprPtr> rewrite_normalized_head(

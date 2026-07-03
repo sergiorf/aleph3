@@ -115,10 +115,14 @@ What is already true:
   kernel context used by `MatchQ`, `Replace`, and `ReplaceRepeated`
 - univariate `Factor` now preserves exact rational coefficients for the
   supported rational-root workflow
+- targeted replacement now supports explicit nonnegative depth and depth-range
+  controls without widening into sequence patterns or broader level syntax
+- exact single-divisor multivariate polynomial division now uses explicit
+  variable precedence and the canonical graded-lexicographic order
 - an experimental stateful session contract now owns reusable kernel context,
   structured results, and diagnostics for the symbolic CLI REPL
 - the session and CLI now provide non-mutating expression inspection and
-  deterministic pack discovery over registry metadata
+  deterministic pack discovery and completion over registry metadata
 
 What is still unresolved:
 
@@ -646,7 +650,8 @@ Current status:
 - a first algebra-aware layer now exists for same-symbol exponent accumulation
   in normalized `Times` and nested numeric `Power` forms
 - typed single-expression patterns and bounded `Condition[pattern, predicate]`
-  rules are implemented; broader traversal and sequence patterns remain open
+  rules are implemented; targeted depth-controlled traversal is implemented,
+  while sequence patterns remain open
 
 Near-term tasks:
 
@@ -738,6 +743,9 @@ Near-term multivariate algebra plan:
 - exact monomials now have explicit lexicographic, graded-lexicographic, and
   graded-reverse-lexicographic ordering policies with variable precedence;
   canonical algebra rendering initially uses graded lexicographic order
+- exact single-divisor multivariate division now uses explicit selector order
+  as precedence under fixed graded lexicographic order; multivariate GCD and
+  broader factorization remain unsupported
 - target early exact multivariate milestones in this order:
   1. exact multivariate coefficient preservation
   2. explicit monomial ordering and canonical form rules
@@ -888,6 +896,8 @@ Current status:
   without evaluating or mutating the expression
 - pack-discovery requests return deterministic package and symbol records from
   the shared function registry
+- completion requests merge registry metadata with session-defined symbols and
+  functions, and the CLI exposes them through Tab and `:complete`
 - the symbolic CLI REPL reuses one session, preserving assignments and user
   definitions across inputs
 - the CLI consumes those operations through `:inspect` and `:packs`
@@ -1022,17 +1032,17 @@ Success criteria:
 
 ## Immediate Action Queue
 
-Two balanced tranches have now delivered typed and conditional patterns, exact
-rational univariate factorization, explicit multivariate monomial ordering, a
-stateful symbolic CLI session, expression inspection, and pack discovery. The
-next active tranche should be:
+Three balanced tranches have now delivered typed and conditional patterns,
+depth-controlled replacement, exact rational factorization, explicit
+multivariate ordering and division, and a stateful CLI session with inspection,
+pack discovery, and completion. The next active tranche should be:
 
-1. **Kernel and SDK:** add targeted traversal and replacement controls without
-   introducing sequence-pattern machinery
-2. **Math packs:** specify and implement the first supported exact multivariate
-   division contract over the explicit monomial-ordering policy
-3. **CLI and IDE foundation:** add completion over session and registry
-   metadata, keeping transport and GUI choices deferred
+1. **Kernel and SDK:** add explicit assumption-contradiction handling and the
+   first selected assumption-aware rewrite hook
+2. **Math packs:** specify the first supported exact multivariate GCD contract
+   over the shared division and ordering invariants
+3. **CLI and IDE foundation:** add script execution and a narrow
+   machine-readable result mode over the existing session contract
 4. **Cross-cutting validation:** continue closing P0 diagnostic, overflow,
    registry-collision, failure-recovery, and process-level CLI gaps before
    declaring these experimental interfaces stable

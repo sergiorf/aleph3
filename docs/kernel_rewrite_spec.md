@@ -116,7 +116,10 @@ In plain terms:
 Current product-facing transformation surface:
 
 - `Replace[expr, rule]` applies one rewrite traversal
+- `Replace[expr, rule, n]` targets exactly nonnegative depth `n`
+- `Replace[expr, rule, {min, max}]` targets an inclusive nonnegative depth range
 - `ReplaceRepeated[expr, rule]` re-applies a rule with an explicit safety cap
+- `ReplaceRepeated` accepts the same optional depth controls
 - `MatchQ[expr, pattern]` tests the same supported matcher surface without
   rewriting
 
@@ -149,6 +152,15 @@ named-pattern consistency checks.
 - top-level structural or pattern match first
 - recursive traversal into child expressions otherwise
 - whole-tree reconstruction when any child rewrite happens
+
+The optional `RewriteTraversal` contract defines root depth as zero and counts
+function arguments, list elements, and other expression children from there.
+Function head names are not traversed. A successful replacement is not
+traversed again during the same pass. Existing overloads use the unbounded
+range and therefore preserve the original two-argument product behavior.
+
+Negative levels, fractional levels, reversed ranges, head traversal, and
+broader `LevelSpec` forms are rejected rather than approximated.
 
 `rewrite_repeated(...)` performs repeated application up to a caller-provided
 rewrite bound.

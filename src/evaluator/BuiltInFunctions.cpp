@@ -10,6 +10,7 @@
 #include "util/Overloaded.hpp"
 #include "Constants.hpp"
 #include <cmath>
+#include <limits>
 
 namespace aleph3 {
 
@@ -74,6 +75,34 @@ namespace aleph3 {
             return *rule;
         }
         throw_invalid_form(name + " expects the second argument to be a Rule");
+    }
+
+    kernel::RewriteTraversal require_rewrite_traversal(
+        const ExprPtr& expr,
+        const std::string& name) {
+        const auto require_depth = [&](const ExprPtr& value) -> std::size_t {
+            const auto* number = std::get_if<Number>(value.get());
+            if (number == nullptr || !std::isfinite(number->value) || number->value < 0.0 ||
+                std::floor(number->value) != number->value ||
+                number->value > static_cast<double>(std::numeric_limits<std::size_t>::max())) {
+                throw_invalid_form(name + " expects a nonnegative integral level or {min, max}");
+            }
+            return static_cast<std::size_t>(number->value);
+        };
+        if (std::holds_alternative<Number>(*expr)) {
+            const auto depth = require_depth(expr);
+            return {depth, depth};
+        }
+        const auto* list = std::get_if<List>(expr.get());
+        if (list == nullptr || list->elements.size() != 2) {
+            throw_invalid_form(name + " expects a nonnegative integral level or {min, max}");
+        }
+        const auto min_depth = require_depth(list->elements[0]);
+        const auto max_depth = require_depth(list->elements[1]);
+        if (min_depth > max_depth) {
+            throw_invalid_form(name + " expects an ordered level range");
+        }
+        return {min_depth, max_depth};
     }
 
     EvaluationContext with_added_assumptions(EvaluationContext ctx, const ExprPtr& assumptions) {
@@ -259,25 +288,32 @@ namespace aleph3 {
             });
 
         registry.register_function("Replace", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
-            if (func.args.size() != 2) {
-                throw_invalid_arity_exact("Replace", 2);
+            if (func.args.size() != 2 && func.args.size() != 3) {
+                throw_invalid_arity_between("Replace", 2, 3);
             }
             auto expr = evaluate(func.args[0], ctx);
             const Rule& rule = require_rule_argument(func.args[1], "Replace");
-            const auto rewritten = kernel::rewrite_once(expr, rule, ctx);
+            const auto traversal = func.args.size() == 3
+                ? require_rewrite_traversal(evaluate(func.args[2], ctx), "Replace")
+                : kernel::RewriteTraversal{};
+            const auto rewritten = kernel::rewrite_once(expr, rule, ctx, traversal);
             return rewritten.changed ? rewritten.expr : expr;
             });
 
         registry.register_function("ReplaceRepeated", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
-            if (func.args.size() != 2) {
-                throw_invalid_arity_exact("ReplaceRepeated", 2);
+            if (func.args.size() != 2 && func.args.size() != 3) {
+                throw_invalid_arity_between("ReplaceRepeated", 2, 3);
             }
             auto expr = evaluate(func.args[0], ctx);
             const Rule& rule = require_rule_argument(func.args[1], "ReplaceRepeated");
+            const auto traversal = func.args.size() == 3
+                ? require_rewrite_traversal(evaluate(func.args[2], ctx), "ReplaceRepeated")
+                : kernel::RewriteTraversal{};
             const auto rewritten = kernel::rewrite_repeated(
                 expr,
                 rule,
                 ctx,
+                traversal,
                 REPLACE_REPEATED_MAX_REWRITES);
             return rewritten.changed ? rewritten.expr : expr;
             });

@@ -75,7 +75,8 @@ Session::Session() : context_(kernel::default_function_registry()) {
 
 SessionResult Session::execute(const SessionRequest& request) {
     SessionResult result;
-    if (request.operation != SessionOperation::discover_packs && request.source.empty()) {
+    if (request.operation != SessionOperation::discover_packs &&
+        request.operation != SessionOperation::complete && request.source.empty()) {
         result.diagnostics.push_back({"session.empty_source", "An expression is required."});
         return result;
     }
@@ -91,6 +92,37 @@ SessionResult Session::execute(const SessionRequest& request) {
             }
             for (auto& [name, symbols] : packages) {
                 result.packs.push_back({name, std::move(symbols)});
+            }
+            result.ok = true;
+            return result;
+        }
+        if (request.operation == SessionOperation::complete) {
+            std::map<std::string, SessionCompletion> matches;
+            const auto starts_with_prefix = [&](const std::string& name) {
+                return name.starts_with(request.source);
+            };
+            for (const auto& callable : context_.function_registry().callable_metadata()) {
+                if (!starts_with_prefix(callable.metadata.name)) continue;
+                std::string category = "builtin";
+                if (callable.metadata.source == kernel::RegistrationSource::pack) {
+                    category = "pack";
+                } else if (callable.category == kernel::CallableCategory::special_form) {
+                    category = "special-form";
+                }
+                matches.emplace(callable.metadata.name, SessionCompletion{
+                    callable.metadata.name,
+                    std::move(category),
+                    callable.metadata.owning_package,
+                    callable.metadata.documentation});
+            }
+            for (const auto& [name, _] : context_.symbol_values.entries()) {
+                if (starts_with_prefix(name)) matches[name] = {name, "symbol", "", ""};
+            }
+            for (const auto& [name, _] : context_.function_definitions.entries()) {
+                if (starts_with_prefix(name)) matches[name] = {name, "function", "", ""};
+            }
+            for (auto& [_, completion] : matches) {
+                result.completions.push_back(std::move(completion));
             }
             result.ok = true;
             return result;
@@ -111,6 +143,7 @@ SessionResult Session::execute(const SessionRequest& request) {
                 result.output = result.inspections.front().full_form;
                 break;
             case SessionOperation::discover_packs:
+            case SessionOperation::complete:
                 break;
         }
         result.ok = true;

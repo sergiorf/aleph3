@@ -86,7 +86,8 @@ You need CMake 3.20+ and a C++20 compiler.
    ```
 
    The variable list `{x, y}` is significant: it declares variable precedence
-   for multivariate division. See [Concepts and terminology](docs/concepts.md)
+   for multivariate division. See the manual's
+   [Concepts and terminology appendix](docs/manual/concepts-and-terminology.md)
    for a plain-language explanation.
 
 4. Try the trusted SDK-facing path and host functions:
@@ -138,20 +139,10 @@ not a second semantic engine.
 
 ## Documentation
 
-Start at the [documentation index](docs/README.md). The main reading path is:
-
-1. [Aleph3 Manual](docs/manual/README.md)
-2. [Concepts and terminology](docs/concepts.md)
-3. [Supported algebra subset](docs/algebra_supported_subset.md)
-4. [SDK guide](docs/sdk/README.md)
-5. [Architecture](docs/architecture.md)
-6. [Product plan](docs/product_plan.md)
-7. [Notebook MVP design](docs/notebook_mvp_design.md)
-8. [IP and repository strategy](docs/ip_and_repo_strategy.md)
-9. [Unified implementation plan](docs/aleph3_unified_plan.md)
-
-The index separates explanatory guides, normative contracts, and planning so
-there is one obvious home for each kind of information.
+Read the [Aleph3 Manual](docs/manual/README.md) for supported workflows and
+examples. The [documentation index](docs/README.md) maps normative contracts,
+architecture, product design, and the unified roadmap without duplicating that
+material here.
 
 ## License
 [MIT License](LICENSE)

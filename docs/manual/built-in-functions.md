@@ -79,6 +79,14 @@ RationalQ[1/2]           -> True
 `NonNegative`, `NonPositive`, `NonZeroQ`, and `RealQ` belong to the same family.
 An unknown fact is not silently treated as proven.
 
+```text
+Positive[x]              -> Positive[x]
+Refine[Positive[x], x > 0] -> True
+```
+
+Predicates answer only from supported exact values and assumption facts. They
+do not perform general inequality or theorem solving.
+
 ## Discovering Functions
 
 ```text
@@ -90,4 +98,3 @@ An unknown fact is not silently treated as proven.
 Completion includes built-ins, special forms, pack functions, and names defined
 in the current session. The CLI help catalog provides terse reference text;
 this manual supplies behavioral context.
-

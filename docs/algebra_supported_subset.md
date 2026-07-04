@@ -41,7 +41,7 @@ Current ownership boundary:
 
 For the underlying vocabulary—coefficient, monomial, total degree, variable
 precedence, and graded lexicographic order—see
-[Polynomial Vocabulary](concepts.md#polynomial-vocabulary).
+[Polynomial Vocabulary](manual/concepts-and-terminology.md#polynomial-vocabulary).
 
 Supported algebra outputs follow these rules:
 

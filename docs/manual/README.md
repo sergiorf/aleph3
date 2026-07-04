@@ -17,21 +17,24 @@ kernel.
 4. [Embedding with the SDK](embedding-with-the-sdk.md)
 5. [The Algebra Pack](packs-algebra.md)
 6. [Sessions, CLI, and the Notebook](sessions-cli-and-notebook.md)
+7. [Appendix: Concepts and Terminology](concepts-and-terminology.md)
 
 New symbolic users can read chapters 1, 2, 3, 5, and 6. Application developers
 should read chapters 1, 4, and 2 first.
 
 ## Documentation Roles
 
-- The [concepts guide](../concepts.md) defines vocabulary and the mental model.
-- This manual teaches functions and workflows through examples.
+- The [concepts appendix](concepts-and-terminology.md) defines vocabulary and
+  the mental model alongside the workflow chapters.
+- The rest of this manual teaches functions and workflows through examples.
 - Specifications define exact supported behavior and remain authoritative.
 - The [unified plan](../aleph3_unified_plan.md) describes unfinished work.
 - The [notebook MVP design](../notebook_mvp_design.md) records the proposed
   first desktop-product contract; it does not describe shipped behavior.
 
 Examples use the current Wolfram-like syntax and, unless stated otherwise, run
-in the symbolic CLI REPL.
+in the symbolic CLI REPL started with `aleph3_cli repl`. Output shown after
+`->` is the expected canonical result, not text to type.
 
 ## Current Boundary
 
@@ -39,3 +42,7 @@ Aleph3 already provides exact arithmetic, symbolic fallback, persistent
 definitions, bounded rewriting, assumptions, and polynomial algebra. It is not
 yet a broad general-purpose CAS. Unsupported forms are preserved or rejected
 according to documented contracts rather than approximated silently.
+
+The repository also contains a headless notebook core with versioned JSON
+persistence and deterministic clean `Run All`; no graphical notebook
+application has shipped yet.

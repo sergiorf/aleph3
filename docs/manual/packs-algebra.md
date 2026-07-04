@@ -2,7 +2,7 @@
 
 The `core-algebra` pack owns the polynomial surface. It uses shared kernel
 expressions, exact arithmetic, diagnostics, and registration rather than a
-private evaluator. See [Polynomial Vocabulary](../concepts.md#polynomial-vocabulary)
+private evaluator. See [Polynomial Vocabulary](concepts-and-terminology.md#polynomial-vocabulary)
 for monomials, total degree, and variable precedence.
 
 ## Expand And Collect
@@ -43,6 +43,10 @@ PolynomialQuotient[x^2 + 1, x + 1, x]    -> {x - 1, 2}
 
 The result satisfies `dividend = divisor*quotient + remainder`.
 
+```text
+Expand[(x + 1) * (x - 1) + 2]          -> x^2 + 1
+```
+
 Exact single-divisor multivariate division requires explicit precedence:
 
 ```text
@@ -54,9 +58,23 @@ The variable list controls leading terms under graded lexicographic order.
 Different precedence can change quotient and remainder while preserving the
 reconstruction identity.
 
+For the example above:
+
+```text
+x*y * (x + y) + y                      -> x^2*y + x*y^2 + y
+```
+
 Decimal multivariate division, multiple divisors, configurable orders,
 multivariate GCD, and broad multivariate factorization remain unsupported.
 Exact `int64_t` coefficient overflow is reported instead of wrapped.
+
+Examples outside the current boundary include:
+
+```text
+GCD[x^2 - 1, y - 1]                    -> unsupported multivariate input
+PolynomialQuotient[x*y, x]             -> explicit selector required
+PolynomialQuotient[0.5*x*y, x, {x,y}]  -> unsupported inexact division
+```
 
 The authoritative boundary is the
 [supported algebra subset](../algebra_supported_subset.md).

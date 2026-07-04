@@ -189,8 +189,9 @@ applicable document:
   syntax, runnable examples, evaluation behavior, diagnostics, exact/inexact
   behavior, and unsupported cases. Extend an existing chapter before creating
   another one.
-- **Concepts:** update `docs/concepts.md` when the feature introduces vocabulary
-  or a mental model needed to understand its syntax.
+- **Concepts appendix:** update
+  `docs/manual/concepts-and-terminology.md` when the feature introduces
+  vocabulary or a mental model needed to understand its syntax.
 - **Specifications and supported subsets:** record durable contracts,
   invariants, failure behavior, and precise boundaries in their canonical
   focused documents.

@@ -29,6 +29,36 @@ temperature = 18, limit = 20  -> "ok"
 Names missing from the schema are rejected before runtime. The broader symbolic
 surface may instead preserve an unknown name.
 
+The following is the minimal shape of the public C++ workflow:
+
+```cpp
+#include "sdk/Engine.hpp"
+
+int main() {
+    aleph3::Engine engine;
+    aleph3::Schema schema;
+    schema.allow_variable({"x", aleph3::ValueType::number, true});
+
+    const auto compiled = engine.compile("x + 1", schema);
+    if (!compiled.ok()) {
+        return 2; // Display compiled.diagnostics in a real host.
+    }
+
+    const aleph3::Bindings bindings = {{"x", aleph3::Value(3.0)}};
+    const auto result = engine.evaluate(*compiled.formula, bindings);
+    if (!result.ok()) {
+        return 2; // Display result.error in a real host.
+    }
+
+    const double answer = *result.value->as_number(); // 4.0
+    return answer == 4.0 ? 0 : 1;
+}
+```
+
+Production code must handle both compilation diagnostics and the runtime error
+returned by evaluation. The complete, build-tested example is
+[`examples/sdk_host_example.cpp`](../../examples/sdk_host_example.cpp).
+
 ## Policies And Budgets
 
 A policy controls which language features the host accepts and how much work a
@@ -36,6 +66,10 @@ formula may consume. Validation catches disallowed calls, type mismatches,
 unknown variables, excessive depth, and selected constant runtime traps.
 Runtime checks still matter because bindings and callbacks can fail in ways
 source validation cannot predict.
+
+The SDK trusted subset is intentionally narrower than the symbolic session. It
+does not expose assignments, rewrite rules, user definitions, polynomial
+commands, or symbolic fallback as host-visible runtime values.
 
 ## Host Functions
 
@@ -67,4 +101,3 @@ should use codes for behavior and messages for display, not parse prose.
 - [Stable interfaces](../sdk/stable_interfaces.md)
 - [Trusted subset](../trusted_subset_v1.md)
 - [Build and targets](../sdk/build_and_targets.md)
-

@@ -45,9 +45,11 @@ Whether a host application permits division at all is an SDK policy concern.
 
 ## Notebook, Document, Cell, and Display
 
-The planned **notebook** is the local desktop product built above the session.
-A **notebook document** is an ordered collection of cells plus format metadata.
-It is product data, not a second expression representation.
+The planned graphical **notebook** is the local desktop product built above the
+session. Its delivered headless core already models documents, cells, cached
+results, JSON persistence, and clean `Run All`. A **notebook document** is an
+ordered collection of cells plus format metadata. It is product data, not a
+second expression representation.
 
 An **input cell** stores Aleph3 source text. A **text cell** stores explanatory
 content. An **output cell** records presentation associated with an evaluation,
@@ -61,8 +63,8 @@ how a result may be shown; they do not evaluate expressions.
 ## Session
 
 A **session** owns interactive execution state across requests, including user
-definitions and the kernel evaluation context. The CLI already uses this
-boundary. The planned notebook will create or restore a session and submit cell
+definitions and the kernel evaluation context. The CLI and headless notebook
+runner already use this boundary. A graphical notebook will submit cell
 requests through it rather than embedding evaluator state in widgets.
 
 Closing a document and saving a document are product operations. Preserving
@@ -275,7 +277,7 @@ Aleph3 currently supports this operation only for exact integer or rational
 coefficients and an explicit variable list. Floating-point multivariate
 division, multiple divisors, multivariate GCD, and broad multivariate
 factorization remain outside the supported subset. See the
-[algebra contract](algebra_supported_subset.md) for the precise boundary.
+[algebra contract](../algebra_supported_subset.md) for the precise boundary.
 
 ## Assumption
 
@@ -299,11 +301,6 @@ architecture.
 Examples include the current algebra pack and possible future calculus,
 solver, or special-function packs. The kernel provides pattern matching; a
 calculus pack provides differentiation knowledge.
-
-The interactive session can inspect an expression without evaluating or
-storing it, discover packs, and complete registered or session-defined symbols.
-The CLI exposes these shared operations as `:inspect <expression>`, `:packs`,
-and `:complete <prefix>`.
 
 ## Built-in, Host Function, and Registered Function
 

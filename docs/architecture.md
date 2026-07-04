@@ -274,5 +274,5 @@ flowchart TD
 
 For current implementation sequencing, see the
 [unified plan](aleph3_unified_plan.md). For vocabulary and worked examples,
-see [Concepts and Terminology](concepts.md). The proposed first product
+see [Concepts and Terminology](manual/concepts-and-terminology.md). The proposed first product
 contract is in the [Notebook MVP Design](notebook_mvp_design.md).

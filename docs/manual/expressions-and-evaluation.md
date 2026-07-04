@@ -14,6 +14,24 @@ FullForm[x + 2]          -> Plus[x, 2]
 This uniform model lets evaluation, matching, assumptions, and packs operate
 on the same representation.
 
+## Current Input Syntax
+
+The symbolic frontend accepts explicit calls, infix arithmetic and comparison
+operators, lists, strings, rules, patterns, and assignments used by the
+supported kernel surface:
+
+```text
+f[x, 2]
+(x + 1) * (x - 1)
+If[x >= 0, x, -x]
+{x, y, 1/2}
+f[a_] -> g[a]
+```
+
+Function calls use square brackets. Multiplication must be written explicitly:
+`2*x` is valid, while `2x` is not supported. The current syntax is a frontend
+choice; expression meaning belongs to the kernel.
+
 ## Evaluation And Symbolic Fallback
 
 Evaluation applies known meanings:
@@ -71,6 +89,12 @@ stable representation for equality, matching, and algorithms.
 Exact coefficients use checked 64-bit integer storage. Overflow is reported;
 arbitrary-precision integers are future work.
 
+Use decimals only when approximation is intended:
+
+```text
+N[1/3]                   -> approximate Number
+```
+
 ## Diagnostics And Budgets
 
 Parsing, validation, and runtime failures use structured codes. Examples
@@ -78,4 +102,11 @@ include invalid forms, unsupported constructs, division by zero, exact
 overflow, and exhausted budgets. Budgets bound work such as evaluation steps
 and repeated rewrites, which is essential for safe embedding.
 
-For the deeper model, see [Concepts and Terminology](../concepts.md).
+Unknown symbolic calls and actual failures are different contracts:
+
+```text
+UnknownHead[x]           -> UnknownHead[x]
+1/0                      -> diagnostic
+```
+
+For the deeper model, see [Concepts and Terminology](concepts-and-terminology.md).

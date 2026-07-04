@@ -57,64 +57,28 @@ old file using the supported platform API. A failed validation, write, or
 replacement leaves the previous valid destination intact. Autosave, recovery
 journals, and migrations are not implemented.
 
-## Planned Notebook Application
+## Graphical Notebook Status
 
-The first graphical Aleph3 product should be a thin session consumer, not a new
-semantic layer. A useful v0.1 feedback release needs:
+No graphical notebook application is included in the current build. The
+delivered headless core and JSON format are product foundations, not a claim
+that a desktop UI has shipped. Until it does, `aleph3_cli repl` is the runnable
+local interactive surface.
 
-- ordered input and output cells
-- persistent session state and run-cell/run-all actions
-- inline structured diagnostics
-- registry- and session-backed completion
-- expression inspection and full form
-- copyable plain-text input and output
-- local save/open with a documented, versioned notebook format
-- a small examples gallery using only verified supported syntax
-
-The GUI owns presentation and documents. The session owns execution state, the
-kernel owns meaning, and packs own domain mathematics.
-
-No notebook application is included in the current build. Until it exists,
-`aleph3_cli repl` is the runnable local interactive surface. Code generation,
-PDF/HTML export, rich Markdown, and paid packs are roadmap features, not
-current capabilities.
-
-The first notebook should evaluate currently supported examples such as exact
-arithmetic, `Refine[Sqrt[x^2], x >= 0]`, rewriting, and polynomial operations.
-Examples such as `D[x^3 + 2*x, x]`, trigonometric identity simplification, and
-C++ code generation must wait until their kernel or pack contracts are
-implemented and tested.
-
-The planned document, evaluation, persistence, and display behavior is defined
-in the [Notebook MVP Design](../notebook_mvp_design.md).
-
-## Plot And Graph Capabilities
-
-Graphs are important to a compelling notebook, but plotting should enter as an
-explicit reusable contract:
-
-1. evaluate a supported expression over a bounded numeric domain
-2. return structured series data and diagnostics
-3. render axes, lines, points, labels, and interaction in the GUI
-
-The first slice should provide deterministic two-dimensional function plots
-with explicit sample budgets. Discontinuities, non-finite values, domain
-errors, and partial series need deliberate representations. The renderer must
-not contain a private evaluator.
-
-Later work can add multiple series, parametric and list plots, export, and
-richer interaction. Three-dimensional graphics and a broad visualization
-grammar are not v0.1 requirements.
-
-## A Shareable v0.1
-
-The first public release needs a coherent loop more than broad CAS parity:
+The planned application remains a thin consumer: the GUI owns cells,
+presentation, and file interaction; the session owns interactive state; the
+kernel and packs own semantics. The first verified gallery should begin with
+current behavior such as:
 
 ```text
-write -> complete -> evaluate -> inspect result/diagnostic
-      -> optionally visualize -> edit and run again
+1/2 + 1/3
+Refine[Sqrt[x^2], x >= 0]
+Replace[f[x], f[a_] -> g[a]]
+Factor[(1/2)*x^2 + x + 1/2]
+PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]
 ```
 
-That loop can expose exact arithmetic, assumptions, rewrites, and the algebra
-pack honestly while gathering feedback about syntax, discovery, performance,
-and desired mathematical workflows.
+Differentiation, matrix algebra, plotting, code generation, export, rich
+Markdown, and other roadmap capabilities must not appear as current examples
+until their contracts and tests ship. The [Notebook MVP Design](../notebook_mvp_design.md)
+owns the planned document and UI contract; the
+[Unified Plan](../aleph3_unified_plan.md) owns sequencing.

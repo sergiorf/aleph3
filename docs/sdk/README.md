@@ -2,7 +2,7 @@
 
 This directory documents the Aleph3 SDK layer and its immediate integration
 points with the kernel. Start with the system-wide [architecture](../architecture.md)
-and [concepts guide](../concepts.md) if terms such as lowering, trusted subset,
+and the manual's [concepts appendix](../manual/concepts-and-terminology.md) if terms such as lowering, trusted subset,
 or symbolic fallback are new to you.
 
 The SDK is a supported embedding surface, not the planned desktop product and

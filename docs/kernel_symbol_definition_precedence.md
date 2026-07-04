@@ -9,7 +9,7 @@ Related documents:
 
 - [Aleph3 Unified Plan](aleph3_unified_plan.md)
 - [Architecture](architecture.md)
-- [Concepts and Terminology](concepts.md)
+- [Concepts and Terminology](manual/concepts-and-terminology.md)
 
 ## Scope
 

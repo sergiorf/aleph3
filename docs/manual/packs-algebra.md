@@ -42,9 +42,9 @@ GCD[x^2*y, x*y^2, {x, y}]                -> x * y
 GCD[0, 2*x + 2*y, {x, y}]                -> x + y
 ```
 
-For a polynomial \(p\), the valuation \(\nu_x(p)\) is the smallest exponent
-of \(x\) among its nonzero terms. The supported result uses
-\(\min(\nu_x(a),\nu_x(b))\) for every selected variable and normalizes its
+For a polynomial $p$, the valuation $\nu_x(p)$ is the smallest exponent
+of $x$ among its nonzero terms. The supported result uses
+$\min(\nu_x(a),\nu_x(b))$ for every selected variable and normalizes its
 coefficient to one. This finds shared monomial content; it is not a general
 multivariate GCD algorithm.
 

@@ -1,0 +1,29 @@
+from: markdown+tex_math_dollars
+standalone: true
+file-scope: true
+table-of-contents: true
+toc-depth: 2
+number-sections: true
+top-level-division: chapter
+pdf-engine: xelatex
+
+metadata:
+  title: The Aleph3 Manual
+  subtitle: Symbolic Mathematics, Embedding, and Interactive Workflows
+  author: Aleph3 Contributors
+  lang: en
+
+variables:
+  documentclass: book
+  fontsize: 11pt
+  geometry: margin=1in
+  colorlinks: true
+
+input-files:
+  - expressions-and-evaluation.md
+  - built-in-functions.md
+  - rewriting-and-assumptions.md
+  - embedding-with-the-sdk.md
+  - packs-algebra.md
+  - sessions-cli-and-notebook.md
+  - concepts-and-terminology.md

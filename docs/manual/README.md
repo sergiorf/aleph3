@@ -46,3 +46,32 @@ according to documented contracts rather than approximated silently.
 The repository also contains a headless notebook core with versioned JSON
 persistence and deterministic clean `Run All`; no graphical notebook
 application has shipped yet.
+
+## Mathematical Notation
+
+The manual uses dollar-delimited TeX for mathematical notation:
+
+```text
+Inline:  $a^2 + b^2 = c^2$
+Display: $$\gcd(a,b) = \gcd(b, a \bmod b)$$
+```
+
+GitHub renders this notation in Markdown pages. Current VS Code releases can
+render it in the built-in Markdown preview when `markdown.math.enabled` is
+enabled. A renderer without math support will still show the TeX source.
+
+## Build The PDF Book
+
+The manual is also the single source for a PDF book. Install
+[Pandoc](https://pandoc.org/installing.html) and a TeX distribution that
+provides `xelatex` (for example, MiKTeX or TeX Live), then run from the
+repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ./docs/manual/build-book.ps1
+```
+
+The output is `build/docs/aleph3-manual.pdf`. The build uses the fixed chapter
+order in `book.yaml`, enables dollar-delimited TeX math, and asks XeLaTeX to
+typeset formulas in the PDF. Build output remains outside the documentation
+source tree and is ignored by Git.

@@ -8,7 +8,8 @@ repeating its background.
 
 For the complete user journey, start with the
 [Aleph3 Manual](manual/README.md). It covers expressions, built-ins, rewriting,
-the SDK, packs, and the notebook/workbench direction.
+the SDK, packs, and the notebook/workbench direction. The same sources can be
+[built as a PDF book](manual/README.md#build-the-pdf-book).
 
 1. [Project README](../README.md) — build, run, and product orientation.
 2. [Architecture](architecture.md) — system shape and ownership boundaries.

@@ -207,6 +207,12 @@ Documentation must accompany the implementation that makes it true. Do not
 present planned behavior as current behavior; label future notebook, graph,
 pack, or SDK functionality explicitly as direction or planned work.
 
+When mathematical context helps explain a capability, include the relevant
+concept, definition, or identity in the manual alongside a runnable Aleph3
+example. State assumptions, exactness requirements, conventions, and
+unsupported boundaries explicitly. Mathematical background should illuminate
+the shipped contract rather than imply capabilities the engine does not have.
+
 Validate documentation proportionally:
 
 - execute representative manual examples or cover them with tests

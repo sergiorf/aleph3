@@ -40,7 +40,8 @@ That program is:
 2. make the SDK a constrained consumer of that kernel
 3. grow higher mathematics through serious packs
 4. make a lightweight local notebook the main product over the same semantics
-5. keep the CLI as a permanent scripting, testing, and fallback surface
+5. keep the CLI as a permanent scripting, debugging, CI, diagnostic, testing,
+   and fallback surface
 6. build a reusable session foundation shared by CLI and notebook surfaces
 7. establish digital signal processing as a serious domain pack after the
    algebra and calculus foundations are credible
@@ -85,8 +86,9 @@ The intended product stack is:
 The kernel is not just implementation detail beneath the SDK.
 It is the semantic center that all product surfaces depend on.
 The SDK is the primary embedding surface, but it is not the only near-term
-investment: the notebook, math packs, and interactive CLI must mature alongside
-it so kernel capability is both meaningful and directly usable.
+investment: the notebook and math packs must mature alongside it so kernel
+capability is both meaningful and directly usable. The CLI remains the shared
+session's supported scripting, debugging, CI, diagnostic, and fallback surface.
 
 ### Commercial And Repository Direction
 
@@ -263,9 +265,9 @@ The notebook is the intended primary product and belongs above the session and
 kernel. It may use the SDK where host-facing validation or policy is required,
 but ordinary symbolic cells need not route through the trusted SDK subset.
 
-They may eventually supersede parts of the CLI surface, but they must remain
-consumers of unified kernel semantics rather than becoming a third execution
-center.
+Notebook workflows may eventually supersede parts of the CLI surface, but the
+notebook must remain a consumer of unified kernel semantics rather than
+becoming a third execution center.
 
 ## Kernel Functional Scope
 
@@ -350,14 +352,16 @@ lightweight.
 
 Aleph3 should remain kernel-led and product-driven for the current phase.
 
-Kernel-first does not mean product-last. Work should proceed as three
+Kernel-first does not mean product-last. Work should proceed as four
 coordinated tracks:
 
 1. kernel and SDK foundations
 2. math-pack capability, beginning with algebra and followed by focused
    calculus
-3. interactive experience, using the existing CLI and session as the
-   foundation for the notebook MVP
+3. a thin notebook product track over the delivered session, document,
+   persistence, and clean `Run All` foundations
+4. CLI and cross-surface validation that keep the shared contracts scriptable,
+   diagnosable, and reproducible without displacing notebook delivery
 
 After algebra proves exact pack workflows and calculus proves assumption-aware
 transformation, digital signal processing becomes the next planned domain-pack
@@ -389,7 +393,8 @@ The program is complete when all of the following are true:
   evaluator core
 - algebra and focused calculus workflows are available through registered
   packs
-- the CLI remains a supported product surface over unified kernel semantics
+- the CLI remains a supported scripting, debugging, CI, diagnostic, and
+  fallback surface over unified kernel semantics
 - CLI, notebook, and any later IDE consumers share one stateful session contract
 - the supported symbolic subset is documented as a product contract, including
   the small coefficient-layer basis class and algebra-aware exponent class
@@ -410,8 +415,8 @@ These rules apply to all implementation work until the migration is complete:
 - bug fixes, regression tests, documentation cleanup, and narrow contract
   hardening are allowed in parallel
 - new semantic behavior must declare whether it belongs to kernel, SDK, or pack
-- each active tranche should include a kernel/SDK contract task, a math-pack
-  task, and a CLI or IDE-foundation task
+- each active tranche should include kernel strengthening, math-pack progress,
+  a visible notebook-product task, and supporting cross-surface validation
 - CLI and IDE consumers must reuse kernel evaluation, diagnostics,
   registration, and budgets rather than introducing another runtime
 - every new concept that becomes user-visible or architecturally important must
@@ -423,26 +428,28 @@ These rules apply to all implementation work until the migration is complete:
 
 The coordination priorities are:
 
-1. keep docs and repo messaging aligned with the one-kernel direction
-2. finish collapsing SDK execution into the kernel
-3. define the symbol and extension model the kernel will grow through
-4. establish the CLI and shared session layer as permanent kernel consumers
-   and specify the notebook document/display boundary
-5. add general rewrite infrastructure
-6. strengthen the algebra pack on exact foundations and expose its workflows
-   through SDK and CLI surfaces
-7. add assumptions and domain-aware semantics needed by packs
-8. decide the durable registration and extension lifetime model for embedding
-   and interactive sessions
-9. make the syntax strategy explicit and keep it separate from kernel
-   semantics
-10. implement a focused calculus pack as the next extension-model proof
-11. harden SDK, CLI, scripts, and structured tooling output as supported
-    supporting surfaces
-12. deliver the initial notebook create/evaluate/save/reopen loop over the
-    shared session protocol
-13. deliver a focused digital signal processing pack through SDK, CLI, and
-    session surfaces
+1. strengthen the kernel's parser/printer round trips, canonical rendering,
+   bounded simplification, exactness, diagnostics, and unsupported behavior
+2. keep symbol, rewrite, assumptions, registration, and extension contracts
+   strong enough that packs and products do not invent private semantics
+3. deepen exact polynomial algebra and add the first bounded exact dense-matrix
+   surface through the algebra pack
+4. begin a focused differentiation pack over shared rewrite, exactness,
+   assumptions, simplification, and diagnostic contracts
+5. deliver the first visible notebook create/edit/evaluate/display/save/reopen/
+   `Run All` loop and a verified examples gallery over the shared session
+6. keep the SDK a stable embedding surface and extend its trusted subset only
+   where the shared contracts support doing so honestly
+7. harden the CLI as permanent scripting, debugging, CI, diagnostic, and
+   fallback infrastructure, without adding CLI-only semantics
+8. enforce cross-surface conformance across kernel, packs, session, CLI,
+   notebook fixtures, and the SDK where its trusted subset permits
+9. keep syntax strategy separate from kernel semantics while making current
+   notebook input predictable and well diagnosed
+10. decide durable pack loading, registration lifetime, mutation, unload, and
+    thread-safety contracts before claiming dynamic extension support
+11. deliver focused digital signal processing only after the algebra and
+    calculus contracts it needs are credible
 
 ## Milestones
 
@@ -457,48 +464,58 @@ Completed foundation:
 
 Active milestone:
 
-### M5. Kernel Extensibility And Interactive CLI Foundations
+### M5. Kernel Extensibility And Shared Session Foundations
 
 Outcome:
 
 - symbol definition model exists
 - registration and metadata replace more evaluator branching
 - rewrite infrastructure begins to support symbolic growth
-- the CLI is established as a permanent product surface
+- the CLI is established as a permanent scripting, debugging, CI, diagnostic,
+  and fallback surface
 - a stateful session boundary begins to unify definitions, evaluation,
   diagnostics, and inspection
 
-### M6. Serious Algebra Workflows Through SDK And CLI
+### M6. Serious Polynomial And Matrix Algebra
 
 Outcome:
 
 - exact algebra backbone is in place
 - algebra is a serious registered pack rather than packaging alone
-- supported algebra workflows are reachable through both SDK and CLI paths
+- exact multivariate polynomial workflows use explicit coefficient,
+  monomial-ordering, division, GCD, and canonical-form contracts
+- the first bounded exact dense-matrix surface provides shape checking,
+  addition, multiplication, identities, transpose, determinant, row reduction,
+  and exact linear-system solving where the scalar layer supports it
+- supported algebra workflows are reachable through shared session and product
+  surfaces, and through the SDK where its trusted subset permits
 - exactness, unsupported boundaries, and pack ownership are tested end to end
 
-### M7. Calculus Pack And Reusable Interactive Session Protocol
+### M7. Focused Differentiation And Parallel Notebook UI
 
 Outcome:
 
-- a focused calculus transformation pack uses shared rewrite, exactness, and
-  assumption contracts
+- a focused differentiation pack uses shared rewrite, exactness, assumptions,
+  simplification, and diagnostic contracts
 - the interactive session surface provides structured evaluation, diagnostics,
   completion, inspection, and pack discovery
+- bounded Qt and webview/native-wrapper spikes consume the same notebook and
+  session fixture, and their measured result records the toolkit decision
 - CLI and notebook consumers do not need private execution logic
 
-### M8. Polished CLI And Notebook MVP
+### M8. Local Notebook MVP And Supporting Tooling
 
 Outcome:
 
-- the CLI supports interactive sessions, scripts, machine-readable results,
-  tracing, timing, and pack operations as stable workflows
 - a local notebook consumes the shared session protocol and supports input,
   text, and output cells with structured diagnostics
 - versioned documents save and reopen safely, and `Run All` reconstructs a
   clean session in document order
-- a tested examples gallery demonstrates the supported symbolic subset
-- the CLI remains supported alongside the richer interactive surface
+- a tested examples gallery demonstrates arithmetic, simplification,
+  polynomial algebra, matrix basics, and focused differentiation
+- the CLI reliably supports scripts, machine-readable results, failure exit
+  codes, tracing, timing, reproducibility, and pack diagnostics alongside the
+  notebook
 
 ### M9. Focused Digital Signal Processing Pack
 
@@ -598,6 +615,9 @@ Tasks:
 
 - document the current Wolfram-like syntax as the current input surface, not as
   the whole product identity
+- harden parser/printer round-trip stability, canonical rendering, source-aware
+  parse diagnostics, and deterministic rejection for the supported notebook
+  input subset
 - decide whether Aleph3 should support dual frontends, with compatibility
   syntax and a future Aleph3-native syntax
 - keep parser, printer, and docs structured so syntax can evolve without
@@ -607,6 +627,8 @@ Tasks:
 Success criteria:
 
 - syntax decisions are explicit rather than accidental
+- supported notebook input parses predictably, renders canonically, and
+  produces actionable diagnostics when it is invalid or unsupported
 - Aleph3 can differentiate product identity from compatibility syntax
 
 ### E. Symbol Definition And Extension Model
@@ -764,6 +786,13 @@ Tasks:
   - future calculus output cleanup
   - pack-owned algebra and special-function rules that need exact coefficient
     preservation
+- define the first matrix-algebra slice over the same exact scalar contracts:
+  - dense matrices with explicit dimensions and deterministic shape checks
+  - addition, multiplication, identity construction, and transpose
+  - determinant, exact row reduction, and exact linear-system solving where
+    the scalar layer supports them without approximate fallback
+  - explicit rejection of symbolic dimensions, broad approximate matrices,
+    eigenvalue workflows, and advanced decompositions
 
 Near-term multivariate algebra plan:
 
@@ -856,7 +885,10 @@ Tasks:
   workflows rather than only placeholder packaging
 - use the algebra pack as the proving ground for staged multivariate algebra
   growth once exact algebra contracts are stronger
-- expose supported algebra workflows coherently through SDK and CLI entrypoints
+- add the first bounded exact dense-matrix workflow to the algebra pack after
+  its scalar, shape, canonical-form, and unsupported contracts are approved
+- expose supported algebra workflows coherently through the session, notebook,
+  CLI, and SDK entrypoints where each surface's contract permits
 - keep vertical domains such as electrical engineering out of the kernel and
   implement them only once kernel extension points are stable
 - tighten what counts as a serious pack proof:
@@ -867,8 +899,14 @@ Tasks:
   - packaging alone does not count as proof of extensibility
 - likely serious-pack progression:
   - algebra remains the current proving ground for exactness and ownership
-  - a focused calculus transformation pack is the next proof and must use
-    shared rewrite, exactness, and assumptions contracts
+  - its first matrix surface remains deliberately bounded to exact dense
+    arithmetic, shape checks, determinant, row reduction, and linear solving
+  - a focused differentiation pack starts in parallel as the next proof and
+    must use shared rewrite, exactness, assumptions, simplification, and
+    diagnostic contracts
+  - the first derivative workflow covers constants, symbols, sums, products,
+    supported exact powers, registered elementary functions, and unambiguous
+    chain-rule cases, while unsupported forms fail through shared diagnostics
   - a focused digital signal processing pack follows calculus and proves that
     an applied domain can compose exact algebra, complex values, assumptions,
     registration, and interactive session contracts
@@ -892,9 +930,12 @@ Success criteria:
 - that proof pack exercises more than packaging: it demonstrates rule
   registration, exact/domain usage where needed, and explicit unsupported-case
   behavior
-- algebra workflows are usable and documented through SDK and CLI surfaces
+- algebra workflows are usable and documented through supported product and
+  embedding surfaces
+- matrix basics and focused differentiation are usable and documented through
+  the notebook product fixture and supporting surfaces
 - the calculus pack proves a second domain can extend the kernel without
-  evaluator-local branches
+  evaluator-local branches or private cleanup semantics
 - the DSP pack proves an applied domain can compose multiple kernel and pack
   contracts while retaining explicit exact/inexact and unsupported boundaries
 
@@ -902,7 +943,8 @@ Success criteria:
 
 Goals:
 
-- keep the CLI as a permanent first-class interface
+- keep the CLI as a permanent supported scripting, debugging, CI, diagnostic,
+  and fallback interface
 - make a lightweight local notebook the main end-user product
 - create one reusable session foundation for CLI, notebook, and any later IDE
   consumers
@@ -914,7 +956,10 @@ Tasks:
 - provide structured requests and results for evaluation, diagnostics,
   completion, expression inspection, and pack discovery
 - evolve the CLI around that service with interactive sessions, script
-  execution, machine-readable output, tracing, timing, and pack operations
+  execution, machine-readable output, stable failure exit codes, tracing,
+  timing, reproducibility, and pack operations
+- forbid CLI-only semantics or product features that the shared session and
+  notebook cannot consume
 - keep presentation concerns such as terminal formatting, cell rendering, and
   editor UI outside the kernel
 - make a future IDE, editor extension, notebook, or workbench another consumer
@@ -949,17 +994,19 @@ Current status:
 
 Priority:
 
-- CLI and session foundations proceed now in narrow slices over stable kernel
-  contracts
-- the session now has a real CLI consumer, so a thin notebook/workbench can
-  proceed as the primary product track in parallel with session hardening
+- a thin notebook proceeds now as the primary visible product track over the
+  delivered session, document model, persistence, and clean `Run All` behavior
+- CLI hardening proceeds in supporting slices that improve debugging, scripts,
+  CI, diagnostics, and notebook/session verification
 - the first GUI slice should prioritize cells, completion, diagnostics,
-  inspection, persistence, and bounded 2D graph workflows
+  inspection, persistence, and the verified examples gallery; plotting remains
+  a later bounded product slice
 - a large standalone GUI framework or private execution model remains deferred
 
 Success criteria:
 
-- the CLI remains useful and supported even after richer tools exist
+- the CLI remains useful and supported as scripting, debugging, CI,
+  diagnostics, and fallback infrastructure after the notebook ships
 - CLI and IDE/workbench consumers share session semantics and structured
   results
 - no interactive surface creates a third semantic center
@@ -995,6 +1042,13 @@ Tasks:
   - assumptions-aware transformation
   - exact algebra cleanup after symbolic transforms
   - serious-pack ownership and no-evaluator-branching assertions
+- add exact matrix coverage for shape validation, identities, transpose,
+  multiplication, determinant, row reduction, solvable and inconsistent linear
+  systems, canonical output, overflow, and explicitly unsupported numeric or
+  decomposition cases
+- add focused differentiation coverage for every supported rule family,
+  nested chain-rule cases, simplification reuse, assumption-aware cases,
+  unsupported forms, budgets, and pack ownership
 - expand polynomial contract coverage around the current supported surface:
   - round-trip and invariant tests for `Expand`, `Collect`, `Factor`, `GCD`,
     and `PolynomialQuotient` on supported inputs
@@ -1030,9 +1084,9 @@ Tasks:
     ownership metadata, and lifetime behavior before pack unload or dynamic
     loading is claimed
 - add a P1 cross-surface conformance matrix that runs the same supported
-  expressions through direct kernel, session, CLI, and SDK surfaces where the
-  SDK subset permits them, comparing values, canonical rendering, diagnostics,
-  and budget outcomes
+  expressions through direct kernel, pack APIs, session, CLI, notebook
+  fixtures, and SDK surfaces where the SDK subset permits them, comparing
+  values, canonical rendering, diagnostics, unsupported results, and budgets
 - add P1 property and round-trip tests for parser/printer stability, expression
   normalization idempotence, algebra identities, and deterministic pack
   registration order; use fixed seeds and retain minimized regressions
@@ -1085,23 +1139,47 @@ Four balanced tranches have now delivered typed and conditional patterns,
 depth-controlled replacement, exact rational factorization, explicit
 multivariate ordering and division, a stateful CLI session with inspection,
 pack discovery and completion, contradiction-safe assumptions, CLI scripts,
-and headless notebook persistence. The next active tranche is:
+and headless notebook persistence. The next active tranche deliberately
+balances kernel strength, serious mathematics, supporting tooling, and the
+first visible notebook product slice:
 
-1. **Kernel and SDK:** expose the first pack-facing domain query over the shared
-   assumption contract and continue diagnostic hardening
-2. **Math packs:** implement the specified exact monomial-bounded multivariate
-   GCD contract over shared division and ordering invariants
-3. **CLI and IDE foundation:** harden script/JSON compatibility and process
-   behavior as a stable session-consumer contract
-4. **Notebook MVP:** run bounded Qt and webview spikes against the delivered
-   document, persistence, and shared product fixture, then record the toolkit
-   decision in architecture
-5. **Cross-cutting validation:** continue closing P0 diagnostic, overflow,
-   registry-collision, failure-recovery, and process-level CLI gaps before
-   declaring these experimental interfaces stable
+1. **Kernel strengthening:** improve parser/printer round trips, canonical
+   rendering, bounded deterministic simplification, exact common forms,
+   structured diagnostics, and explicit unsupported behavior. Arithmetic,
+   power, rational-expression, and sign rules must remain explainable and carry
+   regression tests with documented boundaries.
+2. **Algebra pack:** implement the specified exact monomial-bounded
+   multivariate GCD contract over shared division and ordering invariants, then
+   design and deliver the first bounded exact dense-matrix surface. That surface
+   covers shape checking, addition, multiplication, identity matrices,
+   transpose, determinant, row reduction, and exact linear solving where the
+   shared scalar layer supports it.
+3. **Calculus pack:** start the focused derivative workflow over shared kernel,
+   rewrite, exactness, assumptions, simplification, and diagnostic contracts.
+   Support constants, symbols, sums, products, supported exact powers,
+   registered elementary functions, and unambiguous chain-rule cases; reject
+   unsupported forms through structured diagnostics rather than private
+   calculus fallback or cleanup logic.
+4. **CLI infrastructure:** harden scripts, JSON output, failure exit codes,
+   tracing, timing, reproducibility, and session conformance. Use the CLI to
+   verify examples, pack registration, notebook behavior, and supported-subset
+   contracts without adding CLI-only semantics or customer-product features.
+5. **Notebook UI:** run bounded Qt and webview/native-wrapper spikes against the
+   delivered document, persistence, clean `Run All`, and shared product fixture,
+   then record the toolkit decision in architecture. Follow with the minimal
+   local loop for creating and editing text/input cells, evaluating and
+   displaying results and diagnostics, saving, reopening, and running all
+   cells, plus a verified gallery for arithmetic, simplification, polynomial
+   algebra, matrix basics, and focused differentiation.
+6. **Cross-surface validation:** run each new supported expression through the
+   applicable direct-kernel, pack, session, CLI, notebook-fixture, and trusted
+   SDK paths. Compare values, canonical rendering, diagnostics, unsupported
+   outcomes, and budgets, and continue closing P0 diagnostic, overflow,
+   registry-collision, failure-recovery, and process-level gaps.
 
-Every following tranche should preserve this three-track shape. Tasks may be
-small, but no track should disappear from the active program.
+Every following tranche should preserve this product-led balance. Tasks may be
+small, but kernel, math-pack, notebook, supporting CLI, and validation work
+must all remain visible in the active program.
 
 ## Deferred Work
 
@@ -1109,6 +1187,13 @@ The following should mostly wait until the kernel program is further along:
 
 - broad differentiation and calculus breadth beyond the focused
   transformation pack
+- integration, limits, series expansion, differential equations, and broad
+  solver work beyond the focused differentiation pack
+- symbolic matrix dimensions, broad approximate matrix algebra, eigenvalue and
+  eigenvector workflows, symbolic inverses, Jordan forms, and advanced matrix
+  decompositions
+- broad multivariate factorization before the exact polynomial backbone is
+  strong enough to state and test its invariants
 - DSP breadth beyond finite sequences, convolution, FIR filtering, and the
   later focused transfer-function workflow
 - optimized FFT, streaming media, codecs, devices, and real-time DSP execution
@@ -1132,10 +1217,13 @@ These can proceed without waiting for the whole program:
 - limited symbolic-domain corrections that reduce future migration risk
 - SDK tutorials, host-integration examples, and other adoption-facing polish
 - exact algebra-pack slices over stable contracts
+- focused differentiation slices over shared kernel contracts
+- thin notebook UI and examples-gallery slices over the delivered notebook
+  core, persistence, session fixture, and clean `Run All` lifecycle
 - CLI session, scripting, inspection, diagnostics, and structured-output work
   over existing kernel behavior
-- IDE protocol design validated through the CLI, without committing to a GUI
-  toolkit or editor host
+- notebook and IDE protocol design validated through the shared session fixture,
+  without committing to a GUI toolkit or editor host before the bounded spike
 - DSP representation and contract design after algebra/calculus dependencies
   are explicit, without prematurely adding streaming or hardware APIs
 
@@ -1162,8 +1250,8 @@ This unified plan is succeeding if:
 - architecture decisions stop being duplicated across roadmap docs
 - new code follows the kernel/SDK/pack split consistently
 - SDK and symbolic execution visibly converge
-- SDK, math packs, and interactive tooling all receive visible incremental
-  investment
+- SDK, math packs, and the notebook product all receive visible incremental
+  investment, with the CLI supporting verification and reproducibility
 - algebra and focused calculus capabilities reach users through supported
   surfaces
 - focused DSP workflows reach users through a registered pack and the same

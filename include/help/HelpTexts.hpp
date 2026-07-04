@@ -86,7 +86,7 @@ namespace aleph3 {
             {"Expand", "Expand[expr]: Expand out products and powers in a polynomial expression", "Polynomial"},
             {"Factor", "Factor[expr]: Factor a polynomial expression over the integers", "Polynomial"},
             {"Collect", "Collect[expr, x]: Collect terms in expr by powers of x", "Polynomial"},
-            {"GCD", "GCD[a, b]: Greatest common divisor of two polynomials or integers", "Polynomial"},
+            {"GCD", "GCD[a, b, vars]: Exact polynomial GCD, including bounded multivariate monomial content with explicit vars", "Polynomial"},
             {"PolynomialQuotient", "PolynomialQuotient[a, b, vars]: Exact quotient and remainder using explicit variable precedence", "Polynomial"},
             
             // Logical

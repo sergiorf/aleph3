@@ -119,17 +119,19 @@ TEST_CASE("Notebook representative fixture uses shared kernel and pack semantics
         {"state", CellKind::input, "x^2"},
         {"assumption", CellKind::input, "Refine[Sqrt[y^2], y >= 0]"},
         {"algebra", CellKind::input, "Expand[(z + 1) * (z + 2)]"},
+        {"gcd", CellKind::input, "GCD[u*v + u, u, {u, v}]"},
         {"failure", CellKind::input, "PolynomialQuotient[z, 0, z]"}});
 
     Runner{}.run_all(document);
 
-    REQUIRE(document.results.size() == 6);
+    REQUIRE(document.results.size() == 7);
     REQUIRE(document.results[0].output == "5/6");
     REQUIRE(document.results[2].output == "9");
     REQUIRE(document.results[3].output == "y");
     REQUIRE(document.results[4].ok);
-    REQUIRE_FALSE(document.results[5].ok);
-    REQUIRE(document.results[5].diagnostics[0].code == "runtime.division_by_zero");
+    REQUIRE(document.results[5].output == "u");
+    REQUIRE_FALSE(document.results[6].ok);
+    REQUIRE(document.results[6].diagnostics[0].code == "runtime.division_by_zero");
 }
 
 TEST_CASE("Notebook JSON persistence round trips cells and cached diagnostics", "[notebook][persistence]") {

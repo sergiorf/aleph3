@@ -78,6 +78,7 @@ is public to pack-owned helpers through:
 - exact low-level `expand`, `collect`, `gcd`, and `divide` overloads
 - exact single-divisor multivariate division using explicit variable
   precedence and fixed graded-lexicographic leading terms
+- exact monomial-bounded multivariate GCD using explicit selectors
 
 Ownership in this slice is intentionally narrow:
 
@@ -86,7 +87,7 @@ Ownership in this slice is intentionally narrow:
   `PolynomialQuotient`, including explicitly selected multivariate inputs
 - the current `Polynomial` type with `double` coefficients remains in place
   for the existing factorization path
-- multivariate exact `GCD` and broader factorization remain unsupported
+- general multivariate exact `GCD` and broader factorization remain unsupported
 - multivariate division is limited to one divisor, explicit variable
   precedence, and the fixed graded-lexicographic order
 
@@ -106,23 +107,24 @@ This spec is sufficient when:
 - exact numeric ownership is explicit
 - algebra growth no longer depends on unclear floating-point foundations
 
-## Planned First Multivariate GCD Contract
-
-This contract is specified for the next algebra implementation slice; it is
-not yet part of the supported product subset.
+## Monomial-Bounded Multivariate GCD Contract
 
 - both operands must be exact polynomials and callers must provide a non-empty
   ordered selector list
-- at least one operand must contain exactly one monomial term
+- when both operands are nonzero, at least one must contain exactly one
+  monomial term
 - the result is monic and uses the minimum exponent of each selected variable
   shared by both operands
-- `GCD[x*y + x, x, {x, y}]` is planned to return `x`
-- `GCD[x^2*y, x*y^2, {x, y}]` is planned to return `x*y`
+- `GCD[x*y + x, x, {x, y}]` returns `x`
+- `GCD[x^2*y, x*y^2, {x, y}]` returns `x*y`
 - zero with a nonzero supported operand returns its monic form; two zero
   operands remain invalid
 - unit input returns `1`; exact coefficient overflow remains explicit
 
-Two multi-term operands, inferred multivariate selectors, inexact
+For a selected variable, the polynomial valuation is the minimum exponent of
+that variable among all nonzero terms. The result uses the minimum valuation
+from the two operands for each selected variable and has coefficient one.
+
+Two multi-term nonzero operands, inferred multivariate selectors, inexact
 coefficients, non-polynomial inputs, and non-monomial common-factor discovery
-remain unsupported. Until implementation and tests land, the current
-univariate-only diagnostic remains authoritative.
+remain unsupported. Two zero operands are a domain violation.

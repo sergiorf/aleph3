@@ -209,7 +209,13 @@ TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[toolin
 
     const auto mixed_inferred_gcd_failure = tooling::symbolic_evaluate_expression("GCD[x^2 - 1, y - 1]");
     REQUIRE_FALSE(mixed_inferred_gcd_failure.ok);
-    REQUIRE(mixed_inferred_gcd_failure.error_message == "gcd: only univariate GCD is implemented");
+    REQUIRE(mixed_inferred_gcd_failure.error_message ==
+        "gcd: multivariate GCD requires an explicit variable selector");
+
+    const auto multivariate_gcd =
+        tooling::symbolic_evaluate_expression("GCD[x^2*y, x*y^2, {x, y}]");
+    REQUIRE(multivariate_gcd.ok);
+    REQUIRE(multivariate_gcd.output == "x * y");
 
     const auto rational_expand_result =
         tooling::symbolic_evaluate_expression("Expand[(1/2) * (x + 1)]");

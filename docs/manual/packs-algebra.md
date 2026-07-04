@@ -33,7 +33,23 @@ General multivariate factorization is not yet supported.
 GCD[x^2 - 1, x - 1, x]                   -> x - 1
 ```
 
-The current GCD contract is univariate. Multivariate GCD is planned.
+Aleph3 also supports a bounded exact multivariate case when the variable list
+is explicit and at least one nonzero operand is a single monomial:
+
+```text
+GCD[x*y + x, x, {x, y}]                  -> x
+GCD[x^2*y, x*y^2, {x, y}]                -> x * y
+GCD[0, 2*x + 2*y, {x, y}]                -> x + y
+```
+
+For a polynomial \(p\), the valuation \(\nu_x(p)\) is the smallest exponent
+of \(x\) among its nonzero terms. The supported result uses
+\(\min(\nu_x(a),\nu_x(b))\) for every selected variable and normalizes its
+coefficient to one. This finds shared monomial content; it is not a general
+multivariate GCD algorithm.
+
+Inferred multivariate selectors, decimal coefficients, two multi-term nonzero
+operands, and `GCD[0, 0, {x, y}]` remain unsupported or invalid as appropriate.
 
 ## Quotient And Remainder
 
@@ -65,13 +81,15 @@ x*y * (x + y) + y                      -> x^2*y + x*y^2 + y
 ```
 
 Decimal multivariate division, multiple divisors, configurable orders,
-multivariate GCD, and broad multivariate factorization remain unsupported.
+general multivariate GCD, and broad multivariate factorization remain
+unsupported.
 Exact `int64_t` coefficient overflow is reported instead of wrapped.
 
 Examples outside the current boundary include:
 
 ```text
 GCD[x^2 - 1, y - 1]                    -> unsupported multivariate input
+GCD[x + y, x - y, {x,y}]               -> unsupported two-multi-term input
 PolynomialQuotient[x*y, x]             -> explicit selector required
 PolynomialQuotient[0.5*x*y, x, {x,y}]  -> unsupported inexact division
 ```

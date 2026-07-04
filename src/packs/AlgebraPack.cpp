@@ -120,7 +120,15 @@ ExprPtr evaluate_gcd(const FunctionCall& func, EvaluationContext& ctx) {
     const auto variables = func.args.size() == 3
         ? extract_variables(func.args[2])
         : infer_variables(func.args[0], func.args[1]);
-    return gcd_polynomial(func.args[0], func.args[1], variables, ctx);
+    if (func.args.size() == 2 && variables.size() > 1) {
+        throw_unsupported_construct(
+            "gcd: multivariate GCD requires an explicit variable selector");
+    }
+    try {
+        return gcd_polynomial(func.args[0], func.args[1], variables, ctx);
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+    }
 }
 
 ExprPtr evaluate_polynomial_quotient(const FunctionCall& func, EvaluationContext& ctx) {

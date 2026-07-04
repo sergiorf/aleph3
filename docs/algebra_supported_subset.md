@@ -18,6 +18,7 @@ The current symbolic algebra surface is:
 - `Collect[expr, {var1, ...}]`
 - `GCD[a, b]`
 - `GCD[a, b, var]`
+- `GCD[a, b, {var1, ...}]` for exact monomial-bounded multivariate inputs
 - `PolynomialQuotient[a, b]`
 - `PolynomialQuotient[a, b, var]`
 - `PolynomialQuotient[a, b, {var1, ...}]` for exact multivariate inputs
@@ -73,18 +74,16 @@ Variable selectors follow this contract:
   when no explicit selector is provided
 - exact multivariate `PolynomialQuotient` requires an explicit selector list;
   its order defines variable precedence under fixed graded lexicographic order
-- multivariate `GCD` and inexact multivariate division remain unsupported
-
-The next multivariate `GCD` subset has been specified but is not implemented.
-It will require explicit selectors, exact coefficients, and at least one
-single-term monomial operand. Its proposed examples are plans, not current
-support.
+- exact multivariate `GCD` requires an explicit selector list and at least one
+  single-term monomial operand when both operands are nonzero
+- inexact multivariate `GCD` and division remain unsupported
 
 Examples of explicit failures:
 
 - `Collect[x^2 + 1, 3]` -> invalid selector
 - `Collect[x^2 + y, {}]` -> empty selector list
 - `GCD[x^2 - 1, y - 1]` -> unsupported multivariate inference
+- `GCD[x + y, x - y, {x, y}]` -> unsupported two-multi-term case
 - `PolynomialQuotient[x*y, x]` -> explicit selector required
 - `PolynomialQuotient[0.5*x*y, x, {x, y}]` -> unsupported inexact division
 
@@ -106,6 +105,8 @@ Current boundary:
   univariate and multivariate supported polynomial inputs
 - supported univariate `GCD` and univariate or explicitly selected multivariate
   `PolynomialQuotient` preserve exact rational coefficients
+- supported explicitly selected multivariate `GCD` returns the monic common
+  monomial determined by the operands' minimum variable exponents
 - inexact `Number` inputs stay on the existing floating-point path
 - `Factor` supports exact rational coefficients for univariate rational-root
   factorization by clearing denominators and restoring exact scalar content
@@ -121,6 +122,8 @@ Examples:
 - `Collect[(1/2) * x + 1, x]` -> `1/2 * x + 1`
 - `Collect[(1/2) * x * y + (3/2) * y, y]` -> `1/2 * x * y + 3/2 * y`
 - `PolynomialQuotient[x^2 - 1/4, x - 1/2, x]` -> `{x + 1/2, 0}`
+- `GCD[x*y + x, x, {x, y}]` -> `x`
+- `GCD[x^2*y, x*y^2, {x, y}]` -> `x*y`
 - `PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]` -> `{x + y, y}`
 - `Factor[(1/2) * x^2 + x]` -> `1/2 * x * (x + 2)`
 - `Factor[(1/2) * x^2 + x + 1/2]` -> `1/2 * (x + 1) * (x + 1)`
@@ -201,7 +204,7 @@ known limitation.
 
 Not part of the current supported subset:
 
-- multivariate polynomial GCD and configurable or multi-divisor division
+- general multivariate polynomial GCD and configurable or multi-divisor division
 - exact multivariate factorization beyond current content extraction
 - symbolic differentiation
 - broader factorization algorithms

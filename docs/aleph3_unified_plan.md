@@ -142,6 +142,8 @@ What is already true:
   controls without widening into sequence patterns or broader level syntax
 - exact single-divisor multivariate polynomial division now uses explicit
   variable precedence and the canonical graded-lexicographic order
+- exact monomial-bounded multivariate polynomial GCD now supports explicit
+  selectors when at least one nonzero operand is a monomial
 - an experimental stateful session contract now owns reusable kernel context,
   structured results, and diagnostics for the symbolic CLI REPL
 - the session and CLI now provide non-mutating expression inspection and
@@ -800,23 +802,24 @@ Near-term multivariate algebra plan:
 - treat multivariate exact arithmetic as the next real algebra-foundation
   expansion after the first pack extraction
 - active implementation outcome:
-  - exact multivariate coefficient preservation is now being made explicit for
-    `Expand` and `Collect` through a public exact polynomial layer, while
-    multivariate `GCD`, division, and broader factorization remain out of
-    scope
+  - exact multivariate coefficient preservation is explicit for `Expand` and
+    `Collect` through a public exact polynomial layer; exact single-divisor
+    division and monomial-bounded GCD are supported, while general
+    multivariate GCD and broader factorization remain out of scope
 - supported univariate rational-root factorization now clears exact rational
   denominators and restores exact scalar content without using inexact roots
 - exact monomials now have explicit lexicographic, graded-lexicographic, and
   graded-reverse-lexicographic ordering policies with variable precedence;
   canonical algebra rendering initially uses graded lexicographic order
 - exact single-divisor multivariate division now uses explicit selector order
-  as precedence under fixed graded lexicographic order; multivariate GCD and
-  broader factorization remain unsupported
+  as precedence under fixed graded lexicographic order; the first
+  monomial-bounded multivariate GCD contract is implemented, while general
+  multivariate GCD and broader factorization remain unsupported
 - target early exact multivariate milestones in this order:
   1. exact multivariate coefficient preservation
   2. explicit monomial ordering and canonical form rules
   3. supported multivariate division contracts
-  4. supported multivariate GCD contracts
+  4. supported monomial-bounded multivariate GCD contracts
   5. only then broader multivariate factorization growth
 
 Success criteria:
@@ -1135,11 +1138,13 @@ Success criteria:
 
 ## Immediate Action Queue
 
-Four balanced tranches have now delivered typed and conditional patterns,
+Four balanced tranches and the first slice of the current tranche have now
+delivered typed and conditional patterns,
 depth-controlled replacement, exact rational factorization, explicit
 multivariate ordering and division, a stateful CLI session with inspection,
 pack discovery and completion, contradiction-safe assumptions, CLI scripts,
-and headless notebook persistence. The next active tranche deliberately
+headless notebook persistence, and monomial-bounded exact multivariate GCD.
+The active tranche deliberately
 balances kernel strength, serious mathematics, supporting tooling, and the
 first visible notebook product slice:
 
@@ -1148,12 +1153,11 @@ first visible notebook product slice:
    structured diagnostics, and explicit unsupported behavior. Arithmetic,
    power, rational-expression, and sign rules must remain explainable and carry
    regression tests with documented boundaries.
-2. **Algebra pack:** implement the specified exact monomial-bounded
-   multivariate GCD contract over shared division and ordering invariants, then
-   design and deliver the first bounded exact dense-matrix surface. That surface
-   covers shape checking, addition, multiplication, identity matrices,
-   transpose, determinant, row reduction, and exact linear solving where the
-   shared scalar layer supports it.
+2. **Algebra pack:** use the feature workflow to specify, then deliver, the
+   first bounded exact dense-matrix surface over shared scalar and diagnostic
+   contracts. That surface covers shape checking, addition, multiplication,
+   identity matrices, transpose, determinant, row reduction, and exact linear
+   solving where the shared scalar layer supports it.
 3. **Calculus pack:** start the focused derivative workflow over shared kernel,
    rewrite, exactness, assumptions, simplification, and diagnostic contracts.
    Support constants, symbols, sums, products, supported exact powers,

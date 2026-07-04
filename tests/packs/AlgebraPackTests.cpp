@@ -70,6 +70,18 @@ TEST_CASE("Algebra pack owns exact rational factorization", "[packs][algebra][ex
     REQUIRE(factor->metadata.owning_package == "core-algebra");
 }
 
+TEST_CASE("Algebra pack owns bounded exact multivariate GCD", "[packs][algebra][exact][gcd]") {
+    kernel::FunctionRegistry registry;
+    packs::register_algebra_pack(registry);
+    EvaluationContext ctx(registry);
+
+    REQUIRE(simplify_string(evaluate_source("GCD[x*y + x, x, {x, y}]", ctx)) == "x");
+    const auto* gcd_spec = registry.find_symbolic_function_spec("GCD");
+    REQUIRE(gcd_spec != nullptr);
+    REQUIRE(gcd_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(gcd_spec->metadata.owning_package == "core-algebra");
+}
+
 TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][algebra]") {
     kernel::FunctionRegistry registry;
     packs::register_algebra_pack(registry);

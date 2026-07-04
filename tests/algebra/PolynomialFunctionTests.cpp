@@ -95,12 +95,13 @@ TEST_CASE("Polynomial quotient preserves nonzero remainders", "[algebra][functio
     REQUIRE(simplify_string(result_list.elements[1]) == "2");
 }
 
-TEST_CASE("Polynomial GCD rejects multivariate input while exact division accepts explicit precedence", "[algebra][functions]") {
+TEST_CASE("Polynomial GCD supports bounded exact multivariate input", "[algebra][functions]") {
     EvaluationContext ctx;
 
-    REQUIRE_THROWS_AS(
-        evaluate_source("GCD[x*y, x, {x, y}]", ctx),
-        std::runtime_error);
+    REQUIRE(simplify_string(evaluate_source("GCD[x*y + x, x, {x, y}]", ctx)) == "x");
+    REQUIRE(simplify_string(evaluate_source("GCD[x^2*y, x*y^2, {x, y}]", ctx)) == "x * y");
+    REQUIRE(simplify_string(evaluate_source("GCD[0, 2*x + 2*y, {x, y}]", ctx)) == "x + y");
+    REQUIRE(simplify_string(evaluate_source("GCD[1, x*y, {x, y}]", ctx)) == "1");
     const auto division = evaluate_source("PolynomialQuotient[x*y, x, {x, y}]", ctx);
     const auto& parts = std::get<List>(*division).elements;
     REQUIRE(simplify_string(parts[0]) == "y");
@@ -123,7 +124,8 @@ TEST_CASE("Polynomial selectors reject empty lists and infer variables from both
         FAIL("Expected GCD inference across mixed variables to reject unsupported multivariate input");
     } catch (const EvaluatorError& ex) {
         REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
-        REQUIRE(std::string(ex.what()) == "gcd: only univariate GCD is implemented");
+        REQUIRE(std::string(ex.what()) ==
+            "gcd: multivariate GCD requires an explicit variable selector");
     }
 
     try {
@@ -289,12 +291,24 @@ TEST_CASE("Polynomial helpers keep multivariate support boundaries explicit", "[
     REQUIRE(simplify_string(evaluate_source("Factor[x*y + y*z]", ctx)) ==
             "y * (x + z)");
 
+    REQUIRE(simplify_string(evaluate_source("GCD[x*y, x, {x, y}]", ctx)) == "x");
+
     try {
-        static_cast<void>(evaluate_source("GCD[x*y, x, {x, y}]", ctx));
-        FAIL("Expected multivariate GCD to remain unsupported");
+        static_cast<void>(evaluate_source("GCD[x + y, x - y, {x, y}]", ctx));
+        FAIL("Expected two multi-term multivariate operands to remain unsupported");
     } catch (const EvaluatorError& ex) {
         REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
-        REQUIRE(std::string(ex.what()) == "gcd: only univariate GCD is implemented");
+        REQUIRE(std::string(ex.what()) ==
+            "gcd: at least one multivariate operand must be a monomial");
+    }
+
+    try {
+        static_cast<void>(evaluate_source("GCD[0.5*x*y, x, {x, y}]", ctx));
+        FAIL("Expected inexact multivariate GCD to remain unsupported");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(ex.what()) ==
+            "gcd: multivariate GCD requires exact polynomial coefficients");
     }
 
     const auto division = evaluate_source(

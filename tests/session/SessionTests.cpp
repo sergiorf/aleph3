@@ -124,6 +124,21 @@ TEST_CASE("Session reports polynomial division by zero with a stable diagnostic"
     REQUIRE(result.diagnostics.front().code == "runtime.division_by_zero");
 }
 
+TEST_CASE("Session exposes bounded multivariate GCD values and diagnostics", "[session][algebra][gcd]") {
+    Session session;
+    REQUIRE(session.execute({"GCD[x*y + x, x, {x, y}]"}).output == "x");
+
+    const auto unsupported = session.execute({"GCD[x + y, x - y, {x, y}]"});
+    REQUIRE_FALSE(unsupported.ok);
+    REQUIRE(unsupported.diagnostics.size() == 1);
+    REQUIRE(unsupported.diagnostics.front().code == "kernel.unsupported_construct");
+
+    const auto domain = session.execute({"GCD[0, 0, {x, y}]"});
+    REQUIRE_FALSE(domain.ok);
+    REQUIRE(domain.diagnostics.size() == 1);
+    REQUIRE(domain.diagnostics.front().code == "kernel.domain_violation");
+}
+
 TEST_CASE("Session preserves assumption contradiction diagnostics", "[session][assumptions][diagnostics]") {
     Session session;
     const auto result = session.execute({"Refine[x, And[x > 0, x <= 0]]"});

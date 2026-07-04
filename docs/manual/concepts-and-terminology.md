@@ -274,9 +274,10 @@ of integer division with a remainder, although the ordering of monomials now
 matters.
 
 Aleph3 currently supports this operation only for exact integer or rational
-coefficients and an explicit variable list. Floating-point multivariate
-division, multiple divisors, multivariate GCD, and broad multivariate
-factorization remain outside the supported subset. See the
+coefficients and an explicit variable list. It also supports a separate,
+monomial-bounded multivariate GCD based on minimum variable exponents.
+Floating-point multivariate division, multiple divisors, general multivariate
+GCD, and broad multivariate factorization remain outside the supported subset. See the
 [algebra contract](../algebra_supported_subset.md) for the precise boundary.
 
 ## Assumption

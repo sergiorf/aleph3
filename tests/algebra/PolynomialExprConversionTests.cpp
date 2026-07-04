@@ -200,14 +200,57 @@ TEST_CASE("low-level exact polynomial conversion rejects inexact inputs and unsu
         std::runtime_error);
 }
 
-TEST_CASE("low-level exact polynomial gcd and divide reject multivariate selectors", "[algebra][conversion][exact]") {
+TEST_CASE("low-level exact polynomial gcd supports monomial-bounded multivariate inputs", "[algebra][conversion][exact][gcd]") {
     const auto left = expr_to_exact_polynomial(parse_expression("1/2*x*y"), {"x", "y"});
     const auto right = expr_to_exact_polynomial(parse_expression("x"), {"x", "y"});
 
-    REQUIRE_THROWS_AS(gcd(left, right, {"x", "y"}), std::runtime_error);
+    REQUIRE(simplify_string(exact_polynomial_to_expr(gcd(left, right, {"x", "y"}))) == "x");
     const auto [quotient, remainder] = divide(left, right, {"x", "y"});
     REQUIRE(simplify_string(exact_polynomial_to_expr(quotient)) == "y * 1/2");
     REQUIRE(simplify_string(exact_polynomial_to_expr(remainder)) == "0");
+}
+
+TEST_CASE("exact multivariate gcd uses shared monomial valuations", "[algebra][conversion][exact][gcd]") {
+    const auto mixed = expr_to_exact_polynomial(parse_expression("x*y + x"), {"x", "y"});
+    const auto x = expr_to_exact_polynomial(parse_expression("x"), {"x", "y"});
+    REQUIRE(simplify_string(exact_polynomial_to_expr(gcd(mixed, x, {"x", "y"}))) == "x");
+
+    const auto left = expr_to_exact_polynomial(parse_expression("1/2*x^2*y"), {"x", "y"});
+    const auto right = expr_to_exact_polynomial(parse_expression("3/4*x*y^2"), {"x", "y"});
+    REQUIRE(simplify_string(exact_polynomial_to_expr(gcd(left, right, {"x", "y"}))) == "x * y");
+    REQUIRE(simplify_string(exact_polynomial_to_expr(gcd(left, right, {"y", "x"}))) == "x * y");
+}
+
+TEST_CASE("exact multivariate gcd normalizes zero and unit cases", "[algebra][conversion][exact][gcd]") {
+    const auto zero = expr_to_exact_polynomial(parse_expression("0"), {"x", "y"});
+    const auto polynomial = expr_to_exact_polynomial(parse_expression("2*x + 2*y"), {"x", "y"});
+    const auto one = expr_to_exact_polynomial(parse_expression("1"), {"x", "y"});
+    const auto monomial = expr_to_exact_polynomial(parse_expression("x*y"), {"x", "y"});
+
+    REQUIRE(simplify_string(exact_polynomial_to_expr(gcd(zero, polynomial, {"x", "y"}))) == "x + y");
+    REQUIRE(simplify_string(exact_polynomial_to_expr(gcd(one, monomial, {"x", "y"}))) == "1");
+    REQUIRE_THROWS_AS(gcd(zero, zero, {"x", "y"}), EvaluatorError);
+}
+
+TEST_CASE("exact multivariate gcd rejects two multi-term operands and reports overflow", "[algebra][conversion][exact][gcd]") {
+    const auto left = expr_to_exact_polynomial(parse_expression("x + y"), {"x", "y"});
+    const auto right = expr_to_exact_polynomial(parse_expression("x - y"), {"x", "y"});
+    try {
+        static_cast<void>(gcd(left, right, {"x", "y"}));
+        FAIL("Expected bounded multivariate GCD rejection");
+    } catch (const EvaluatorError& error) {
+        REQUIRE(error.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(error.what()) ==
+            "gcd: at least one multivariate operand must be a monomial");
+    }
+
+    const auto maximum = std::numeric_limits<int64_t>::max();
+    const ExactPolynomial overflow_candidate({
+        {Monomial{{"x", 1}}, ExactCoefficient(1, maximum)},
+        {Monomial{}, ExactCoefficient(maximum, 1)}});
+    REQUIRE_THROWS_AS(
+        gcd(ExactPolynomial{}, overflow_candidate, {"x", "y"}),
+        std::overflow_error);
 }
 
 TEST_CASE("exact coefficient arithmetic rejects overflow", "[algebra][conversion][exact][overflow]") {

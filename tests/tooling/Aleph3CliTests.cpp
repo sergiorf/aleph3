@@ -169,6 +169,13 @@ TEST_CASE("REPL mode command reports and switches evaluators", "[tooling][cli]")
     REQUIRE(mode_result.output.find("(x - 1) * (x + 1)") != std::string::npos);
 }
 
+TEST_CASE("CLI evaluates exact matrix pack expressions", "[tooling][cli][matrix]") {
+    const auto expression = std::string(1, char(34)) + "Det[{{1,2},{3,4}}]" + char(34);
+    const auto result = run_shell_command(make_direct_command(expression));
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output == "-2\n");
+}
+
 TEST_CASE("REPL symbolic session preserves state and exposes exact rational factorization", "[tooling][cli][session]") {
     const auto result = run_shell_command(make_repl_command(
         {"a = 2", "a + 3", "Factor[(1/2)*x^2 + x + 1/2]", ":quit"}));

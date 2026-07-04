@@ -156,6 +156,8 @@ What is already true:
 - the CLI now runs bounded stateful scripts with optional JSON Lines results
 - the notebook core now provides bounded JSON v1 loading and atomic local save,
   including version-marked cached results
+- the algebra pack now provides bounded exact dense matrices with shape-checked
+  basic operations, determinant, row reduction, and unique exact linear solving
 
 What is still unresolved:
 
@@ -1153,11 +1155,10 @@ first visible notebook product slice:
    structured diagnostics, and explicit unsupported behavior. Arithmetic,
    power, rational-expression, and sign rules must remain explainable and carry
    regression tests with documented boundaries.
-2. **Algebra pack:** use the feature workflow to specify, then deliver, the
-   first bounded exact dense-matrix surface over shared scalar and diagnostic
-   contracts. That surface covers shape checking, addition, multiplication,
-   identity matrices, transpose, determinant, row reduction, and exact linear
-   solving where the shared scalar layer supports it.
+2. **Algebra pack:** the first bounded exact dense-matrix surface is delivered
+   over shared scalar, budget, registration, and diagnostic contracts. Keep its
+   nested-list boundary, exact-only policy, and unsupported cases stable while
+   using it in cross-surface fixtures and preparing the focused calculus pack.
 3. **Calculus pack:** start the focused derivative workflow over shared kernel,
    rewrite, exactness, assumptions, simplification, and diagnostic contracts.
    Support constants, symbols, sums, products, supported exact powers,

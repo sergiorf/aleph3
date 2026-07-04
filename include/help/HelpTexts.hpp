@@ -88,6 +88,15 @@ namespace aleph3 {
             {"Collect", "Collect[expr, x]: Collect terms in expr by powers of x", "Polynomial"},
             {"GCD", "GCD[a, b, vars]: Exact polynomial GCD, including bounded multivariate monomial content with explicit vars", "Polynomial"},
             {"PolynomialQuotient", "PolynomialQuotient[a, b, vars]: Exact quotient and remainder using explicit variable precedence", "Polynomial"},
+
+            // Exact dense matrices
+            {"MatrixAdd", "MatrixAdd[a, b]: Add exact dense matrices of equal shape", "Matrix"},
+            {"MatrixMultiply", "MatrixMultiply[a, b]: Multiply compatible exact dense matrices", "Matrix"},
+            {"IdentityMatrix", "IdentityMatrix[n]: Construct an exact n by n identity matrix", "Matrix"},
+            {"Transpose", "Transpose[a]: Transpose an exact dense matrix", "Matrix"},
+            {"Det", "Det[a]: Compute an exact determinant", "Matrix"},
+            {"RowReduce", "RowReduce[a]: Compute exact reduced row-echelon form", "Matrix"},
+            {"LinearSolve", "LinearSolve[a, b]: Solve a square exact system with a unique solution", "Matrix"},
             
             // Logical
             {"And", "And[a, b, ...]: Logical AND (True if all arguments are True)", "Logical"},

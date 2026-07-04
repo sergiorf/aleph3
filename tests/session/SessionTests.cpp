@@ -67,7 +67,17 @@ TEST_CASE("Session discovers registered packs deterministically", "[session][pac
     REQUIRE(result.packs.size() == 1);
     REQUIRE(result.packs.front().name == "core-algebra");
     REQUIRE(result.packs.front().symbols ==
-        std::vector<std::string>{"Collect", "Expand", "Factor", "GCD", "PolynomialQuotient"});
+        std::vector<std::string>{"Collect", "Det", "Expand", "Factor", "GCD", "IdentityMatrix",
+            "LinearSolve", "MatrixAdd", "MatrixMultiply", "PolynomialQuotient", "RowReduce", "Transpose"});
+}
+
+TEST_CASE("Session exposes exact matrix values and diagnostics", "[session][algebra][matrix]") {
+    Session session;
+    REQUIRE(session.execute({"Det[{{1, 2}, {3, 4}}]"}).output == "-2");
+    REQUIRE(session.execute({"LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]"}).output == "{2, 1}");
+    const auto failure = session.execute({"MatrixMultiply[{{1, 2}}, {{1, 2}}]"});
+    REQUIRE_FALSE(failure.ok);
+    REQUIRE(failure.diagnostics.front().code == "runtime.domain_violation");
 }
 
 TEST_CASE("Session completes registry and session symbols deterministically", "[session][completion]") {

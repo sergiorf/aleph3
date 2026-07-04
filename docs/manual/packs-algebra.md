@@ -94,5 +94,26 @@ PolynomialQuotient[x*y, x]             -> explicit selector required
 PolynomialQuotient[0.5*x*y, x, {x,y}]  -> unsupported inexact division
 ```
 
+## Exact Dense Matrices
+
+Matrices are written as rectangular nested lists. The algebra pack validates
+their shape and computes with checked exact integers and rationals:
+
+```text
+MatrixAdd[{{1, 1/2}, {2, 3}}, {{4, 1/2}, {5, 6}}] -> {{5, 1}, {7, 9}}
+MatrixMultiply[{{1, 2, 3}}, {{1}, {0}, {2}}]       -> {{7}}
+IdentityMatrix[2]                                   -> {{1, 0}, {0, 1}}
+Transpose[{{1, 2, 3}, {4, 5, 6}}]                  -> {{1, 4}, {2, 5}, {3, 6}}
+Det[{{1, 2}, {3, 4}}]                              -> -2
+RowReduce[{{1, 2}, {3, 4}}]                        -> {{1, 0}, {0, 1}}
+LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]             -> {2, 1}
+```
+
+Rows must be non-empty and equally sized. A matrix may contain at most 4,096
+entries. Decimal, symbolic, complex, empty, and ragged matrices are rejected;
+`LinearSolve` currently supports only square systems with one unique exact
+solution. Matrix multiplication and elimination use the shared evaluation
+budget. There is no implicit list or tensor interpretation.
+
 The authoritative boundary is the
 [supported algebra subset](../algebra_supported_subset.md).

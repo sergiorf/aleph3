@@ -519,6 +519,14 @@ Non-goals:
 
 ## Explicit Non-Contracts
 
+### Related Pack Conformance
+
+The exact dense-matrix surface is outside the trusted SDK v1 contract tracked
+by this matrix. Its required direct-kernel, pack, session, CLI, and notebook
+conformance is defined by the
+[dense-matrix specification](algebra_dense_matrix_spec.md) and exercised by
+the algebra, session, tooling, and notebook suites.
+
 The engine is explicitly not required to preserve the following:
 
 - current CLI prompt behavior

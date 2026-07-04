@@ -1,11 +1,15 @@
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/Evaluator.hpp"
+#include "kernel/Diagnostics.hpp"
 #include "expr/Expr.hpp"
 #include "parser/Parser.hpp"
 #include "packs/AlgebraPack.hpp"
 #include "transforms/Transforms.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+
+#include <string>
+#include <unordered_map>
 
 using namespace aleph3;
 
@@ -86,11 +90,61 @@ TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][
     kernel::FunctionRegistry registry;
     packs::register_algebra_pack(registry);
 
-    for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient"}) {
+    for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient",
+             "MatrixAdd", "MatrixMultiply", "IdentityMatrix", "Transpose", "Det", "RowReduce",
+             "LinearSolve"}) {
         const auto* spec = registry.find_symbolic_function_spec(name);
         REQUIRE(spec != nullptr);
         REQUIRE(spec->metadata.source == kernel::RegistrationSource::pack);
         REQUIRE(spec->metadata.owning_package == "core-algebra");
+    }
+}
+
+TEST_CASE("Algebra pack exposes exact dense matrix basics", "[packs][algebra][matrix]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+    REQUIRE(to_string(*evaluate_source("MatrixAdd[{{1, 1/2}, {2, 3}}, {{4, 1/2}, {5, 6}}]", ctx)) ==
+        "{{5, 1}, {7, 9}}");
+    REQUIRE(to_string(*evaluate_source("MatrixMultiply[{{1, 2, 3}}, {{1}, {0}, {2}}]", ctx)) == "{{7}}");
+    REQUIRE(to_string(*evaluate_source("IdentityMatrix[2]", ctx)) == "{{1, 0}, {0, 1}}");
+    REQUIRE(to_string(*evaluate_source("Transpose[{{1, 2, 3}, {4, 5, 6}}]", ctx)) ==
+        "{{1, 4}, {2, 5}, {3, 6}}");
+}
+
+TEST_CASE("Algebra pack exposes exact elimination workflows", "[packs][algebra][matrix]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+    REQUIRE(to_string(*evaluate_source("Det[{{0, 1}, {2, 3}}]", ctx)) == "-2");
+    REQUIRE(to_string(*evaluate_source("RowReduce[{{1, 2}, {3, 4}}]", ctx)) == "{{1, 0}, {0, 1}}");
+    REQUIRE(to_string(*evaluate_source("LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]", ctx)) == "{2, 1}");
+}
+
+TEST_CASE("Matrix pack failures use shared diagnostics", "[packs][algebra][matrix][diagnostics]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+    const auto code_for = [&](std::string_view source) {
+        try {
+            (void)evaluate_source(source, ctx);
+        } catch (const kernel::RuntimeFailure& failure) {
+            return failure.error().code;
+        }
+        return std::string{};
+    };
+    REQUIRE(code_for("Transpose[{{1}, {2, 3}}]") == "runtime.invalid_form");
+    REQUIRE(code_for("MatrixAdd[{{1}}, {{1, 2}}]") == "runtime.domain_violation");
+    REQUIRE(code_for("Det[{{x}}]") == "runtime.unsupported_construct");
+    REQUIRE(code_for("LinearSolve[{{1, 2}, {2, 4}}, {1, 2}]") == "runtime.domain_violation");
+}
+
+TEST_CASE("Matrix arithmetic consumes the shared evaluation budget", "[packs][algebra][matrix][budget]") {
+    Policy policy = Policy::default_policy();
+    policy.budget().max_evaluation_steps = 12;
+    Bindings bindings;
+    std::unordered_map<std::string, HostFunctionSpec> host_functions;
+    EvaluationContext ctx(bindings, bindings, host_functions, policy);
+    ctx.enable_runtime_strict_semantics(true);
+    try {
+        (void)evaluate_source("MatrixMultiply[{{1, 2}, {3, 4}}, {{1, 2}, {3, 4}}]", ctx);
+        FAIL("Expected the shared evaluation budget to be exhausted");
+    } catch (const kernel::RuntimeFailure& failure) {
+        REQUIRE(failure.error().code == "runtime.step_budget_exhausted");
     }
 }
 

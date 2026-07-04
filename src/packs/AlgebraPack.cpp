@@ -1,11 +1,15 @@
 #include "packs/AlgebraPack.hpp"
 
+#include "algebra/DenseMatrix.hpp"
+#include "algebra/ExactPolynomial.hpp"
 #include "algebra/PolyUtils.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
+#include <limits>
 #include <set>
 #include <vector>
 
@@ -14,6 +18,84 @@ namespace aleph3::packs {
 namespace {
 
 constexpr std::string_view kPackageName = "core-algebra";
+constexpr std::size_t kMaxMatrixElements = 4096;
+
+using ExactMatrix = algebra::DenseMatrix<ExactCoefficient>;
+
+[[noreturn]] void throw_matrix_domain(std::string message) {
+    kernel::throw_runtime_error(kernel::ErrorCode::domain_violation, std::move(message));
+}
+
+ExactCoefficient exact_matrix_scalar(const ExprPtr& expr) {
+    if (const auto* rational = std::get_if<Rational>(expr.get())) {
+        return ExactCoefficient(rational->numerator, rational->denominator);
+    }
+    if (const auto* number = std::get_if<Number>(expr.get())) {
+        if (std::isfinite(number->value) && std::trunc(number->value) == number->value &&
+            number->value >= static_cast<double>(std::numeric_limits<std::int64_t>::min()) &&
+            number->value <= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
+            return ExactCoefficient(static_cast<std::int64_t>(number->value), 1);
+        }
+    }
+    kernel::throw_runtime_error(kernel::ErrorCode::unsupported_construct,
+        "Matrices currently support exact integer and rational entries only");
+}
+
+ExactMatrix exact_matrix_from_expr(const ExprPtr& expr) {
+    const auto* outer = std::get_if<List>(expr.get());
+    if (!outer || outer->elements.empty()) {
+        kernel::throw_runtime_error(kernel::ErrorCode::invalid_form, "Matrix must be a non-empty nested list");
+    }
+    const auto* first = std::get_if<List>(outer->elements.front().get());
+    if (!first || first->elements.empty()) {
+        kernel::throw_runtime_error(kernel::ErrorCode::invalid_form, "Matrix rows must be non-empty lists");
+    }
+    const std::size_t columns = first->elements.size();
+    if (outer->elements.size() > kMaxMatrixElements / columns) {
+        kernel::throw_runtime_error(kernel::ErrorCode::domain_violation, "Matrix exceeds the 4096-element limit");
+    }
+    std::vector<ExactCoefficient> values;
+    values.reserve(outer->elements.size() * columns);
+    for (const auto& row_expr : outer->elements) {
+        const auto* row = std::get_if<List>(row_expr.get());
+        if (!row || row->elements.size() != columns) {
+            kernel::throw_runtime_error(kernel::ErrorCode::invalid_form,
+                "Matrix rows must have equal non-zero length");
+        }
+        for (const auto& value : row->elements) values.push_back(exact_matrix_scalar(value));
+    }
+    return ExactMatrix(outer->elements.size(), columns, std::move(values));
+}
+
+ExprPtr exact_scalar_to_expr(const ExactCoefficient& value) {
+    if (value.denominator == 1) return make_expr<Number>(static_cast<double>(value.numerator));
+    return make_expr<Rational>(value.numerator, value.denominator);
+}
+
+ExprPtr exact_matrix_to_expr(const ExactMatrix& matrix) {
+    std::vector<ExprPtr> rows;
+    rows.reserve(matrix.rows());
+    for (std::size_t row = 0; row < matrix.rows(); ++row) {
+        std::vector<ExprPtr> values;
+        values.reserve(matrix.columns());
+        for (std::size_t column = 0; column < matrix.columns(); ++column) {
+            values.push_back(exact_scalar_to_expr(matrix(row, column)));
+        }
+        rows.push_back(make_expr<List>(List{std::move(values)}));
+    }
+    return make_expr<List>(List{std::move(rows)});
+}
+
+template <typename Operation>
+ExprPtr run_matrix_operation(Operation&& operation) {
+    try {
+        return operation();
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+    } catch (const std::domain_error& error) {
+        throw_matrix_domain(error.what());
+    }
+}
 
 std::vector<std::string> dedupe_variables(const std::vector<std::string>& variables) {
     std::vector<std::string> deduped;
@@ -152,9 +234,117 @@ ExprPtr evaluate_polynomial_quotient(const FunctionCall& func, EvaluationContext
     }
 }
 
+ExprPtr evaluate_matrix_add(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) throw_invalid_arity_exact("MatrixAdd", 2);
+    return run_matrix_operation([&] {
+        const auto left = exact_matrix_from_expr(evaluate(func.args[0], ctx));
+        const auto right = exact_matrix_from_expr(evaluate(func.args[1], ctx));
+        return exact_matrix_to_expr(
+            algebra::matrix_add(left, right, [&] { ctx.consume_evaluation_step(); }));
+    });
+}
+
+ExprPtr evaluate_matrix_multiply(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) throw_invalid_arity_exact("MatrixMultiply", 2);
+    return run_matrix_operation([&] {
+        const auto left = exact_matrix_from_expr(evaluate(func.args[0], ctx));
+        const auto right = exact_matrix_from_expr(evaluate(func.args[1], ctx));
+        if (right.columns() > kMaxMatrixElements / left.rows()) {
+            throw_matrix_domain("Matrix result exceeds the 4096-element limit");
+        }
+        return exact_matrix_to_expr(algebra::matrix_multiply(
+            left, right, [&] { ctx.consume_evaluation_step(); }));
+    });
+}
+
+ExprPtr evaluate_identity_matrix(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) throw_invalid_arity_exact("IdentityMatrix", 1);
+    const auto evaluated_size = evaluate(func.args[0], ctx);
+    const auto* number = std::get_if<Number>(evaluated_size.get());
+    if (!number || !std::isfinite(number->value) || std::trunc(number->value) != number->value ||
+        number->value <= 0 || number->value > 64) {
+        throw_matrix_domain("IdentityMatrix size must be an integer from 1 through 64");
+    }
+    return exact_matrix_to_expr(
+        algebra::identity_matrix<ExactCoefficient>(static_cast<std::size_t>(number->value)));
+}
+
+ExprPtr evaluate_transpose(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) throw_invalid_arity_exact("Transpose", 1);
+    return exact_matrix_to_expr(
+        algebra::matrix_transpose(exact_matrix_from_expr(evaluate(func.args[0], ctx))));
+}
+
+ExprPtr evaluate_determinant(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) throw_invalid_arity_exact("Det", 1);
+    return run_matrix_operation([&] {
+        return exact_scalar_to_expr(algebra::determinant(
+            exact_matrix_from_expr(evaluate(func.args[0], ctx)),
+            [&] { ctx.consume_evaluation_step(); }));
+    });
+}
+
+ExprPtr evaluate_row_reduce(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) throw_invalid_arity_exact("RowReduce", 1);
+    return run_matrix_operation([&] {
+        return exact_matrix_to_expr(algebra::row_reduce(
+            exact_matrix_from_expr(evaluate(func.args[0], ctx)),
+            [&] { ctx.consume_evaluation_step(); }));
+    });
+}
+
+ExprPtr evaluate_linear_solve(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) throw_invalid_arity_exact("LinearSolve", 2);
+    return run_matrix_operation([&]() -> ExprPtr {
+        const auto coefficients = exact_matrix_from_expr(evaluate(func.args[0], ctx));
+        if (coefficients.rows() != coefficients.columns()) {
+            throw_matrix_domain("LinearSolve requires a square coefficient matrix");
+        }
+        const auto evaluated_vector = evaluate(func.args[1], ctx);
+        const auto* vector = std::get_if<List>(evaluated_vector.get());
+        if (!vector || vector->elements.size() != coefficients.rows()) {
+            throw_matrix_domain("LinearSolve vector length must match the matrix");
+        }
+        std::vector<ExactCoefficient> augmented_values;
+        augmented_values.reserve(coefficients.rows() * (coefficients.columns() + 1));
+        for (std::size_t row = 0; row < coefficients.rows(); ++row) {
+            for (std::size_t column = 0; column < coefficients.columns(); ++column) {
+                augmented_values.push_back(coefficients(row, column));
+            }
+            augmented_values.push_back(exact_matrix_scalar(vector->elements[row]));
+        }
+        auto reduced = algebra::row_reduce(
+            ExactMatrix(coefficients.rows(), coefficients.columns() + 1, std::move(augmented_values)),
+            [&] { ctx.consume_evaluation_step(); });
+        for (std::size_t i = 0; i < coefficients.rows(); ++i) {
+            if (!reduced(i, i).is_one()) throw_matrix_domain("LinearSolve requires a unique solution");
+        }
+        std::vector<ExprPtr> solution;
+        solution.reserve(coefficients.rows());
+        for (std::size_t row = 0; row < coefficients.rows(); ++row) {
+            solution.push_back(exact_scalar_to_expr(reduced(row, coefficients.columns())));
+        }
+        return make_expr<List>(List{std::move(solution)});
+    });
+}
+
 }  // namespace
 
 void register_algebra_pack(kernel::FunctionRegistry& registry) {
+    registry.register_pack_function(std::string(kPackageName), "MatrixAdd", evaluate_matrix_add,
+        "Add two exact dense matrices of equal shape.", true);
+    registry.register_pack_function(std::string(kPackageName), "MatrixMultiply", evaluate_matrix_multiply,
+        "Multiply two compatible exact dense matrices.", true);
+    registry.register_pack_function(std::string(kPackageName), "IdentityMatrix", evaluate_identity_matrix,
+        "Construct a bounded exact identity matrix.", true);
+    registry.register_pack_function(std::string(kPackageName), "Transpose", evaluate_transpose,
+        "Transpose an exact dense matrix.", true);
+    registry.register_pack_function(std::string(kPackageName), "Det", evaluate_determinant,
+        "Compute an exact dense determinant.", true);
+    registry.register_pack_function(std::string(kPackageName), "RowReduce", evaluate_row_reduce,
+        "Compute exact reduced row-echelon form.", true);
+    registry.register_pack_function(std::string(kPackageName), "LinearSolve", evaluate_linear_solve,
+        "Solve a square exact system with one unique solution.", true);
     registry.register_pack_function(
         std::string(kPackageName),
         "Expand",

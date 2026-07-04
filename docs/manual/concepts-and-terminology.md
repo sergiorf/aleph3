@@ -303,6 +303,14 @@ Examples include the current algebra pack and possible future calculus,
 solver, or special-function packs. The kernel provides pattern matching; a
 calculus pack provides differentiation knowledge.
 
+## Dense Matrix
+
+A **dense matrix** is a rectangular rank-two array that stores every entry.
+Aleph3 writes matrices as nested lists such as `{{1, 2}, {3, 4}}`; the algebra
+pack validates that shape and converts it to a typed row-major value while it
+computes. This does not make every nested list a matrix or introduce a general
+tensor type.
+
 ## Built-in, Host Function, and Registered Function
 
 A **built-in** is implemented by Aleph3. A **host function** is implemented by

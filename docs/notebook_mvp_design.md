@@ -1,5 +1,17 @@
 # Notebook MVP Design
 
+## Product Scope
+
+Aleph3's intended main product is a lightweight local symbolic notebook for
+developers, engineers, students, and technical users who want a fast native
+workspace without adopting a Python/Jupyter stack or a commercial CAS. It is
+a focused product, not a claim of broad CAS or notebook-platform parity.
+
+The kernel remains the semantic asset, the session supplies interactive state,
+and the CLI remains the scripting and diagnostic fallback. Make the free or
+low-friction notebook useful before investing substantially in paid packs,
+hosted services, or provider-backed features.
+
 ## Status and Goal
 
 This document is the proposed contract for the first Aleph3 notebook. The

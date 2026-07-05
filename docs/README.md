@@ -14,13 +14,11 @@ the SDK, packs, and the notebook/workbench direction. The same sources can be
 1. [Project README](../README.md) — build, run, and product orientation.
 2. [Architecture](architecture.md) — system shape and ownership boundaries.
 3. [SDK Guide](sdk/README.md) — embedding surface and SDK-specific references.
-4. [Product Plan](product_plan.md) — notebook vision, users, MVP, and business
-   model.
-5. [Notebook MVP Design](notebook_mvp_design.md) — planned cells, evaluation,
-   persistence, display, and acceptance contract.
-6. [IP and Repository Strategy](ip_and_repo_strategy.md) — practical
+4. [Notebook MVP Design](notebook_mvp_design.md) — product scope, planned cells,
+   evaluation, persistence, display, and acceptance contract.
+5. [IP and Repository Strategy](ip_and_repo_strategy.md) — practical
    public/private transition guidance.
-7. [Unified Plan](aleph3_unified_plan.md) — the sole active implementation roadmap.
+6. [Unified Plan](aleph3_unified_plan.md) — the sole active implementation roadmap.
 
 ## Normative References
 

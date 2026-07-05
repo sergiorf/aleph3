@@ -29,8 +29,8 @@ should read chapters 1, 4, and 2 first.
 - The rest of this manual teaches functions and workflows through examples.
 - Specifications define exact supported behavior and remain authoritative.
 - The [unified plan](../aleph3_unified_plan.md) describes unfinished work.
-- The [notebook MVP design](../notebook_mvp_design.md) records the proposed
-  first desktop-product contract; it does not describe shipped behavior.
+- The [notebook MVP design](../notebook_mvp_design.md) records product scope
+  and the remaining desktop-product contract.
 
 Examples use the current Wolfram-like syntax and, unless stated otherwise, run
 in the symbolic CLI REPL started with `aleph3_cli repl`. Output shown after

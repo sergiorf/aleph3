@@ -63,12 +63,14 @@ services receive substantial investment.
 3. Remove remaining floating-point-centered dependencies from growth-facing
    exact algebra and deepen the bounded algebra pack.
 4. Deliver a focused differentiation pack over shared kernel contracts.
-5. Choose a desktop toolkit from measured spikes and deliver the first visible
+5. Specify and deliver the kernel prerequisites needed for a small DSP pack
+   without adding DSP-specific semantics to the kernel.
+6. Choose a desktop toolkit from measured spikes and deliver the first visible
    notebook create/edit/evaluate/display/save/reopen/`Run All` loop.
-6. Enforce conformance across kernel, packs, session, CLI, notebook fixtures,
+7. Enforce conformance across kernel, packs, session, CLI, notebook fixtures,
    and the SDK where its trusted subset permits.
-7. Add a focused DSP pack only after its algebra and calculus prerequisites
-   are credible.
+8. Add a focused DSP pack only after its algebra, calculus, and kernel
+   prerequisite contracts are credible.
 
 Each product tranche should pair a contract improvement with a mathematical
 capability and a user-visible or cross-surface way to exercise it. Missing
@@ -133,6 +135,36 @@ Remaining work:
   and session fixture;
 - record the toolkit decision and packaging implications in Architecture.
 
+### DSP Kernel Prerequisites
+
+Outcome: the kernel can support a small educational DSP pack without hardcoding
+DSP-specific functions, objects, or simplifications into the kernel.
+
+Remaining work:
+
+- specify first-class `Piecewise` representation, evaluation, diagnostics, and
+  assumption-aware simplification boundaries;
+- define finite `Range`, `Linspace`, and `Sample` contracts that preserve
+  exactness and report unsupported numeric, symbolic, or oversized ranges
+  explicitly;
+- introduce held or bound-variable constructs for a focused `Sum` surface, and
+  leave `Product` to follow only after the same binding contract is proven;
+- specify `FreeVariables`, `BoundVariables`, `DependsOn`, and capture-safe
+  substitution so summation, calculus, and rewrite rules share one binding
+  model;
+- add only the linear inequality normalization and bounded integer-range
+  counting needed by the first DSP and summation workflows;
+- add conditional rewrite-rule support through the shared assumptions query
+  surface, with bounded matching and deterministic diagnostics;
+- attach rule and transformation metadata sufficient for future explanation
+  traces without promising broad natural-language proof output;
+- record the printer/export direction for LaTeX or richer display formats
+  without making rich formatting part of the immediate product claim.
+
+Broad summation, nonlinear inequality solving, sequence-pattern matching,
+general product simplification, rich proof explanation, and plotting remain
+outside this milestone unless a focused specification brings them in.
+
 ### Local Notebook MVP
 
 Outcome: a user can create and edit a local document, evaluate supported input
@@ -163,11 +195,15 @@ well-diagnosed exact or mixed-exact workflow.
 
 Remaining work:
 
+- depend on the focused DSP kernel prerequisite contracts for piecewise forms,
+  finite sampling, binding, substitution, conditional rules, and bounded
+  inequality reasoning instead of adding private pack semantics;
 - specify finite discrete sequences, convolution, FIR filtering, exactness,
   budgets, and unsupported forms;
 - implement those operations through existing kernel and pack contracts;
 - add rational transfer-function and z-domain work only after dependencies on
-  algebra, assumptions, and simplification are explicit;
+  algebra, calculus, assumptions, and the DSP kernel prerequisites are
+  explicit;
 - expose supported operations consistently through shared consumers.
 
 FFT acceleration, streaming audio, codecs, real-time scheduling, hardware
@@ -187,6 +223,8 @@ integration, and image processing are outside the first DSP pack.
 
 - add richer single-expression pattern classes only when their bounds and
   evaluation phase are explicit;
+- add conditional rules only through the shared assumptions surface, with
+  deterministic failure behavior and no private pack predicate engine;
 - keep sequence-pattern machinery deferred until a demonstrated workflow
   requires it;
 - expand domain queries and assumption-aware hooks through the shared kernel
@@ -234,10 +272,13 @@ Use this order unless a regression or dependency changes it:
 1. Specify and implement the focused differentiation slice.
 2. Close the registration lifetime/mutation/thread-safety design needed by
    long-lived embedding and future packs.
-3. Run and record the notebook toolkit spikes against one shared fixture.
-4. Build the first graphical notebook vertical slice.
-5. Continue exact algebra hardening required by calculus and future DSP work.
-6. Expand cross-surface conformance and packaging verification around each
+3. Specify the focused DSP kernel prerequisite slice, including piecewise,
+   finite sampling, binding, substitution, conditional rewrites, and bounded
+   linear inequality reasoning.
+4. Run and record the notebook toolkit spikes against one shared fixture.
+5. Build the first graphical notebook vertical slice.
+6. Continue exact algebra hardening required by calculus and future DSP work.
+7. Expand cross-surface conformance and packaging verification around each
    delivered slice.
 
 ## Deferred Work
@@ -245,10 +286,15 @@ Use this order unless a regression or dependency changes it:
 Defer until an active milestone establishes the required contracts:
 
 - broad integration and differential-equation solving;
+- broad symbolic summation and product simplification beyond the focused
+  bound-variable contracts;
+- nonlinear or general-purpose inequality solving;
 - general sequence patterns and unbounded traversal;
 - broad special-function expansion;
 - solver infrastructure;
 - plotting beyond a separately specified bounded data/display contract;
+- full natural-language explanation traces beyond focused rule and
+  transformation metadata;
 - rich export, collaboration, cloud execution, provider-backed AI features,
   and a marketplace;
 - paid engineering, education, finance, or code-generation packs;

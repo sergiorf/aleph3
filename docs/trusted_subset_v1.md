@@ -327,7 +327,7 @@ Likely post-v1 candidates include:
 
 - more built-in functions with explicit contracts
 - improved polynomial manipulation
-- symbolic differentiation
+- carefully scoped pack functions such as focused differentiation
 - carefully scoped integral support
 
 ## Parser Simplicity Rules

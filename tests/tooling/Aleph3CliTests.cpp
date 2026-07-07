@@ -176,6 +176,13 @@ TEST_CASE("CLI evaluates exact matrix pack expressions", "[tooling][cli][matrix]
     REQUIRE(result.output == "-2\n");
 }
 
+TEST_CASE("CLI evaluates focused calculus pack expressions", "[tooling][cli][calculus]") {
+    const auto expression = std::string(1, char(34)) + "D[x^2+3*x,x]" + char(34);
+    const auto result = run_shell_command(make_direct_command(expression));
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output == "2 * x + 3\n");
+}
+
 TEST_CASE("REPL symbolic session preserves state and exposes exact rational factorization", "[tooling][cli][session]") {
     const auto result = run_shell_command(make_repl_command(
         {"a = 2", "a + 3", "Factor[(1/2)*x^2 + x + 1/2]", ":quit"}));
@@ -195,6 +202,8 @@ TEST_CASE("REPL exposes session inspection and pack discovery", "[tooling][cli][
     REQUIRE(result.output.find("FullForm: f[Plus[x, 1]]") != std::string::npos);
     REQUIRE(result.output.find("core-algebra:") != std::string::npos);
     REQUIRE(result.output.find("Factor") != std::string::npos);
+    REQUIRE(result.output.find("core-calculus:") != std::string::npos);
+    REQUIRE(result.output.find("Differentiate") != std::string::npos);
 }
 
 TEST_CASE("REPL exposes deterministic session completion", "[tooling][cli][session][completion]") {

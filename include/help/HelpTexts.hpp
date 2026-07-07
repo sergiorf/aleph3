@@ -89,6 +89,10 @@ namespace aleph3 {
             {"GCD", "GCD[a, b, vars]: Exact polynomial GCD, including bounded multivariate monomial content with explicit vars", "Polynomial"},
             {"PolynomialQuotient", "PolynomialQuotient[a, b, vars]: Exact quotient and remainder using explicit variable precedence", "Polynomial"},
 
+            // Calculus
+            {"D", "D[expr, x]: Differentiate expr with respect to symbol x in the focused calculus subset", "Calculus"},
+            {"Differentiate", "Differentiate[expr, x]: Alias for D[expr, x]", "Calculus"},
+
             // Exact dense matrices
             {"MatrixAdd", "MatrixAdd[a, b]: Add exact dense matrices of equal shape", "Matrix"},
             {"MatrixMultiply", "MatrixMultiply[a, b]: Multiply compatible exact dense matrices", "Matrix"},

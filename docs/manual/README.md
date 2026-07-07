@@ -16,8 +16,9 @@ kernel.
 3. [Rewriting and Assumptions](rewriting-and-assumptions.md)
 4. [Embedding with the SDK](embedding-with-the-sdk.md)
 5. [The Algebra Pack](packs-algebra.md)
-6. [Sessions, CLI, and the Notebook](sessions-cli-and-notebook.md)
-7. [Appendix: Concepts and Terminology](concepts-and-terminology.md)
+6. [The Calculus Pack](packs-calculus.md)
+7. [Sessions, CLI, and the Notebook](sessions-cli-and-notebook.md)
+8. [Appendix: Concepts and Terminology](concepts-and-terminology.md)
 
 New symbolic users can read chapters 1, 2, 3, 5, and 6. Application developers
 should read chapters 1, 4, and 2 first.

@@ -31,7 +31,7 @@ architecture.
 | Kernel structure | [Kernel design](kernel_design_spec.md), [execution bridge](kernel_execution_bridge_spec.md) |
 | Symbols | [Symbol model](kernel_symbol_model_spec.md), [definition precedence](kernel_symbol_definition_precedence.md), [attributes](kernel_attribute_spec.md) |
 | Rewriting | [Rewrite specification](kernel_rewrite_spec.md) |
-| Exact mathematics | [Exact algebra](kernel_exact_algebra_spec.md), [supported algebra subset](algebra_supported_subset.md), [dense matrices](algebra_dense_matrix_spec.md) |
+| Exact mathematics | [Exact algebra](kernel_exact_algebra_spec.md), [supported algebra subset](algebra_supported_subset.md), [dense matrices](algebra_dense_matrix_spec.md), [focused differentiation](calculus_differentiation_spec.md) |
 | Assumptions | [Assumptions specification](kernel_assumptions_spec.md) |
 | Registration | [Registration lifecycle](kernel_registration_lifecycle_spec.md) |
 | Quality | [Feature development workflow](feature_development_workflow.md), [contract test matrix](contract_test_matrix.md), [header documentation guideline](header_documentation_guideline.md) |

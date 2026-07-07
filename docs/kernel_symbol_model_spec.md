@@ -159,7 +159,7 @@ Examples:
 
 - built-in symbolic behavior such as `StringJoin[...]` is loaded into the
   default catalog up front
-- a future pack could register `Differentiate[...]`
+- the `core-calculus` pack registers `D[...]` and `Differentiate[...]`
 - an embedding app can register a host function such as `Clamp[...]`
 - two SDK engines can now evaluate against different host-function sets without
   sharing runtime registration state

@@ -220,7 +220,6 @@ Not part of the current supported subset:
 
 - general multivariate polynomial GCD and configurable or multi-divisor division
 - exact multivariate factorization beyond current content extraction
-- symbolic differentiation
 - broader factorization algorithms
 - arbitrary-precision exact algebra
 - symbolic, approximate, sparse, or arbitrary-rank matrix algebra

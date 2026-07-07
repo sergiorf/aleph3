@@ -101,6 +101,10 @@ if(ALEPH3_BUILD_KERNEL)
         src/packs/AlgebraPack.cpp)
     target_include_directories(aleph3_pack_algebra PUBLIC include PRIVATE third_party/utf8cpp)
 
+    add_library(aleph3_pack_calculus
+        src/packs/CalculusPack.cpp)
+    target_include_directories(aleph3_pack_calculus PUBLIC include PRIVATE third_party/utf8cpp)
+
     add_library(aleph3_notebook_core
         src/notebook/Notebook.cpp
         include/notebook/Notebook.hpp)
@@ -109,11 +113,11 @@ if(ALEPH3_BUILD_KERNEL)
     target_link_libraries(aleph3_notebook_core PUBLIC aleph3_kernel)
 
     if(ALEPH3_BUILD_SDK)
-        target_link_libraries(aleph3_sdk PUBLIC aleph3_kernel aleph3_pack_algebra)
+        target_link_libraries(aleph3_sdk PUBLIC aleph3_kernel aleph3_pack_algebra aleph3_pack_calculus)
     endif()
 
     if(ALEPH3_BUILD_SDK AND ALEPH3_BUILD_SYMBOLIC_ENGINE)
-        target_link_libraries(aleph3_cli PRIVATE aleph3_kernel aleph3_pack_algebra)
+        target_link_libraries(aleph3_cli PRIVATE aleph3_kernel aleph3_pack_algebra aleph3_pack_calculus)
         target_compile_definitions(aleph3_cli PRIVATE ALEPH3_HAS_SYMBOLIC_ENGINE=1)
     endif()
 endif()
@@ -160,6 +164,7 @@ if(BUILD_TESTING)
             PRIVATE
             aleph3_kernel
             aleph3_pack_algebra
+            aleph3_pack_calculus
             Catch2::Catch2WithMain)
         target_include_directories(aleph3_symbolic_tests PRIVATE third_party/utf8cpp tests)
         add_test(NAME aleph3_symbolic_tests COMMAND aleph3_symbolic_tests)
@@ -170,6 +175,7 @@ if(BUILD_TESTING)
             PRIVATE
             aleph3_notebook_core
             aleph3_pack_algebra
+            aleph3_pack_calculus
             Catch2::Catch2WithMain)
         add_test(NAME aleph3_notebook_tests COMMAND aleph3_notebook_tests)
     endif()

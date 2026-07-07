@@ -64,11 +64,24 @@ TEST_CASE("Session discovers registered packs deterministically", "[session][pac
     Session session;
     const auto result = session.execute({"", SessionOperation::discover_packs});
     REQUIRE(result.ok);
-    REQUIRE(result.packs.size() == 1);
-    REQUIRE(result.packs.front().name == "core-algebra");
-    REQUIRE(result.packs.front().symbols ==
+    REQUIRE(result.packs.size() == 2);
+    REQUIRE(result.packs[0].name == "core-algebra");
+    REQUIRE(result.packs[0].symbols ==
         std::vector<std::string>{"Collect", "Det", "Expand", "Factor", "GCD", "IdentityMatrix",
             "LinearSolve", "MatrixAdd", "MatrixMultiply", "PolynomialQuotient", "RowReduce", "Transpose"});
+    REQUIRE(result.packs[1].name == "core-calculus");
+    REQUIRE(result.packs[1].symbols == std::vector<std::string>{"D", "Differentiate"});
+}
+
+TEST_CASE("Session exposes focused differentiation values and diagnostics", "[session][calculus]") {
+    Session session;
+    REQUIRE(session.execute({"D[x^2 + 3*x, x]"}).output == "2 * x + 3");
+    REQUIRE(session.execute({"D[f[x], x]"}).output == "D[f[x], x]");
+
+    const auto failure = session.execute({"D[x, x + 1]"});
+    REQUIRE_FALSE(failure.ok);
+    REQUIRE(failure.diagnostics.size() == 1);
+    REQUIRE(failure.diagnostics.front().code == "kernel.invalid_form");
 }
 
 TEST_CASE("Session exposes exact matrix values and diagnostics", "[session][algebra][matrix]") {
@@ -96,6 +109,12 @@ TEST_CASE("Session completes registry and session symbols deterministically", "[
     REQUIRE(packs.completions.front().name == "PolynomialQuotient");
     REQUIRE(packs.completions.front().category == "pack");
     REQUIRE(packs.completions.front().owning_package == "core-algebra");
+
+    const auto derivative = session.execute({"Dif", SessionOperation::complete});
+    REQUIRE(derivative.completions.size() == 1);
+    REQUIRE(derivative.completions.front().name == "Differentiate");
+    REQUIRE(derivative.completions.front().category == "pack");
+    REQUIRE(derivative.completions.front().owning_package == "core-calculus");
 
     const auto builtin = session.execute({"Abs", SessionOperation::complete});
     REQUIRE(builtin.completions.size() == 1);

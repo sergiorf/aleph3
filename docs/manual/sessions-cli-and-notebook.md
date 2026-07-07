@@ -75,10 +75,12 @@ Refine[Sqrt[x^2], x >= 0]
 Replace[f[x], f[a_] -> g[a]]
 Factor[(1/2)*x^2 + x + 1/2]
 PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]
+D[x^2 + 3*x, x]
+Det[{{1, 2}, {3, 4}}]
 ```
 
-Differentiation, matrix algebra, plotting, code generation, export, rich
-Markdown, and other roadmap capabilities must not appear as current examples
-until their contracts and tests ship. The [Notebook MVP Design](../notebook_mvp_design.md)
+Plotting, code generation, export, rich Markdown, and other roadmap
+capabilities must not appear as current examples until their contracts and
+tests ship. The [Notebook MVP Design](../notebook_mvp_design.md)
 owns the planned document and UI contract; the
 [Unified Plan](../aleph3_unified_plan.md) owns sequencing.

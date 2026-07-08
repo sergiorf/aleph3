@@ -621,6 +621,10 @@ The new engine is not trustworthy enough for the embedded product until all
 `P0` contracts pass and all of the following are true:
 
 - parser diagnostics are structured
+- shared syntax parsing has direct tests for spans, precedence, malformed
+  syntax, symbolic-only syntax, and lowering compatibility
+- SDK trusted lowering rejects shared symbolic-only syntax instead of accepting
+  it as trusted IR
 - validation is schema-driven
 - evaluation is deterministic for supported forms
 - host functions are engine-scoped

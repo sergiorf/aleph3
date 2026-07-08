@@ -334,13 +334,15 @@ Likely post-v1 candidates include:
 
 To keep the trusted core small, parser design should follow these rules:
 
-- parse only documented syntax
+- parse through the shared syntax frontend, then lower only documented trusted
+  syntax into SDK `ir::Node`
 - reject ambiguous shorthand
 - prefer explicit syntax over convenience syntax
 - avoid special-case language growth unless tied to a product use case
 
-This means the parser should be intentionally narrower than the full symbolic
-parser.
+This means trusted-subset lowering and validation remain intentionally narrower
+than the full symbolic session surface, even though both start from the same
+source-aware syntax parser.
 
 ## Runtime Simplicity Rules
 

@@ -3,7 +3,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/FullForm.hpp"
-#include "parser/Parser.hpp"
+#include "syntax/SymbolicLowering.hpp"
 #include "transforms/Transforms.hpp"
 
 #include <exception>
@@ -17,6 +17,17 @@
 namespace aleph3::session {
 
 namespace {
+
+SessionDiagnostic to_session_diagnostic(const Diagnostic& diagnostic) {
+    const std::string code = diagnostic.code.starts_with("syntax.")
+        ? "session.parse_error"
+        : diagnostic.code;
+    return SessionDiagnostic{
+        code,
+        diagnostic.message,
+        diagnostic.severity,
+        diagnostic.span};
+}
 
 std::string expression_head(const ExprPtr& expr) {
     if (const auto* call = std::get_if<FunctionCall>(expr.get())) return call->head;
@@ -127,7 +138,17 @@ SessionResult Session::execute(const SessionRequest& request) {
             result.ok = true;
             return result;
         }
-        const auto parsed = parse_expression(request.source);
+        const auto parsed_result = syntax::parse_symbolic_source(request.source);
+        if (!parsed_result.ok()) {
+            for (const auto& diagnostic : parsed_result.diagnostics) {
+                result.diagnostics.push_back(to_session_diagnostic(diagnostic));
+            }
+            if (result.diagnostics.empty()) {
+                result.diagnostics.push_back({"session.parse_error", "Expression parsing failed."});
+            }
+            return result;
+        }
+        const auto parsed = parsed_result.expr;
         switch (request.operation) {
             case SessionOperation::evaluate:
                 result.output = to_string(evaluate(parsed, context_));

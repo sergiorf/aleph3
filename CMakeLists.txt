@@ -30,6 +30,12 @@ set(ALEPH3_PUBLIC_HEADERS
     include/sdk/Policy.hpp
     include/sdk/Schema.hpp
     include/sdk/Types.hpp
+    include/syntax/Token.hpp
+    include/syntax/Lexer.hpp
+    include/syntax/Node.hpp
+    include/syntax/Parser.hpp
+    include/syntax/SymbolicLowering.hpp
+    include/syntax/TrustedSubsetLowering.hpp
     include/ir/Node.hpp
     include/frontend/Token.hpp
     include/frontend/Lexer.hpp
@@ -37,6 +43,19 @@ set(ALEPH3_PUBLIC_HEADERS
     include/semantics/Validator.hpp
     include/tooling/RewriteCliSupport.hpp
     include/tooling/DemoHostFunctions.hpp)
+
+add_library(aleph3_syntax
+    src/syntax/Lexer.cpp
+    src/syntax/Parser.cpp
+    src/syntax/SymbolicLowering.cpp
+    src/syntax/TrustedSubsetLowering.cpp
+    include/syntax/Token.hpp
+    include/syntax/Lexer.hpp
+    include/syntax/Node.hpp
+    include/syntax/Parser.hpp
+    include/syntax/SymbolicLowering.hpp
+    include/syntax/TrustedSubsetLowering.hpp)
+target_include_directories(aleph3_syntax PUBLIC include)
 
 if(ALEPH3_BUILD_SDK)
     add_library(aleph3_sdk
@@ -48,6 +67,7 @@ if(ALEPH3_BUILD_SDK)
         src/tooling/DemoHostFunctions.cpp
         ${ALEPH3_PUBLIC_HEADERS})
     target_include_directories(aleph3_sdk PUBLIC include)
+    target_link_libraries(aleph3_sdk PUBLIC aleph3_syntax)
 
     add_executable(aleph3_cli src/tooling/aleph3_cli.cpp)
     target_link_libraries(aleph3_cli PRIVATE aleph3_sdk)
@@ -91,6 +111,7 @@ if(ALEPH3_BUILD_KERNEL)
     add_library(aleph3_symbolic ALIAS aleph3_kernel)
     add_library(${PROJECT_NAME}_lib ALIAS aleph3_kernel)
     target_include_directories(aleph3_kernel PUBLIC include PRIVATE third_party/utf8cpp)
+    target_link_libraries(aleph3_kernel PUBLIC aleph3_syntax)
 
     add_library(aleph3_pack_core_math INTERFACE)
     target_link_libraries(aleph3_pack_core_math INTERFACE aleph3_kernel)

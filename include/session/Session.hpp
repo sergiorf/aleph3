@@ -4,10 +4,16 @@
 #include <cstddef>
 #include <vector>
 #include "kernel/EvaluationContext.hpp"
+#include "sdk/Types.hpp"
 namespace aleph3::session {
 enum class SessionOperation { evaluate, simplify, full_form, inspect, discover_packs, complete };
 struct SessionRequest { std::string source; SessionOperation operation = SessionOperation::evaluate; };
-struct SessionDiagnostic { std::string code; std::string message; };
+struct SessionDiagnostic {
+    std::string code;
+    std::string message;
+    DiagnosticSeverity severity = DiagnosticSeverity::error;
+    SourceSpan span;
+};
 struct SessionInspection {
     std::string head;
     std::string full_form;

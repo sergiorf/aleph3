@@ -28,6 +28,12 @@ flowchart TB
     Kernel --> Result["Expr or SDK Value / RuntimeError"]
 ```
 
+The implementation now shares one source-aware syntax layer beneath the SDK
+trusted frontend and the symbolic session path. `syntax::Node` records parsed
+source structure and spans; SDK lowering turns the trusted subset into
+`ir::Node`, while symbolic lowering turns the supported symbolic surface into
+`Expr`.
+
 Four layers remain stable even as directories move:
 
 1. **Kernel** — defines what expressions mean.
@@ -42,6 +48,10 @@ policy or a particular product.
 ## The Central Representation Decision
 
 Aleph3 has one semantic representation: `Expr`.
+
+`syntax::Node` is the shared parsed-source form. It is deliberately syntactic:
+it carries source structure and diagnostics context, but it does not define
+expression meaning.
 
 The SDK also uses `ir::Node`, but only while parsing and validating the trusted
 formula subset. Once a formula is valid, a one-way adapter lowers it into
@@ -148,7 +158,8 @@ is a cache, never semantic authority.
 | `include/transforms`, `src/transforms` | kernel or pack | structural transforms stay in kernel; domain transforms move to packs |
 | `include/algebra`, `src/algebra` | algebra pack | domain-specific exact algebra |
 | `include/packs`, `src/packs` | kernel contracts / pack bootstrap | registration boundary |
-| `include/frontend`, `src/frontend` | SDK | trusted parser and diagnostics |
+| `include/syntax`, `src/syntax` | shared frontend | Wolfram-like lexing, parsing, source spans, and explicit lowering entrypoints |
+| `include/frontend`, `src/frontend` | SDK | trusted-subset compatibility facade and diagnostics |
 | `include/ir` | SDK | validated transient representation |
 | `include/semantics`, `src/semantics` | SDK | schema and policy validation |
 | `include/sdk`, `src/sdk` | SDK | public host API |
@@ -196,6 +207,11 @@ flowchart LR
     Normalize --> Rewrite["optional bounded rewrites"]
     Rewrite --> Output["Expr"]
 ```
+
+The parser stage above is shared syntax parsing. Symbolic lowering is the step
+that constructs `Expr` forms such as `Rule`, `Assignment`, exact rationals, and
+function definitions. Those compatibility conveniences are not SDK trusted
+semantics unless trusted-subset lowering and validation accept them explicitly.
 
 Evaluation, normalization, and rewriting are related but distinct. Evaluation
 resolves meanings such as numeric addition or definitions. Normalization gives

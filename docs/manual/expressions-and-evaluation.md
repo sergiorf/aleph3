@@ -16,9 +16,9 @@ on the same representation.
 
 ## Current Input Syntax
 
-The symbolic frontend accepts explicit calls, infix arithmetic and comparison
-operators, lists, strings, rules, patterns, and assignments used by the
-supported kernel surface:
+The shared syntax frontend accepts explicit calls, infix arithmetic and
+comparison operators, lists, strings, rules, patterns, and assignments used by
+the supported kernel surface:
 
 ```text
 f[x, 2]
@@ -28,9 +28,11 @@ If[x >= 0, x, -x]
 f[a_] -> g[a]
 ```
 
-Function calls use square brackets. Multiplication must be written explicitly:
-`2*x` is valid, while `2x` is not supported. The current syntax is a frontend
-choice; expression meaning belongs to the kernel.
+Function calls use square brackets. The symbolic session accepts the current
+compatibility conveniences used by existing examples, including implicit
+multiplication such as `2x`. The trusted SDK subset remains narrower and
+requires explicit syntax accepted by its validator. The current syntax is a
+frontend choice; expression meaning belongs to the kernel.
 
 ## Evaluation And Symbolic Fallback
 
@@ -97,10 +99,11 @@ N[1/3]                   -> approximate Number
 
 ## Diagnostics And Budgets
 
-Parsing, validation, and runtime failures use structured codes. Examples
-include invalid forms, unsupported constructs, division by zero, exact
-overflow, and exhausted budgets. Budgets bound work such as evaluation steps
-and repeated rewrites, which is essential for safe embedding.
+Parsing, validation, and runtime failures use structured codes and source
+locations when available. Examples include invalid forms, unsupported
+constructs, division by zero, exact overflow, and exhausted budgets. Budgets
+bound work such as evaluation steps and repeated rewrites, which is essential
+for safe embedding.
 
 Unknown symbolic calls and actual failures are different contracts:
 

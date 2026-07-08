@@ -5,7 +5,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "expr/Expr.hpp"
 #include "expr/FullForm.hpp"
-#include "parser/Parser.hpp"
+#include "syntax/SymbolicLowering.hpp"
 #include "transforms/Transforms.hpp"
 #include "session/Session.hpp"
 
@@ -36,7 +36,14 @@ SymbolicCliResult run_symbolic_expression(std::string_view source, Fn&& transfor
 
     try {
         EvaluationContext ctx(kernel::default_function_registry());
-        auto expr = parse_expression(std::string(source));
+        auto parsed = syntax::parse_symbolic_source(source);
+        if (!parsed.ok()) {
+            return make_failure(
+                parsed.diagnostics.empty()
+                    ? "Symbolic parse failed."
+                    : parsed.diagnostics.front().message);
+        }
+        auto expr = parsed.expr;
         auto result = transform(expr, ctx);
         return make_success(std::move(result));
     } catch (const std::exception& ex) {

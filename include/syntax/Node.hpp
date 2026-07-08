@@ -16,6 +16,7 @@ enum class NodeKind {
     boolean_literal,
     string_literal,
     symbol,
+    fraction_literal,
     unary_op,
     binary_op,
     call,
@@ -68,6 +69,11 @@ struct SymbolNode {
     std::string name;
 };
 
+struct FractionLiteralNode {
+    NodePtr numerator;
+    NodePtr denominator;
+};
+
 struct UnaryOpNode {
     UnaryOperator op = UnaryOperator::plus;
     NodePtr operand;
@@ -111,6 +117,7 @@ using NodePayload = std::variant<
     BooleanLiteralNode,
     StringLiteralNode,
     SymbolNode,
+    FractionLiteralNode,
     UnaryOpNode,
     BinaryOpNode,
     CallNode,
@@ -146,6 +153,8 @@ template <typename Payload>
         return std::make_shared<Node>(NodeKind::string_literal, span, std::move(payload));
     } else if constexpr (std::is_same_v<Payload, SymbolNode>) {
         return std::make_shared<Node>(NodeKind::symbol, span, std::move(payload));
+    } else if constexpr (std::is_same_v<Payload, FractionLiteralNode>) {
+        return std::make_shared<Node>(NodeKind::fraction_literal, span, std::move(payload));
     } else if constexpr (std::is_same_v<Payload, UnaryOpNode>) {
         return std::make_shared<Node>(NodeKind::unary_op, span, std::move(payload));
     } else if constexpr (std::is_same_v<Payload, BinaryOpNode>) {

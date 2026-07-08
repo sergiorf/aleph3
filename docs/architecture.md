@@ -212,6 +212,8 @@ The parser stage above is shared syntax parsing. Symbolic lowering is the step
 that constructs `Expr` forms such as `Rule`, `Assignment`, exact rationals, and
 function definitions. Those compatibility conveniences are not SDK trusted
 semantics unless trusted-subset lowering and validation accept them explicitly.
+The legacy `parse_expression` helper is a compatibility wrapper over this
+shared symbolic path.
 
 Evaluation, normalization, and rewriting are related but distinct. Evaluation
 resolves meanings such as numeric addition or definitions. Normalization gives

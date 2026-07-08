@@ -34,6 +34,21 @@ multiplication such as `2x`. The trusted SDK subset remains narrower and
 requires explicit syntax accepted by its validator. The current syntax is a
 frontend choice; expression meaning belongs to the kernel.
 
+The symbolic parser also preserves existing exact rational and complex
+shorthand:
+
+```text
+1/2                      -> 1/2
+-2/-3                    -> 2/3
+I                        -> 1*I
+3 + 4*I                  -> 3 + 4*I
+```
+
+These conveniences are part of the symbolic/session surface. SDK trusted
+parsing starts from the same source-aware syntax frontend, but rejects syntax
+outside the documented trusted subset such as `2x`, assignments, definitions,
+rules, and patterns.
+
 ## Evaluation And Symbolic Fallback
 
 Evaluation applies known meanings:

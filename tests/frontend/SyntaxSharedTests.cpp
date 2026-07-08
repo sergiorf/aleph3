@@ -59,3 +59,18 @@ TEST_CASE("Trusted frontend rejects symbolic-only shared syntax", "[syntax][fron
     REQUIRE(result.diagnostics.size() == 1);
     REQUIRE(result.diagnostics.front().code == "frontend.parser.unsupported_syntax");
 }
+
+TEST_CASE("Trusted frontend keeps implicit multiplication outside the SDK subset", "[syntax][frontend]") {
+    frontend::Parser explicit_parser("2*x + 1");
+    const auto explicit_result = explicit_parser.parse();
+
+    REQUIRE(explicit_result.ok());
+
+    frontend::Parser implicit_parser("2x");
+    const auto implicit_result = implicit_parser.parse();
+
+    REQUIRE_FALSE(implicit_result.ok());
+    REQUIRE(implicit_result.diagnostics.size() == 1);
+    REQUIRE(implicit_result.diagnostics.front().code == "frontend.parser.trailing_tokens");
+    REQUIRE(implicit_result.diagnostics.front().span.start_offset == 1);
+}

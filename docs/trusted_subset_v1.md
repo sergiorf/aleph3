@@ -343,6 +343,9 @@ To keep the trusted core small, parser design should follow these rules:
 This means trusted-subset lowering and validation remain intentionally narrower
 than the full symbolic session surface, even though both start from the same
 source-aware syntax parser.
+Symbolic compatibility forms such as exact rational literals and implicit
+multiplication are lowered only on the symbolic/session path unless this
+contract explicitly promotes them.
 
 ## Runtime Simplicity Rules
 

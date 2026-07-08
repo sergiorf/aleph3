@@ -623,6 +623,8 @@ The new engine is not trustworthy enough for the embedded product until all
 - parser diagnostics are structured
 - shared syntax parsing has direct tests for spans, precedence, malformed
   syntax, symbolic-only syntax, and lowering compatibility
+- the symbolic compatibility helper parses through the shared syntax frontend
+  and is checked against legacy parser behavior
 - SDK trusted lowering rejects shared symbolic-only syntax instead of accepting
   it as trusted IR
 - validation is schema-driven

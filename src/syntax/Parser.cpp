@@ -262,6 +262,19 @@ private:
                 return nullptr;
             }
 
+            if (options_.allow_implicit_multiplication &&
+                operator_token.kind == TokenKind::slash) {
+                while (can_start_primary(current().kind)) {
+                    auto factor = parse_expression(precedence(TokenKind::star) + 1);
+                    if (factor == nullptr) {
+                        return nullptr;
+                    }
+                    right = make_node(
+                        merge_spans(right->span, factor->span),
+                        BinaryOpNode{BinaryOperator::multiply, right, factor, true});
+                }
+            }
+
             left = make_node(
                 merge_spans(left->span, right->span),
                 BinaryOpNode{*binary_operator, left, right, false});
@@ -300,9 +313,7 @@ private:
         switch (token.kind) {
             case TokenKind::number_literal:
                 advance();
-                return make_node(
-                    token.span,
-                    NumberLiteralNode{*token.as<double>(), token.lexeme});
+                return parse_number_literal(token);
             case TokenKind::boolean_literal:
                 advance();
                 return make_node(token.span, BooleanLiteralNode{*token.as<bool>()});
@@ -329,6 +340,57 @@ private:
                     token.span));
                 return nullptr;
         }
+    }
+
+    NodePtr parse_number_literal(const Token& token) {
+        auto number = make_node(
+            token.span,
+            NumberLiteralNode{*token.as<double>(), token.lexeme});
+
+        if (!options_.parse_exact_rational_literals ||
+            current().kind != TokenKind::slash ||
+            !has_rational_denominator_ahead()) {
+            return number;
+        }
+
+        advance();
+        bool denominator_is_negative = false;
+        Token minus_token;
+        if (current().kind == TokenKind::minus) {
+            denominator_is_negative = true;
+            minus_token = advance();
+        }
+
+        if (current().kind != TokenKind::number_literal) {
+            diagnostics_.push_back(make_error(
+                "syntax.parser.expected_rational_denominator",
+                "Expected a numeric denominator in the rational literal.",
+                current().span));
+            return nullptr;
+        }
+
+        const Token denominator_token = advance();
+        auto denominator = make_node(
+            denominator_token.span,
+            NumberLiteralNode{*denominator_token.as<double>(), denominator_token.lexeme});
+
+        if (denominator_is_negative) {
+            denominator = make_node(
+                merge_spans(minus_token.span, denominator->span),
+                UnaryOpNode{UnaryOperator::minus, denominator});
+        }
+
+        return make_node(
+            merge_spans(number->span, denominator->span),
+            FractionLiteralNode{number, denominator});
+    }
+
+    bool has_rational_denominator_ahead() const noexcept {
+        std::size_t lookahead = position_ + 1;
+        if (lookahead < tokens_.size() && tokens_[lookahead].kind == TokenKind::minus) {
+            ++lookahead;
+        }
+        return lookahead < tokens_.size() && tokens_[lookahead].kind == TokenKind::number_literal;
     }
 
     NodePtr parse_identifier_expression() {

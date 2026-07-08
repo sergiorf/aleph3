@@ -10,6 +10,7 @@ namespace aleph3::syntax {
 
 struct ParserOptions {
     bool allow_implicit_multiplication = false;
+    bool parse_exact_rational_literals = false;
 };
 
 struct ParseResult {

@@ -30,7 +30,32 @@ bool is_integer_number(const ExprPtr& expr, int64_t& out) {
             return true;
         }
     }
+    if (const auto* call = std::get_if<FunctionCall>(expr.get());
+        call != nullptr && call->head == "Negate" && call->args.size() == 1) {
+        if (is_integer_number(call->args[0], out)) {
+            out = -out;
+            return true;
+        }
+    }
     return false;
+}
+
+ExprPtr make_exact_rational(int64_t numerator, int64_t denominator) {
+    if (denominator == 0) {
+        return numerator == 0 ? make_expr<Indeterminate>() : make_expr<Infinity>();
+    }
+    if (numerator < 0 && denominator < 0) {
+        numerator = -numerator;
+        denominator = -denominator;
+    }
+    return make_expr<Rational>(numerator, denominator);
+}
+
+ExprPtr make_rational_preserving_signs(int64_t numerator, int64_t denominator) {
+    if (denominator == 0) {
+        return numerator == 0 ? make_expr<Indeterminate>() : make_expr<Infinity>();
+    }
+    return make_expr<Rational>(numerator, denominator);
 }
 
 bool is_imaginary_unit(const ExprPtr& expr) {
@@ -105,6 +130,23 @@ private:
             }
             return make_expr<Symbol>(symbol->name);
         }
+        if (const auto* fraction = node->as<FractionLiteralNode>()) {
+            auto numerator = lower_node(fraction->numerator);
+            auto denominator = lower_node(fraction->denominator);
+            if (numerator == nullptr || denominator == nullptr) {
+                return nullptr;
+            }
+
+            int64_t numerator_value = 0;
+            int64_t denominator_value = 0;
+            if (is_integer_number(numerator, numerator_value) &&
+                is_integer_number(denominator, denominator_value)) {
+                return make_rational_preserving_signs(numerator_value, denominator_value);
+            }
+            return make_expr<FunctionCall>(
+                "Divide",
+                std::vector<ExprPtr>{numerator, denominator});
+        }
         if (const auto* unary = node->as<UnaryOpNode>()) {
             auto operand = lower_node(unary->operand);
             if (operand == nullptr) {
@@ -128,10 +170,15 @@ private:
                 return lower_node(call->arguments.front());
             }
 
+            const bool preserve_call_unary_minus =
+                call->callee != "Rational" && call->callee != "Complex";
+
             std::vector<ExprPtr> arguments;
             arguments.reserve(call->arguments.size());
             for (const auto& argument_node : call->arguments) {
-                auto argument = lower_node(argument_node);
+                auto argument = preserve_call_unary_minus
+                    ? lower_call_argument(argument_node)
+                    : lower_node(argument_node);
                 if (argument == nullptr) {
                     return nullptr;
                 }
@@ -143,10 +190,7 @@ private:
                 int64_t denominator = 0;
                 if (is_integer_number(arguments[0], numerator) &&
                     is_integer_number(arguments[1], denominator)) {
-                    if (denominator == 0) {
-                        return numerator == 0 ? make_expr<Indeterminate>() : make_expr<Infinity>();
-                    }
-                    return make_expr<Rational>(numerator, denominator);
+                    return make_rational_preserving_signs(numerator, denominator);
                 }
             }
 
@@ -215,6 +259,18 @@ private:
         return nullptr;
     }
 
+    ExprPtr lower_call_argument(const NodePtr& node) {
+        if (const auto* unary = node->as<UnaryOpNode>();
+            unary != nullptr && unary->op == UnaryOperator::minus) {
+            auto operand = lower_node(unary->operand);
+            if (operand == nullptr) {
+                return nullptr;
+            }
+            return make_expr<FunctionCall>("Negate", std::vector<ExprPtr>{operand});
+        }
+        return lower_node(node);
+    }
+
     std::optional<Parameter> lower_parameter(const NodePtr& node) {
         if (const auto* default_parameter = node->as<DefaultParameterNode>()) {
             auto base = lower_parameter(default_parameter->parameter);
@@ -247,7 +303,7 @@ private:
             return make_expr<Number>(-number->value);
         }
         if (const auto* rational = std::get_if<Rational>(operand.get())) {
-            return make_expr<Rational>(-rational->numerator, rational->denominator);
+            return make_exact_rational(-rational->numerator, rational->denominator);
         }
         if (std::holds_alternative<Symbol>(*operand)) {
             return make_expr<FunctionCall>(
@@ -266,10 +322,7 @@ private:
             int64_t numerator = 0;
             int64_t denominator = 0;
             if (is_integer_number(left, numerator) && is_integer_number(right, denominator)) {
-                if (denominator == 0) {
-                    return numerator == 0 ? make_expr<Indeterminate>() : make_expr<Infinity>();
-                }
-                return make_expr<Rational>(numerator, denominator);
+                return make_exact_rational(numerator, denominator);
             }
         }
 
@@ -299,14 +352,12 @@ private:
 
     ExprPtr try_make_complex(const ExprPtr& expr) {
         if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
-            if (call->head == "Plus" || call->head == "Minus") {
+            if (call->head == "Plus") {
                 if (call->args.size() == 2) {
                     const auto real = std::get_if<Number>(call->args[0].get());
                     auto imag = imaginary_coefficient(call->args[1]);
                     if (real != nullptr && imag.has_value()) {
-                        return make_expr<Complex>(
-                            real->value,
-                            call->head == "Minus" ? -*imag : *imag);
+                        return make_expr<Complex>(real->value, *imag);
                     }
                 }
             }
@@ -360,7 +411,10 @@ SymbolicParseResult lower_to_expr(const NodePtr& root) {
 }
 
 SymbolicParseResult parse_symbolic_source(std::string_view source) {
-    Parser parser(source, ParserOptions{true});
+    ParserOptions options;
+    options.allow_implicit_multiplication = true;
+    options.parse_exact_rational_literals = true;
+    Parser parser(source, options);
     auto parsed = parser.parse();
     if (!parsed.ok()) {
         return {nullptr, std::move(parsed.diagnostics)};

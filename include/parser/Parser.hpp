@@ -20,8 +20,10 @@
 #include <cctype>
 #include <stdexcept>
 #include <cmath>
+#include <sstream>
 #include "expr/Expr.hpp"
 #include "expr/ExprUtils.hpp"
+#include "syntax/SymbolicLowering.hpp"
 #include "utf8.h"
 
 namespace aleph3 {
@@ -79,6 +81,8 @@ namespace aleph3 {
         return cp == ' ' || cp == '\t' || cp == '\n' || cp == '\r' || cp == '\f' || cp == '\v';
     }
 
+    // Transitional legacy parser retained as a compatibility oracle while the
+    // shared syntax frontend becomes the sole symbolic parsing path.
     class Parser {
         friend class ParserTestHelper;
 
@@ -909,11 +913,27 @@ namespace aleph3 {
         return expr;
     }
 
+    inline std::string format_parse_diagnostics(const std::vector<Diagnostic>& diagnostics) {
+        if (diagnostics.empty()) {
+            return "Symbolic parse failed.";
+        }
+
+        std::ostringstream out;
+        const auto& first = diagnostics.front();
+        out << first.code << ": " << first.message;
+        if (first.span.line > 0 && first.span.column > 0) {
+            out << " at line " << first.span.line << ", column " << first.span.column;
+        }
+        return out.str();
+    }
+
     // Helper function to simplify usage
     inline ExprPtr parse_expression(const std::string& input) {
-        Parser parser(input);
-        auto expr = parser.parse();
-        return try_make_complex(expr);
+        auto parsed = syntax::parse_symbolic_source(input);
+        if (!parsed.ok()) {
+            throw std::runtime_error(format_parse_diagnostics(parsed.diagnostics));
+        }
+        return parsed.expr;
     }
 
 }

@@ -13,6 +13,7 @@ the SDK, packs, and the notebook/workbench direction. The same sources can be
 
 1. [Project README](../README.md) — build, run, and product orientation.
 2. [Architecture](architecture.md) — system shape and ownership boundaries.
+   - [Architecture Map](architecture_map.md) — code-grounded companion: directories, build targets, and dependency edges.
 3. [SDK Guide](sdk/README.md) — embedding surface and SDK-specific references.
 4. [Notebook MVP Design](notebook_mvp_design.md) — product scope, planned cells,
    evaluation, persistence, display, and acceptance contract.

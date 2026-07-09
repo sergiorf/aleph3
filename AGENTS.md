@@ -28,3 +28,4 @@ verification evidence before claiming completion. Verify new manual examples
 against tests or the executable and check local documentation links. Worktrees,
 subagents, and commits are optional execution tools, not repository
 requirements.
+

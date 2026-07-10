@@ -84,6 +84,19 @@ TEST_CASE("Session exposes focused differentiation values and diagnostics", "[se
     REQUIRE(failure.diagnostics.front().code == "kernel.invalid_form");
 }
 
+TEST_CASE("Session exposes variable dependency inspection values and diagnostics", "[session][variables]") {
+    Session session;
+    REQUIRE(session.execute({"FreeVariables[f[a_] -> g[a, y]]"}).output == "{y}");
+    REQUIRE(session.execute({"BoundVariables[f[a_, b_Integer] -> g[a, b, y]]"}).output == "{a, b}");
+    REQUIRE(session.execute({"DependsOn[f[a_] -> g[a, y], a]"}).output == "False");
+    REQUIRE(session.execute({"DependsOn[f[a_] -> g[a, y], y]"}).output == "True");
+
+    const auto failure = session.execute({"DependsOn[x + y, x + 1]"});
+    REQUIRE_FALSE(failure.ok);
+    REQUIRE(failure.diagnostics.size() == 1);
+    REQUIRE(failure.diagnostics.front().code == "kernel.invalid_form");
+}
+
 TEST_CASE("Session exposes exact matrix values and diagnostics", "[session][algebra][matrix]") {
     Session session;
     REQUIRE(session.execute({"Det[{{1, 2}, {3, 4}}]"}).output == "-2");

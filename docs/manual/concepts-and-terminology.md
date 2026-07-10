@@ -160,6 +160,22 @@ performs a caller-directed structural transformation.
 Rewrites are bounded because a rule such as `a_ -> f[a]` could otherwise run
 forever.
 
+## Free Variable, Bound Variable, and Capture
+
+A **free variable** is a symbol an expression genuinely depends on in the
+current structural scope. A **bound variable** is introduced by a supported
+binder such as a function-definition parameter or a named pattern binder.
+
+```text
+FreeVariables[f[a_] -> g[a, y]]   -> {y}
+BoundVariables[f[a_] -> g[a, y]]  -> {a}
+```
+
+Substitution must avoid **capture**. If replacing `y` with `x` inside
+`f[x_] := y` made the inserted `x` refer to the function parameter, the meaning
+would change. The kernel's first capture-safe substitution contract skips that
+replacement rather than renaming binders.
+
 ### Replacement Depth
 
 The root expression is depth `0`; its arguments are depth `1`; their arguments

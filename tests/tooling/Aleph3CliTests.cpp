@@ -183,6 +183,13 @@ TEST_CASE("CLI evaluates focused calculus pack expressions", "[tooling][cli][cal
     REQUIRE(result.output == "2 * x + 3\n");
 }
 
+TEST_CASE("CLI evaluates variable dependency inspection expressions", "[tooling][cli][variables]") {
+    const auto expression = std::string(1, char(34)) + "DependsOn[f[a_]->g[a,y],a]" + char(34);
+    const auto result = run_shell_command(make_direct_command(expression));
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output == "False\n");
+}
+
 TEST_CASE("REPL symbolic session preserves state and exposes exact rational factorization", "[tooling][cli][session]") {
     const auto result = run_shell_command(make_repl_command(
         {"a = 2", "a + 3", "Factor[(1/2)*x^2 + x + 1/2]", ":quit"}));

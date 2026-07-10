@@ -91,8 +91,8 @@ Remaining work:
 - define richer definition categories and their lookup/precedence rules;
 - prove another nontrivial behavior through shared definition state rather
   than evaluator-local branching;
-- specify registry mutation, lifetime, thread safety, and eventual pack
-  loading/unload boundaries;
+- grow beyond the implemented registry lifecycle contract only when runtime
+  pack loading or unload becomes an active slice;
 - keep evaluation-control attributes deliberately bounded until their hooks
   and precedence are tested.
 
@@ -124,13 +124,6 @@ a measured toolkit decision unblocks the graphical notebook.
 
 Remaining work:
 
-- specify a narrow differentiation subset, including variables, constants,
-  supported heads, chain/product rules, simplification, budgets, and failure
-  behavior;
-- implement it as a registered pack using shared rewrite, assumptions,
-  exactness, and diagnostic contracts;
-- expose it consistently through session and CLI, and through the SDK only if
-  the trusted-subset contract permits;
 - run bounded Qt and webview/native-wrapper spikes against the same notebook
   and session fixture;
 - record the toolkit decision and packaging implications in Architecture.
@@ -149,9 +142,9 @@ Remaining work:
   explicitly;
 - introduce held or bound-variable constructs for a focused `Sum` surface, and
   leave `Product` to follow only after the same binding contract is proven;
-- specify `FreeVariables`, `BoundVariables`, `DependsOn`, and capture-safe
-  substitution so summation, calculus, and rewrite rules share one binding
-  model;
+- build on the implemented `FreeVariables`, `BoundVariables`, `DependsOn`, and
+  capture-safe substitution contract when adding summation, calculus, or
+  rewrite features that need shared binding;
 - add only the linear inequality normalization and bounded integer-range
   counting needed by the first DSP and summation workflows;
 - add conditional rewrite-rule support through the shared assumptions query
@@ -269,16 +262,13 @@ integration, and image processing are outside the first DSP pack.
 
 Use this order unless a regression or dependency changes it:
 
-1. Specify and implement the focused differentiation slice.
-2. Close the registration lifetime/mutation/thread-safety design needed by
-   long-lived embedding and future packs.
-3. Specify the focused DSP kernel prerequisite slice, including piecewise,
+1. Specify the focused DSP kernel prerequisite slice, including piecewise,
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.
-4. Run and record the notebook toolkit spikes against one shared fixture.
-5. Build the first graphical notebook vertical slice.
-6. Continue exact algebra hardening required by calculus and future DSP work.
-7. Expand cross-surface conformance and packaging verification around each
+2. Run and record the notebook toolkit spikes against one shared fixture.
+3. Build the first graphical notebook vertical slice.
+4. Continue exact algebra hardening required by calculus and future DSP work.
+5. Expand cross-surface conformance and packaging verification around each
    delivered slice.
 
 ## Deferred Work

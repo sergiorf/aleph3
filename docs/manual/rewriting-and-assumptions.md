@@ -15,6 +15,28 @@ MatchQ[3, _Integer]                      -> True
 structure. Typed patterns restrict the matched expression. Sequence patterns
 and general rule lists remain outside the current contract.
 
+## Variable Dependency Inspection
+
+Aleph3 can inspect supported expression structure for free and bound symbols:
+
+```text
+FreeVariables[x + y^2]                   -> {x, y}
+FreeVariables[f[a_] -> g[a, y]]          -> {y}
+BoundVariables[f[a_] -> g[a, y]]         -> {a}
+DependsOn[f[a_] -> g[a, y], a]           -> False
+DependsOn[f[a_] -> g[a, y], y]           -> True
+```
+
+Function-definition parameters and named rule-pattern binders are the current
+supported binders in the kernel model. Current surface syntax does not nest
+function definitions or assignments inside another call, so user-facing
+inspection examples use rules.
+
+These inspection functions hold their expression argument, so inspecting
+`a = x` does not perform the assignment. The current contract is structural
+dependency inspection, not broad scoping for future constructs such as `Sum`
+or `Product`.
+
 ## Targeting A Depth
 
 Depth zero is the whole expression. Its arguments are at depth one and their
@@ -73,3 +95,5 @@ general inequality solving.
 
 See the [rewrite specification](../kernel_rewrite_spec.md) and
 [assumptions specification](../kernel_assumptions_spec.md) for exact limits.
+Variable dependency behavior is specified in the
+[variable analysis specification](../kernel_variable_analysis_spec.md).

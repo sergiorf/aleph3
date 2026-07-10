@@ -178,6 +178,16 @@ TEST_CASE("Symbolic CLI support preserves builtin numeric and symbolic contracts
         tooling::symbolic_evaluate_expression("Refine[Abs[-x], x > 0]");
     REQUIRE(derived_abs.ok);
     REQUIRE(derived_abs.output == "x");
+
+    const auto free_variables =
+        tooling::symbolic_evaluate_expression("FreeVariables[f[a_] -> g[a, y]]");
+    REQUIRE(free_variables.ok);
+    REQUIRE(free_variables.output == "{y}");
+
+    const auto depends_on =
+        tooling::symbolic_evaluate_expression("DependsOn[f[a_] -> g[a, y], a]");
+    REQUIRE(depends_on.ok);
+    REQUIRE(depends_on.output == "False");
 }
 
 TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[tooling][symbolic-cli]") {
@@ -226,4 +236,9 @@ TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[toolin
         tooling::symbolic_evaluate_expression("Replace[f[x], 3]");
     REQUIRE_FALSE(replace_failure.ok);
     REQUIRE(replace_failure.error_message == "Replace expects the second argument to be a Rule");
+
+    const auto dependency_failure =
+        tooling::symbolic_evaluate_expression("DependsOn[x + y, x + 1]");
+    REQUIRE_FALSE(dependency_failure.ok);
+    REQUIRE(dependency_failure.error_message == "DependsOn expects the second argument to be a symbol");
 }

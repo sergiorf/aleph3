@@ -5,6 +5,7 @@
 #include "kernel/Assumptions.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/Rewrite.hpp"
+#include "kernel/VariableAnalysis.hpp"
 #include "packs/AlgebraPack.hpp"
 #include "packs/CalculusPack.hpp"
 #include "expr/ExprUtils.hpp"
@@ -125,6 +126,23 @@ namespace aleph3 {
         }
 
         return make_expr<FunctionCall>(name, std::vector<ExprPtr>{arg});
+    }
+
+    ExprPtr symbol_set_to_list(const kernel::SymbolSet& symbols) {
+        std::vector<ExprPtr> elements;
+        elements.reserve(symbols.size());
+        for (const auto& symbol : symbols) {
+            elements.push_back(make_expr<Symbol>(symbol));
+        }
+        return std::make_shared<Expr>(List{elements});
+    }
+
+    std::string require_symbol_name(const ExprPtr& expr, const std::string& name) {
+        const auto* symbol = std::get_if<Symbol>(expr.get());
+        if (symbol == nullptr) {
+            throw_invalid_form(name + " expects the second argument to be a symbol");
+        }
+        return symbol->name;
     }
 
     }  // namespace
@@ -390,6 +408,37 @@ namespace aleph3 {
                 return kernel::refine_expr_with_assumptions(evaluated, scoped_ctx.assumptions);
             },
             {symbols::SymbolAttribute::hold_rest});
+
+        registry.register_function(
+            "FreeVariables",
+            [](const FunctionCall& func, EvaluationContext&) -> ExprPtr {
+                if (func.args.size() != 1) {
+                    throw_invalid_arity_exact("FreeVariables", 1);
+                }
+                return symbol_set_to_list(kernel::free_variables(func.args[0]));
+            },
+            {symbols::SymbolAttribute::hold_all});
+
+        registry.register_function(
+            "BoundVariables",
+            [](const FunctionCall& func, EvaluationContext&) -> ExprPtr {
+                if (func.args.size() != 1) {
+                    throw_invalid_arity_exact("BoundVariables", 1);
+                }
+                return symbol_set_to_list(kernel::bound_variables(func.args[0]));
+            },
+            {symbols::SymbolAttribute::hold_all});
+
+        registry.register_function(
+            "DependsOn",
+            [](const FunctionCall& func, EvaluationContext&) -> ExprPtr {
+                if (func.args.size() != 2) {
+                    throw_invalid_arity_exact("DependsOn", 2);
+                }
+                return make_expr<Boolean>(
+                    kernel::depends_on(func.args[0], require_symbol_name(func.args[1], "DependsOn")));
+            },
+            {symbols::SymbolAttribute::hold_all});
     }
 
 void register_built_in_functions(kernel::FunctionRegistry& registry) {

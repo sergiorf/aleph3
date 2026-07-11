@@ -17,6 +17,12 @@ namespace aleph3 {
         std::string name;
         std::string description;
         std::string category;
+        std::vector<std::string> forms;
+        std::vector<std::string> examples;
+        std::string exactness;
+        std::string unsupported;
+        std::string owning_component;
+        std::string manual_anchor;
     };
 
     inline const std::vector<HelpEntry>& get_help_entries() {
@@ -67,11 +73,40 @@ namespace aleph3 {
             {"Round", "Round[x]: Round x to the nearest integer", "Other"},
             {"Gamma", "Gamma[x]: Gamma function of x", "Other"},
             {"Rational", "Rational[n, d]: Rational number n/d (exact)", "Other"},
-            {"Replace", "Replace[expr, rule, level]: Apply one rule, optionally at a nonnegative depth or range", "Symbolic"},
+            {"Replace", "Apply one supported rewrite rule through the existing whole-expression traversal.", "Symbolic",
+                {"Replace[expr, rule]", "Replace[expr, rule, level]"},
+                {"Replace[f[x], f[a_] -> g[a]] -> g[x]"},
+                "Preserves exact expressions unless the replacement rule introduces approximate values.",
+                "Rule lists and RuleDelayed are unsupported in the current replacement surface.",
+                "builtin", "manual/rewriting-and-assumptions.md"},
+            {"ReplaceAll", "Alias for Replace[expr, rule] using the same whole-expression traversal.", "Symbolic",
+                {"ReplaceAll[expr, rule]", "expr /. rule"},
+                {"f[x] /. x -> y -> f[y]"},
+                "Preserves exact expressions unless the replacement rule introduces approximate values.",
+                "Rule lists and RuleDelayed are unsupported.",
+                "builtin", "manual/rewriting-and-assumptions.md"},
             {"ReplaceRepeated", "ReplaceRepeated[expr, rule, level]: Reapply a rule at an optional bounded depth", "Symbolic"},
             {"MatchQ", "MatchQ[expr, pattern]: Test whether expr matches a supported symbolic pattern", "Symbolic"},
-            {"Clear", "Clear[symbol]: Remove a session-local own value and user function definition", "Symbolic"},
-            {"Unset", "Unset[symbol]: Remove a session-local own value only", "Symbolic"},
+            {"Rule", "Build a rewrite rule from a left-hand side to a right-hand side.", "Symbolic",
+                {"lhs -> rhs"}, {"f[x] /. x -> y -> f[y]"}, "", "", "syntax", "manual/rewriting-and-assumptions.md"},
+            {"RuleDelayed", "Reserved replacement form; not supported by the current evaluator.", "Symbolic",
+                {"lhs :> rhs"}, {}, "", "RuleDelayed is not accepted by Replace or ReplaceAll.", "syntax",
+                "manual/rewriting-and-assumptions.md"},
+            {"Set", "Assign a session-local own value.", "Symbolic",
+                {"name = expr"}, {"a = 2", "a + 3 -> 5"},
+                "Stores the evaluated right-hand side in the active session.",
+                "Provider-owned names still keep provider precedence.", "session", "manual/sessions-cli-and-notebook.md"},
+            {"SetDelayed", "Define a session-local user function evaluated when it is called.", "Symbolic",
+                {"f[x_] := expr"}, {"f[x_] := x + 1", "f[4] -> 5"}, "",
+                "Only the bounded user-definition subset is supported.", "session", "manual/sessions-cli-and-notebook.md"},
+            {"Clear", "Remove a session-local own value and user function definition.", "Symbolic",
+                {"Clear[symbol]"}, {"a = 10", "Clear[a]", "a -> a"}, "",
+                "Clear cannot remove builtin, special-form, pack, or host-owned behavior.", "builtin",
+                "manual/sessions-cli-and-notebook.md"},
+            {"Unset", "Remove a session-local own value only.", "Symbolic",
+                {"Unset[symbol]"}, {"a = 10", "Unset[a]", "a -> a"}, "",
+                "Unset does not remove user function definitions in this MVP slice.", "builtin",
+                "manual/sessions-cli-and-notebook.md"},
             {"FreeVariables", "FreeVariables[expr]: List symbols that occur free in expr", "Symbolic"},
             {"BoundVariables", "BoundVariables[expr]: List pattern or function-definition variables bound in expr", "Symbolic"},
             {"DependsOn", "DependsOn[expr, x]: Test whether expr has x as a free variable", "Symbolic"},
@@ -89,13 +124,23 @@ namespace aleph3 {
 
             // Polynomial manipulation
             {"Expand", "Expand[expr]: Expand out products and powers in a polynomial expression", "Polynomial"},
-            {"Factor", "Factor[expr]: Factor a polynomial expression over the integers", "Polynomial"},
+            {"Factor", "Factor a supported exact polynomial expression.", "Polynomial",
+                {"Factor[expr]"},
+                {"Factor[x^2 - 1] -> (x - 1) * (x + 1)"},
+                "Preserves exact integer and rational polynomial coefficients.",
+                "Broad transcendental and general multivariate factorization remain unsupported.",
+                "core-algebra", "manual/built-in-functions.md"},
             {"Collect", "Collect[expr, x]: Collect terms in expr by powers of x", "Polynomial"},
             {"GCD", "GCD[a, b, vars]: Exact polynomial GCD, including bounded multivariate monomial content with explicit vars", "Polynomial"},
             {"PolynomialQuotient", "PolynomialQuotient[a, b, vars]: Exact quotient and remainder using explicit variable precedence", "Polynomial"},
 
             // Calculus
-            {"D", "D[expr, x]: Differentiate expr with respect to symbol x in the focused calculus subset", "Calculus"},
+            {"D", "Differentiate an expression with respect to a symbol in the focused calculus subset.", "Calculus",
+                {"D[expr, x]"},
+                {"D[x^2 + 3*x, x] -> 2 * x + 3"},
+                "Exact polynomial-style results stay exact.",
+                "Higher-order, broad partial-derivative, and general calculus workflows are outside this slice.",
+                "core-calculus", "manual/built-in-functions.md"},
             {"Differentiate", "Differentiate[expr, x]: Alias for D[expr, x]", "Calculus"},
 
             // Exact dense matrices
@@ -127,7 +172,11 @@ namespace aleph3 {
             {"Cases", "Cases[list, pattern]: Return elements matching a supported pattern", "List"},
 
             // Numeric
-            {"N", "N[expr]: Evaluate numerically", "Numeric"},
+            {"N", "N[expr]: Evaluate numerically", "Numeric",
+                {"N[expr]"}, {},
+                "Exact integers and rationals remain exact until N or machine-real inputs request approximation.",
+                "Arbitrary precision and broad numerical analysis are deferred.",
+                "builtin", "manual/built-in-functions.md"},
 
             // Output/Display
             {"FullForm", "FullForm[expr]: Show the internal structure of expr", "Other"},
@@ -138,6 +187,15 @@ namespace aleph3 {
             {"Degree", "Degree: 1 degree = Pi/180 radians", "Constants"},
         };
         return entries;
+    }
+
+    inline const HelpEntry* find_help_entry(const std::string& name) {
+        for (const auto& entry : get_help_entries()) {
+            if (entry.name == name) {
+                return &entry;
+            }
+        }
+        return nullptr;
     }
 
 }

@@ -268,6 +268,22 @@ Implemented session lifecycle reset:
 - the CLI REPL exposes this lifecycle operation as `:reset`; it is not a
   symbolic builtin and does not replace `Clear` or `Unset`.
 
+Implemented interactive discovery contract:
+
+- session completion reports names from the active function registry and the
+  current session-local definition state.
+- provider-owned builtin, special-form, and pack entries keep discovery
+  precedence over same-named session-local records, matching evaluator
+  precedence.
+- session-local own values are reported as `symbol`; session-local user
+  functions are reported as `function`.
+- session help uses the same registry and session-local state, with static
+  help metadata providing accepted forms, concise descriptions, short examples,
+  exactness notes, unsupported boundaries, and manual anchors where available.
+- focused help is deterministic prefix/name/package lookup. Fuzzy search,
+  natural-language help, and rich in-product documentation search remain
+  outside this contract.
+
 Deferred cleanup syntax:
 
 - Mathematica-style `x =.` syntax is not implemented.

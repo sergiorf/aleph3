@@ -6,7 +6,7 @@
 #include "kernel/EvaluationContext.hpp"
 #include "sdk/Types.hpp"
 namespace aleph3::session {
-enum class SessionOperation { evaluate, simplify, full_form, inspect, discover_packs, complete };
+enum class SessionOperation { evaluate, simplify, full_form, inspect, discover_packs, complete, help };
 struct SessionRequest { std::string source; SessionOperation operation = SessionOperation::evaluate; };
 struct SessionDiagnostic {
     std::string code;
@@ -28,6 +28,17 @@ struct SessionCompletion {
     std::string owning_package;
     std::string documentation;
 };
+struct SessionHelpEntry {
+    std::string name;
+    std::string category;
+    std::string owning_package;
+    std::string description;
+    std::vector<std::string> forms;
+    std::vector<std::string> examples;
+    std::string exactness;
+    std::string unsupported;
+    std::string manual_anchor;
+};
 struct SessionResult {
     bool ok = false;
     std::string output;
@@ -35,6 +46,7 @@ struct SessionResult {
     std::vector<SessionInspection> inspections;
     std::vector<SessionPack> packs;
     std::vector<SessionCompletion> completions;
+    std::vector<SessionHelpEntry> help_entries;
 };
 class Session {
 public:

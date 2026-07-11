@@ -168,10 +168,19 @@ do not perform general inequality or theorem solving.
 
 ```text
 :help
+:help Factor
+:help :reset
 :complete Str
 :packs
 ```
 
-Completion includes built-ins, special forms, pack functions, and names defined
-in the current session. The CLI help catalog provides terse reference text;
-this manual supplies behavioral context.
+Bare `:help` shows a grouped discovery menu for REPL commands, builtins,
+special forms, discovered packs, and current user-defined names. Focused help,
+such as `:help Factor` or `:help core-algebra`, prints accepted forms, short
+manual-backed examples, exactness notes, unsupported boundaries, and owning
+pack or component metadata where relevant.
+
+Completion includes builtins, special forms, pack functions, and names defined
+in the current session. If a user definition has the same name as a
+provider-owned symbol, discovery still reports the provider-owned entry because
+provider behavior keeps precedence.

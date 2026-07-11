@@ -323,6 +323,130 @@ void print_help() {
         << "  aleph3_cli evaluate-host --var x=12 \"Clamp[x, 0, 10]\"\n";
 }
 
+bool print_repl_command_help(std::string_view command) {
+    if (!command.empty() && command.front() == ':') {
+        command.remove_prefix(1);
+    }
+    if (command == "help") {
+        std::cout << ":help [name-or-prefix]\n"
+                  << "  Show this menu or focused help for commands and supported symbolic names.\n";
+        return true;
+    }
+    if (command == "complete") {
+        std::cout << ":complete <prefix>\n"
+                  << "  List matching symbolic names with category and owning package when available.\n";
+        return true;
+    }
+    if (command == "packs") {
+        std::cout << ":packs\n"
+                  << "  List registered symbolic packs discovered by the current session.\n";
+        return true;
+    }
+    if (command == "reset") {
+        std::cout << ":reset\n"
+                  << "  Discard session-local assignments and user functions without unloading builtins or packs.\n";
+        return true;
+    }
+    if (command == "mode") {
+        std::cout << ":mode [sdk|symbolic]\n"
+                  << "  Show or change the evaluator used for bare REPL input.\n";
+        return true;
+    }
+    if (command == "inspect") {
+        std::cout << ":inspect <expr>\n"
+                  << "  Show structural facts for a symbolic expression without evaluating it.\n";
+        return true;
+    }
+    return false;
+}
+
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+void print_session_help_entries(const std::vector<aleph3::session::SessionHelpEntry>& entries) {
+    for (const auto& entry : entries) {
+        std::cout << entry.name << " [" << entry.category << "]";
+        if (!entry.owning_package.empty()) {
+            std::cout << " (" << entry.owning_package << ")";
+        }
+        std::cout << '\n';
+        if (!entry.description.empty()) {
+            std::cout << "  " << entry.description << '\n';
+        }
+        if (!entry.forms.empty()) {
+            std::cout << "  Forms:\n";
+            for (const auto& form : entry.forms) {
+                std::cout << "    " << form << '\n';
+            }
+        }
+        if (!entry.examples.empty()) {
+            std::cout << "  Examples:\n";
+            for (const auto& example : entry.examples) {
+                std::cout << "    " << example << '\n';
+            }
+        }
+        if (!entry.exactness.empty()) {
+            std::cout << "  Exactness: " << entry.exactness << '\n';
+        }
+        if (!entry.unsupported.empty()) {
+            std::cout << "  Unsupported: " << entry.unsupported << '\n';
+        }
+        if (!entry.manual_anchor.empty()) {
+            std::cout << "  Manual: " << entry.manual_anchor << '\n';
+        }
+        std::cout << '\n';
+    }
+}
+
+void print_repl_discovery_menu(aleph3::session::Session& session) {
+    std::cout
+        << style_stdout("Commands", cli_palette().accent) << '\n'
+        << "  :help [name-or-prefix]   Show this menu or focused help\n"
+        << "  :complete <prefix>       List matching symbolic names\n"
+        << "  :packs                   List discovered packs\n"
+        << "  :reset                   Clear session-local definitions\n"
+        << "  :mode [sdk|symbolic]     Show or change the active evaluator\n"
+        << "  :quit                    Exit the REPL\n"
+        << '\n'
+        << style_stdout("Discovery", cli_palette().accent) << '\n'
+        << "  Builtins                 Arithmetic, lists, rewriting, assumptions, cleanup\n"
+        << "  Special forms            Held/evaluation-control forms such as And, Or, Set, SetDelayed\n";
+
+    const auto packs = session.execute({"", aleph3::session::SessionOperation::discover_packs});
+    std::cout << "  Discovered packs";
+    if (packs.ok && !packs.packs.empty()) {
+        std::cout << "         ";
+        for (std::size_t i = 0; i < packs.packs.size(); ++i) {
+            if (i != 0) std::cout << ", ";
+            std::cout << packs.packs[i].name;
+        }
+    }
+    std::cout << '\n';
+
+    const auto locals = session.execute({"", aleph3::session::SessionOperation::complete});
+    std::vector<std::string> local_names;
+    for (const auto& completion : locals.completions) {
+        if (completion.category == "symbol" || completion.category == "function") {
+            local_names.push_back(completion.name);
+        }
+    }
+    std::cout << "  User-defined";
+    if (!local_names.empty()) {
+        std::cout << "             ";
+        for (std::size_t i = 0; i < local_names.size(); ++i) {
+            if (i != 0) std::cout << ", ";
+            std::cout << local_names[i];
+        }
+    }
+    std::cout << '\n'
+              << '\n'
+              << style_stdout("Try", cli_palette().accent) << '\n'
+              << "  :help Factor\n"
+              << "  :help Clear\n"
+              << "  :help core-algebra\n"
+              << "  :help :reset\n"
+              << "  :complete Rep\n";
+}
+#endif
+
 void print_host_functions() {
     print_cli_logo(true);
     std::cout
@@ -1113,7 +1237,35 @@ int run_repl() {
             return 0;
         }
         if (normalized_command == "help") {
-            print_help();
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+            if (formula.empty()) {
+                print_repl_discovery_menu(symbolic_session);
+                continue;
+            }
+            if (!formula.empty() && formula.front() == ':') {
+                if (!print_repl_command_help(formula)) {
+                    std::cout << "No help found for " << formula << '\n';
+                }
+                continue;
+            }
+            const auto result = symbolic_session.execute(
+                {formula, aleph3::session::SessionOperation::help});
+            if (!result.ok) {
+                std::cerr << style_stderr("Help lookup failed.", cli_palette().error) << '\n';
+                continue;
+            }
+            if (result.help_entries.empty()) {
+                std::cout << "No help found for " << formula << '\n';
+                continue;
+            }
+            print_session_help_entries(result.help_entries);
+#else
+            if (formula.empty()) {
+                print_help();
+            } else if (!print_repl_command_help(formula)) {
+                std::cout << "No help found for " << formula << '\n';
+            }
+#endif
             continue;
         }
         if (normalized_command == "mode") {

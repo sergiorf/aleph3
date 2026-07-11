@@ -3,6 +3,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/FullForm.hpp"
+#include "help/HelpTexts.hpp"
 #include "syntax/SymbolicLowering.hpp"
 #include "transforms/Transforms.hpp"
 
@@ -79,6 +80,73 @@ SessionInspection inspect_expression(const ExprPtr& expr) {
     return inspection;
 }
 
+int completion_category_rank(const std::string& category) {
+    if (category == "builtin") return 0;
+    if (category == "special-form") return 1;
+    if (category == "pack") return 2;
+    if (category == "function") return 3;
+    if (category == "symbol") return 4;
+    return 5;
+}
+
+std::string callable_category_name(const kernel::CallableMetadata& callable) {
+    if (callable.metadata.source == kernel::RegistrationSource::pack) {
+        return "pack";
+    }
+    if (callable.category == kernel::CallableCategory::special_form) {
+        return "special-form";
+    }
+    return "builtin";
+}
+
+std::string completion_documentation_for(const std::string& name, const std::string& fallback) {
+    if (!fallback.empty()) {
+        return fallback;
+    }
+    if (const auto* help = find_help_entry(name)) {
+        return help->description;
+    }
+    return "";
+}
+
+SessionHelpEntry make_help_entry(
+    std::string name,
+    std::string category,
+    std::string owning_package,
+    std::string documentation = {}) {
+    SessionHelpEntry entry;
+    entry.name = std::move(name);
+    entry.category = std::move(category);
+    entry.owning_package = std::move(owning_package);
+    if (const auto* help = find_help_entry(entry.name)) {
+        entry.description = help->description;
+        entry.forms = help->forms;
+        entry.examples = help->examples;
+        entry.exactness = help->exactness;
+        entry.unsupported = help->unsupported;
+        entry.manual_anchor = help->manual_anchor;
+        if (entry.owning_package.empty() && !help->owning_component.empty() &&
+            help->owning_component != "builtin" && help->owning_component != "syntax" &&
+            help->owning_component != "session") {
+            entry.owning_package = help->owning_component;
+        }
+    }
+    if (entry.description.empty()) {
+        entry.description = std::move(documentation);
+    }
+    return entry;
+}
+
+bool help_matches_query(const SessionHelpEntry& entry, const std::string& query, bool exact_mode) {
+    if (query.empty()) return true;
+    if (exact_mode) {
+        return entry.name == query || entry.owning_package == query || entry.category == query;
+    }
+    return entry.name.starts_with(query) ||
+        (!entry.owning_package.empty() && entry.owning_package.starts_with(query)) ||
+        entry.category.starts_with(query);
+}
+
 }  // namespace
 
 Session::Session() : context_(kernel::default_function_registry()) {
@@ -92,7 +160,9 @@ void Session::reset() {
 SessionResult Session::execute(const SessionRequest& request) {
     SessionResult result;
     if (request.operation != SessionOperation::discover_packs &&
-        request.operation != SessionOperation::complete && request.source.empty()) {
+        request.operation != SessionOperation::complete &&
+        request.operation != SessionOperation::help &&
+        request.source.empty()) {
         result.diagnostics.push_back({"session.empty_source", "An expression is required."});
         return result;
     }
@@ -119,27 +189,78 @@ SessionResult Session::execute(const SessionRequest& request) {
             };
             for (const auto& callable : context_.function_registry().callable_metadata()) {
                 if (!starts_with_prefix(callable.metadata.name)) continue;
-                std::string category = "builtin";
-                if (callable.metadata.source == kernel::RegistrationSource::pack) {
-                    category = "pack";
-                } else if (callable.category == kernel::CallableCategory::special_form) {
-                    category = "special-form";
-                }
+                auto category = callable_category_name(callable);
                 matches.emplace(callable.metadata.name, SessionCompletion{
                     callable.metadata.name,
                     std::move(category),
                     callable.metadata.owning_package,
-                    callable.metadata.documentation});
+                    completion_documentation_for(callable.metadata.name, callable.metadata.documentation)});
             }
             for (const auto& [name, _] : context_.symbol_values.entries()) {
-                if (starts_with_prefix(name)) matches[name] = {name, "symbol", "", ""};
+                if (starts_with_prefix(name)) {
+                    matches.emplace(name, SessionCompletion{name, "symbol", "", "session-local own value"});
+                }
             }
             for (const auto& [name, _] : context_.function_definitions.entries()) {
-                if (starts_with_prefix(name)) matches[name] = {name, "function", "", ""};
+                if (!starts_with_prefix(name)) continue;
+                auto it = matches.find(name);
+                if (it == matches.end() || it->second.category == "symbol") {
+                    matches[name] = {name, "function", "", "session-local user function"};
+                }
             }
             for (auto& [_, completion] : matches) {
                 result.completions.push_back(std::move(completion));
             }
+            std::sort(result.completions.begin(), result.completions.end(), [](const auto& left, const auto& right) {
+                if (left.name != right.name) return left.name < right.name;
+                return completion_category_rank(left.category) < completion_category_rank(right.category);
+            });
+            result.ok = true;
+            return result;
+        }
+        if (request.operation == SessionOperation::help) {
+            std::map<std::string, SessionHelpEntry> candidates;
+            const auto add_candidate = [&](SessionHelpEntry entry) {
+                candidates.emplace(entry.name, std::move(entry));
+            };
+            for (const auto& callable : context_.function_registry().callable_metadata()) {
+                add_candidate(make_help_entry(
+                    callable.metadata.name,
+                    callable_category_name(callable),
+                    callable.metadata.owning_package,
+                    callable.metadata.documentation));
+            }
+            for (const auto& entry : get_help_entries()) {
+                add_candidate(make_help_entry(entry.name, entry.category, entry.owning_component, entry.description));
+            }
+            for (const auto& [name, _] : context_.symbol_values.entries()) {
+                add_candidate(SessionHelpEntry{name, "symbol", "", "session-local own value"});
+            }
+            for (const auto& [name, _] : context_.function_definitions.entries()) {
+                auto entry = SessionHelpEntry{name, "function", "", "session-local user function"};
+                auto it = candidates.find(name);
+                if (it == candidates.end() || it->second.category == "symbol") {
+                    candidates[name] = std::move(entry);
+                }
+            }
+            const bool exact_mode = std::any_of(
+                candidates.begin(),
+                candidates.end(),
+                [&](const auto& item) {
+                    const auto& entry = item.second;
+                    return entry.name == request.source ||
+                        entry.owning_package == request.source ||
+                        entry.category == request.source;
+                });
+            for (auto& [_, entry] : candidates) {
+                if (help_matches_query(entry, request.source, exact_mode)) {
+                    result.help_entries.push_back(std::move(entry));
+                }
+            }
+            std::sort(result.help_entries.begin(), result.help_entries.end(), [](const auto& left, const auto& right) {
+                if (left.name != right.name) return left.name < right.name;
+                return completion_category_rank(left.category) < completion_category_rank(right.category);
+            });
             result.ok = true;
             return result;
         }
@@ -170,6 +291,7 @@ SessionResult Session::execute(const SessionRequest& request) {
                 break;
             case SessionOperation::discover_packs:
             case SessionOperation::complete:
+            case SessionOperation::help:
                 break;
         }
         result.ok = true;

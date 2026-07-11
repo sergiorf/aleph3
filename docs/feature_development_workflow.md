@@ -196,7 +196,12 @@ applicable document:
   invariants, failure behavior, and precise boundaries in their canonical
   focused documents.
 - **CLI help and discovery:** update help text, completion metadata, examples,
-  and command descriptions when the feature is interactively visible.
+  and command descriptions when the feature is interactively visible. Any new
+  user-facing symbolic function, pack function, special form, REPL command, or
+  session operation must register or expose the metadata needed by the shared
+  help and completion infrastructure in the same change, including accepted
+  forms, a concise description, owning component or pack where relevant, and
+  explicit unsupported boundaries.
 - **README and documentation index:** update these only for onboarding,
   navigation, build, or major product-surface changes; do not duplicate the
   manual there.
@@ -237,6 +242,8 @@ A substantial feature is complete when:
 - relevant manual pages explain the capability with verified examples and
   explicit limitations
 - affected concepts, help text, README navigation, and links are current
+- new user-facing functionality is discoverable through shared help and
+  completion infrastructure, or explicitly documented as non-interactive
 - the diff contains no unnecessary duplicate semantics or unrelated changes
 - roadmap status is updated only if the delivered work changed it
 - completion evidence and remaining limitations are reported

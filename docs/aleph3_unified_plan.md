@@ -388,6 +388,11 @@ processing are outside the first DSP pack.
 - provide a minimal CLI and notebook help catalog for supported operations,
   accepted forms, one or two examples, exactness or approximation behavior,
   unsupported boundaries, and owning pack or component where useful;
+- fill out structured, manual-backed help entries for the existing supported
+  surface, prioritizing currently sparse catalog entries before adding richer
+  product-shell search. Each entry should include accepted forms, short
+  examples covered by manual text or tests, exactness notes where relevant,
+  unsupported boundaries, owning component or pack, and a local manual anchor;
 - keep completions deterministic across builtins, pack functions, host
   functions, and session-local definitions;
 - defer broad documentation search, rich tutorials in the product shell, and
@@ -420,7 +425,9 @@ Use this order unless a regression or dependency changes it:
 
 1. Finish the remaining interactive definition/session semantics work:
    session reset, definition clearing flows, completion/help consistency, and
-   cross-surface fixtures.
+   cross-surface fixtures. As part of the help/discovery follow-through, fill
+   sparse structured help entries with manual-backed examples and unsupported
+   boundaries for the current supported surface.
 2. Specify and implement the remaining symbolic MVP gap-closure items across
    rational-expression helpers, coefficient extraction, lexical binding, and
    calculus follow-ups.

@@ -13,6 +13,8 @@ This is shared infrastructure for the CLI and future graphical products.
 
 ```text
 :help
+:help Factor
+:help core-algebra
 :mode
 :inspect f[x + 1]
 :packs
@@ -24,6 +26,23 @@ This is shared infrastructure for the CLI and future graphical products.
 The symbolic REPL preserves assignments and definitions. One-shot commands
 start fresh. On supported terminals Tab completes commands and symbols;
 `:complete` is the deterministic, pipe-friendly fallback.
+
+Use bare `:help` as the high-level discovery menu. It groups REPL commands,
+builtins, special forms, discovered packs, and current user-defined names.
+Focused help accepts a name, prefix, package, or REPL command:
+
+```text
+:help Factor
+:help Clear
+:help core-algebra
+:help :reset
+```
+
+Focused help is backed by the shared session help metadata. Entries include
+accepted forms, a concise description, short examples taken from the manual
+where practical, exactness notes, unsupported boundaries, and the owning pack
+or component when relevant. `:complete` uses the same session and registry
+facts for deterministic name discovery.
 
 Use `:reset` when an interactive symbolic session should start over without
 leaving the REPL. It discards session-local assignments and user function

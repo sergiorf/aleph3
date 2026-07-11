@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <string>
 
 using aleph3::session::Session;
 using aleph3::session::SessionOperation;
@@ -145,7 +146,8 @@ TEST_CASE("Session completes registry and session symbols deterministically", "[
     REQUIRE(factor.ok);
     REQUIRE(factor.completions.size() == 1);
     REQUIRE(factor.completions.front().name == "Factor");
-    REQUIRE(factor.completions.front().category == "function");
+    REQUIRE(factor.completions.front().category == "pack");
+    REQUIRE(factor.completions.front().owning_package == "core-algebra");
 
     const auto packs = session.execute({"Pol", SessionOperation::complete});
     REQUIRE(packs.completions.size() == 1);
@@ -191,6 +193,55 @@ TEST_CASE("Session completion is isolated and permits empty results", "[session]
     REQUIRE(left.execute({"local", SessionOperation::complete}).completions.size() == 1);
     REQUIRE(right.execute({"local", SessionOperation::complete}).completions.empty());
     REQUIRE(right.execute({"NoSuchPrefix", SessionOperation::complete}).ok);
+}
+
+TEST_CASE("Session help exposes provider and session-local discovery", "[session][help][completion]") {
+    Session session;
+
+    const auto factor = session.execute({"Factor", SessionOperation::help});
+    REQUIRE(factor.ok);
+    REQUIRE(factor.help_entries.size() == 1);
+    REQUIRE(factor.help_entries.front().name == "Factor");
+    REQUIRE(factor.help_entries.front().category == "pack");
+    REQUIRE(factor.help_entries.front().owning_package == "core-algebra");
+    REQUIRE(factor.help_entries.front().examples.size() == 1);
+
+    const auto derivative = session.execute({"D", SessionOperation::help});
+    REQUIRE(derivative.ok);
+    REQUIRE(derivative.help_entries.size() == 1);
+    REQUIRE(derivative.help_entries.front().owning_package == "core-calculus");
+
+    const auto clear = session.execute({"Clear", SessionOperation::help});
+    REQUIRE(clear.ok);
+    REQUIRE(clear.help_entries.size() == 1);
+    REQUIRE(clear.help_entries.front().unsupported.find("cannot remove") != std::string::npos);
+
+    const auto unknown = session.execute({"NoSuchHelpPrefix", SessionOperation::help});
+    REQUIRE(unknown.ok);
+    REQUIRE(unknown.help_entries.empty());
+
+    REQUIRE(session.execute({"alpha = 2"}).ok);
+    REQUIRE(session.execute({"f[x_] := x + 1"}).ok);
+    const auto alpha = session.execute({"alpha", SessionOperation::complete});
+    REQUIRE(alpha.completions.size() == 1);
+    REQUIRE(alpha.completions.front().documentation == "session-local own value");
+
+    const auto function = session.execute({"f", SessionOperation::help});
+    REQUIRE(function.help_entries.size() == 1);
+    REQUIRE(function.help_entries.front().category == "function");
+    REQUIRE(function.help_entries.front().description == "session-local user function");
+
+    REQUIRE(session.execute({"Plus[x_, y_] := 99"}).ok);
+    const auto plus = session.execute({"Plus", SessionOperation::complete});
+    REQUIRE(plus.completions.size() == 1);
+    REQUIRE(plus.completions.front().category == "builtin");
+
+    REQUIRE(session.execute({"Clear[f]"}).ok);
+    REQUIRE(session.execute({"f", SessionOperation::complete}).completions.empty());
+
+    session.reset();
+    REQUIRE(session.execute({"alpha", SessionOperation::help}).help_entries.empty());
+    REQUIRE(session.execute({"Factor", SessionOperation::help}).help_entries.size() == 1);
 }
 
 TEST_CASE("Session reports polynomial division by zero with a stable diagnostic", "[session][algebra][diagnostics]") {

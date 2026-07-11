@@ -158,11 +158,29 @@ TEST_CASE("REPL meta commands use colon prefixes", "[tooling][cli]") {
     REQUIRE(help_result.exit_code == 0);
     REQUIRE(help_result.output.find("Commands") != std::string::npos);
     REQUIRE(help_result.output.find(":reset") != std::string::npos);
+    REQUIRE(help_result.output.find("Discovery") != std::string::npos);
+    REQUIRE(help_result.output.find("Builtins") != std::string::npos);
+    REQUIRE(help_result.output.find("Discovered packs") != std::string::npos);
+    REQUIRE(help_result.output.find("User-defined") != std::string::npos);
 
     const auto parse_result = run_shell_command(make_repl_command({":parse 1+1", ":quit"}));
 
     REQUIRE(parse_result.exit_code == 0);
     REQUIRE(parse_result.output.find("binary_op") != std::string::npos);
+}
+
+TEST_CASE("REPL help exposes focused symbolic and command entries", "[tooling][cli][session][help]") {
+    const auto result = run_shell_command(make_repl_command(
+        {":help Factor", ":help Clear", ":help :reset", ":help core-algebra", ":quit"}));
+
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output.find("Factor [pack] (core-algebra)") != std::string::npos);
+    REQUIRE(result.output.find("Factor[x^2 - 1] -> (x - 1) * (x + 1)") != std::string::npos);
+    REQUIRE(result.output.find("Clear [builtin]") != std::string::npos);
+    REQUIRE(result.output.find("Clear cannot remove builtin") != std::string::npos);
+    REQUIRE(result.output.find(":reset") != std::string::npos);
+    REQUIRE(result.output.find("without unloading builtins or packs") != std::string::npos);
+    REQUIRE(result.output.find("PolynomialQuotient [pack] (core-algebra)") != std::string::npos);
 }
 
 TEST_CASE("REPL mode command reports and switches evaluators", "[tooling][cli]") {
@@ -250,6 +268,17 @@ TEST_CASE("REPL reset removes session-local completions", "[tooling][cli][sessio
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output.find("localResetSymbol\tsymbol") != std::string::npos);
     REQUIRE(count_substrings(result.output, "localResetSymbol\tsymbol") == 1);
+}
+
+TEST_CASE("REPL completion reflects provider precedence and cleanup", "[tooling][cli][session][completion]") {
+    const auto result = run_shell_command(make_repl_command(
+        {"localHelpName = 1", "Plus[x_, y_] := 99", ":complete localHelp",
+         ":complete Plus", "Clear[localHelpName]", ":complete localHelp", ":quit"}));
+
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output.find("localHelpName\tsymbol") != std::string::npos);
+    REQUIRE(count_substrings(result.output, "localHelpName\tsymbol") == 1);
+    REQUIRE(result.output.find("Plus\tbuiltin") != std::string::npos);
 }
 
 TEST_CASE("CLI one-shot evaluation is ephemeral and REPL recovers after errors", "[tooling][cli][session]") {

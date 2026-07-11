@@ -60,6 +60,48 @@ String ranges use the documented one-based convention. Lists are expression
 containers; accepting a list does not make every function automatically
 listable.
 
+## Structural Inspection And Finite List Transforms
+
+`Head` returns a symbol naming the public head of an evaluated expression. The
+right-hand side below is the actual result, not a string or an annotation:
+
+```text
+Head[f[x, y + 1]]                       -> f
+Head[{a, b}]                            -> List
+Head[3]                                 -> Integer
+Head[1.5]                               -> Real
+Head[1/2]                               -> Rational
+```
+
+That means the result can itself be inspected as an expression:
+
+```text
+Head[Head[3]]                           -> Symbol
+```
+
+`Part` extracts one-based parts from supported compound expressions:
+
+```text
+Part[f[x, y], 1]                        -> x
+Part[{a, b, c}, 2]                      -> b
+Part[x -> y, 2]                         -> y
+```
+
+The first list-transform slice works only over explicit finite lists:
+
+```text
+Map[f, {a, b, c}]                       -> {f[a], f[b], f[c]}
+Apply[f, {a, b}]                        -> f[a, b]
+Select[{1, x, 2}, IntegerQ]             -> {1, 2}
+Cases[{x, 1, y}, _Symbol]               -> {x, y}
+```
+
+This is intentionally not general Mathematica compatibility. Nested `Part`,
+levels, tree-wide traversal, heads traversal, sequence patterns, rule lists,
+and implicit `Listable` behavior are outside this slice. Invalid part indexes,
+atomic part extraction, non-list list-transform inputs, unsupported patterns,
+and predicates that return concrete non-boolean values are diagnosed.
+
 ## Numeric And Structural Output
 
 `N[expr]` requests numeric evaluation where supported. `FullForm[expr]` shows

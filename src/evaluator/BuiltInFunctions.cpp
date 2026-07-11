@@ -13,6 +13,7 @@
 #include "Constants.hpp"
 #include <cmath>
 #include <limits>
+#include <string>
 
 namespace aleph3 {
 
@@ -143,6 +144,64 @@ namespace aleph3 {
             throw_invalid_form(name + " expects the second argument to be a symbol");
         }
         return symbol->name;
+    }
+
+    std::string expression_head_name(const ExprPtr& expr) {
+        return std::visit(overloaded{
+            [](const Symbol&) -> std::string { return "Symbol"; },
+            [](const Number& number) -> std::string {
+                return std::floor(number.value) == number.value ? "Integer" : "Real";
+            },
+            [](const Complex&) -> std::string { return "Complex"; },
+            [](const Rational&) -> std::string { return "Rational"; },
+            [](const Boolean&) -> std::string { return "Boolean"; },
+            [](const String&) -> std::string { return "String"; },
+            [](const FunctionCall& call) -> std::string { return call.head; },
+            [](const FunctionDefinition&) -> std::string { return "FunctionDefinition"; },
+            [](const Assignment&) -> std::string { return "Assignment"; },
+            [](const Rule&) -> std::string { return "Rule"; },
+            [](const List&) -> std::string { return "List"; },
+            [](const Infinity&) -> std::string { return "Infinity"; },
+            [](const ComplexInfinity&) -> std::string { return "ComplexInfinity"; },
+            [](const Indeterminate&) -> std::string { return "Indeterminate"; }
+        }, *expr);
+    }
+
+    std::size_t require_one_based_index(const ExprPtr& expr, const std::string& name) {
+        const auto* number = std::get_if<Number>(expr.get());
+        if (number == nullptr || !std::isfinite(number->value) ||
+            std::floor(number->value) != number->value || number->value < 1.0 ||
+            number->value > static_cast<double>(std::numeric_limits<std::size_t>::max())) {
+            throw_invalid_form(name + " expects a positive integer index");
+        }
+        return static_cast<std::size_t>(number->value);
+    }
+
+    const std::vector<ExprPtr>& require_list_argument(
+        const ExprPtr& expr,
+        const std::string& name,
+        std::size_t argument_index) {
+        const auto* list = std::get_if<List>(expr.get());
+        if (list == nullptr) {
+            throw_invalid_form(
+                name + " expects argument " + std::to_string(argument_index) + " to be a list");
+        }
+        return list->elements;
+    }
+
+    std::string require_operator_symbol(const ExprPtr& expr, const std::string& name) {
+        const auto* symbol = std::get_if<Symbol>(expr.get());
+        if (symbol == nullptr) {
+            throw_invalid_form(name + " expects its first argument to be a symbol head");
+        }
+        return symbol->name;
+    }
+
+    bool is_unresolved_predicate_call(
+        const ExprPtr& evaluated,
+        const std::string& predicate_name) {
+        const auto* call = std::get_if<FunctionCall>(evaluated.get());
+        return call != nullptr && call->head == predicate_name;
     }
 
     }  // namespace
@@ -296,6 +355,123 @@ namespace aleph3 {
             }
             throw_invalid_form("Length expects a list argument");
             });
+
+        registry.register_function(
+            "Head",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                if (func.args.size() != 1) {
+                    throw_invalid_arity_exact("Head", 1);
+                }
+                return make_expr<Symbol>(expression_head_name(evaluate(func.args[0], ctx)));
+            });
+
+        registry.register_function(
+            "Part",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                if (func.args.size() != 2) {
+                    throw_invalid_arity_exact("Part", 2);
+                }
+                auto expr = evaluate(func.args[0], ctx);
+                const auto index = require_one_based_index(evaluate(func.args[1], ctx), "Part");
+
+                const auto part_at = [&](const std::vector<ExprPtr>& parts) -> ExprPtr {
+                    if (index > parts.size()) {
+                        throw_invalid_form("Part index is out of range");
+                    }
+                    return parts[index - 1];
+                };
+
+                if (const auto* list = std::get_if<List>(expr.get())) {
+                    return part_at(list->elements);
+                }
+                if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
+                    return part_at(call->args);
+                }
+                if (const auto* rule = std::get_if<Rule>(expr.get())) {
+                    return part_at(std::vector<ExprPtr>{rule->lhs, rule->rhs});
+                }
+
+                throw_invalid_form("Part cannot extract from an atomic expression");
+            });
+
+        registry.register_function(
+            "Map",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                if (func.args.size() != 2) {
+                    throw_invalid_arity_exact("Map", 2);
+                }
+                const auto head = require_operator_symbol(func.args[0], "Map");
+                auto list_expr = evaluate(func.args[1], ctx);
+                const auto& elements = require_list_argument(list_expr, "Map", 2);
+
+                std::vector<ExprPtr> mapped;
+                mapped.reserve(elements.size());
+                for (const auto& element : elements) {
+                    mapped.push_back(evaluate(make_fcall(head, {element}), ctx));
+                }
+                return std::make_shared<Expr>(List{mapped});
+            },
+            {symbols::SymbolAttribute::hold_first});
+
+        registry.register_function(
+            "Apply",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                if (func.args.size() != 2) {
+                    throw_invalid_arity_exact("Apply", 2);
+                }
+                const auto head = require_operator_symbol(func.args[0], "Apply");
+                auto list_expr = evaluate(func.args[1], ctx);
+                const auto& elements = require_list_argument(list_expr, "Apply", 2);
+                return evaluate(make_fcall(head, elements), ctx);
+            },
+            {symbols::SymbolAttribute::hold_first});
+
+        registry.register_function(
+            "Select",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                if (func.args.size() != 2) {
+                    throw_invalid_arity_exact("Select", 2);
+                }
+                const auto predicate = require_operator_symbol(func.args[1], "Select");
+                auto list_expr = evaluate(func.args[0], ctx);
+                const auto& elements = require_list_argument(list_expr, "Select", 1);
+
+                std::vector<ExprPtr> selected;
+                for (const auto& element : elements) {
+                    auto predicate_result = evaluate(make_fcall(predicate, {element}), ctx);
+                    if (const auto* boolean = std::get_if<Boolean>(predicate_result.get())) {
+                        if (boolean->value) {
+                            selected.push_back(element);
+                        }
+                        continue;
+                    }
+                    if (is_unresolved_predicate_call(predicate_result, predicate)) {
+                        continue;
+                    }
+                    throw_invalid_form("Select predicate must evaluate to True or False");
+                }
+                return std::make_shared<Expr>(List{selected});
+            },
+            {symbols::SymbolAttribute::hold_rest});
+
+        registry.register_function(
+            "Cases",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                if (func.args.size() != 2) {
+                    throw_invalid_arity_exact("Cases", 2);
+                }
+                auto list_expr = evaluate(func.args[0], ctx);
+                const auto& elements = require_list_argument(list_expr, "Cases", 1);
+
+                std::vector<ExprPtr> matches;
+                for (const auto& element : elements) {
+                    if (kernel::matches_pattern(func.args[1], element, ctx)) {
+                        matches.push_back(element);
+                    }
+                }
+                return std::make_shared<Expr>(List{matches});
+            },
+            {symbols::SymbolAttribute::hold_rest});
 
         registry.register_function("N", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             if (func.args.size() != 1) {

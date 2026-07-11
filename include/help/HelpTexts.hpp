@@ -117,6 +117,12 @@ namespace aleph3 {
 
             // List functions
             {"Length", "Length[list]: Number of elements in a list", "List"},
+            {"Head", "Head[expr]: Return the public symbolic head of an expression", "List"},
+            {"Part", "Part[expr, index]: Extract a one-based part from a list, call, or rule", "List"},
+            {"Map", "Map[f, list]: Apply f to each element of an explicit finite list", "List"},
+            {"Apply", "Apply[f, list]: Replace the list head with f", "List"},
+            {"Select", "Select[list, predicate]: Keep elements accepted by predicate", "List"},
+            {"Cases", "Cases[list, pattern]: Return elements matching a supported pattern", "List"},
 
             // Numeric
             {"N", "N[expr]: Evaluate numerically", "Numeric"},

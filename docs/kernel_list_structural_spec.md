@@ -2,9 +2,11 @@
 
 ## Status
 
-This document defines the planned symbolic MVP contract for structural
-inspection and finite-list operations. These functions are not current
-supported behavior until implemented and documented in the manual.
+This document defines the symbolic MVP contract for structural inspection and
+finite-list operations. The first slice is implemented for `Head`, one-level
+`Part`, `Map`, `Apply`, `Select`, and `Cases` over explicit finite lists.
+Nested traversal, levels, heads traversal, broad predicates, and broader
+scoping remain planned or deferred as marked below.
 
 ## Purpose
 
@@ -18,12 +20,15 @@ implicitly list-aware.
 
 ## Planned Structural Inspection
 
-Planned functions:
+Implemented first-slice functions:
 
 - `Head[expr]` returns the public head name for atoms, lists, rules,
   assignments, function definitions, and function calls.
 - `Part[expr, index]` returns the one-based child at `index` for supported
-  compound expressions.
+  lists, function calls, and rules.
+
+Planned later:
+
 - `Part[expr, {i, j, ...}]` may follow only after nested traversal and
   diagnostics are specified.
 
@@ -40,12 +45,13 @@ Required diagnostics:
 
 ## Planned Finite-List Operations
 
-Planned first functions:
+Implemented first-slice functions:
 
 - `Map[f, {a, b, c}]` evaluates to `{f[a], f[b], f[c]}`.
 - `Apply[f, {a, b}]` evaluates to `f[a, b]`.
 - `Select[list, predicate]` keeps elements for which the predicate evaluates
-  exactly to `True`.
+  exactly to `True`; unresolved predicate calls are treated as non-matches in
+  the first slice.
 - `Cases[list, pattern]` returns elements matching the current supported
   pattern language.
 

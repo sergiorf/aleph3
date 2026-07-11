@@ -1354,6 +1354,55 @@ TEST_CASE("Evaluator rejects unsupported assumption forms explicitly", "[evaluat
         "Assumption predicates only support symbol arguments.");
 }
 
+TEST_CASE("Structural inspection builtins expose public heads and parts", "[evaluator][structural][mvp]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("Head[f[x, y + 1]]"), ctx)) == "f");
+    REQUIRE(to_string(evaluate(parse_expression("Head[{a, b}]"), ctx)) == "List");
+    REQUIRE(to_string(evaluate(parse_expression("Head[3]"), ctx)) == "Integer");
+    REQUIRE(to_string(evaluate(parse_expression("Head[1.5]"), ctx)) == "Real");
+    REQUIRE(to_string(evaluate(parse_expression("Head[1/2]"), ctx)) == "Rational");
+    REQUIRE(to_string(evaluate(parse_expression("Head[x]"), ctx)) == "Symbol");
+    REQUIRE(to_string(evaluate(parse_expression("Head[x -> y]"), ctx)) == "Rule");
+
+    REQUIRE(to_string(evaluate(parse_expression("Part[f[x, y], 1]"), ctx)) == "x");
+    REQUIRE(to_string(evaluate(parse_expression("Part[{a, b, c}, 2]"), ctx)) == "b");
+    REQUIRE(to_string(evaluate(parse_expression("Part[x -> y, 2]"), ctx)) == "y");
+}
+
+TEST_CASE("Structural inspection rejects unsupported part requests", "[evaluator][structural][diagnostics]") {
+    EvaluationContext ctx;
+
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Part[x, 1]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Part[{a}, 0]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Part[{a}, -1]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Part[{a}, 2]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Part[{a}, 1.5]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Part[{a}, n]"), ctx), EvaluatorError);
+}
+
+TEST_CASE("Finite list MVP operations transform explicit lists", "[evaluator][list][mvp]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("Map[f, {a, b, c}]"), ctx)) == "{f[a], f[b], f[c]}");
+    REQUIRE(to_string(evaluate(parse_expression("Apply[f, {a, b}]"), ctx)) == "f[a, b]");
+    REQUIRE(to_string(evaluate(parse_expression("Select[{1, x, 2}, IntegerQ]"), ctx)) == "{1, 2}");
+    REQUIRE(to_string(evaluate(parse_expression("Cases[{x, 1, y}, _Symbol]"), ctx)) == "{x, y}");
+}
+
+TEST_CASE("Finite list MVP operations reject unsupported inputs", "[evaluator][list][diagnostics]") {
+    EvaluationContext ctx;
+
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Map[f, x]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Apply[f, x]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Select[x, IntegerQ]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Cases[x, _Symbol]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Map[f[x], {a}]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Apply[f[x], {a}]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Select[{1}, Head]"), ctx), EvaluatorError);
+    REQUIRE_THROWS_AS(evaluate(parse_expression("Cases[{1}, _Matrix]"), ctx), EvaluatorError);
+}
+
 TEST_CASE("Assumption insertion rejects contradictions transactionally", "[evaluator][assumptions][diagnostics]") {
     EvaluationContext ctx;
     ctx.assumptions.assume(parse_expression("x > 0"));

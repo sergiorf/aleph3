@@ -40,6 +40,7 @@ class Session {
 public:
     Session();
     [[nodiscard]] SessionResult execute(const SessionRequest& request);
+    void reset();
 private:
     kernel::EvaluationContext context_;
 };

@@ -214,14 +214,15 @@ Implemented now:
   user-defined functions, and assignments
 - evaluator dispatch ownership selection derived from shared symbol-definition
   and registration facts
-- session-local cleanup through `Clear` and `Unset`
+- session-local cleanup through `Clear` and `Unset`, plus session lifecycle
+  reset through `session::Session::reset()`
 
 Deferred:
 
 - broader attribute-driven evaluation control beyond the current held builtin
   slice
 - ownvalue/downvalue-style lookup
-- mutation semantics beyond the current session-local cleanup surface
+- mutation semantics beyond the current session-local cleanup and reset surface
 - fully registry- or definition-driven execution for the remaining host and
   richer builtin behavior paths once an owner is selected
 - runtime pack loading, pack unload, and broader registry mutation semantics
@@ -254,6 +255,18 @@ The implementation updates symbol values, user function tables, and
 session-owned definition records together. If a symbol has both session-owned
 state and provider-owned behavior, cleanup removes only the session-owned
 records and leaves provider behavior visible through normal precedence.
+
+Implemented session lifecycle reset:
+
+- `session::Session::reset()` discards the active session-local evaluation
+  context and recreates it against the same function registry.
+- reset removes session-local own values, user function definitions,
+  definition records, assumptions, learned symbol metadata, and runtime
+  counters.
+- reset preserves provider catalogs, builtins, registered packs, and the
+  default registry. It does not mutate notebook documents or persisted files.
+- the CLI REPL exposes this lifecycle operation as `:reset`; it is not a
+  symbolic builtin and does not replace `Clear` or `Unset`.
 
 Deferred cleanup syntax:
 

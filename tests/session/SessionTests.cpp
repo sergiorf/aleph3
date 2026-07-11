@@ -26,6 +26,36 @@ TEST_CASE("Session instances isolate state", "[session]") {
     REQUIRE(right.execute({"a"}).output == "a");
 }
 
+TEST_CASE("Session reset discards local definitions and preserves providers", "[session][reset]") {
+    Session session;
+    REQUIRE(session.execute({"a = 2"}).ok);
+    REQUIRE(session.execute({"f[x_] := x + 1"}).ok);
+    REQUIRE(session.execute({"Plus[x_, y_] := 99"}).ok);
+    REQUIRE(session.execute({"a"}).output == "2");
+    REQUIRE(session.execute({"f[4]"}).output == "5");
+    REQUIRE(session.execute({"1 + 2"}).output == "3");
+
+    REQUIRE(session.execute({"a", SessionOperation::complete}).completions.size() == 1);
+    REQUIRE(session.execute({"f", SessionOperation::complete}).completions.size() == 1);
+
+    session.reset();
+
+    REQUIRE(session.execute({"a"}).output == "a");
+    REQUIRE(session.execute({"f[4]"}).output == "f[4]");
+    REQUIRE(session.execute({"a", SessionOperation::complete}).completions.empty());
+    REQUIRE(session.execute({"f", SessionOperation::complete}).completions.empty());
+
+    REQUIRE(session.execute({"1 + 2"}).output == "3");
+    REQUIRE(session.execute({"Length[{1, 2}]"}).output == "2");
+    REQUIRE(session.execute({"Factor[x^2 - 1]"}).output == "(x - 1) * (x + 1)");
+    REQUIRE(session.execute({"D[x^2, x]"}).output == "2 * x");
+
+    const auto pack = session.execute({"Fac", SessionOperation::complete});
+    REQUIRE(pack.completions.size() == 1);
+    REQUIRE(pack.completions.front().name == "Factor");
+    REQUIRE(pack.completions.front().category == "pack");
+}
+
 TEST_CASE("Session returns structured failures and supports all operations", "[session]") {
     Session session;
     const auto empty = session.execute({""});

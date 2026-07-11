@@ -119,6 +119,10 @@ Cell& Document::append_cell(
     return cells.back();
 }
 
+void Document::clear_results() {
+    results.clear();
+}
+
 void Document::validate() const {
     if (format != format_name) {
         throw DocumentError("notebook.unsupported_format", "The notebook format identifier is not supported.");

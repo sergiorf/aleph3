@@ -78,6 +78,9 @@ host-owned names cannot be cleared unless the command is removing a
 session-local value or definition layered on that name. Syntax such as `x =.`
 is not implemented.
 
+To discard all session-local definitions at once in the CLI REPL, use the
+session lifecycle command `:reset`; it is not a symbolic builtin.
+
 ## Strings And Lists
 
 ```text

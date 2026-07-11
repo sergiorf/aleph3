@@ -85,6 +85,22 @@ TEST_CASE("Notebook Run All starts clean and replaces generated results", "[note
     REQUIRE(document.results[1].output == "a + 3");
 }
 
+TEST_CASE("Notebook documents can clear cached generated results", "[notebook][model]") {
+    auto document = make_document({
+        {"define", CellKind::input, "a = 2"},
+        {"notes", CellKind::text, "A cached result should not be source."}});
+    Runner{}.run_all(document);
+    REQUIRE(document.results.size() == 1);
+
+    document.clear_results();
+
+    REQUIRE(document.cells.size() == 2);
+    REQUIRE(document.cells[0].id == "define");
+    REQUIRE(document.cells[0].source == "a = 2");
+    REQUIRE(document.cells[1].kind == CellKind::text);
+    REQUIRE(document.results.empty());
+}
+
 TEST_CASE("Notebook runners isolate documents", "[notebook][runner]") {
     auto left = make_document({{"define", CellKind::input, "privateValue = 7"}});
     auto right = make_document({{"read", CellKind::input, "privateValue"}});

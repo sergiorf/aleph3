@@ -15,8 +15,9 @@ hosted services, or provider-backed features.
 ## Status and Goal
 
 This document is the proposed contract for the first Aleph3 notebook. The
-headless document, `Run All`, and JSON persistence slices described below are
-implemented; the GUI and remaining behavior are planned rather than shipped.
+headless document, `Run All`, JSON persistence, and cached-result clearing
+slices described below are implemented; the GUI and remaining behavior are
+planned rather than shipped.
 
 The MVP succeeds when a user can launch a local application, create and edit a
 document, evaluate supported symbolic input through one session, understand
@@ -247,6 +248,12 @@ constructs a new document and never evaluates cells.
 
 Autosave, recovery journals, compression, encryption, schema migrations, and
 GUI file dialogs remain deferred.
+
+## Delivered Cached-Result Clearing Slice
+
+The notebook core can clear cached generated results in memory without
+changing cells, source, format, version, or persisted files. Graphical stale
+output presentation remains part of the planned UI contract.
 
 ## MVP Acceptance Evidence
 

@@ -309,7 +309,8 @@ void print_help() {
         << "  In the REPL, bare input evaluates as an expression.\n"
         << "  Prefix shell/meta commands with `:` such as `:help`, `:parse`, or `:quit`.\n"
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
-        << "  Use `:inspect <expr>` for structural facts and `:packs` for registered packs.\n"
+        << "  Use `:inspect <expr>` for structural facts, `:packs` for registered packs,\n"
+        << "  and `:reset` to discard symbolic session definitions.\n"
 #endif
         << "  Use `:mode` to inspect the active evaluator, or `:mode symbolic` / `:mode sdk`\n"
         << "  to switch the bare-expression backend.\n"
@@ -385,6 +386,7 @@ void print_examples() {
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
         << "  > :inspect Factor[x^2 - 1]\n"
         << "  > :packs\n"
+        << "  > :reset\n"
 #endif
         << "  > :tokens If[x >= 1, \\\"ok\\\", False]\n"
         << "  > :parse 2 + 3 * (x + 1)\n"
@@ -414,6 +416,7 @@ const std::vector<std::string>& repl_commands() {
         ":inspect",
         ":packs",
         ":complete",
+        ":reset",
 #endif
         ":quit",
         ":exit"
@@ -1180,6 +1183,11 @@ int run_repl() {
                 for (const auto& symbol : pack.symbols) std::cout << ' ' << symbol;
                 std::cout << '\n';
             }
+            continue;
+        }
+        if (normalized_command == "reset") {
+            symbolic_session.reset();
+            std::cout << style_stdout("session reset", cli_palette().success) << '\n';
             continue;
         }
         if (normalized_command == "complete") {

@@ -110,6 +110,16 @@ std::string make_direct_command(std::string_view arguments) {
 #endif
 }
 
+std::size_t count_substrings(std::string_view text, std::string_view needle) {
+    std::size_t count = 0;
+    std::size_t pos = 0;
+    while ((pos = text.find(needle, pos)) != std::string_view::npos) {
+        ++count;
+        pos += needle.size();
+    }
+    return count;
+}
+
 class TemporaryScript {
 public:
     TemporaryScript(std::string name, std::string contents)
@@ -147,6 +157,7 @@ TEST_CASE("REPL meta commands use colon prefixes", "[tooling][cli]") {
 
     REQUIRE(help_result.exit_code == 0);
     REQUIRE(help_result.output.find("Commands") != std::string::npos);
+    REQUIRE(help_result.output.find(":reset") != std::string::npos);
 
     const auto parse_result = run_shell_command(make_repl_command({":parse 1+1", ":quit"}));
 
@@ -220,6 +231,25 @@ TEST_CASE("REPL exposes deterministic session completion", "[tooling][cli][sessi
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output.find("PolynomialQuotient\tpack\tcore-algebra") != std::string::npos);
     REQUIRE(result.output.find("localValue\tsymbol") != std::string::npos);
+}
+
+TEST_CASE("REPL reset discards symbolic session state", "[tooling][cli][session]") {
+    const auto result = run_shell_command(make_repl_command(
+        {"a = 2", "a", ":reset", "a", ":quit"}));
+
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output.find("2\n") != std::string::npos);
+    REQUIRE(result.output.find("session reset") != std::string::npos);
+    REQUIRE(result.output.find("a\n") != std::string::npos);
+}
+
+TEST_CASE("REPL reset removes session-local completions", "[tooling][cli][session][completion]") {
+    const auto result = run_shell_command(make_repl_command(
+        {"localResetSymbol = 1", ":complete localReset", ":reset", ":complete localReset", ":quit"}));
+
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output.find("localResetSymbol\tsymbol") != std::string::npos);
+    REQUIRE(count_substrings(result.output, "localResetSymbol\tsymbol") == 1);
 }
 
 TEST_CASE("CLI one-shot evaluation is ephemeral and REPL recovers after errors", "[tooling][cli][session]") {

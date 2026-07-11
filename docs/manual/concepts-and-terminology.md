@@ -67,6 +67,10 @@ definitions and the kernel evaluation context. The CLI and headless notebook
 runner already use this boundary. A graphical notebook will submit cell
 requests through it rather than embedding evaluator state in widgets.
 
+Resetting a session discards session-local definitions and starts from the
+same registered builtin and pack catalog. It is different from clearing one
+symbol with `Clear` or `Unset`.
+
 Closing a document and saving a document are product operations. Preserving
 kernel state across a reopen requires an explicit replay or serialization
 contract; it must never happen accidentally through hidden process state.

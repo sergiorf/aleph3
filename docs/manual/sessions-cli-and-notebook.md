@@ -17,12 +17,26 @@ This is shared infrastructure for the CLI and future graphical products.
 :inspect f[x + 1]
 :packs
 :complete Pol
+:reset
 :quit
 ```
 
 The symbolic REPL preserves assignments and definitions. One-shot commands
 start fresh. On supported terminals Tab completes commands and symbols;
 `:complete` is the deterministic, pipe-friendly fallback.
+
+Use `:reset` when an interactive symbolic session should start over without
+leaving the REPL. It discards session-local assignments and user function
+definitions, but it does not unload builtins or registered packs and does not
+change the current `:mode`:
+
+```text
+a = 2
+a                         -> 2
+:reset
+a                         -> a
+Factor[x^2 - 1]           -> (x - 1) * (x + 1)
+```
 
 Use `Clear[symbol]` to remove a session-local own value and user function
 definition. Use `Unset[symbol]` when only the own value should be removed:
@@ -56,7 +70,8 @@ The current build includes an experimental `aleph3_notebook_core` library, but
 not a graphical notebook executable. The library models ordered input and text
 cells with stable document-local identifiers. Its `Run All` operation starts a
 fresh session, skips text cells, evaluates every input in order, and replaces
-the previous generated results.
+the previous generated results. Documents can also clear cached generated
+results without changing cells or source.
 
 Definitions flow to later cells during a run. Repeating `Run All` starts clean,
 and one failed input records its session diagnostics without preventing later

@@ -60,6 +60,7 @@ public:
     std::vector<GeneratedResult> results;
 
     Cell& append_cell(CellKind kind, std::string source, const CellIdGenerator& generate_id);
+    void clear_results();
     void validate() const;
 };
 

@@ -84,6 +84,11 @@ SessionInspection inspect_expression(const ExprPtr& expr) {
 Session::Session() : context_(kernel::default_function_registry()) {
 }
 
+void Session::reset() {
+    const auto& registry = context_.function_registry();
+    context_ = kernel::EvaluationContext(registry);
+}
+
 SessionResult Session::execute(const SessionRequest& request) {
     SessionResult result;
     if (request.operation != SessionOperation::discover_packs &&

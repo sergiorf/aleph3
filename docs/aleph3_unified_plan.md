@@ -139,9 +139,6 @@ general-purpose CAS.
 
 Remaining work:
 
-- expose `ReplaceAll` and the `/.` syntax as the convenient surface over the
-  existing rewrite engine, and add `RuleDelayed` only after its evaluation
-  timing is specified;
 - introduce one minimal lexical binding construct, preferably `With`, before
   broader `Module` or `Block` semantics;
 - extend exact algebra with `Cancel`, `Together`, `Numerator`, `Denominator`,
@@ -294,8 +291,8 @@ Use this order unless a regression or dependency changes it:
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.
 2. Specify and implement the remaining symbolic MVP gap-closure items across
-   replacement usability, rational-expression helpers, coefficient extraction,
-   lexical binding, and calculus follow-ups.
+   rational-expression helpers, coefficient extraction, lexical binding, and
+   calculus follow-ups.
 3. Run and record the notebook toolkit spikes against one shared fixture.
 4. Build the first graphical notebook vertical slice.
 5. Continue exact algebra hardening required by calculus and future DSP work.

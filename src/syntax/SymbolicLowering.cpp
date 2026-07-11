@@ -80,6 +80,7 @@ std::string binary_head(BinaryOperator op) {
         case BinaryOperator::or_op: return "Or";
         case BinaryOperator::string_join: return "StringJoin";
         case BinaryOperator::rule: return "Rule";
+        case BinaryOperator::replace_all: return "ReplaceAll";
     }
     return "Unknown";
 }
@@ -316,6 +317,10 @@ private:
     ExprPtr lower_binary(BinaryOperator op, const ExprPtr& left, const ExprPtr& right) {
         if (op == BinaryOperator::rule) {
             return make_expr<Rule>(left, right);
+        }
+
+        if (op == BinaryOperator::replace_all) {
+            return make_expr<FunctionCall>("ReplaceAll", std::vector<ExprPtr>{left, right});
         }
 
         if (op == BinaryOperator::divide) {

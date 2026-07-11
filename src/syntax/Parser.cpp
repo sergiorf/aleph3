@@ -24,6 +24,7 @@ SourceSpan merge_spans(const SourceSpan& start, const SourceSpan& end) noexcept 
 std::optional<BinaryOperator> to_binary_operator(TokenKind kind) {
     switch (kind) {
         case TokenKind::rule: return BinaryOperator::rule;
+        case TokenKind::replace_all: return BinaryOperator::replace_all;
         case TokenKind::pipe_pipe: return BinaryOperator::or_op;
         case TokenKind::amp_amp: return BinaryOperator::and_op;
         case TokenKind::string_join: return BinaryOperator::string_join;
@@ -44,29 +45,31 @@ std::optional<BinaryOperator> to_binary_operator(TokenKind kind) {
 
 int precedence(TokenKind kind) noexcept {
     switch (kind) {
-        case TokenKind::rule:
+        case TokenKind::replace_all:
             return 1;
+        case TokenKind::rule:
+            return 2;
         case TokenKind::equal_equal:
         case TokenKind::bang_equal:
         case TokenKind::less:
         case TokenKind::less_equal:
         case TokenKind::greater:
         case TokenKind::greater_equal:
-            return 2;
-        case TokenKind::pipe_pipe:
             return 3;
-        case TokenKind::amp_amp:
+        case TokenKind::pipe_pipe:
             return 4;
-        case TokenKind::string_join:
+        case TokenKind::amp_amp:
             return 5;
+        case TokenKind::string_join:
+            return 6;
         case TokenKind::plus:
         case TokenKind::minus:
-            return 6;
+            return 7;
         case TokenKind::star:
         case TokenKind::slash:
-            return 7;
-        case TokenKind::caret:
             return 8;
+        case TokenKind::caret:
+            return 9;
         default:
             return -1;
     }

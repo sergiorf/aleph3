@@ -33,6 +33,7 @@ enum class TokenKind {
     pipe_pipe,
     string_join,
     rule,
+    replace_all,
     left_paren,
     right_paren,
     left_bracket,

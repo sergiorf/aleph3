@@ -602,6 +602,16 @@ namespace aleph3 {
             return rewritten.changed ? rewritten.expr : expr;
             });
 
+        registry.register_function("ReplaceAll", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() != 2) {
+                throw_invalid_arity_exact("ReplaceAll", 2);
+            }
+            auto expr = evaluate(func.args[0], ctx);
+            const Rule& rule = require_rule_argument(func.args[1], "ReplaceAll");
+            const auto rewritten = kernel::rewrite_once(expr, rule, ctx, kernel::RewriteTraversal{});
+            return rewritten.changed ? rewritten.expr : expr;
+            });
+
         registry.register_function("ReplaceRepeated", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
             if (func.args.size() != 2 && func.args.size() != 3) {
                 throw_invalid_arity_between("ReplaceRepeated", 2, 3);

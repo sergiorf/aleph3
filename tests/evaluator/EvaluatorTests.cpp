@@ -1067,6 +1067,27 @@ TEST_CASE("Evaluator exposes rule-driven symbolic transforms", "[evaluator][rewr
     REQUIRE_FALSE(std::get<Boolean>(*result).value);
 }
 
+TEST_CASE("Evaluator exposes ReplaceAll as whole-expression replacement", "[evaluator][rewrite]") {
+    EvaluationContext ctx;
+
+    const auto replaced = evaluate(parse_expression("ReplaceAll[f[x], f[a_] -> g[a]]"), ctx);
+    REQUIRE(to_string(replaced) == "g[x]");
+
+    const auto shorthand = evaluate(parse_expression("f[x] /. x -> y"), ctx);
+    REQUIRE(to_string(shorthand) == "f[y]");
+
+    const auto parenthesized = evaluate(parse_expression("f[x] /. (x -> y)"), ctx);
+    REQUIRE(to_string(parenthesized) == "f[y]");
+
+    const auto whole_tree = evaluate(parse_expression("ReplaceAll[f[f[x], x], x -> y]"), ctx);
+    REQUIRE(to_string(whole_tree) == "f[f[y], y]");
+
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("ReplaceAll[f[x], 3]"), ctx),
+        "ReplaceAll expects the second argument to be a Rule");
+    REQUIRE_THROWS_AS(evaluate(parse_expression("ReplaceAll[x, {x -> y}]"), ctx), EvaluatorError);
+}
+
 TEST_CASE("Evaluator keeps replacement explicit and bounded", "[evaluator][rewrite]") {
     EvaluationContext ctx;
 

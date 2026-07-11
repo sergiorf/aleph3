@@ -6,14 +6,18 @@ A rule replaces a matching structure:
 
 ```text
 Replace[f[x], f[a_] -> g[a]]            -> g[x]
+ReplaceAll[f[x], f[a_] -> g[a]]         -> g[x]
+f[x] /. x -> y                          -> f[y]
 MatchQ[f[x, x], f[a_, a_]]              -> True
 MatchQ[f[x, y], f[a_, a_]]              -> False
 MatchQ[3, _Integer]                      -> True
 ```
 
 `a_` matches one expression and binds it. Reusing a binder requires the same
-structure. Typed patterns restrict the matched expression. Sequence patterns
-and general rule lists remain outside the current contract.
+structure. Typed patterns restrict the matched expression. `ReplaceAll` and
+`/.` use the same whole-expression traversal as `Replace[expr, rule]`.
+Sequence patterns, general rule lists, delayed rules, and replacement strategy
+controls remain outside the current contract.
 
 ## Variable Dependency Inspection
 

@@ -1,4 +1,5 @@
 #include "frontend/Parser.hpp"
+#include "syntax/Lexer.hpp"
 #include "syntax/Parser.hpp"
 #include "syntax/SymbolicLowering.hpp"
 
@@ -49,6 +50,36 @@ TEST_CASE("Symbolic lowering preserves existing symbolic forms", "[syntax][symbo
     REQUIRE(def.params.size() == 1);
     REQUIRE(def.params.front().name == "x");
     REQUIRE(def.delayed);
+}
+
+TEST_CASE("Shared syntax tokenizes and lowers ReplaceAll shorthand", "[syntax][parser][rewrite]") {
+    syntax::Lexer lexer("f[x] /. x / y");
+    const auto lexed = lexer.tokenize();
+
+    REQUIRE(lexed.ok());
+    REQUIRE(lexed.tokens.size() == 9);
+    REQUIRE(lexed.tokens[4].kind == syntax::TokenKind::replace_all);
+    REQUIRE(lexed.tokens[6].kind == syntax::TokenKind::slash);
+
+    const auto lowered = syntax::parse_symbolic_source("f[x] /. x -> y");
+    REQUIRE(lowered.ok());
+    const auto* replace_all = std::get_if<FunctionCall>(lowered.expr.get());
+    REQUIRE(replace_all != nullptr);
+    REQUIRE(replace_all->head == "ReplaceAll");
+    REQUIRE(replace_all->args.size() == 2);
+    REQUIRE(to_string(replace_all->args[0]) == "f[x]");
+    REQUIRE(std::holds_alternative<Rule>(*replace_all->args[1]));
+}
+
+TEST_CASE("Shared syntax preserves parenthesized ReplaceAll rules", "[syntax][parser][rewrite]") {
+    const auto lowered = syntax::parse_symbolic_source("f[x] /. (x -> y)");
+
+    REQUIRE(lowered.ok());
+    const auto* replace_all = std::get_if<FunctionCall>(lowered.expr.get());
+    REQUIRE(replace_all != nullptr);
+    REQUIRE(replace_all->head == "ReplaceAll");
+    REQUIRE(replace_all->args.size() == 2);
+    REQUIRE(std::holds_alternative<Rule>(*replace_all->args[1]));
 }
 
 TEST_CASE("Trusted frontend rejects symbolic-only shared syntax", "[syntax][frontend]") {

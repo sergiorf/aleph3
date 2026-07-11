@@ -78,10 +78,10 @@ Practical examples:
 Practical user-facing workflows now exposed on top of this kernel surface:
 
 - `Replace[f[x], f[a_] -> g[a]] -> g[x]`
+- `ReplaceAll[f[x], f[a_] -> g[a]] -> g[x]`
+- `f[x] /. x -> y -> f[y]`
 - `ReplaceRepeated[f[f[x]], f[a_] -> g[a]] -> g[g[x]]`
 - `MatchQ[f[x, x], f[a_, a_]] -> True`
-- planned MVP syntax: `expr /. rule` and `ReplaceAll[expr, rule]` should use
-  the same replacement contract once the frontend form is specified
 
 ## Current Contract
 
@@ -122,6 +122,9 @@ Current product-facing transformation surface:
 - `Replace[expr, rule]` applies one rewrite traversal
 - `Replace[expr, rule, n]` targets exactly nonnegative depth `n`
 - `Replace[expr, rule, {min, max}]` targets an inclusive nonnegative depth range
+- `ReplaceAll[expr, rule]` applies the same whole-expression traversal as
+  `Replace[expr, rule]`
+- `expr /. rule` lowers to `ReplaceAll[expr, rule]` in the symbolic frontend
 - `ReplaceRepeated[expr, rule]` re-applies a rule with an explicit safety cap
 - `ReplaceRepeated` accepts the same optional depth controls
 - `MatchQ[expr, pattern]` tests the same supported matcher surface without
@@ -608,7 +611,6 @@ Example of what works now:
 
 ## What Is Not Implemented Yet
 
-- `ReplaceAll` and `/.` syntax over the existing replacement contract
 - `RuleDelayed`, pending a precise right-hand-side evaluation timing contract
 - rule lists
 - predicate-based patterns
@@ -620,10 +622,10 @@ Conditional rules are implemented only for the current `Condition[...]`
 predicate surface. Nested conditional patterns and broader assumption-driven
 conditional rewriting remain outside the current contract.
 
-## Planned Replacement Usability Slice
+## Replacement Usability Slice
 
-The symbolic MVP should add the familiar replacement spelling without changing
-the rewrite engine's semantics:
+The symbolic MVP added the familiar replacement spelling without changing the
+rewrite engine's semantics:
 
 - `ReplaceAll[expr, rule]` applies the existing whole-expression replacement
   traversal.
@@ -647,5 +649,5 @@ the rewrite engine's semantics:
   stronger kernel contracts exist
 - decide which non-arithmetic simplifications are good candidates for future
   rewrite-owned migration
-- add `ReplaceAll` and `/.` only as aliases over the existing traversal until a
-  broader replacement strategy design is approved
+- add broader replacement strategy controls only after a focused traversal
+  design is approved

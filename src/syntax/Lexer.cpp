@@ -258,6 +258,10 @@ std::pair<Token, std::optional<Diagnostic>> next_token(Cursor& cursor) {
             return {make_simple_token(TokenKind::star, "*", span()), std::nullopt};
         case '/':
             cursor.advance();
+            if (cursor.peek() == '.') {
+                cursor.advance();
+                return {make_simple_token(TokenKind::replace_all, "/.", span()), std::nullopt};
+            }
             return {make_simple_token(TokenKind::slash, "/", span()), std::nullopt};
         case '^':
             cursor.advance();
@@ -381,6 +385,7 @@ const char* to_string(TokenKind kind) noexcept {
         case TokenKind::pipe_pipe: return "pipe_pipe";
         case TokenKind::string_join: return "string_join";
         case TokenKind::rule: return "rule";
+        case TokenKind::replace_all: return "replace_all";
         case TokenKind::left_paren: return "left_paren";
         case TokenKind::right_paren: return "right_paren";
         case TokenKind::left_bracket: return "left_bracket";

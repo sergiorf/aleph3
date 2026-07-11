@@ -133,6 +133,11 @@ TEST_CASE("Session completes registry and session symbols deterministically", "[
     REQUIRE(builtin.completions.size() == 1);
     REQUIRE(builtin.completions.front().category == "builtin");
 
+    const auto replace_all = session.execute({"ReplaceA", SessionOperation::complete});
+    REQUIRE(replace_all.completions.size() == 1);
+    REQUIRE(replace_all.completions.front().name == "ReplaceAll");
+    REQUIRE(replace_all.completions.front().category == "builtin");
+
     const auto special_form = session.execute({"And", SessionOperation::complete});
     REQUIRE(special_form.completions.size() == 1);
     REQUIRE(special_form.completions.front().category == "special-form");

@@ -134,6 +134,16 @@ TEST_CASE("Symbolic CLI support preserves builtin numeric and symbolic contracts
     REQUIRE(replace_once.ok);
     REQUIRE(replace_once.output == "g[x]");
 
+    const auto replace_all =
+        tooling::symbolic_evaluate_expression("ReplaceAll[f[x], f[a_] -> g[a]]");
+    REQUIRE(replace_all.ok);
+    REQUIRE(replace_all.output == "g[x]");
+
+    const auto replace_all_shorthand =
+        tooling::symbolic_evaluate_expression("f[x] /. x -> y");
+    REQUIRE(replace_all_shorthand.ok);
+    REQUIRE(replace_all_shorthand.output == "f[y]");
+
     const auto replace_repeated =
         tooling::symbolic_evaluate_expression("ReplaceRepeated[f[f[x]], f[a_] -> g[a]]");
     REQUIRE(replace_repeated.ok);
@@ -236,6 +246,11 @@ TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[toolin
         tooling::symbolic_evaluate_expression("Replace[f[x], 3]");
     REQUIRE_FALSE(replace_failure.ok);
     REQUIRE(replace_failure.error_message == "Replace expects the second argument to be a Rule");
+
+    const auto replace_all_failure =
+        tooling::symbolic_evaluate_expression("ReplaceAll[f[x], 3]");
+    REQUIRE_FALSE(replace_all_failure.ok);
+    REQUIRE(replace_all_failure.error_message == "ReplaceAll expects the second argument to be a Rule");
 
     const auto dependency_failure =
         tooling::symbolic_evaluate_expression("DependsOn[x + y, x + 1]");

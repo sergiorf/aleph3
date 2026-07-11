@@ -46,7 +46,8 @@ enum class BinaryOperator {
     and_op,
     or_op,
     string_join,
-    rule
+    rule,
+    replace_all
 };
 
 struct Node;

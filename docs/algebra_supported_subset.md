@@ -218,8 +218,42 @@ known limitation.
 
 Not part of the current supported subset:
 
+- `Cancel`, `Together`, `Numerator`, and `Denominator` over a bounded exact
+  rational-expression contract
+- `Coefficient` and `CoefficientList` over the current polynomial selector and
+  coefficient subset
+- bounded `Apart` after factorization and partial-fraction preconditions are
+  specified
 - general multivariate polynomial GCD and configurable or multi-divisor division
 - exact multivariate factorization beyond current content extraction
 - broader factorization algorithms
 - arbitrary-precision exact algebra
 - symbolic, approximate, sparse, or arbitrary-rank matrix algebra
+
+## Planned Rational-Expression And Coefficient Slice
+
+The symbolic MVP algebra extension should add rational-expression helpers only
+where exactness and domain behavior can be explicit.
+
+Planned first functions:
+
+- `Numerator[expr]` and `Denominator[expr]` expose the normalized numerator and
+  denominator for supported rational numbers and supported rational
+  expressions.
+- `Cancel[expr]` cancels common exact polynomial factors only when the selected
+  variable set and factorization path are inside the supported subset.
+- `Together[expr]` combines supported rational sums into one rational
+  expression with deterministic denominator ordering.
+- `Coefficient[poly, x]` and `CoefficientList[poly, x]` read coefficients from
+  the same polynomial subset accepted by `Collect`.
+
+Required boundaries:
+
+- cancellation across unknown symbolic denominators must either preserve the
+  expression with a documented condition or reject the unsupported form; it
+  must not silently erase singularities outside the chosen contract.
+- decimal, symbolic-coefficient, unsupported multivariate, and overflow cases
+  use existing explicit diagnostics rather than approximate fallback.
+- `Apart` is second in this tranche because it requires a separate
+  partial-fraction contract, factorization preconditions, and variable
+  selector behavior.

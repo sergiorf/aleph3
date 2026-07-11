@@ -40,3 +40,32 @@ This slice excludes `Piecewise`, `Sum`, `Product`, higher-order derivatives,
 partial-derivative notation, assumptions-driven branch simplification,
 integration, limits, broad special functions, and broad symbolic
 simplification beyond the already supported arithmetic surface.
+
+## Planned Differentiation Follow-Ups
+
+The symbolic MVP follow-up should extend differentiation before adding broader
+calculus.
+
+Planned next surface:
+
+- `D[expr, {x, n}]` for nonnegative exact integer `n`, implemented as repeated
+  application of the existing first-derivative contract.
+- simple partial derivatives by composing first derivatives over distinct
+  symbols, such as `D[D[expr, x], y]`, with any compact multi-variable syntax
+  specified before exposure.
+- diagnostics for negative, non-integer, symbolic, or oversized derivative
+  orders.
+
+Deferred beyond this follow-up:
+
+- integration, definite or indefinite
+- broad `Limit`
+- broad `Series`, `Normal`, and `SeriesCoefficient`
+- residues and singularity analysis
+- vector calculus
+- symbolic or numerical differential equations
+- broad special-function introduction
+
+`Limit` and `Series` may become later MVP-adjacent slices only after their
+input forms, exactness, truncation objects, diagnostics, and interaction with
+assumptions are specified in focused contracts.

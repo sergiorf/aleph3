@@ -87,6 +87,8 @@ Still intentionally out of scope:
 - broad pack-defined held evaluation semantics
 - broader attribute families such as orderless or flat becoming execution
   owners
+- implementing MVP list operations by turning arbitrary functions into
+  `Listable` functions
 
 ## Descriptive-Only Attributes For Now
 
@@ -97,6 +99,16 @@ These attributes remain descriptive in this slice:
 
 They still appear in shared symbol metadata, but they do not become a new
 general ownership or dispatch system here.
+
+The planned MVP list operations (`Map`, `Apply`, `Select`, and `Cases`) should
+be ordinary registered or builtin symbolic handlers over finite lists. They do
+not require `Listable` to become an active attribute and must not make scalar
+functions implicitly distribute over lists.
+
+`Flat` and `Orderless` remain kernel-known normalization facts for selected
+heads such as arithmetic forms where that behavior is already specified. They
+are not broad user-defined attribute semantics, and they do not make the
+matcher attribute-aware.
 
 ## Precedence And Ownership Notes
 

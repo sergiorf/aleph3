@@ -80,6 +80,8 @@ Practical user-facing workflows now exposed on top of this kernel surface:
 - `Replace[f[x], f[a_] -> g[a]] -> g[x]`
 - `ReplaceRepeated[f[f[x]], f[a_] -> g[a]] -> g[g[x]]`
 - `MatchQ[f[x, x], f[a_, a_]] -> True`
+- planned MVP syntax: `expr /. rule` and `ReplaceAll[expr, rule]` should use
+  the same replacement contract once the frontend form is specified
 
 ## Current Contract
 
@@ -102,9 +104,11 @@ Examples:
 - `f[a_] -> g[a]`
 - `f[a_, a_] -> same[a]`
 
-This is still intentionally small. There are no predicate patterns,
-conditions, sequence patterns, or attribute-aware matcher rules yet. Unknown
-type constraints and sequence forms are rejected explicitly.
+This is still intentionally small. The implemented conditional surface is
+limited to current `Condition[...]` predicates. There are no predicate
+patterns, sequence patterns, nested conditional patterns, or attribute-aware
+matcher rules yet. Unknown type constraints and sequence forms are rejected
+explicitly.
 
 In plain terms:
 
@@ -126,7 +130,7 @@ Current product-facing transformation surface:
 Still intentionally unsupported:
 
 - rule lists
-- conditions
+- nested conditional patterns
 - sequence patterns
 - predicate-based patterns
 - hold-sensitive pattern evaluation
@@ -604,12 +608,33 @@ Example of what works now:
 
 ## What Is Not Implemented Yet
 
-- conditional rules
-- typed or predicate-based patterns
+- `ReplaceAll` and `/.` syntax over the existing replacement contract
+- `RuleDelayed`, pending a precise right-hand-side evaluation timing contract
+- rule lists
+- predicate-based patterns
 - sequence patterns
 - rewrite strategy selection
-- integration with assumptions
 - broad evaluator/rewrite scheduling integration
+
+Conditional rules are implemented only for the current `Condition[...]`
+predicate surface. Nested conditional patterns and broader assumption-driven
+conditional rewriting remain outside the current contract.
+
+## Planned Replacement Usability Slice
+
+The symbolic MVP should add the familiar replacement spelling without changing
+the rewrite engine's semantics:
+
+- `ReplaceAll[expr, rule]` applies the existing whole-expression replacement
+  traversal.
+- `expr /. rule` lowers to `ReplaceAll[expr, rule]` in the symbolic frontend.
+- the result and diagnostics must match the equivalent `Replace[expr, rule]`
+  call for the supported whole-tree traversal.
+- rule lists remain unsupported until list ordering, first-match behavior, and
+  diagnostics are specified.
+- `RuleDelayed` is gated on a contract that says when the right-hand side is
+  evaluated, what bindings are visible, how held arguments behave, and how
+  repeated replacements consume budgets.
 
 ## Next Steps
 
@@ -622,3 +647,5 @@ Example of what works now:
   stronger kernel contracts exist
 - decide which non-arithmetic simplifications are good candidates for future
   rewrite-owned migration
+- add `ReplaceAll` and `/.` only as aliases over the existing traversal until a
+  broader replacement strategy design is approved

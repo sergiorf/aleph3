@@ -63,13 +63,17 @@ services receive substantial investment.
 3. Remove remaining floating-point-centered dependencies from growth-facing
    exact algebra and deepen the bounded algebra pack.
 4. Deliver a focused differentiation pack over shared kernel contracts.
-5. Specify and deliver the kernel prerequisites needed for a small DSP pack
+5. Close the smallest symbolic MVP gaps that make the local CLI/notebook feel
+   coherent: structural inspection, state cleanup, replacement usability,
+   finite list transforms, minimal lexical binding, rational-expression
+   helpers, coefficient extraction, and first calculus follow-ups.
+6. Specify and deliver the kernel prerequisites needed for a small DSP pack
    without adding DSP-specific semantics to the kernel.
-6. Choose a desktop toolkit from measured spikes and deliver the first visible
+7. Choose a desktop toolkit from measured spikes and deliver the first visible
    notebook create/edit/evaluate/display/save/reopen/`Run All` loop.
-7. Enforce conformance across kernel, packs, session, CLI, notebook fixtures,
+8. Enforce conformance across kernel, packs, session, CLI, notebook fixtures,
    and the SDK where its trusted subset permits.
-8. Add a focused DSP pack only after its algebra, calculus, and kernel
+9. Add a focused DSP pack only after its algebra, calculus, and kernel
    prerequisite contracts are credible.
 
 Each product tranche should pair a contract improvement with a mathematical
@@ -127,6 +131,39 @@ Remaining work:
 - run bounded Qt and webview/native-wrapper spikes against the same notebook
   and session fixture;
 - record the toolkit decision and packaging implications in Architecture.
+
+### Symbolic MVP Gap Closure
+
+Outcome: the first public CLI/notebook experience has the small symbolic
+operations users naturally reach for while staying narrower than a
+general-purpose CAS.
+
+Remaining work:
+
+- specify and implement public structural inspection with `Head`, `Part`, and
+  alignment between `FullForm` and CLI `:inspect`, including invalid-index
+  diagnostics;
+- add session-local state cleanup through `Clear` and `Unset` for symbol values
+  and user definitions without mutating builtin, pack, host, or registry
+  ownership;
+- expose `ReplaceAll` and the `/.` syntax as the convenient surface over the
+  existing rewrite engine, and add `RuleDelayed` only after its evaluation
+  timing is specified;
+- define finite-list operations for `Map`, `Apply`, `Select`, and `Cases`
+  without making all functions implicitly `Listable`;
+- introduce one minimal lexical binding construct, preferably `With`, before
+  broader `Module` or `Block` semantics;
+- extend exact algebra with `Cancel`, `Together`, `Numerator`, `Denominator`,
+  `Coefficient`, and `CoefficientList` over the current polynomial and rational
+  expression subset, leaving `Apart` until the partial-fraction contract is
+  credible;
+- follow the focused differentiation pack with higher-order `D[expr, {x, n}]`
+  and simple partial-derivative workflows, while keeping `Limit` and `Series`
+  separately specified and tightly bounded before implementation.
+
+Broad scoping, general functional programming, general-purpose simplification,
+solver infrastructure, broad integration, arbitrary precision, and full
+Mathematica compatibility remain outside this milestone.
 
 ### DSP Kernel Prerequisites
 
@@ -265,10 +302,13 @@ Use this order unless a regression or dependency changes it:
 1. Specify the focused DSP kernel prerequisite slice, including piecewise,
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.
-2. Run and record the notebook toolkit spikes against one shared fixture.
-3. Build the first graphical notebook vertical slice.
-4. Continue exact algebra hardening required by calculus and future DSP work.
-5. Expand cross-surface conformance and packaging verification around each
+2. Specify the symbolic MVP gap-closure slice across structural/list
+   operations, state cleanup, replacement usability, rational-expression
+   helpers, coefficient extraction, and calculus follow-ups.
+3. Run and record the notebook toolkit spikes against one shared fixture.
+4. Build the first graphical notebook vertical slice.
+5. Continue exact algebra hardening required by calculus and future DSP work.
+6. Expand cross-surface conformance and packaging verification around each
    delivered slice.
 
 ## Deferred Work
@@ -278,10 +318,16 @@ Defer until an active milestone establishes the required contracts:
 - broad integration and differential-equation solving;
 - broad symbolic summation and product simplification beyond the focused
   bound-variable contracts;
+- broad lexical and dynamic scoping beyond the first `With`-style MVP binding
+  construct;
+- general functional-programming libraries beyond the finite-list MVP
+  operations;
 - nonlinear or general-purpose inequality solving;
 - general sequence patterns and unbounded traversal;
 - broad special-function expansion;
 - solver infrastructure;
+- arbitrary-precision integer, rational, and big-float arithmetic beyond the
+  current checked exact coefficient strategy;
 - plotting beyond a separately specified bounded data/display contract;
 - full natural-language explanation traces beyond focused rule and
   transformation metadata;

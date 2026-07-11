@@ -220,10 +220,37 @@ Deferred:
 - broader attribute-driven evaluation control beyond the current held builtin
   slice
 - ownvalue/downvalue-style lookup
-- mutation semantics beyond current tables
+- mutation semantics beyond current tables, except for the planned
+  session-local `Clear` and `Unset` cleanup surface below
 - fully registry- or definition-driven execution for the remaining host and
   richer builtin behavior paths once an owner is selected
 - runtime pack loading, pack unload, and broader registry mutation semantics
+
+## Planned Session Cleanup Surface
+
+`Clear` and `Unset` are the MVP state-cleanup functions for interactive
+sessions. They are planned as kernel-owned mutation operations over the current
+session context, not as registry mutation or pack lifecycle tools.
+
+Planned contract:
+
+- `Clear[symbol]` removes a symbol's current own value and any user function
+  definitions for that name in the active session.
+- `Unset[symbol]` removes the directly assigned own value for that symbol.
+- `Unset[f]` or the eventual function-definition unset form removes only user
+  definitions owned by the active session once the exact syntax is specified.
+- clearing an unknown user symbol is a no-op with deterministic success, so
+  cleanup scripts remain idempotent.
+- clearing builtin, special-form, registered pack, or host-function ownership
+  is rejected with an explicit diagnostic and must not remove symbol metadata,
+  registry entries, or provider-owned definition records.
+- cleanup never mutates another session, a compiled formula, the default
+  function catalog, pack registrations, or host registrations.
+
+The implementation must update symbol values, user function tables, and
+session-owned definition records atomically. If a symbol has both session-owned
+state and provider-owned behavior, cleanup removes only the session-owned
+records and leaves provider behavior visible through normal precedence.
 
 ## Next Steps
 
@@ -232,5 +259,7 @@ Deferred:
   implementation
 - grow rewrite registration on top of this shared rewrite-rule ownership
   contract without widening rewrite semantics prematurely
+- specify exact `Unset` syntax for user function definitions before exposing
+  it publicly
 - decide how far attribute metadata should influence dispatch and argument
   evaluation after the first held-builtin contract

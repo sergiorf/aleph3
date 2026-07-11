@@ -9,6 +9,7 @@
 
 #include "expr/Expr.hpp"
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -75,6 +76,10 @@ public:
 
     void set(std::string name, ExprPtr value) {
         values_[std::move(name)] = std::move(value);
+    }
+
+    bool erase(const std::string& name) {
+        return values_.erase(name) > 0;
     }
 
     [[nodiscard]] MapType& entries() {
@@ -224,6 +229,32 @@ public:
         definitions_[std::move(name)].push_back(std::move(record));
     }
 
+    std::size_t erase(
+        const std::string& name,
+        SymbolDefinitionKind kind,
+        DefinitionOrigin origin) {
+        auto it = definitions_.find(name);
+        if (it == definitions_.end()) {
+            return 0;
+        }
+
+        auto& records = it->second;
+        const auto old_size = records.size();
+        records.erase(
+            std::remove_if(
+                records.begin(),
+                records.end(),
+                [&](const SymbolDefinitionRecord& record) {
+                    return record.kind == kind && record.origin == origin;
+                }),
+            records.end());
+        const auto removed = old_size - records.size();
+        if (records.empty()) {
+            definitions_.erase(it);
+        }
+        return removed;
+    }
+
     [[nodiscard]] MapType& entries() {
         return definitions_;
     }
@@ -256,6 +287,10 @@ public:
 
     void set(std::string name, FunctionDefinition definition) {
         definitions_[std::move(name)] = std::move(definition);
+    }
+
+    bool erase(const std::string& name) {
+        return definitions_.erase(name) > 0;
     }
 
     [[nodiscard]] MapType& entries() {

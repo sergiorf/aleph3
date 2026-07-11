@@ -214,31 +214,32 @@ Implemented now:
   user-defined functions, and assignments
 - evaluator dispatch ownership selection derived from shared symbol-definition
   and registration facts
+- session-local cleanup through `Clear` and `Unset`
 
 Deferred:
 
 - broader attribute-driven evaluation control beyond the current held builtin
   slice
 - ownvalue/downvalue-style lookup
-- mutation semantics beyond current tables, except for the planned
-  session-local `Clear` and `Unset` cleanup surface below
+- mutation semantics beyond the current session-local cleanup surface
 - fully registry- or definition-driven execution for the remaining host and
   richer builtin behavior paths once an owner is selected
 - runtime pack loading, pack unload, and broader registry mutation semantics
 
-## Planned Session Cleanup Surface
+## Implemented Session Cleanup Surface
 
 `Clear` and `Unset` are the MVP state-cleanup functions for interactive
-sessions. They are planned as kernel-owned mutation operations over the current
-session context, not as registry mutation or pack lifecycle tools.
+sessions. They are kernel-owned mutation operations over the current session
+context, not registry mutation or pack lifecycle tools.
 
-Planned contract:
+Implemented contract:
 
 - `Clear[symbol]` removes a symbol's current own value and any user function
   definitions for that name in the active session.
 - `Unset[symbol]` removes the directly assigned own value for that symbol.
-- `Unset[f]` or the eventual function-definition unset form removes only user
-  definitions owned by the active session once the exact syntax is specified.
+- both functions take an unevaluated symbol argument, so `Clear[x]` targets
+  `x` even when `x` currently has an own value.
+- `Unset[f]` leaves user function definitions intact in this MVP slice.
 - clearing an unknown user symbol is a no-op with deterministic success, so
   cleanup scripts remain idempotent.
 - clearing builtin, special-form, registered pack, or host-function ownership
@@ -246,11 +247,19 @@ Planned contract:
   registry entries, or provider-owned definition records.
 - cleanup never mutates another session, a compiled formula, the default
   function catalog, pack registrations, or host registrations.
+- both functions return the target symbol on success because the public
+  expression model does not currently expose `Null`.
 
-The implementation must update symbol values, user function tables, and
-session-owned definition records atomically. If a symbol has both session-owned
+The implementation updates symbol values, user function tables, and
+session-owned definition records together. If a symbol has both session-owned
 state and provider-owned behavior, cleanup removes only the session-owned
 records and leaves provider behavior visible through normal precedence.
+
+Deferred cleanup syntax:
+
+- Mathematica-style `x =.` syntax is not implemented.
+- A downvalue-specific or function-definition-specific `Unset` syntax remains
+  deferred until its exact parser and ownership contract is specified.
 
 ## Next Steps
 
@@ -259,7 +268,7 @@ records and leaves provider behavior visible through normal precedence.
   implementation
 - grow rewrite registration on top of this shared rewrite-rule ownership
   contract without widening rewrite semantics prematurely
-- specify exact `Unset` syntax for user function definitions before exposing
-  it publicly
+- specify any function-definition-specific cleanup syntax before exposing it
+  publicly
 - decide how far attribute metadata should influence dispatch and argument
   evaluation after the first held-builtin contract

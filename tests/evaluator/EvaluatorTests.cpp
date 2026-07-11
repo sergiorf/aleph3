@@ -1403,6 +1403,86 @@ TEST_CASE("Finite list MVP operations reject unsupported inputs", "[evaluator][l
     REQUIRE_THROWS_AS(evaluate(parse_expression("Cases[{1}, _Matrix]"), ctx), EvaluatorError);
 }
 
+TEST_CASE("Session cleanup clears own values and user functions", "[evaluator][session-cleanup][mvp]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("a = 10"), ctx)) == "a");
+    REQUIRE(to_string(evaluate(parse_expression("a"), ctx)) == "10");
+    REQUIRE(ctx.definition_records.contains("a", symbols::SymbolDefinitionKind::own_value));
+
+    REQUIRE(to_string(evaluate(parse_expression("Clear[a]"), ctx)) == "a");
+    REQUIRE(to_string(evaluate(parse_expression("a"), ctx)) == "a");
+    REQUIRE_FALSE(ctx.symbol_values.contains("a"));
+    REQUIRE_FALSE(ctx.definition_records.contains("a", symbols::SymbolDefinitionKind::own_value));
+
+    REQUIRE(to_string(evaluate(parse_expression("f[x_] := x + 1"), ctx)) == "f[x_] := x + 1");
+    REQUIRE(to_string(evaluate(parse_expression("f[2]"), ctx)) == "3");
+    REQUIRE(ctx.definition_records.contains("f", symbols::SymbolDefinitionKind::user_function));
+
+    REQUIRE(to_string(evaluate(parse_expression("Clear[f]"), ctx)) == "f");
+    REQUIRE(to_string(evaluate(parse_expression("f[2]"), ctx)) == "f[2]");
+    REQUIRE_FALSE(ctx.function_definitions.contains("f"));
+    REQUIRE_FALSE(ctx.definition_records.contains("f", symbols::SymbolDefinitionKind::user_function));
+}
+
+TEST_CASE("Session cleanup unset removes only own values", "[evaluator][session-cleanup][mvp]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("a = 10"), ctx)) == "a");
+    REQUIRE(to_string(evaluate(parse_expression("Unset[a]"), ctx)) == "a");
+    REQUIRE(to_string(evaluate(parse_expression("a"), ctx)) == "a");
+    REQUIRE_FALSE(ctx.symbol_values.contains("a"));
+    REQUIRE_FALSE(ctx.definition_records.contains("a", symbols::SymbolDefinitionKind::own_value));
+
+    REQUIRE(to_string(evaluate(parse_expression("f[x_] := x + 1"), ctx)) == "f[x_] := x + 1");
+    REQUIRE(to_string(evaluate(parse_expression("Unset[f]"), ctx)) == "f");
+    REQUIRE(to_string(evaluate(parse_expression("f[2]"), ctx)) == "3");
+    REQUIRE(ctx.function_definitions.contains("f"));
+    REQUIRE(ctx.definition_records.contains("f", symbols::SymbolDefinitionKind::user_function));
+}
+
+TEST_CASE("Session cleanup no-ops unknown symbols and holds target names", "[evaluator][session-cleanup][mvp]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("Clear[ghost]"), ctx)) == "ghost");
+    REQUIRE(to_string(evaluate(parse_expression("Unset[ghost]"), ctx)) == "ghost");
+
+    REQUIRE(to_string(evaluate(parse_expression("x = 1"), ctx)) == "x");
+    REQUIRE(to_string(evaluate(parse_expression("Clear[x]"), ctx)) == "x");
+    REQUIRE(to_string(evaluate(parse_expression("x"), ctx)) == "x");
+}
+
+TEST_CASE("Session cleanup rejects invalid and provider-owned targets", "[evaluator][session-cleanup][diagnostics]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("x = 1"), ctx)) == "x");
+
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("Clear[x + y]"), ctx),
+        "Clear expects its argument to be an unevaluated symbol");
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("Clear[1]"), ctx),
+        "Clear expects its argument to be an unevaluated symbol");
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("Unset[x + y]"), ctx),
+        "Unset expects its argument to be an unevaluated symbol");
+
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("Clear[Plus]"), ctx),
+        "Clear cannot remove provider-owned symbol `Plus`");
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("Unset[Plus]"), ctx),
+        "Unset cannot remove provider-owned symbol `Plus`");
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("Clear[D]"), ctx),
+        "Clear cannot remove provider-owned symbol `D`");
+
+    REQUIRE(to_string(evaluate(parse_expression("Plus = 7"), ctx)) == "Plus");
+    REQUIRE(to_string(evaluate(parse_expression("Clear[Plus]"), ctx)) == "Plus");
+    REQUIRE_FALSE(ctx.symbol_values.contains("Plus"));
+    REQUIRE_FALSE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::own_value));
+}
+
 TEST_CASE("Assumption insertion rejects contradictions transactionally", "[evaluator][assumptions][diagnostics]") {
     EvaluationContext ctx;
     ctx.assumptions.assume(parse_expression("x > 0"));

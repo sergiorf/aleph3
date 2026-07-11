@@ -24,6 +24,19 @@ The symbolic REPL preserves assignments and definitions. One-shot commands
 start fresh. On supported terminals Tab completes commands and symbols;
 `:complete` is the deterministic, pipe-friendly fallback.
 
+Use `Clear[symbol]` to remove a session-local own value and user function
+definition. Use `Unset[symbol]` when only the own value should be removed:
+
+```text
+a = 10
+Clear[a]
+a
+
+f[x_] := x + 1
+Unset[f]
+f[2]
+```
+
 For stateful batch work, a script contains one expression per non-empty line:
 
 ```text

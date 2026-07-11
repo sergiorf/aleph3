@@ -146,6 +146,80 @@ namespace aleph3 {
         return symbol->name;
     }
 
+    std::string require_cleanup_symbol_name(const FunctionCall& func, const std::string& name) {
+        if (func.args.size() != 1) {
+            throw_invalid_arity_exact(name, 1);
+        }
+        const auto* symbol = std::get_if<Symbol>(func.args[0].get());
+        if (symbol == nullptr) {
+            throw_invalid_form(name + " expects its argument to be an unevaluated symbol");
+        }
+        return symbol->name;
+    }
+
+    bool has_session_definition_record(
+        const EvaluationContext& ctx,
+        const std::string& name,
+        symbols::SymbolDefinitionKind kind) {
+        const auto* records = ctx.definition_records.lookup(name);
+        if (records == nullptr) {
+            return false;
+        }
+        for (const auto& record : *records) {
+            if (record.kind == kind && record.origin == symbols::DefinitionOrigin::user) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool has_provider_owned_behavior(const EvaluationContext& ctx, const std::string& name) {
+        if (ctx.function_registry().find_symbolic_function_spec(name) != nullptr ||
+            ctx.function_registry().find_special_form_spec(name) != nullptr ||
+            ctx.function_registry().find_builtin_function_spec(name) != nullptr ||
+            ctx.function_registry().has_head_rewrites(name) ||
+            kernel::FunctionRegistry::find_host_function(ctx.host_functions(), name) != nullptr) {
+            return true;
+        }
+
+        const auto* records = ctx.definition_records.lookup(name);
+        if (records == nullptr) {
+            return false;
+        }
+        for (const auto& record : *records) {
+            if (record.origin != symbols::DefinitionOrigin::user) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool has_own_value_state(const EvaluationContext& ctx, const std::string& name) {
+        return ctx.symbol_values.contains(name) ||
+            has_session_definition_record(ctx, name, symbols::SymbolDefinitionKind::own_value);
+    }
+
+    bool has_user_function_state(const EvaluationContext& ctx, const std::string& name) {
+        return ctx.function_definitions.contains(name) ||
+            has_session_definition_record(ctx, name, symbols::SymbolDefinitionKind::user_function);
+    }
+
+    void erase_own_value_state(EvaluationContext& ctx, const std::string& name) {
+        ctx.symbol_values.erase(name);
+        ctx.definition_records.erase(
+            name,
+            symbols::SymbolDefinitionKind::own_value,
+            symbols::DefinitionOrigin::user);
+    }
+
+    void erase_user_function_state(EvaluationContext& ctx, const std::string& name) {
+        ctx.function_definitions.erase(name);
+        ctx.definition_records.erase(
+            name,
+            symbols::SymbolDefinitionKind::user_function,
+            symbols::DefinitionOrigin::user);
+    }
+
     std::string expression_head_name(const ExprPtr& expr) {
         return std::visit(overloaded{
             [](const Symbol&) -> std::string { return "Symbol"; },
@@ -355,6 +429,39 @@ namespace aleph3 {
             }
             throw_invalid_form("Length expects a list argument");
             });
+
+        registry.register_function(
+            "Clear",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                const auto name = require_cleanup_symbol_name(func, "Clear");
+                const bool has_session_state =
+                    has_own_value_state(ctx, name) || has_user_function_state(ctx, name);
+
+                if (!has_session_state && has_provider_owned_behavior(ctx, name)) {
+                    throw_invalid_form("Clear cannot remove provider-owned symbol `" + name + "`");
+                }
+
+                erase_own_value_state(ctx, name);
+                erase_user_function_state(ctx, name);
+                return make_expr<Symbol>(name);
+            },
+            {symbols::SymbolAttribute::hold_all});
+
+        registry.register_function(
+            "Unset",
+            [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+                const auto name = require_cleanup_symbol_name(func, "Unset");
+                const bool has_own_value = has_own_value_state(ctx, name);
+                const bool has_user_function = has_user_function_state(ctx, name);
+
+                if (!has_own_value && !has_user_function && has_provider_owned_behavior(ctx, name)) {
+                    throw_invalid_form("Unset cannot remove provider-owned symbol `" + name + "`");
+                }
+
+                erase_own_value_state(ctx, name);
+                return make_expr<Symbol>(name);
+            },
+            {symbols::SymbolAttribute::hold_all});
 
         registry.register_function(
             "Head",

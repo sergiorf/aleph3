@@ -46,6 +46,38 @@ If[3 < 4, "yes", "no"]  -> "yes"
 `If`, `And`, and `Or` control argument evaluation. An unselected `If` branch is
 not evaluated; this is kernel behavior, not a text macro.
 
+## Session State Cleanup
+
+Interactive sessions preserve assignments and user function definitions until
+they are removed or the session ends. `Clear` and `Unset` take an unevaluated
+symbol name and return that symbol on success:
+
+```text
+a = 10                                  -> a
+a                                       -> 10
+Clear[a]                                -> a
+a                                       -> a
+
+f[x_] := x + 1                          -> f[x_] := x + 1
+f[2]                                    -> 3
+Clear[f]                                -> f
+f[2]                                    -> f[2]
+```
+
+`Unset` removes only an own value. It does not remove user function
+definitions:
+
+```text
+f[x_] := x + 1                          -> f[x_] := x + 1
+Unset[f]                                -> f
+f[2]                                    -> 3
+```
+
+Unknown user symbols are deterministic no-ops. Builtin, pack, special-form, and
+host-owned names cannot be cleared unless the command is removing a
+session-local value or definition layered on that name. Syntax such as `x =.`
+is not implemented.
+
 ## Strings And Lists
 
 ```text

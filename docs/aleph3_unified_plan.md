@@ -64,9 +64,8 @@ services receive substantial investment.
    exact algebra and deepen the bounded algebra pack.
 4. Deliver a focused differentiation pack over shared kernel contracts.
 5. Close the smallest symbolic MVP gaps that make the local CLI/notebook feel
-   coherent: state cleanup, replacement usability, minimal lexical binding,
-   rational-expression helpers, coefficient extraction, and first calculus
-   follow-ups.
+   coherent: replacement usability, minimal lexical binding, rational-expression
+   helpers, coefficient extraction, and first calculus follow-ups.
 6. Specify and deliver the kernel prerequisites needed for a small DSP pack
    without adding DSP-specific semantics to the kernel.
 7. Choose a desktop toolkit from measured spikes and deliver the first visible
@@ -140,9 +139,6 @@ general-purpose CAS.
 
 Remaining work:
 
-- add session-local state cleanup through `Clear` and `Unset` for symbol values
-  and user definitions without mutating builtin, pack, host, or registry
-  ownership;
 - expose `ReplaceAll` and the `/.` syntax as the convenient surface over the
   existing rewrite engine, and add `RuleDelayed` only after its evaluation
   timing is specified;
@@ -298,8 +294,8 @@ Use this order unless a regression or dependency changes it:
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.
 2. Specify and implement the remaining symbolic MVP gap-closure items across
-   state cleanup, replacement usability, rational-expression helpers,
-   coefficient extraction, lexical binding, and calculus follow-ups.
+   replacement usability, rational-expression helpers, coefficient extraction,
+   lexical binding, and calculus follow-ups.
 3. Run and record the notebook toolkit spikes against one shared fixture.
 4. Build the first graphical notebook vertical slice.
 5. Continue exact algebra hardening required by calculus and future DSP work.

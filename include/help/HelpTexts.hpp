@@ -70,6 +70,8 @@ namespace aleph3 {
             {"Replace", "Replace[expr, rule, level]: Apply one rule, optionally at a nonnegative depth or range", "Symbolic"},
             {"ReplaceRepeated", "ReplaceRepeated[expr, rule, level]: Reapply a rule at an optional bounded depth", "Symbolic"},
             {"MatchQ", "MatchQ[expr, pattern]: Test whether expr matches a supported symbolic pattern", "Symbolic"},
+            {"Clear", "Clear[symbol]: Remove a session-local own value and user function definition", "Symbolic"},
+            {"Unset", "Unset[symbol]: Remove a session-local own value only", "Symbolic"},
             {"FreeVariables", "FreeVariables[expr]: List symbols that occur free in expr", "Symbolic"},
             {"BoundVariables", "BoundVariables[expr]: List pattern or function-definition variables bound in expr", "Symbolic"},
             {"DependsOn", "DependsOn[expr, x]: Test whether expr has x as a free variable", "Symbolic"},

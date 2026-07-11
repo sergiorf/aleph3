@@ -22,8 +22,9 @@ The MVP succeeds when a user can launch a local application, create and edit a
 document, evaluate supported symbolic input through one session, understand
 results or failures, save the document, reopen it, and run bundled examples.
 
-The product name and GUI toolkit remain open. The physical v1 encoding is
-bounded UTF-8 JSON.
+The product name and GUI toolkit remain open. The first packaged distribution
+target is Windows-first unless the toolkit decision records a different
+measured result. The physical v1 encoding is bounded UTF-8 JSON.
 
 ## Ownership
 
@@ -77,9 +78,10 @@ On reopen, `Run All` is the authoritative way to reconstruct session state.
 Persisted output is a display cache and must be visibly distinguishable when
 it has not been reproduced by the current kernel/product version.
 
-Cancellation, if supported by the selected toolkit and session boundary, must
-cooperate with kernel budgets. Forcefully terminating arbitrary kernel work is
-not an MVP promise until recovery and state integrity are specified.
+Cancellation and restart or reset are part of the graphical MVP contract, but
+they must cooperate with kernel budgets and preserve session integrity.
+Forcefully terminating arbitrary kernel work is not an MVP promise until
+recovery and state integrity are specified.
 
 ## Results, Display, and Diagnostics
 
@@ -223,10 +225,11 @@ Completion requires the focused tests, both affected existing suites,
 ### Deferred Decisions and Non-Goals
 
 At delivery this slice did not choose Qt versus webview, a product name, or a
-physical file encoding. It did not add save/load, cached-output compatibility,
-individual cell execution, cancellation, Markdown rendering, rich mathematical
-display, autosave, gallery UI, export, plotting, or packaging. Persistence was
-delivered by the following slice below; the remaining items stay deferred.
+first distribution package. It did not add save/load, cached-output
+compatibility, individual cell execution, cancellation, Markdown rendering,
+rich mathematical display, autosave, gallery UI, export, plotting, or
+packaging. Persistence was delivered by the following slice below; the
+remaining items stay deferred.
 
 ## Delivered Persistence Slice
 

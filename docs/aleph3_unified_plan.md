@@ -23,6 +23,13 @@ core. The SDK is the stable host-embedding boundary, the CLI is the permanent
 scripting and diagnostic surface, the session is shared interactive
 infrastructure, and math grows through registered packs.
 
+The first usable product is the local symbolic notebook: a small, coherent
+environment for exact symbolic work, bounded numerical approximation, session
+state, examples, and deterministic diagnostics. The first DSP pack follows
+that notebook foundation and uses shared kernel contracts rather than moving
+DSP-specific semantics into the kernel. Broader symbolic mathematics,
+accelerated DSP, and advanced transform work remain later tranches.
+
 The near-term product claim must remain narrower than a general-purpose CAS:
 today's strongest surfaces are the SDK, CLI, session, and a bounded symbolic
 subset. The desktop notebook, broader calculus, and wider domain mathematics
@@ -56,24 +63,27 @@ services receive substantial investment.
 
 ## Priority Order
 
-1. Harden parser/printer round trips, canonical rendering, diagnostics,
-   budgets, and explicit unsupported behavior.
-2. Finish symbol, definition, registration, rewrite, and assumptions contracts
-   needed by packs and long-lived embedding.
-3. Remove remaining floating-point-centered dependencies from growth-facing
-   exact algebra and deepen the bounded algebra pack.
-4. Deliver a focused differentiation pack over shared kernel contracts.
-5. Close the smallest symbolic MVP gaps that make the local CLI/notebook feel
-   coherent: replacement usability, minimal lexical binding, rational-expression
-   helpers, coefficient extraction, and first calculus follow-ups.
-6. Specify and deliver the kernel prerequisites needed for a small DSP pack
-   without adding DSP-specific semantics to the kernel.
-7. Choose a desktop toolkit from measured spikes and deliver the first visible
+1. Finish the remaining interactive definition, session reset, completion,
+   help, and cross-surface conformance work needed for coherent notebook use.
+2. Close the smallest symbolic MVP gaps that are not already implemented:
+   minimal lexical binding, rational-expression helpers, coefficient
+   extraction, and first calculus follow-ups.
+3. Fill bounded numerical and finite-list gaps that make the notebook useful
+   for sampled data and exact-or-approximate exploration without weakening the
+   exact symbolic default.
+4. Choose a desktop toolkit from measured spikes and deliver the first visible
    notebook create/edit/evaluate/display/save/reopen/`Run All` loop.
-8. Enforce conformance across kernel, packs, session, CLI, notebook fixtures,
-   and the SDK where its trusted subset permits.
-9. Add a focused DSP pack only after its algebra, calculus, and kernel
-   prerequisite contracts are credible.
+5. Add notebook cancellation, restart or reset, definition clearing flows,
+   discoverability, example gallery, packaging, and interactive budget
+   enforcement around that loop.
+6. Continue exact algebra hardening required by calculus, bounded solving,
+   finite summation, and future DSP work.
+7. Specify the shared kernel prerequisites for the first DSP pack without
+   adding DSP-specific semantics to the kernel.
+8. Deliver a focused DSP pack for finite sequences, convolution, FIR filtering,
+   and direct DFT/inverse DFT.
+9. Extend DSP with bounded transform functionality such as a small unilateral
+   Z-transform, while leaving acceleration and broad transform theory for later.
 
 Each product tranche should pair a contract improvement with a mathematical
 capability and a user-visible or cross-surface way to exercise it. Missing
@@ -98,6 +108,32 @@ Remaining work:
   pack loading or unload becomes an active slice;
 - keep evaluation-control attributes deliberately bounded until their hooks
   and precedence are tested.
+
+### Interactive Definitions and Session Semantics
+
+Outcome: notebook, CLI, session, and SDK consumers that admit symbolic input
+use one predictable state model for assignments, user functions, cleanup,
+completion, and reset behavior.
+
+The implemented `Set`, `SetDelayed`, user function, `Clear`, `Unset`, and
+precedence foundations are owned by the symbol model, definition precedence,
+and manual documents rather than tracked here as unfinished work.
+
+Remaining work:
+
+- specify and implement explicit session reset or restart behavior for CLI and
+  notebook consumers, including definition clearing and cached-output effects;
+- close any remaining gaps in the bounded definition subset contract across
+  CLI, session, SDK where applicable, and notebook fixtures;
+- keep completion and help output consistent for builtins, pack functions,
+  host functions, and session-local user definitions;
+- make cross-surface tests prove that provider-owned behavior still wins over
+  user definitions according to the shared precedence contract;
+- keep `With` as a planned lexical binding construct, not a replacement for
+  assignments, user functions, cleanup, or session reset.
+
+Full Mathematica assignment semantics, upvalues/downvalues, dynamic scoping,
+and unrestricted evaluation-control attributes remain outside this milestone.
 
 ### Exact Algebra Depth
 
@@ -146,12 +182,73 @@ Remaining work:
   expression subset, leaving `Apart` until the partial-fraction contract is
   credible;
 - follow the focused differentiation pack with higher-order `D[expr, {x, n}]`
-  and simple partial-derivative workflows, while keeping `Limit` and `Series`
-  separately specified and tightly bounded before implementation.
+  and simple partial-derivative workflows;
+- specify a small exact `Solve` tranche after the notebook MVP unless a
+  dedicated architecture pass proves it belongs earlier. The first credible
+  subset is one equation in one variable for exact linear and quadratic cases,
+  with explicit rejection of multivariate, transcendental, inequality,
+  numerical, and general polynomial solving;
+- keep `Limit`, local power-series expansion, finite `Sum`, and infinite
+  summation as separate contracts rather than one broad calculus bucket.
 
 Broad scoping, general functional programming, general-purpose simplification,
 solver infrastructure, broad integration, arbitrary precision, and full
 Mathematica compatibility remain outside this milestone.
+
+### Bounded Numerical and Finite Data MVP
+
+Outcome: the notebook can mix exact symbolic work with opt-in machine-real
+approximation and finite data operations without silently abandoning exactness.
+
+Already implemented numeric and list behavior remains documented in the manual
+and focused specifications. Roadmap work here is only for the remaining gaps.
+
+Remaining work:
+
+- specify the bounded approximate-evaluation contract around exact integers
+  and rationals by default, decimal literals, machine reals, `N[expr]`, mixed
+  exact and machine-real arithmetic, supported constants, elementary functions,
+  overflow, invalid domains, non-finite values, and budget limits;
+- specify and implement remaining finite-list and iteration needs such as
+  `Range`, `Table`, and `Total`, with exactness preservation, size budgets, and
+  deterministic errors for invalid indexes, unsupported symbolic bounds, and
+  oversized results;
+- decide which operations are kernel structural contracts and which belong in
+  a core pack, while keeping DSP-specific sequence conventions in the DSP pack;
+- preserve implemented `List`, `Length`, one-level `Part`, `Map`, `Apply`,
+  `Select`, `Cases`, and current `N` behavior as current-contract foundations,
+  not future work.
+
+Arbitrary precision, broad numerical analysis, interval arithmetic,
+arbitrary-precision transcendental evaluation, lazy sequences, sequence
+patterns, and unbounded traversal remain deferred.
+
+### Focused Series and Summation
+
+Outcome: later notebook-adjacent symbolic math distinguishes local truncated
+series, finite symbolic summation, and infinite series instead of conflating
+them.
+
+Remaining work:
+
+- after focused differentiation, specify bounded local power-series expansion
+  such as `Series[Exp[x], {x, 0, 5}]` with expansion variable, expansion point,
+  truncation order, first-class truncated-series representation, bounded
+  addition and multiplication, conversion back to an ordinary expression, and
+  clear order-term rendering;
+- specify finite symbolic `Sum` over the shared binding, substitution,
+  assumptions, budget, and diagnostic contracts. The first subset should cover
+  exact finite integer bounds and only explicitly supported families such as
+  constants, arithmetic progressions, simple polynomial sums, and finite
+  geometric sums;
+- keep infinite series out of the notebook MVP. A later bounded tranche may
+  cover geometric series, finite modifications of geometric series, simple
+  telescoping cases, and possibly basic p-series recognition, but only with
+  explicit convergence conditions.
+
+Broad asymptotic, Puiseux, Laurent, branch-analysis, analytic-continuation,
+special-function summation, infinite products, and general convergence
+analysis remain deferred.
 
 ### DSP Kernel Prerequisites
 
@@ -162,9 +259,10 @@ Remaining work:
 
 - specify first-class `Piecewise` representation, evaluation, diagnostics, and
   assumption-aware simplification boundaries;
-- define finite `Range`, `Linspace`, and `Sample` contracts that preserve
-  exactness and report unsupported numeric, symbolic, or oversized ranges
-  explicitly;
+- build on shared finite data contracts for `Range` and related list
+  generation instead of treating them as private DSP prerequisites; keep
+  `Linspace` and `Sample` specified where their numeric or signal-processing
+  conventions are actually needed;
 - introduce held or bound-variable constructs for a focused `Sum` surface, and
   leave `Product` to follow only after the same binding contract is proven;
 - build on the implemented `FreeVariables`, `BoundVariables`, `DependsOn`, and
@@ -187,15 +285,25 @@ outside this milestone unless a focused specification brings them in.
 
 Outcome: a user can create and edit a local document, evaluate supported input
 through one shared session, understand results or failures, save and reopen the
-document, and run verified examples.
+document, run all inputs, and launch an installable Windows-first desktop
+package without a development environment.
 
 Remaining work:
 
 - build the graphical application over the existing headless document,
   persistence, and clean `Run All` foundations;
-- add input/text/output presentation, canonical-text fallback, and structured
-  diagnostic display without UI-owned semantics;
-- verify save/reopen and stale cached-output presentation in the application;
+- add input/text/output presentation, queued/running/completed/cancelled/failed
+  statuses, canonical-text fallback, and structured diagnostic display without
+  UI-owned semantics;
+- verify save/reopen, explicit execution-order semantics, stale cached-output
+  presentation, and recovery after evaluation or application failure in the
+  application;
+- add cancellation, restart or reset, definition-clearing flows, and
+  interactive enforcement of evaluation budgets through shared session/kernel
+  contracts;
+- provide minimal help and function discovery for supported operations,
+  including accepted forms, examples, exactness behavior, unsupported
+  boundaries, and owning component where useful;
 - ship a tested example gallery covering current arithmetic, rewriting,
   assumptions, polynomial algebra, matrices when documented, and focused
   differentiation when delivered;
@@ -216,16 +324,29 @@ Remaining work:
 - depend on the focused DSP kernel prerequisite contracts for piecewise forms,
   finite sampling, binding, substitution, conditional rules, and bounded
   inequality reasoning instead of adding private pack semantics;
-- specify finite discrete sequences, convolution, FIR filtering, exactness,
-  budgets, and unsupported forms;
+- specify finite discrete sequences, shared-list or sequence indexing,
+  convolution, FIR filtering, exactness, mixed-exact behavior, budgets, and
+  unsupported forms;
+- include direct DFT and inverse DFT in the first DSP MVP, using a simple
+  `O(N^2)` implementation if needed. The specification must define forward and
+  inverse conventions, normalization, finite numerical inputs, small bounded
+  exact or symbolic inputs, roots-of-unity representation, result ordering,
+  input-size budgets, and cross-surface behavior;
 - implement those operations through existing kernel and pack contracts;
-- add rational transfer-function and z-domain work only after dependencies on
-  algebra, calculus, assumptions, and the DSP kernel prerequisites are
-  explicit;
+- add a bounded unilateral Z-transform tranche either at the end of the first
+  DSP MVP or immediately after it, only after algebra, calculus, assumptions,
+  and DSP prerequisite dependencies are explicit. Regions of convergence must
+  be represented or diagnosed explicitly, and a rational expression alone must
+  not be treated as a complete bilateral transform result;
+- support a bounded frequency-response workflow by evaluating rational
+  transfer functions on the unit circle without claiming a general DTFT;
 - expose supported operations consistently through shared consumers.
 
-FFT acceleration, streaming audio, codecs, real-time scheduling, hardware
-integration, and image processing are outside the first DSP pack.
+FFT acceleration, general symbolic DTFT, continuous Fourier transform, inverse
+continuous Fourier transform, Fourier series, broad transform tables,
+distribution theory, multidimensional Fourier transforms, signal plotting,
+streaming audio, codecs, real-time scheduling, hardware integration, and image
+processing are outside the first DSP pack.
 
 ## Cross-Cutting Workstreams
 
@@ -262,6 +383,16 @@ integration, and image processing are outside the first DSP pack.
 - keep CLI scripting deterministic and machine-readable without adding
   CLI-only semantics.
 
+### Discoverability
+
+- provide a minimal CLI and notebook help catalog for supported operations,
+  accepted forms, one or two examples, exactness or approximation behavior,
+  unsupported boundaries, and owning pack or component where useful;
+- keep completions deterministic across builtins, pack functions, host
+  functions, and session-local definitions;
+- defer broad documentation search, rich tutorials in the product shell, and
+  natural-language help until the supported surface and packaging are stable.
+
 ### Quality and Documentation
 
 - organize tests by ownership layer and preserve affected broader coverage;
@@ -287,17 +418,27 @@ integration, and image processing are outside the first DSP pack.
 
 Use this order unless a regression or dependency changes it:
 
-1. Specify the focused DSP kernel prerequisite slice, including piecewise,
-   finite sampling, binding, substitution, conditional rewrites, and bounded
-   linear inequality reasoning.
+1. Finish the remaining interactive definition/session semantics work:
+   session reset, definition clearing flows, completion/help consistency, and
+   cross-surface fixtures.
 2. Specify and implement the remaining symbolic MVP gap-closure items across
    rational-expression helpers, coefficient extraction, lexical binding, and
    calculus follow-ups.
-3. Run and record the notebook toolkit spikes against one shared fixture.
-4. Build the first graphical notebook vertical slice.
-5. Continue exact algebra hardening required by calculus and future DSP work.
-6. Expand cross-surface conformance and packaging verification around each
-   delivered slice.
+3. Specify and fill the remaining bounded numerical and finite-list gaps,
+   especially `Range`, `Table`, `Total`, budget behavior, and unsupported
+   diagnostics.
+4. Run and record the notebook toolkit spikes against one shared fixture.
+5. Build the first graphical notebook vertical slice, then add cancellation,
+   reset, help, example gallery, packaging, and keyboard workflow checks.
+6. Continue exact algebra hardening required by calculus, bounded solving,
+   finite summation, and future DSP work.
+7. Specify the focused DSP kernel prerequisite slice, including piecewise,
+   finite sampling, binding, substitution, conditional rewrites, and bounded
+   linear inequality reasoning.
+8. Deliver the first DSP pack for finite sequences, convolution, FIR
+   filtering, direct DFT, and inverse DFT.
+9. Specify the bounded Z-transform and later transform tranche, keeping FFT
+   acceleration and broad Fourier work deferred.
 
 ## Deferred Work
 
@@ -306,19 +447,29 @@ Defer until an active milestone establishes the required contracts:
 - broad integration and differential-equation solving;
 - broad symbolic summation and product simplification beyond the focused
   bound-variable contracts;
+- infinite symbolic summation beyond a later bounded, convergence-aware tranche;
 - broad lexical and dynamic scoping beyond the first `With`-style MVP binding
   construct;
 - general functional-programming libraries beyond the finite-list MVP
   operations;
+- lazy sequences and unbounded iteration;
 - nonlinear or general-purpose inequality solving;
 - general sequence patterns and unbounded traversal;
-- broad special-function expansion;
-- solver infrastructure;
+- solver infrastructure beyond a separately specified exact one-variable
+  linear/quadratic subset;
+- broad local-series, asymptotic-series, branch-analysis, analytic-continuation,
+  and special-function expansion;
 - arbitrary-precision integer, rational, and big-float arithmetic beyond the
   current checked exact coefficient strategy;
+- broad numerical analysis, interval arithmetic, and arbitrary-precision
+  transcendental evaluation;
 - plotting beyond a separately specified bounded data/display contract;
 - full natural-language explanation traces beyond focused rule and
   transformation metadata;
+- rich in-product documentation search and natural-language help;
+- FFT acceleration, general DTFT, continuous Fourier transforms, Fourier
+  series, broad transform tables, distribution theory, multidimensional
+  transforms, and advanced DSP workflows;
 - rich export, collaboration, cloud execution, provider-backed AI features,
   and a marketplace;
 - paid engineering, education, finance, or code-generation packs;
@@ -332,12 +483,15 @@ A roadmap item is complete only when:
 
 - ownership and public/architectural behavior are reflected in the relevant
   specification;
-- exactness, budgets, diagnostics, compatibility, and unsupported boundaries
-  are explicit;
-- focused and affected broader tests pass;
+- exactness or approximation semantics, budgets, diagnostics, compatibility,
+  and unsupported boundaries are explicit;
+- focused positive and negative tests plus affected broader tests pass;
+- shared semantic fixtures cover cross-surface behavior where kernel, packs,
+  session, CLI, notebook, or SDK consumers share the feature;
 - user-visible behavior has accurate manual documentation and verified
   examples;
-- local documentation links, CLI help, and indexes remain consistent;
+- CLI and notebook examples, local documentation links, help catalogs, and
+  indexes remain consistent;
 - the final diff has been reviewed and contains no stale plan claims.
 
 The overall program succeeds when the graphical notebook provides the narrow

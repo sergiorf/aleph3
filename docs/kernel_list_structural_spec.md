@@ -5,8 +5,8 @@
 This document defines the symbolic MVP contract for structural inspection and
 finite-list operations. The first slice is implemented for `Head`, one-level
 `Part`, `Map`, `Apply`, `Select`, and `Cases` over explicit finite lists.
-Nested traversal, levels, heads traversal, broad predicates, and broader
-scoping remain planned or deferred as marked below.
+Nested traversal, levels, heads traversal, broad predicates, and scoping remain
+planned or deferred as marked below.
 
 ## Purpose
 
@@ -18,9 +18,7 @@ This contract builds on existing `Expr` trees, lists, predicates, rewrite, and
 evaluation budgets. It must not add a second evaluator or make functions
 implicitly list-aware.
 
-## Planned Structural Inspection
-
-Implemented first-slice functions:
+## Implemented Structural Inspection
 
 - `Head[expr]` returns the public head name for atoms, lists, rules,
   assignments, function definitions, and function calls.
@@ -43,9 +41,7 @@ Required diagnostics:
 - unsupported part extraction from atoms
 - malformed nested part specifications
 
-## Planned Finite-List Operations
-
-Implemented first-slice functions:
+## Implemented Finite-List Operations
 
 - `Map[f, {a, b, c}]` evaluates to `{f[a], f[b], f[c]}`.
 - `Apply[f, {a, b}]` evaluates to `f[a, b]`.
@@ -86,9 +82,10 @@ The binding contract must build on the existing `FreeVariables`,
 
 ## Attribute Boundary
 
-These operations do not make general `Listable` active. `Map`, `Apply`,
-`Select`, and `Cases` are explicit operations over finite lists. Scalar
-functions remain scalar unless their own supported contract says otherwise.
+The implemented list operations do not make general `Listable` active. `Map`,
+`Apply`, `Select`, and `Cases` are explicit operations over finite lists.
+Scalar functions remain scalar unless their own supported contract says
+otherwise.
 
 Likewise, `Flat` and `Orderless` do not become general matcher semantics for
 this slice.

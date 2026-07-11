@@ -63,7 +63,7 @@ listable.
 ## Structural Inspection And Finite List Transforms
 
 `Head` returns a symbol naming the public head of an evaluated expression. The
-right-hand side below is the actual result, not a string or an annotation:
+right-hand side in each example is the value returned by Aleph3:
 
 ```text
 Head[f[x, y + 1]]                       -> f
@@ -73,7 +73,7 @@ Head[1.5]                               -> Real
 Head[1/2]                               -> Rational
 ```
 
-That means the result can itself be inspected as an expression:
+The returned value is an ordinary symbol, so it can itself be inspected:
 
 ```text
 Head[Head[3]]                           -> Symbol

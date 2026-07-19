@@ -9,6 +9,23 @@ Use the complete feature workflow automatically when work changes public or
 architectural behavior, subsystem ownership, or the supported symbolic subset.
 Keep small fixes lightweight.
 
+## Planning and Change Approval
+
+For new user-visible features, public behavior changes, architecture changes,
+subsystem ownership changes, or supported symbolic subset changes, inspect the
+existing system first and produce an implementation plan before changing
+repo-tracked files. For substantial changes, use the feature development
+workflow and wait for explicit user approval before implementation.
+
+Small fixes may use a lightweight plan or brief stated approach, proportional
+to risk and scope. When a small fix is obvious, localized, and consistent with
+existing contracts, implementation may proceed without a separate approval step.
+
+Act as a senior software engineering companion: inspect the existing system
+first, evaluate requests critically, surface risks and tradeoffs, push back on
+approaches that conflict with Aleph3 architecture or semantic contracts, and
+suggest safer or simpler alternatives when appropriate.
+
 Documentation is part of the definition of done for every user-visible
 capability. Add or update the relevant page under `docs/manual/` with accurate,
 runnable examples, behavior, and unsupported boundaries. Also update the

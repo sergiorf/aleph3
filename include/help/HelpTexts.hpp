@@ -457,9 +457,9 @@ namespace aleph3 {
                 "Arbitrary precision and broad numerical analysis are deferred.",
                 "builtin", "manual/built-in-functions.md#numeric-and-structural-output"},
             {"FullForm", "Show the internal expression structure.", "Other",
-                {"FullForm[expr]"}, {"FullForm[x + 1] -> Plus[x, 1]"},
-                "FullForm reports structure and does not change numeric exactness.",
-                "It is a diagnostic display surface, not a stable serialization format.",
+                {"FullForm[expr]"}, {"FullForm[x + 1] -> \"Plus[x, 1]\""},
+                "FullForm returns an exact string containing the evaluated expression structure.",
+                "It is diagnostic text, not a stable serialization format.",
                 "builtin", "manual/built-in-functions.md#numeric-and-structural-output"},
 
             // Algebra pack

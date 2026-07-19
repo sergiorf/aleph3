@@ -139,9 +139,20 @@ and predicates that return concrete non-boolean values are diagnosed.
 
 ## Numeric And Structural Output
 
-`N[expr]` requests numeric evaluation where supported. `FullForm[expr]` shows
-the internal expression structure. Use exact input when exact preservation
-matters; a decimal literal is already approximate before `N` runs.
+`N[expr]` requests numeric evaluation where supported. `FullForm[expr]`
+evaluates its argument, then returns an exact string containing the internal
+expression structure:
+
+```text
+FullForm[x + 1]                         -> "Plus[x, 1]"
+FullForm[1/2 + 1/3]                     -> "Rational[5, 6]"
+```
+
+Use exact input when exact preservation matters; a decimal literal is already
+approximate before `N` runs. `FullForm` output is diagnostic text, not a stable
+serialization format. CLI and session inspection commands such as
+`symbolic-fullform` and `:inspect` inspect parsed input structure before normal
+evaluation.
 
 ## Symbolic Predicates
 

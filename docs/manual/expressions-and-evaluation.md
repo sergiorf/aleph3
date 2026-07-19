@@ -7,7 +7,7 @@ arguments. In `Clamp[x, 0, 10]`, `Clamp` is the head. Arithmetic uses the same
 structure, so `x + 2` has the internal form `Plus[x, 2]`.
 
 ```text
-FullForm[x + 2]          -> Plus[x, 2]
+FullForm[x + 2]          -> "Plus[x, 2]"
 :inspect f[x + 1]
 ```
 

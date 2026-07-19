@@ -172,7 +172,7 @@ TEST_CASE("REPL meta commands use colon prefixes", "[tooling][cli]") {
 TEST_CASE("REPL help exposes focused symbolic and command entries", "[tooling][cli][session][help]") {
     const auto result = run_shell_command(make_repl_command(
         {":help Factor", ":help Clear", ":help :reset", ":help core-algebra", ":help Log",
-         ":help ArcTan", ":help Length", ":help Assuming", ":help MatrixAdd", ":help D", ":quit"}));
+         ":help ArcTan", ":help Length", ":help FullForm", ":help Assuming", ":help MatrixAdd", ":help D", ":quit"}));
 
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output.find("Factor [pack] (core-algebra)") != std::string::npos);
@@ -189,6 +189,8 @@ TEST_CASE("REPL help exposes focused symbolic and command entries", "[tooling][c
     REQUIRE(result.output.find("ArcTan[x, y]") != std::string::npos);
     REQUIRE(result.output.find("Length [builtin]") != std::string::npos);
     REQUIRE(result.output.find("Length[{a, b, c}] -> 3") != std::string::npos);
+    REQUIRE(result.output.find("FullForm [builtin]") != std::string::npos);
+    REQUIRE(result.output.find("FullForm[x + 1] -> \"Plus[x, 1]\"") != std::string::npos);
     REQUIRE(result.output.find("Assuming [builtin]") != std::string::npos);
     REQUIRE(result.output.find("Facts are scoped to the evaluation") != std::string::npos);
     REQUIRE(result.output.find("MatrixAdd [pack] (core-algebra)") != std::string::npos);
@@ -258,10 +260,11 @@ TEST_CASE("REPL exposes session inspection and pack discovery", "[tooling][cli][
 
 TEST_CASE("REPL exposes deterministic session completion", "[tooling][cli][session][completion]") {
     const auto result = run_shell_command(make_repl_command(
-        {"localValue = 2", ":complete Pol", ":complete local", ":quit"}));
+        {"localValue = 2", ":complete Pol", ":complete Full", ":complete local", ":quit"}));
 
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output.find("PolynomialQuotient\tpack\tcore-algebra") != std::string::npos);
+    REQUIRE(result.output.find("FullForm\tbuiltin") != std::string::npos);
     REQUIRE(result.output.find("localValue\tsymbol") != std::string::npos);
 }
 

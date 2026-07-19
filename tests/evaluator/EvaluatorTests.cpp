@@ -1391,6 +1391,30 @@ TEST_CASE("Structural inspection builtins expose public heads and parts", "[eval
     REQUIRE(to_string(evaluate(parse_expression("Part[x -> y, 2]"), ctx)) == "y");
 }
 
+TEST_CASE("FullForm builtin renders evaluated structure as a string", "[evaluator][structural][fullform]") {
+    EvaluationContext ctx;
+
+    auto arithmetic = evaluate(parse_expression("FullForm[x + 1]"), ctx);
+    REQUIRE(std::holds_alternative<String>(*arithmetic));
+    REQUIRE(std::get<String>(*arithmetic).value == "Plus[x, 1]");
+    REQUIRE(to_string(arithmetic) == "\"Plus[x, 1]\"");
+
+    auto exact_rational = evaluate(parse_expression("FullForm[1/2 + 1/3]"), ctx);
+    REQUIRE(std::holds_alternative<String>(*exact_rational));
+    REQUIRE(std::get<String>(*exact_rational).value == "Rational[5, 6]");
+
+    auto unresolved_call = evaluate(parse_expression("FullForm[UnknownHead[2 + 3]]"), ctx);
+    REQUIRE(std::holds_alternative<String>(*unresolved_call));
+    REQUIRE(std::get<String>(*unresolved_call).value == "UnknownHead[5]");
+}
+
+TEST_CASE("FullForm builtin rejects invalid arity", "[evaluator][structural][diagnostics]") {
+    EvaluationContext ctx;
+
+    REQUIRE_THROWS_WITH(evaluate(parse_expression("FullForm[]"), ctx), "FullForm expects exactly 1 argument");
+    REQUIRE_THROWS_WITH(evaluate(parse_expression("FullForm[x, y]"), ctx), "FullForm expects exactly 1 argument");
+}
+
 TEST_CASE("Structural inspection rejects unsupported part requests", "[evaluator][structural][diagnostics]") {
     EvaluationContext ctx;
 

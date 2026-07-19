@@ -3,10 +3,11 @@
 ## Status
 
 This document defines the symbolic MVP contract for structural inspection and
-finite-list operations. The first slice is implemented for `Head`, one-level
-`Part`, `Map`, `Apply`, `Select`, and `Cases` over explicit finite lists.
-Nested traversal, levels, heads traversal, broad predicates, and scoping remain
-planned or deferred as marked below.
+finite-list operations. The first structural slice is implemented for
+`FullForm`, `Head`, and one-level `Part`; the first finite-list slice is
+implemented for `Map`, `Apply`, `Select`, and `Cases` over explicit finite
+lists. Nested traversal, levels, heads traversal, broad predicates, and scoping
+remain planned or deferred as marked below.
 
 ## Purpose
 
@@ -30,9 +31,15 @@ Planned later:
 - `Part[expr, {i, j, ...}]` may follow only after nested traversal and
   diagnostics are specified.
 
-`FullForm[expr]` remains the current structural rendering function. CLI
-`:inspect` should align its head and full-form output with the public
-`Head`/`FullForm` contract.
+`FullForm[expr]` is the public structural rendering builtin. It evaluates
+`expr`, renders that evaluated expression through the shared FullForm renderer,
+and returns the rendering as an exact string. The output is diagnostic text,
+not a stable serialization format.
+
+CLI and session full-form inspection, including `symbolic-fullform` and the
+full-form portion of `:inspect`, remains parsed-form inspection before normal
+evaluation. These inspection commands should use the same renderer as
+`FullForm[expr]` while documenting their different evaluation timing.
 
 Required diagnostics:
 

@@ -2,6 +2,7 @@
 #include "evaluator/EvaluatorBuiltins.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/EvaluatorSpecialForms.hpp"
+#include "expr/FullForm.hpp"
 #include "kernel/Assumptions.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "kernel/Rewrite.hpp"
@@ -276,6 +277,32 @@ namespace aleph3 {
         const std::string& predicate_name) {
         const auto* call = std::get_if<FunctionCall>(evaluated.get());
         return call != nullptr && call->head == predicate_name;
+    }
+
+    ExprPtr evaluate_fullform_tree(const ExprPtr& expr, EvaluationContext& ctx) {
+        auto evaluated = evaluate(expr, ctx);
+        if (const auto* call = std::get_if<FunctionCall>(evaluated.get())) {
+            std::vector<ExprPtr> args;
+            args.reserve(call->args.size());
+            for (const auto& arg : call->args) {
+                args.push_back(evaluate_fullform_tree(arg, ctx));
+            }
+            return make_expr<FunctionCall>(call->head, args);
+        }
+        if (const auto* list = std::get_if<List>(evaluated.get())) {
+            std::vector<ExprPtr> elements;
+            elements.reserve(list->elements.size());
+            for (const auto& element : list->elements) {
+                elements.push_back(evaluate_fullform_tree(element, ctx));
+            }
+            return std::make_shared<Expr>(List{elements});
+        }
+        if (const auto* rule = std::get_if<Rule>(evaluated.get())) {
+            return make_expr<Rule>(
+                evaluate_fullform_tree(rule->lhs, ctx),
+                evaluate_fullform_tree(rule->rhs, ctx));
+        }
+        return evaluated;
     }
 
     }  // namespace
@@ -587,6 +614,13 @@ namespace aleph3 {
             auto arg = evaluate(func.args[0], ctx);
             auto num_arg = numeric_eval(arg);
             return evaluate(num_arg, ctx);
+            });
+
+        registry.register_function("FullForm", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() != 1) {
+                throw_invalid_arity_exact("FullForm", 1);
+            }
+            return make_expr<String>(to_fullform(evaluate_fullform_tree(func.args[0], ctx)));
             });
 
         registry.register_function("Replace", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {

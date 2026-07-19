@@ -100,6 +100,16 @@ TEST_CASE("Symbolic CLI support prints FullForm", "[tooling][symbolic-cli]") {
     REQUIRE(result.output == "Plus[Power[x, 2], 1]");
 }
 
+TEST_CASE("Symbolic CLI support evaluates FullForm builtin as string output", "[tooling][symbolic-cli]") {
+    const auto evaluated_fullform = tooling::symbolic_evaluate_expression("FullForm[x + 1]");
+    REQUIRE(evaluated_fullform.ok);
+    REQUIRE(evaluated_fullform.output == "\"Plus[x, 1]\"");
+
+    const auto parsed_fullform = tooling::symbolic_fullform_expression("x + 1");
+    REQUIRE(parsed_fullform.ok);
+    REQUIRE(parsed_fullform.output == "Plus[x, 1]");
+}
+
 TEST_CASE("Symbolic CLI support preserves builtin numeric and symbolic contracts", "[tooling][symbolic-cli]") {
     const auto exact_sum = tooling::symbolic_evaluate_expression("1/2 + 2");
     REQUIRE(exact_sum.ok);

@@ -171,16 +171,30 @@ TEST_CASE("REPL meta commands use colon prefixes", "[tooling][cli]") {
 
 TEST_CASE("REPL help exposes focused symbolic and command entries", "[tooling][cli][session][help]") {
     const auto result = run_shell_command(make_repl_command(
-        {":help Factor", ":help Clear", ":help :reset", ":help core-algebra", ":quit"}));
+        {":help Factor", ":help Clear", ":help :reset", ":help core-algebra", ":help Log",
+         ":help ArcTan", ":help Length", ":help Assuming", ":help MatrixAdd", ":help D", ":quit"}));
 
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output.find("Factor [pack] (core-algebra)") != std::string::npos);
     REQUIRE(result.output.find("Factor[x^2 - 1] -> (x - 1) * (x + 1)") != std::string::npos);
+    REQUIRE(result.output.find("Manual: manual/packs-algebra.md#factor") != std::string::npos);
     REQUIRE(result.output.find("Clear [builtin]") != std::string::npos);
     REQUIRE(result.output.find("Clear cannot remove builtin") != std::string::npos);
     REQUIRE(result.output.find(":reset") != std::string::npos);
     REQUIRE(result.output.find("without unloading builtins or packs") != std::string::npos);
     REQUIRE(result.output.find("PolynomialQuotient [pack] (core-algebra)") != std::string::npos);
+    REQUIRE(result.output.find("Log [builtin]") != std::string::npos);
+    REQUIRE(result.output.find("Log[base, x]") != std::string::npos);
+    REQUIRE(result.output.find("ArcTan [builtin]") != std::string::npos);
+    REQUIRE(result.output.find("ArcTan[x, y]") != std::string::npos);
+    REQUIRE(result.output.find("Length [builtin]") != std::string::npos);
+    REQUIRE(result.output.find("Length[{a, b, c}] -> 3") != std::string::npos);
+    REQUIRE(result.output.find("Assuming [builtin]") != std::string::npos);
+    REQUIRE(result.output.find("Facts are scoped to the evaluation") != std::string::npos);
+    REQUIRE(result.output.find("MatrixAdd [pack] (core-algebra)") != std::string::npos);
+    REQUIRE(result.output.find("MatrixAdd[a, b]") != std::string::npos);
+    REQUIRE(result.output.find("D [pack] (core-calculus)") != std::string::npos);
+    REQUIRE(result.output.find("Manual: manual/packs-calculus.md#differentiation") != std::string::npos);
 }
 
 TEST_CASE("REPL mode command reports and switches evaluators", "[tooling][cli]") {

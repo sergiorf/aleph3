@@ -100,11 +100,11 @@ std::string callable_category_name(const kernel::CallableMetadata& callable) {
 }
 
 std::string completion_documentation_for(const std::string& name, const std::string& fallback) {
-    if (!fallback.empty()) {
-        return fallback;
-    }
     if (const auto* help = find_help_entry(name)) {
         return help->description;
+    }
+    if (!fallback.empty()) {
+        return fallback;
     }
     return "";
 }

@@ -2,7 +2,12 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "help/HelpTexts.hpp"
+#include "kernel/FunctionRegistry.hpp"
+
 #include <algorithm>
+#include <map>
+#include <set>
 #include <string>
 
 using aleph3::session::Session;
@@ -148,6 +153,7 @@ TEST_CASE("Session completes registry and session symbols deterministically", "[
     REQUIRE(factor.completions.front().name == "Factor");
     REQUIRE(factor.completions.front().category == "pack");
     REQUIRE(factor.completions.front().owning_package == "core-algebra");
+    REQUIRE(factor.completions.front().documentation == "Factor a supported exact polynomial expression.");
 
     const auto packs = session.execute({"Pol", SessionOperation::complete});
     REQUIRE(packs.completions.size() == 1);
@@ -242,6 +248,62 @@ TEST_CASE("Session help exposes provider and session-local discovery", "[session
     session.reset();
     REQUIRE(session.execute({"alpha", SessionOperation::help}).help_entries.empty());
     REQUIRE(session.execute({"Factor", SessionOperation::help}).help_entries.size() == 1);
+}
+
+TEST_CASE("Help catalog has rich metadata for registered provider entries", "[session][help][completion]") {
+    std::map<std::string, std::size_t> help_name_counts;
+    for (const auto& entry : aleph3::get_help_entries()) {
+        ++help_name_counts[entry.name];
+    }
+    for (const auto& [name, count] : help_name_counts) {
+        INFO("help entry: " << name);
+        REQUIRE(count == 1);
+    }
+
+    const std::set<std::string> no_example_required = {"RuleDelayed"};
+    for (const auto& callable : aleph3::kernel::default_function_registry().callable_metadata()) {
+        const auto* help = aleph3::find_help_entry(callable.metadata.name);
+        INFO("registered symbol: " << callable.metadata.name);
+        REQUIRE(help != nullptr);
+        REQUIRE_FALSE(help->description.empty());
+        REQUIRE_FALSE(help->forms.empty());
+        if (!no_example_required.contains(help->name)) {
+            REQUIRE_FALSE(help->examples.empty());
+        }
+        REQUIRE_FALSE(help->exactness.empty());
+        REQUIRE_FALSE(help->unsupported.empty());
+        REQUIRE_FALSE(help->owning_component.empty());
+        REQUIRE_FALSE(help->manual_anchor.empty());
+    }
+}
+
+TEST_CASE("Session help exposes rich entries across supported discovery groups", "[session][help]") {
+    Session session;
+    const std::vector<std::string> names = {
+        "Log", "ArcTan", "Length", "Assuming", "MatrixAdd", "D", "If", "Rule"
+    };
+
+    for (const auto& name : names) {
+        const auto result = session.execute({name, SessionOperation::help});
+        INFO("help lookup: " << name);
+        REQUIRE(result.ok);
+        REQUIRE(result.help_entries.size() == 1);
+        const auto& entry = result.help_entries.front();
+        REQUIRE(entry.name == name);
+        REQUIRE_FALSE(entry.forms.empty());
+        if (name != "RuleDelayed") {
+            REQUIRE_FALSE(entry.examples.empty());
+        }
+        REQUIRE_FALSE(entry.exactness.empty());
+        REQUIRE_FALSE(entry.unsupported.empty());
+        REQUIRE_FALSE(entry.manual_anchor.empty());
+    }
+
+    const auto log = session.execute({"Log", SessionOperation::help});
+    REQUIRE(log.help_entries.front().forms == std::vector<std::string>{"Log[x]", "Log[base, x]"});
+
+    const auto arctan = session.execute({"ArcTan", SessionOperation::help});
+    REQUIRE(arctan.help_entries.front().forms == std::vector<std::string>{"ArcTan[x]", "ArcTan[x, y]"});
 }
 
 TEST_CASE("Session reports polynomial division by zero with a stable diagnostic", "[session][algebra][diagnostics]") {

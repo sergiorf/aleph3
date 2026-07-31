@@ -1,4 +1,4 @@
-![Build Status](https://img.shields.io/github/actions/workflow/status/sergiorf/aleph3/build.yml)
+![CI Status](https://img.shields.io/github/actions/workflow/status/sergiorf/aleph3/build.yml?label=CI)
 ![License](https://img.shields.io/github/license/sergiorf/aleph3)
 
 <p align="center">
@@ -28,9 +28,15 @@ Use it to:
 
 The web API target is new and intentionally narrow. It is currently a
 transport-independent API core plus a health-check executable, not yet a full
-HTTP listener, browser frontend, SQLite-backed notebook store, or production
-deployment. The CLI remains the easiest way to interact with the symbolic
-system manually while the web product is being assembled.
+HTTP listener, browser frontend, or production deployment. The CLI remains the
+easiest way to interact with the symbolic system manually while the web product
+is being assembled.
+
+## Build Notifications
+
+GitHub Actions runs the `CI` workflow for pushes and pull requests targeting
+`main`. The workflow builds and runs the CTest suite on Ubuntu and Windows, and
+checks changed C++ source/header formatting with `clang-format` on Ubuntu.
 
 Aleph3 is deliberately focused rather than a Mathematica, SageMath, or
 general-purpose CAS replacement. Unsupported algebraic forms fail explicitly

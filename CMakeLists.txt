@@ -152,15 +152,19 @@ if(ALEPH3_BUILD_KERNEL)
     endif()
     target_include_directories(aleph3_web_api PUBLIC include)
     target_include_directories(aleph3_web_api PRIVATE third_party/nlohmann)
-    target_link_libraries(aleph3_web_api PUBLIC aleph3_kernel aleph3_notebook_core)
+    target_link_libraries(
+        aleph3_web_api
+        PUBLIC
+        aleph3_notebook_core
+        aleph3_kernel
+        aleph3_pack_algebra
+        aleph3_pack_calculus)
 
     add_executable(aleph3_web_api_server src/web/aleph3_web_api.cpp)
     target_link_libraries(
         aleph3_web_api_server
         PRIVATE
-        aleph3_web_api
-        aleph3_pack_algebra
-        aleph3_pack_calculus)
+        aleph3_web_api)
 
     if(ALEPH3_BUILD_SDK)
         target_link_libraries(aleph3_sdk PUBLIC aleph3_kernel aleph3_pack_algebra aleph3_pack_calculus)

@@ -481,6 +481,7 @@ Exit criteria:
 
 Deliver:
 
+- GitHub Actions build, test, and formatting checks;
 - production frontend build;
 - backend release build;
 - Postgres service provisioning or managed connection configuration;
@@ -493,6 +494,8 @@ Deliver:
 
 Exit criteria:
 
+- repository CI builds and runs tests on supported hosted platforms;
+- changed C++ source/header files are format-checked in CI;
 - local production-mode smoke test passes;
 - VM deployment smoke test passes;
 - Postgres connectivity and schema initialization are verified;
@@ -569,6 +572,13 @@ Affected existing Aleph3 verification:
 aleph3_symbolic_tests
 aleph3_sdk_tests
 aleph3_notebook_tests
+```
+
+Repository automation:
+
+```text
+GitHub Actions CMake build and CTest on Ubuntu and Windows
+GitHub Actions clang-format check for changed C++ source/header files
 ```
 
 Completion also requires `git diff --check`, local documentation-link checks

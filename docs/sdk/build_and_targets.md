@@ -31,7 +31,7 @@ Related documents:
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
 | `aleph3_symbolic_tests` | executable | Kernel-oriented symbolic tests plus current symbolic tooling and pack-placeholder coverage |
 | `aleph3_notebook_tests` | executable | Notebook model, isolation, rerun, diagnostics, and shared-session fixture coverage |
-| `aleph3_web_api_tests` | executable | Web API core tests for health, anonymous clients, sessions, reset, isolation, diagnostics, ownership, quotas, and expiration |
+| `aleph3_web_api_tests` | executable | Web API core tests for health, anonymous clients, sessions, reset, discovery, notebook persistence, run-all, examples, ownership, quotas, and expiration |
 | `aleph3_sdk_tests` | executable | SDK-layer tests and SDK tooling coverage |
 
 ## Build Options
@@ -84,9 +84,10 @@ boundary.
 - Use `aleph3_cli` for fast manual checks while broader validation and custom host-function tooling are still under construction.
 - Use `aleph3_notebook_tests` to exercise the current headless document and
   clean `Run All` lifecycle. No notebook executable is built yet.
-- Use `aleph3_web_api_tests` to exercise the current anonymous-client and
-  session API core. `aleph3_web_api_server --health` is a build/run smoke
-  check only; a real HTTP listener and persistence layer are still planned.
+- Use `aleph3_web_api_tests` to exercise the current anonymous-client,
+  session, notebook persistence, run-all, and example API core.
+  `aleph3_web_api_server --health` is a build/run smoke check only; a real
+  HTTP listener is still planned.
 - `validate` in the CLI now exercises the real lexer/parser/validator path.
 - `evaluate` in the CLI now accepts `--var name=value` bindings for basic runtime checks.
 - `evaluate-host` in the CLI registers demo host functions for end-to-end SDK checks.

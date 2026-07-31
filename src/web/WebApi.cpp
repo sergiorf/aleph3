@@ -201,6 +201,48 @@ Json notebook_detail_json(const StoredNotebook& notebook) {
     return encoded;
 }
 
+struct ExampleNotebook {
+    std::string id;
+    std::string title;
+    std::string description;
+    std::string document_json;
+};
+
+const std::vector<ExampleNotebook>& example_notebooks() {
+    static const std::vector<ExampleNotebook> examples{
+        {
+            "symbolic-basics",
+            "Symbolic Basics",
+            "Exact arithmetic, session definitions, algebra, assumptions, matrices, and diagnostics.",
+            R"({
+  "format": "aleph3-notebook",
+  "version": 1,
+  "cells": [
+    {"id": "intro", "kind": "text", "source": "A small supported-subset tour."},
+    {"id": "exact-arithmetic", "kind": "input", "source": "1/2 + 1/3"},
+    {"id": "assign", "kind": "input", "source": "a = 2"},
+    {"id": "use-assignment", "kind": "input", "source": "a + 3"},
+    {"id": "expand", "kind": "input", "source": "Expand[(x + 1)^2]"},
+    {"id": "factor", "kind": "input", "source": "Factor[x^2 - 1]"},
+    {"id": "assumptions", "kind": "input", "source": "Refine[Sqrt[y^2], y >= 0]"},
+    {"id": "rewrite", "kind": "input", "source": "Replace[f[x], f[a_] -> g[a]]"},
+    {"id": "calculus", "kind": "input", "source": "D[x^2 + 3*x, x]"},
+    {"id": "matrix", "kind": "input", "source": "Det[{{1, 2}, {3, 4}}]"},
+    {"id": "diagnostic", "kind": "input", "source": "("}
+  ]
+})"}};
+    return examples;
+}
+
+Json example_summary_json(const ExampleNotebook& example) {
+    return {
+        {"id", example.id},
+        {"title", example.title},
+        {"description", example.description},
+        {"document", document_json_from_bytes(example.document_json)}
+    };
+}
+
 ApiResponse json_response(int status, Json body) {
     ApiResponse response;
     response.status = status;
@@ -284,6 +326,38 @@ std::string notebook_json_from_body(const Json& body, const notebook::Persistenc
     }
     const auto document = notebook::decode_document(bytes, limits);
     return notebook::encode_document(document, limits);
+}
+
+notebook::PersistenceLimits notebook_limits_from_api_limits(const ApiLimits& limits) {
+    notebook::PersistenceLimits notebook_limits;
+    notebook_limits.max_file_bytes = limits.max_notebook_document_bytes;
+    return notebook_limits;
+}
+
+ApiResponse persist_notebook_document(
+    NotebookStore& notebook_store,
+    StoredNotebook& notebook,
+    const std::string& client_id,
+    const std::string& title,
+    const std::string& document_json,
+    const ApiLimits& limits) {
+    if (document_json.size() > limits.max_notebook_document_bytes) {
+        return error_response(413, "web.notebook_too_large", "The notebook document exceeds the configured limit.");
+    }
+    const auto current_bytes = notebook_store.stored_bytes_for_client(client_id);
+    const auto bytes_without_existing = current_bytes >= notebook.size_bytes ? current_bytes - notebook.size_bytes : 0;
+    if (document_json.size() > limits.max_stored_notebook_bytes_per_client ||
+        bytes_without_existing > limits.max_stored_notebook_bytes_per_client - document_json.size()) {
+        return error_response(429, "web.notebook_storage_quota_exceeded", "The anonymous client has exceeded notebook storage quota.");
+    }
+
+    const auto now = timestamp_string();
+    notebook_store.update_notebook(notebook.id, title, document_json, now, document_json.size());
+    notebook.title = title;
+    notebook.document_json = document_json;
+    notebook.updated_at = now;
+    notebook.size_bytes = document_json.size();
+    return ok({{"notebook", notebook_detail_json(notebook)}});
 }
 
 }  // namespace
@@ -497,6 +571,59 @@ ApiResponse WebApi::handle(const ApiRequest& request) {
             }
         }
 
+        if (parts.size() == 2 && parts[0] == "api" && parts[1] == "examples") {
+            if (method_is(request, "GET")) {
+                Json examples = Json::array();
+                for (const auto& example : example_notebooks()) {
+                    examples.push_back(example_summary_json(example));
+                }
+                return ok({{"examples", examples}});
+            }
+        }
+
+        if (parts.size() == 4 && parts[0] == "api" && parts[1] == "examples" && parts[3] == "copy" && method_is(request, "POST")) {
+            const auto& examples = example_notebooks();
+            const auto example = std::find_if(examples.begin(), examples.end(), [&](const auto& entry) {
+                return entry.id == parts[2];
+            });
+            if (example == examples.end()) {
+                return error_response(404, "web.unknown_example", "The example notebook identifier is not recognized.");
+            }
+
+            const auto notebook_limits = notebook_limits_from_api_limits(limits_);
+            const auto document = notebook::decode_document(example->document_json, notebook_limits);
+            const auto document_json = notebook::encode_document(document, notebook_limits);
+            if (document_json.size() > limits_.max_notebook_document_bytes) {
+                return error_response(413, "web.notebook_too_large", "The notebook document exceeds the configured limit.");
+            }
+            if (notebook_store_->notebook_count_for_client(client_id) >= limits_.max_notebooks_per_client) {
+                return error_response(429, "web.notebook_quota_exceeded", "The anonymous client has too many notebooks.");
+            }
+            const auto current_bytes = notebook_store_->stored_bytes_for_client(client_id);
+            if (document_json.size() > limits_.max_stored_notebook_bytes_per_client ||
+                current_bytes > limits_.max_stored_notebook_bytes_per_client - document_json.size()) {
+                return error_response(429, "web.notebook_storage_quota_exceeded", "The anonymous client has exceeded notebook storage quota.");
+            }
+
+            std::string notebook_id;
+            do {
+                notebook_id = generate_id_();
+            } while (notebook_id.empty() || clients_.contains(notebook_id) || sessions_.contains(notebook_id) ||
+                     notebook_store_->get_notebook(notebook_id).has_value());
+            const auto now = timestamp_string();
+            StoredNotebook notebook{
+                notebook_id,
+                client_id,
+                example->title,
+                document_json,
+                now,
+                now,
+                now,
+                document_json.size()};
+            notebook_store_->create_notebook(notebook);
+            return created({{"notebook", notebook_detail_json(notebook)}});
+        }
+
         if (parts.size() == 2 && parts[0] == "api" && parts[1] == "notebooks") {
             if (method_is(request, "POST")) {
                 const auto body = parse_body(request);
@@ -505,8 +632,7 @@ ApiResponse WebApi::handle(const ApiRequest& request) {
                     return error_response(413, "web.notebook_title_too_large", "The notebook title exceeds the configured limit.");
                 }
 
-                notebook::PersistenceLimits notebook_limits;
-                notebook_limits.max_file_bytes = limits_.max_notebook_document_bytes;
+                const auto notebook_limits = notebook_limits_from_api_limits(limits_);
                 const auto document_json = notebook_json_from_body(body, notebook_limits);
                 if (document_json.size() > limits_.max_notebook_document_bytes) {
                     return error_response(413, "web.notebook_too_large", "The notebook document exceeds the configured limit.");
@@ -570,31 +696,40 @@ ApiResponse WebApi::handle(const ApiRequest& request) {
                 if (title.size() > limits_.max_notebook_title_bytes) {
                     return error_response(413, "web.notebook_title_too_large", "The notebook title exceeds the configured limit.");
                 }
-                notebook::PersistenceLimits notebook_limits;
-                notebook_limits.max_file_bytes = limits_.max_notebook_document_bytes;
+                const auto notebook_limits = notebook_limits_from_api_limits(limits_);
                 const auto document_json = notebook_json_from_body(body, notebook_limits);
-                if (document_json.size() > limits_.max_notebook_document_bytes) {
-                    return error_response(413, "web.notebook_too_large", "The notebook document exceeds the configured limit.");
-                }
-                const auto current_bytes = notebook_store_->stored_bytes_for_client(client_id);
-                const auto bytes_without_existing = current_bytes >= notebook->size_bytes ? current_bytes - notebook->size_bytes : 0;
-                if (document_json.size() > limits_.max_stored_notebook_bytes_per_client ||
-                    bytes_without_existing > limits_.max_stored_notebook_bytes_per_client - document_json.size()) {
-                    return error_response(429, "web.notebook_storage_quota_exceeded", "The anonymous client has exceeded notebook storage quota.");
-                }
-
-                const auto now = timestamp_string();
-                notebook_store_->update_notebook(parts[2], title, document_json, now, document_json.size());
-                notebook->title = title;
-                notebook->document_json = document_json;
-                notebook->updated_at = now;
-                notebook->size_bytes = document_json.size();
-                return ok({{"notebook", notebook_detail_json(*notebook)}});
+                return persist_notebook_document(*notebook_store_, *notebook, client_id, title, document_json, limits_);
             }
 
             if (method_is(request, "DELETE")) {
                 notebook_store_->delete_notebook(parts[2]);
                 return no_content();
+            }
+        }
+
+        if (parts.size() == 4 && parts[0] == "api" && parts[1] == "notebooks") {
+            auto notebook = notebook_store_->get_notebook(parts[2]);
+            if (!notebook) {
+                return error_response(404, "web.unknown_notebook", "The notebook identifier is not recognized.");
+            }
+            if (notebook->anonymous_client_id != client_id) {
+                return error_response(403, "web.notebook_forbidden", "The notebook belongs to a different anonymous client.");
+            }
+
+            if (method_is(request, "POST") && parts[3] == "run-all") {
+                const auto notebook_limits = notebook_limits_from_api_limits(limits_);
+                auto document = notebook::decode_document(notebook->document_json, notebook_limits);
+                notebook::Runner{}.run_all(document);
+                const auto document_json = notebook::encode_document(document, notebook_limits);
+                return persist_notebook_document(*notebook_store_, *notebook, client_id, notebook->title, document_json, limits_);
+            }
+
+            if (method_is(request, "POST") && parts[3] == "clear-results") {
+                const auto notebook_limits = notebook_limits_from_api_limits(limits_);
+                auto document = notebook::decode_document(notebook->document_json, notebook_limits);
+                document.clear_results();
+                const auto document_json = notebook::encode_document(document, notebook_limits);
+                return persist_notebook_document(*notebook_store_, *notebook, client_id, notebook->title, document_json, limits_);
             }
         }
     } catch (const nlohmann::json::exception& error) {

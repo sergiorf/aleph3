@@ -131,6 +131,11 @@ GET  /api/notebooks
 GET  /api/notebooks/{notebookId}
 PUT  /api/notebooks/{notebookId}
 DELETE /api/notebooks/{notebookId}
+POST /api/notebooks/{notebookId}/run-all
+POST /api/notebooks/{notebookId}/clear-results
+
+GET  /api/examples
+POST /api/examples/{exampleId}/copy
 ```
 
 Session endpoints require the anonymous client identifier in
@@ -221,8 +226,60 @@ web deployment, clearing cookies can lose access to notebooks tied only to that
 identifier. Invalid notebook JSON, unsupported document versions, oversized
 documents, title limits, per-client notebook count limits, and stored-byte
 quota failures are rejected before saving. Live evaluator state is not
-persisted in Postgres; `Run All`, clear-results, examples, and a browser
-frontend remain planned web MVP phases.
+persisted in Postgres.
+
+`POST /api/notebooks/{notebookId}/run-all` loads the persisted notebook
+document, delegates to the headless notebook runner, and saves the resulting
+generated-result cache back through the notebook store. It starts from a clean
+session, skips text cells, evaluates input cells in order, lets definitions
+flow to later cells during that one run, and records diagnostics without
+stopping later cells:
+
+```json
+{
+  "status": "ok",
+  "notebook": {
+    "id": "opaque-notebook-id",
+    "title": "Scratch",
+    "document": {
+      "format": "aleph3-notebook",
+      "version": 1,
+      "cells": [
+        {"id": "define", "kind": "input", "source": "a = 2"},
+        {"id": "use", "kind": "input", "source": "a + 3"}
+      ],
+      "results": [
+        {
+          "source_cell_id": "define",
+          "ok": true,
+          "output": "2",
+          "diagnostics": [],
+          "producer_version": "unknown"
+        },
+        {
+          "source_cell_id": "use",
+          "ok": true,
+          "output": "5",
+          "diagnostics": [],
+          "producer_version": "unknown"
+        }
+      ]
+    }
+  }
+}
+```
+
+`POST /api/notebooks/{notebookId}/clear-results` removes persisted generated
+results while preserving cells and source. It does not reset or mutate any
+live interactive session.
+
+The example endpoints expose verified read-only notebook templates and copy a
+template into a notebook owned by the requesting anonymous client. Copying an
+example does not evaluate it; use `run-all` on the copied notebook to generate
+fresh cached results. The first example catalog intentionally advertises only
+the supported subset covered by existing tests: exact arithmetic, assignments,
+algebra, assumptions, rewriting, focused differentiation, exact matrices, and
+one deliberate parse diagnostic.
 
 ## Graphical Notebook Status
 

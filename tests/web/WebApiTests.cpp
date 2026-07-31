@@ -70,6 +70,16 @@ public:
             {{"X-Aleph3-Client", client_id}},
             ""});
     }
+
+    std::string create_notebook(const std::string& client_id, nlohmann::json document, const std::string& title = "Scratch") {
+        const auto response = api.handle({
+            "POST",
+            "/api/notebooks",
+            {{"X-Aleph3-Client", client_id}},
+            nlohmann::json{{"title", title}, {"document", std::move(document)}}.dump()});
+        REQUIRE(response.status == 201);
+        return body_json(response).at("notebook").at("id").get<std::string>();
+    }
 };
 
 nlohmann::json minimal_document(const std::string& source = "1 + 1") {
@@ -78,6 +88,23 @@ nlohmann::json minimal_document(const std::string& source = "1 + 1") {
         {"version", 1},
         {"cells", nlohmann::json::array({
             {{"id", "cell-1"}, {"kind", "input"}, {"source", source}}
+        })}
+    };
+}
+
+nlohmann::json multi_cell_document() {
+    return {
+        {"format", "aleph3-notebook"},
+        {"version", 1},
+        {"cells", nlohmann::json::array({
+            {{"id", "notes"}, {"kind", "text"}, {"source", "Definitions flow downward."}},
+            {{"id", "define"}, {"kind", "input"}, {"source", "a = 2"}},
+            {{"id", "use"}, {"kind", "input"}, {"source", "a + 3"}},
+            {{"id", "bad"}, {"kind", "input"}, {"source", "("}},
+            {{"id", "after"}, {"kind", "input"}, {"source", "1 + 1"}}
+        })},
+        {"results", nlohmann::json::array({
+            {{"source_cell_id", "define"}, {"ok", true}, {"output", "stale"}, {"diagnostics", nlohmann::json::array()}, {"producer_version", "old"}}
         })}
     };
 }
@@ -457,4 +484,106 @@ TEST_CASE("Web API validates notebook documents and storage quotas", "[web][api]
         nlohmann::json{{"title", "Large"}, {"document", minimal_document(std::string(800, 'x'))}}.dump()});
     REQUIRE(storage_quota.status == 429);
     REQUIRE(body_json(storage_quota).at("error").at("code") == "web.notebook_storage_quota_exceeded");
+}
+
+TEST_CASE("Web API runs persisted notebooks through a clean notebook runner", "[web][api][notebook][runner]") {
+    ApiHarness harness;
+    const auto client_id = harness.create_client();
+    const auto notebook_id = harness.create_notebook(client_id, multi_cell_document());
+
+    const auto run = harness.api.handle({
+        "POST",
+        "/api/notebooks/" + notebook_id + "/run-all",
+        {{"X-Aleph3-Client", client_id}},
+        ""});
+
+    REQUIRE(run.status == 200);
+    const auto document = body_json(run).at("notebook").at("document");
+    REQUIRE(document.at("results").size() == 4);
+    REQUIRE(document.at("results").at(0).at("source_cell_id") == "define");
+    REQUIRE(document.at("results").at(1).at("source_cell_id") == "use");
+    REQUIRE(document.at("results").at(1).at("output") == "5");
+    REQUIRE_FALSE(document.at("results").at(2).at("ok").get<bool>());
+    REQUIRE(document.at("results").at(2).at("diagnostics").at(0).at("code") == "session.parse_error");
+    REQUIRE(document.at("results").at(3).at("output") == "2");
+
+    const auto load = body_json(harness.api.handle({"GET", "/api/notebooks/" + notebook_id, {{"X-Aleph3-Client", client_id}}, ""}));
+    REQUIRE(load.at("notebook").at("document").at("results").at(1).at("output") == "5");
+}
+
+TEST_CASE("Web API clears persisted notebook generated results", "[web][api][notebook][runner]") {
+    ApiHarness harness;
+    const auto client_id = harness.create_client();
+    const auto notebook_id = harness.create_notebook(client_id, multi_cell_document());
+
+    const auto clear = harness.api.handle({
+        "POST",
+        "/api/notebooks/" + notebook_id + "/clear-results",
+        {{"X-Aleph3-Client", client_id}},
+        ""});
+
+    REQUIRE(clear.status == 200);
+    const auto document = body_json(clear).at("notebook").at("document");
+    REQUIRE_FALSE(document.contains("results"));
+
+    const auto load = body_json(harness.api.handle({"GET", "/api/notebooks/" + notebook_id, {{"X-Aleph3-Client", client_id}}, ""}));
+    REQUIRE_FALSE(load.at("notebook").at("document").contains("results"));
+}
+
+TEST_CASE("Web API rejects cross-client notebook runner operations", "[web][api][notebook][ownership]") {
+    ApiHarness harness;
+    const auto left_client = harness.create_client();
+    const auto right_client = harness.create_client();
+    const auto notebook_id = harness.create_notebook(left_client, minimal_document());
+
+    const auto forbidden = harness.api.handle({
+        "POST",
+        "/api/notebooks/" + notebook_id + "/run-all",
+        {{"X-Aleph3-Client", right_client}},
+        ""});
+
+    REQUIRE(forbidden.status == 403);
+    REQUIRE(body_json(forbidden).at("error").at("code") == "web.notebook_forbidden");
+}
+
+TEST_CASE("Web API lists and copies verified example notebooks", "[web][api][examples]") {
+    ApiHarness harness;
+    const auto client_id = harness.create_client();
+
+    const auto list = harness.api.handle({"GET", "/api/examples", {{"X-Aleph3-Client", client_id}}, ""});
+    REQUIRE(list.status == 200);
+    const auto examples = body_json(list).at("examples");
+    REQUIRE(examples.size() >= 1);
+    const auto example_id = examples.at(0).at("id").get<std::string>();
+    REQUIRE_FALSE(examples.at(0).at("title").get<std::string>().empty());
+
+    const auto copy = harness.api.handle({
+        "POST",
+        "/api/examples/" + example_id + "/copy",
+        {{"X-Aleph3-Client", client_id}},
+        ""});
+    REQUIRE(copy.status == 201);
+    const auto notebook = body_json(copy).at("notebook");
+    REQUIRE(notebook.at("title") == examples.at(0).at("title"));
+    REQUIRE(notebook.at("document").at("cells").size() >= 1);
+
+    const auto run = harness.api.handle({
+        "POST",
+        "/api/notebooks/" + notebook.at("id").get<std::string>() + "/run-all",
+        {{"X-Aleph3-Client", client_id}},
+        ""});
+    REQUIRE(run.status == 200);
+    const auto results = body_json(run).at("notebook").at("document").at("results");
+    REQUIRE(results.size() == 10);
+    REQUIRE(results.at(0).at("output") == "5/6");
+    REQUIRE(results.at(2).at("output") == "5");
+    REQUIRE(results.at(9).at("diagnostics").at(0).at("code") == "session.parse_error");
+
+    const auto missing = harness.api.handle({
+        "POST",
+        "/api/examples/no-such-example/copy",
+        {{"X-Aleph3-Client", client_id}},
+        ""});
+    REQUIRE(missing.status == 404);
+    REQUIRE(body_json(missing).at("error").at("code") == "web.unknown_example");
 }

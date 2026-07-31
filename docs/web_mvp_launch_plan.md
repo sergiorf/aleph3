@@ -353,9 +353,9 @@ Not delivered in this slice:
 - reverse proxy or deployment configuration.
 
 Postgres-oriented notebook persistence and notebook CRUD endpoints were
-delivered in the following slice. The next slice should add backend `Run All`
-over persisted notebooks only after preserving the existing API-core and
-persistence tests.
+delivered in the following slice. Backend `Run All`, generated-result
+persistence, clear-results, and verified example notebook fixtures were
+delivered after that.
 
 ### Phase 1: Contract And Skeleton
 
@@ -446,19 +446,25 @@ Not delivered in this slice:
 
 ### Phase 5: Notebook Run All Integration
 
-Deliver:
+Delivered:
 
 - backend `run-all` using `aleph3_notebook_core`;
 - generated result persistence;
 - clear generated results;
 - example notebook fixtures.
 
-Exit criteria:
+Exit criteria met in the API-core test harness:
 
 - `Run All` starts from clean state;
 - definitions flow from earlier cells to later cells during one run;
 - one failed cell does not stop later cells;
 - examples are verified.
+
+Not delivered in this slice:
+
+- HTTP socket listener;
+- browser frontend;
+- reverse proxy or deployment configuration.
 
 ### Phase 6: React MVP UI
 

@@ -78,6 +78,11 @@ if(ALEPH3_BUILD_SDK)
 endif()
 
 if(ALEPH3_BUILD_KERNEL)
+    option(ALEPH3_ENABLE_POSTGRES "Build the Postgres-backed web notebook store." OFF)
+    if(ALEPH3_ENABLE_POSTGRES)
+        find_package(PostgreSQL REQUIRED)
+    endif()
+
     file(GLOB SYMBOLIC_ROOT_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
     file(GLOB SYMBOLIC_COMPONENT_SOURCES CONFIGURE_DEPENDS
         "src/evaluator/*.cpp"
@@ -135,10 +140,19 @@ if(ALEPH3_BUILD_KERNEL)
 
     add_library(aleph3_web_api
         src/web/WebApi.cpp
+        src/web/NotebookStore.cpp
+        include/web/NotebookStore.hpp
         include/web/WebApi.hpp)
+    if(ALEPH3_ENABLE_POSTGRES)
+        target_sources(aleph3_web_api PRIVATE
+            src/web/PostgresNotebookStore.cpp
+            include/web/PostgresNotebookStore.hpp)
+        target_compile_definitions(aleph3_web_api PUBLIC ALEPH3_ENABLE_POSTGRES=1)
+        target_link_libraries(aleph3_web_api PRIVATE PostgreSQL::PostgreSQL)
+    endif()
     target_include_directories(aleph3_web_api PUBLIC include)
     target_include_directories(aleph3_web_api PRIVATE third_party/nlohmann)
-    target_link_libraries(aleph3_web_api PUBLIC aleph3_kernel)
+    target_link_libraries(aleph3_web_api PUBLIC aleph3_kernel aleph3_notebook_core)
 
     add_executable(aleph3_web_api_server src/web/aleph3_web_api.cpp)
     target_link_libraries(

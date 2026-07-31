@@ -1,11 +1,14 @@
 #include "web/WebApi.hpp"
 
 #include "json.hpp"
+#include "notebook/Notebook.hpp"
+#include "web/NotebookStore.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstdint>
+#include <chrono>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -177,6 +180,27 @@ Json help_entry_json(const session::SessionHelpEntry& entry) {
     };
 }
 
+Json document_json_from_bytes(const std::string& bytes) {
+    return Json::parse(bytes);
+}
+
+Json notebook_summary_json(const StoredNotebook& notebook) {
+    return {
+        {"id", notebook.id},
+        {"title", notebook.title},
+        {"createdAt", notebook.created_at},
+        {"updatedAt", notebook.updated_at},
+        {"lastOpenedAt", notebook.last_opened_at},
+        {"sizeBytes", notebook.size_bytes}
+    };
+}
+
+Json notebook_detail_json(const StoredNotebook& notebook) {
+    auto encoded = notebook_summary_json(notebook);
+    encoded["document"] = document_json_from_bytes(notebook.document_json);
+    return encoded;
+}
+
 ApiResponse json_response(int status, Json body) {
     ApiResponse response;
     response.status = status;
@@ -222,19 +246,73 @@ Json parse_body(const ApiRequest& request) {
     return Json::parse(request.body);
 }
 
+std::string timestamp_string() {
+    const auto now = std::chrono::system_clock::now().time_since_epoch();
+    return std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
+}
+
+std::string title_from_body(const Json& body) {
+    if (!body.contains("title")) {
+        return "Untitled";
+    }
+    if (!body.at("title").is_string()) {
+        throw std::invalid_argument("Notebook title must be a string.");
+    }
+    auto title = body.at("title").get<std::string>();
+    if (title.empty()) {
+        return "Untitled";
+    }
+    return title;
+}
+
+std::string notebook_json_from_body(const Json& body, const notebook::PersistenceLimits& limits) {
+    if (!body.contains("document") && !body.contains("documentJson")) {
+        return notebook::encode_document(notebook::Document{}, limits);
+    }
+    if (body.contains("document") && body.contains("documentJson")) {
+        throw std::invalid_argument("Notebook requests may provide either `document` or `documentJson`, not both.");
+    }
+
+    std::string bytes;
+    if (body.contains("documentJson")) {
+        if (!body.at("documentJson").is_string()) {
+            throw std::invalid_argument("Notebook `documentJson` must be a string.");
+        }
+        bytes = body.at("documentJson").get<std::string>();
+    } else {
+        bytes = body.at("document").dump();
+    }
+    const auto document = notebook::decode_document(bytes, limits);
+    return notebook::encode_document(document, limits);
+}
+
 }  // namespace
 
 WebApi::WebApi(ApiLimits limits, Clock clock, IdGenerator generate_id)
+    : WebApi(std::move(limits), std::move(clock), std::move(generate_id), make_memory_notebook_store()) {
+}
+
+WebApi::WebApi(
+    ApiLimits limits,
+    Clock clock,
+    IdGenerator generate_id,
+    std::unique_ptr<NotebookStore> notebook_store)
     : limits_(limits),
       clock_(std::move(clock)),
-      generate_id_(std::move(generate_id)) {
+      generate_id_(std::move(generate_id)),
+      notebook_store_(std::move(notebook_store)) {
     if (!clock_) {
         clock_ = [] { return std::chrono::steady_clock::now(); };
     }
     if (!generate_id_) {
         generate_id_ = random_hex_id;
     }
+    if (!notebook_store_) {
+        throw std::invalid_argument("A notebook store is required.");
+    }
 }
+
+WebApi::~WebApi() = default;
 
 std::size_t WebApi::active_session_count() const noexcept {
     return sessions_.size();
@@ -269,9 +347,10 @@ ApiResponse WebApi::handle(const ApiRequest& request) {
             std::string client_id;
             do {
                 client_id = generate_id_();
-            } while (client_id.empty() || clients_.contains(client_id));
+            } while (client_id.empty() || clients_.contains(client_id) || notebook_store_->client_exists(client_id));
             const auto now = clock_();
             clients_.emplace(client_id, ClientRecord{now});
+            notebook_store_->create_client(client_id, timestamp_string());
             auto response = created({{"anonymousClientId", client_id}});
             response.headers["Set-Cookie"] = "aleph3_client=" + client_id + "; Path=/; SameSite=Lax";
             return response;
@@ -281,8 +360,11 @@ ApiResponse WebApi::handle(const ApiRequest& request) {
         if (client_id.empty()) {
             return error_response(401, "web.missing_client", "An anonymous client identifier is required.");
         }
-        if (!clients_.contains(client_id)) {
+        if (!clients_.contains(client_id) && !notebook_store_->client_exists(client_id)) {
             return error_response(403, "web.unknown_client", "The anonymous client identifier is not recognized.");
+        }
+        if (!clients_.contains(client_id)) {
+            clients_.emplace(client_id, ClientRecord{clock_()});
         }
 
         if (method_is(request, "POST") && parts == std::vector<std::string>{"api", "sessions"}) {
@@ -414,8 +496,118 @@ ApiResponse WebApi::handle(const ApiRequest& request) {
                 });
             }
         }
+
+        if (parts.size() == 2 && parts[0] == "api" && parts[1] == "notebooks") {
+            if (method_is(request, "POST")) {
+                const auto body = parse_body(request);
+                const auto title = title_from_body(body);
+                if (title.size() > limits_.max_notebook_title_bytes) {
+                    return error_response(413, "web.notebook_title_too_large", "The notebook title exceeds the configured limit.");
+                }
+
+                notebook::PersistenceLimits notebook_limits;
+                notebook_limits.max_file_bytes = limits_.max_notebook_document_bytes;
+                const auto document_json = notebook_json_from_body(body, notebook_limits);
+                if (document_json.size() > limits_.max_notebook_document_bytes) {
+                    return error_response(413, "web.notebook_too_large", "The notebook document exceeds the configured limit.");
+                }
+                if (notebook_store_->notebook_count_for_client(client_id) >= limits_.max_notebooks_per_client) {
+                    return error_response(429, "web.notebook_quota_exceeded", "The anonymous client has too many notebooks.");
+                }
+                const auto current_bytes = notebook_store_->stored_bytes_for_client(client_id);
+                if (document_json.size() > limits_.max_stored_notebook_bytes_per_client ||
+                    current_bytes > limits_.max_stored_notebook_bytes_per_client - document_json.size()) {
+                    return error_response(429, "web.notebook_storage_quota_exceeded", "The anonymous client has exceeded notebook storage quota.");
+                }
+
+                std::string notebook_id;
+                do {
+                    notebook_id = generate_id_();
+                } while (notebook_id.empty() || clients_.contains(notebook_id) || sessions_.contains(notebook_id) ||
+                         notebook_store_->get_notebook(notebook_id).has_value());
+                const auto now = timestamp_string();
+                StoredNotebook notebook{
+                    notebook_id,
+                    client_id,
+                    title,
+                    document_json,
+                    now,
+                    now,
+                    now,
+                    document_json.size()};
+                notebook_store_->create_notebook(notebook);
+                return created({{"notebook", notebook_detail_json(notebook)}});
+            }
+
+            if (method_is(request, "GET")) {
+                Json notebooks = Json::array();
+                for (const auto& notebook : notebook_store_->list_notebooks(client_id)) {
+                    notebooks.push_back(notebook_summary_json(notebook));
+                }
+                return ok({{"notebooks", notebooks}});
+            }
+        }
+
+        if (parts.size() == 3 && parts[0] == "api" && parts[1] == "notebooks") {
+            auto notebook = notebook_store_->get_notebook(parts[2]);
+            if (!notebook) {
+                return error_response(404, "web.unknown_notebook", "The notebook identifier is not recognized.");
+            }
+            if (notebook->anonymous_client_id != client_id) {
+                return error_response(403, "web.notebook_forbidden", "The notebook belongs to a different anonymous client.");
+            }
+
+            if (method_is(request, "GET")) {
+                const auto now = timestamp_string();
+                notebook_store_->touch_notebook(parts[2], now);
+                notebook->last_opened_at = now;
+                return ok({{"notebook", notebook_detail_json(*notebook)}});
+            }
+
+            if (method_is(request, "PUT")) {
+                const auto body = parse_body(request);
+                const auto title = title_from_body(body);
+                if (title.size() > limits_.max_notebook_title_bytes) {
+                    return error_response(413, "web.notebook_title_too_large", "The notebook title exceeds the configured limit.");
+                }
+                notebook::PersistenceLimits notebook_limits;
+                notebook_limits.max_file_bytes = limits_.max_notebook_document_bytes;
+                const auto document_json = notebook_json_from_body(body, notebook_limits);
+                if (document_json.size() > limits_.max_notebook_document_bytes) {
+                    return error_response(413, "web.notebook_too_large", "The notebook document exceeds the configured limit.");
+                }
+                const auto current_bytes = notebook_store_->stored_bytes_for_client(client_id);
+                const auto bytes_without_existing = current_bytes >= notebook->size_bytes ? current_bytes - notebook->size_bytes : 0;
+                if (document_json.size() > limits_.max_stored_notebook_bytes_per_client ||
+                    bytes_without_existing > limits_.max_stored_notebook_bytes_per_client - document_json.size()) {
+                    return error_response(429, "web.notebook_storage_quota_exceeded", "The anonymous client has exceeded notebook storage quota.");
+                }
+
+                const auto now = timestamp_string();
+                notebook_store_->update_notebook(parts[2], title, document_json, now, document_json.size());
+                notebook->title = title;
+                notebook->document_json = document_json;
+                notebook->updated_at = now;
+                notebook->size_bytes = document_json.size();
+                return ok({{"notebook", notebook_detail_json(*notebook)}});
+            }
+
+            if (method_is(request, "DELETE")) {
+                notebook_store_->delete_notebook(parts[2]);
+                return no_content();
+            }
+        }
     } catch (const nlohmann::json::exception& error) {
         return error_response(400, "web.invalid_json", std::string("Invalid JSON request body: ") + error.what());
+    } catch (const notebook::DocumentError& error) {
+        if (error.code() == "notebook.limit_exceeded") {
+            return error_response(413, error.code(), error.what());
+        }
+        return error_response(400, error.code(), error.what());
+    } catch (const NotebookStoreError& error) {
+        return error_response(500, error.code(), error.what());
+    } catch (const std::invalid_argument& error) {
+        return error_response(400, "web.invalid_request", error.what());
     } catch (const std::exception& error) {
         return error_response(500, "web.internal_error", error.what());
     }

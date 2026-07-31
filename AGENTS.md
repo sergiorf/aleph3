@@ -17,6 +17,12 @@ existing system first and produce an implementation plan before changing
 repo-tracked files. For substantial changes, use the feature development
 workflow and wait for explicit user approval before implementation.
 
+If the user changes scope, architecture, persistence model, deployment target,
+or another public behavior direction during an active task, stop before further
+repo-tracked edits. Re-plan from the new direction, state what existing local
+changes are now pending or potentially obsolete, and wait for explicit user
+approval before continuing implementation.
+
 Small fixes may use a lightweight plan or brief stated approach, proportional
 to risk and scope. When a small fix is obvious, localized, and consistent with
 existing contracts, implementation may proceed without a separate approval step.

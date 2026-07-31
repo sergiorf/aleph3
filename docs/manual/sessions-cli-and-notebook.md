@@ -108,9 +108,10 @@ journals, and migrations are not implemented.
 
 The current build also includes an experimental `aleph3_web_api` library. It
 is a transport-independent API core for the planned web notebook MVP, not yet a
-network listener, notebook store, or deployed service. The companion
-`aleph3_web_api_server --health` executable is only a smoke check for the API
-core.
+network listener or deployed service. The API core has a notebook store
+boundary; ordinary tests use an in-memory store, and cloud-oriented builds can
+enable the Postgres store. The companion `aleph3_web_api_server --health`
+executable is only a smoke check for the API core.
 
 The API core currently supports:
 
@@ -124,6 +125,12 @@ POST /api/sessions/{sessionId}/reset
 GET  /api/sessions/{sessionId}/complete?prefix={prefix}
 GET  /api/sessions/{sessionId}/help?query={nameOrPrefix}
 DELETE /api/sessions/{sessionId}
+
+POST /api/notebooks
+GET  /api/notebooks
+GET  /api/notebooks/{notebookId}
+PUT  /api/notebooks/{notebookId}
+DELETE /api/notebooks/{notebookId}
 ```
 
 Session endpoints require the anonymous client identifier in
@@ -181,11 +188,41 @@ stable JSON error envelope instead of an empty success response. These
 endpoints are discovery aids only; inserting a completion never changes parser
 or evaluator behavior.
 
-Anonymous clients and sessions are in-memory only in this slice. Sessions are
-isolated by anonymous client, expire after the configured idle TTL, and enforce
-a per-client active-session limit. No notebooks are persisted through this API
-yet, and there is no HTTP server, SQLite store, browser frontend, reverse
+Sessions are in-memory only in this slice. They are isolated by anonymous
+client, expire after the configured idle TTL, and enforce a per-client
+active-session limit. Notebook documents are persisted through the web
+notebook store boundary. Production web persistence is Postgres-backed when the
+backend is built with Postgres support and configured with
+`ALEPH3_DATABASE_URL`; there is no HTTP server, browser frontend, reverse
 proxy configuration, or production deployment in the current build.
+
+Notebook endpoints persist versioned notebook JSON and validate it through the
+same headless notebook core used by local file persistence. Create requests may
+omit a document to create an empty notebook, or provide either a JSON
+`document` object or a string `documentJson` field:
+
+```json
+{
+  "title": "Scratch",
+  "document": {
+    "format": "aleph3-notebook",
+    "version": 1,
+    "cells": [
+      {"id": "cell-1", "kind": "input", "source": "1/2 + 1/3"}
+    ]
+  }
+}
+```
+
+Notebook records are owned by the anonymous client in `X-Aleph3-Client`.
+Cross-client load, save, or delete attempts fail with a structured ownership
+error. Because the anonymous client identifier is cookie-backed in the planned
+web deployment, clearing cookies can lose access to notebooks tied only to that
+identifier. Invalid notebook JSON, unsupported document versions, oversized
+documents, title limits, per-client notebook count limits, and stored-byte
+quota failures are rejected before saving. Live evaluator state is not
+persisted in Postgres; `Run All`, clear-results, examples, and a browser
+frontend remain planned web MVP phases.
 
 ## Graphical Notebook Status
 

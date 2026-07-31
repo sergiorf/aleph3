@@ -72,6 +72,16 @@ public:
     }
 };
 
+nlohmann::json minimal_document(const std::string& source = "1 + 1") {
+    return {
+        {"format", "aleph3-notebook"},
+        {"version", 1},
+        {"cells", nlohmann::json::array({
+            {{"id", "cell-1"}, {"kind", "input"}, {"source", source}}
+        })}
+    };
+}
+
 }  // namespace
 
 TEST_CASE("Web API health endpoint returns a stable JSON envelope", "[web][api]") {
@@ -319,4 +329,132 @@ TEST_CASE("Web API enforces request and source size limits", "[web][api][limits]
         nlohmann::json{{"source", "1 + 1"}}.dump()});
     REQUIRE(oversized_source.status == 413);
     REQUIRE(body_json(oversized_source).at("error").at("code") == "web.source_too_large");
+}
+
+TEST_CASE("Web API exposes notebook CRUD through the notebook store boundary", "[web][api][notebook]") {
+    ApiHarness harness;
+    const auto client_id = harness.create_client();
+
+    const auto create = harness.api.handle({
+        "POST",
+        "/api/notebooks",
+        {{"X-Aleph3-Client", client_id}},
+        nlohmann::json{{"title", "Scratch"}, {"document", minimal_document("1/2 + 1/3")}}.dump()});
+    REQUIRE(create.status == 201);
+    const auto created = body_json(create).at("notebook");
+    const auto notebook_id = created.at("id").get<std::string>();
+    REQUIRE(created.at("title") == "Scratch");
+    REQUIRE(created.at("document").at("cells").at(0).at("source") == "1/2 + 1/3");
+
+    const auto list = body_json(harness.api.handle({"GET", "/api/notebooks", {{"X-Aleph3-Client", client_id}}, ""}));
+    REQUIRE(list.at("notebooks").size() == 1);
+    REQUIRE(list.at("notebooks").at(0).at("id") == notebook_id);
+
+    const auto update = harness.api.handle({
+        "PUT",
+        "/api/notebooks/" + notebook_id,
+        {{"X-Aleph3-Client", client_id}},
+        nlohmann::json{{"title", "Updated"}, {"document", minimal_document("Expand[(x + 1)^2]")}}.dump()});
+    REQUIRE(update.status == 200);
+    REQUIRE(body_json(update).at("notebook").at("title") == "Updated");
+
+    const auto load = harness.api.handle({"GET", "/api/notebooks/" + notebook_id, {{"X-Aleph3-Client", client_id}}, ""});
+    REQUIRE(load.status == 200);
+    const auto loaded = body_json(load).at("notebook");
+    REQUIRE(loaded.at("title") == "Updated");
+    REQUIRE(loaded.at("document").at("cells").at(0).at("source") == "Expand[(x + 1)^2]");
+
+    const auto remove = harness.api.handle({"DELETE", "/api/notebooks/" + notebook_id, {{"X-Aleph3-Client", client_id}}, ""});
+    REQUIRE(remove.status == 204);
+    const auto missing = harness.api.handle({"GET", "/api/notebooks/" + notebook_id, {{"X-Aleph3-Client", client_id}}, ""});
+    REQUIRE(missing.status == 404);
+}
+
+TEST_CASE("Web API rejects cross-client notebook access", "[web][api][notebook][ownership]") {
+    ApiHarness harness;
+    const auto left_client = harness.create_client();
+    const auto right_client = harness.create_client();
+    const auto create = harness.api.handle({
+        "POST",
+        "/api/notebooks",
+        {{"X-Aleph3-Client", left_client}},
+        nlohmann::json{{"title", "Private"}, {"document", minimal_document()}}.dump()});
+    REQUIRE(create.status == 201);
+    const auto notebook_id = body_json(create).at("notebook").at("id").get<std::string>();
+
+    const auto forbidden = harness.api.handle({
+        "GET",
+        "/api/notebooks/" + notebook_id,
+        {{"X-Aleph3-Client", right_client}},
+        ""});
+    REQUIRE(forbidden.status == 403);
+    REQUIRE(body_json(forbidden).at("error").at("code") == "web.notebook_forbidden");
+}
+
+TEST_CASE("Web API validates notebook documents and storage quotas", "[web][api][notebook][limits]") {
+    aleph3::web::ApiLimits limits;
+    limits.max_notebook_document_bytes = 256;
+    limits.max_notebooks_per_client = 1;
+    limits.max_stored_notebook_bytes_per_client = 1024;
+    WebApi api{limits, {}, [] {
+                   static int id = 0;
+                   return "quota-id-" + std::to_string(++id);
+               }};
+
+    const auto client_response = api.handle({"POST", "/api/clients", {}, ""});
+    const auto client_id = body_json(client_response).at("anonymousClientId").get<std::string>();
+
+    const auto invalid = api.handle({
+        "POST",
+        "/api/notebooks",
+        {{"X-Aleph3-Client", client_id}},
+        nlohmann::json{{"title", "Bad"}, {"document", nlohmann::json{{"format", "wrong"}, {"version", 1}, {"cells", nlohmann::json::array()}}}}.dump()});
+    REQUIRE(invalid.status == 400);
+    REQUIRE(body_json(invalid).at("error").at("code") == "notebook.unsupported_format");
+
+    const auto oversized = api.handle({
+        "POST",
+        "/api/notebooks",
+        {{"X-Aleph3-Client", client_id}},
+        nlohmann::json{{"title", "Oversized"}, {"document", minimal_document(std::string(300, 'x'))}}.dump()});
+    REQUIRE(oversized.status == 413);
+    REQUIRE(body_json(oversized).at("error").at("code") == "notebook.limit_exceeded");
+
+    const auto create = api.handle({
+        "POST",
+        "/api/notebooks",
+        {{"X-Aleph3-Client", client_id}},
+        nlohmann::json{{"title", "One"}, {"document", minimal_document()}}.dump()});
+    REQUIRE(create.status == 201);
+
+    const auto quota = api.handle({
+        "POST",
+        "/api/notebooks",
+        {{"X-Aleph3-Client", client_id}},
+        nlohmann::json{{"title", "Two"}, {"document", minimal_document("2 + 2")}}.dump()});
+    REQUIRE(quota.status == 429);
+    REQUIRE(body_json(quota).at("error").at("code") == "web.notebook_quota_exceeded");
+
+    limits.max_notebook_document_bytes = 4096;
+    limits.max_stored_notebook_bytes_per_client = 512;
+    WebApi storage_limited_api{limits, {}, [] {
+                                  static int id = 1000;
+                                  return "storage-id-" + std::to_string(++id);
+                              }};
+    const auto storage_client_response = storage_limited_api.handle({"POST", "/api/clients", {}, ""});
+    const auto storage_client_id = body_json(storage_client_response).at("anonymousClientId").get<std::string>();
+    const auto storage_create = storage_limited_api.handle({
+        "POST",
+        "/api/notebooks",
+        {{"X-Aleph3-Client", storage_client_id}},
+        nlohmann::json{{"title", "One"}, {"document", minimal_document()}}.dump()});
+    REQUIRE(storage_create.status == 201);
+    const auto storage_notebook_id = body_json(storage_create).at("notebook").at("id").get<std::string>();
+    const auto storage_quota = storage_limited_api.handle({
+        "PUT",
+        "/api/notebooks/" + storage_notebook_id,
+        {{"X-Aleph3-Client", storage_client_id}},
+        nlohmann::json{{"title", "Large"}, {"document", minimal_document(std::string(800, 'x'))}}.dump()});
+    REQUIRE(storage_quota.status == 429);
+    REQUIRE(body_json(storage_quota).at("error").at("code") == "web.notebook_storage_quota_exceeded");
 }

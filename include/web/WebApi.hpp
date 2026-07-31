@@ -30,6 +30,10 @@ struct ApiLimits {
     std::size_t max_request_body_bytes = 1024u * 1024u;
     std::size_t max_evaluate_source_bytes = 256u * 1024u;
     std::size_t max_sessions_per_client = 5;
+    std::size_t max_notebook_document_bytes = 8u * 1024u * 1024u;
+    std::size_t max_notebook_title_bytes = 256;
+    std::size_t max_notebooks_per_client = 50;
+    std::size_t max_stored_notebook_bytes_per_client = 32u * 1024u * 1024u;
     std::chrono::minutes session_idle_ttl{60};
 };
 
@@ -42,6 +46,12 @@ public:
         ApiLimits limits = {},
         Clock clock = {},
         IdGenerator generate_id = {});
+    WebApi(
+        ApiLimits limits,
+        Clock clock,
+        IdGenerator generate_id,
+        std::unique_ptr<class NotebookStore> notebook_store);
+    ~WebApi();
 
     [[nodiscard]] ApiResponse handle(const ApiRequest& request);
     [[nodiscard]] std::size_t active_session_count() const noexcept;
@@ -62,6 +72,7 @@ private:
     ApiLimits limits_;
     Clock clock_;
     IdGenerator generate_id_;
+    std::unique_ptr<class NotebookStore> notebook_store_;
     std::unordered_map<std::string, ClientRecord> clients_;
     std::unordered_map<std::string, SessionRecord> sessions_;
 };

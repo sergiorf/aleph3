@@ -33,7 +33,7 @@ React/Vite frontend
   -> reverse proxy
     -> C++ web API service
       -> anonymous client and session manager
-      -> SQLite notebook store
+      -> Postgres notebook store
       -> aleph3_notebook_core
       -> session::Session
       -> aleph3_kernel + registered packs
@@ -55,15 +55,15 @@ Ownership remains:
 
 | Area | Decision |
 | --- | --- |
-| Deployment | local machine first; cloud VM soon after |
+| Deployment | cloud VM MVP, with local development support |
 | Backend | C++ HTTP service linked to Aleph3 libraries |
 | Frontend | React and Vite |
-| Storage | SQLite |
+| Storage | Postgres |
 | Authentication | no login for MVP |
 | Users | anonymous multi-user |
 | Abuse control | reverse proxy rate limiting plus backend limits |
 | Session state | in-memory and TTL-based |
-| Notebook persistence | SQLite records containing notebook JSON and metadata |
+| Notebook persistence | Postgres records containing notebook JSON and metadata |
 | Semantic core | existing kernel, session, notebook core, and registered packs only |
 | Examples | verified against the current documented supported subset |
 
@@ -117,7 +117,7 @@ Session rules:
 - sessions expire after inactivity;
 - explicit reset discards session-local definitions while preserving builtins
   and registered packs;
-- live evaluator state is never persisted in SQLite;
+- live evaluator state is never persisted in Postgres;
 - `Run All` reconstructs state from notebook source through a clean session.
 
 Recommended configurable initial limits:
@@ -215,10 +215,10 @@ Backend behavior:
   class;
 - do not log full expressions or notebook documents by default.
 
-## SQLite Storage Plan
+## Postgres Storage Plan
 
-SQLite stores durable notebook records and lightweight anonymous usage
-metadata. It does not store live evaluator state.
+Postgres stores durable notebook records and lightweight anonymous usage
+metadata for the cloud VM deployment. It does not store live evaluator state.
 
 Suggested initial tables:
 
@@ -243,12 +243,14 @@ size_bytes
 
 Storage rules:
 
-- enable WAL mode;
 - keep transactions short;
 - do not hold database transactions during expression evaluation;
 - validate notebook JSON and size limits before saving;
 - preserve the existing notebook v1 document semantics where possible;
 - periodically clean expired anonymous data if public deployment requires it.
+- configure `ALEPH3_DATABASE_URL` for the backend service;
+- keep connection handling explicit and add pooling only when the HTTP server
+  has a measured concurrency profile.
 
 ## Frontend Scope
 
@@ -346,14 +348,14 @@ Delivered:
 Not delivered in this slice:
 
 - HTTP socket listener;
-- SQLite notebook persistence;
-- notebook CRUD endpoints;
 - `Run All` over persisted notebooks;
 - frontend application;
 - reverse proxy or deployment configuration.
 
-The next slice should add SQLite notebook persistence only after preserving
-the existing API-core tests.
+Postgres-oriented notebook persistence and notebook CRUD endpoints were
+delivered in the following slice. The next slice should add backend `Run All`
+over persisted notebooks only after preserving the existing API-core and
+persistence tests.
 
 ### Phase 1: Contract And Skeleton
 
@@ -410,22 +412,37 @@ Exit criteria met:
 - documentation states that completion covers the supported subset rather than
   broad Mathematica compatibility.
 
-### Phase 4: SQLite Notebook Persistence
+### Phase 4: Postgres Notebook Persistence
 
-Deliver:
+Delivered:
 
-- SQLite schema and initialization;
+- Postgres store contract, schema initialization, and optional libpq-backed
+  implementation;
 - notebook create, list, load, save, and delete;
 - ownership checks by anonymous client;
 - storage quotas;
 - document size validation.
 
-Exit criteria:
+Exit criteria met in the API-core test harness:
 
-- notebooks survive backend restart;
 - invalid or oversized notebooks fail cleanly;
 - cross-client notebook access is rejected;
 - cookie loss limitation is documented.
+
+Exit criteria remaining for a Postgres-enabled environment:
+
+- notebooks survive backend process restart against a real Postgres database;
+- production build links against libpq with `ALEPH3_ENABLE_POSTGRES=ON`;
+- `ALEPH3_DATABASE_URL` is documented and exercised in a deployment smoke
+  check.
+
+Not delivered in this slice:
+
+- `Run All` over persisted notebooks;
+- generated result persistence updates through `run-all`;
+- clear generated results endpoint;
+- example notebook fixtures;
+- HTTP socket listener or frontend application.
 
 ### Phase 5: Notebook Run All Integration
 
@@ -466,17 +483,22 @@ Deliver:
 
 - production frontend build;
 - backend release build;
+- Postgres service provisioning or managed connection configuration;
 - reverse proxy configuration;
 - rate limit configuration;
 - request body limits;
 - health check;
+- structured request logging and minimal operational metrics;
 - deployment guide.
 
 Exit criteria:
 
 - local production-mode smoke test passes;
 - VM deployment smoke test passes;
+- Postgres connectivity and schema initialization are verified;
 - reverse proxy limits and backend limits are both verified.
+- logs include request id, endpoint, status, elapsed time, anonymous client id
+  hash, and failure class without full notebook/source contents by default.
 
 ### Phase 8: Acceptance And Documentation
 
@@ -560,7 +582,7 @@ The MVP is launchable when:
 - anonymous users can use isolated sessions;
 - input editing includes deterministic supported-subset completion and focused
   help backed by shared session metadata;
-- notebooks persist in SQLite;
+- notebooks persist in Postgres;
 - `Run All` reconstructs state from source;
 - shipped examples are verified;
 - reverse proxy and backend limits are active;

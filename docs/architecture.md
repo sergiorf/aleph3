@@ -17,7 +17,10 @@ shared symbolic kernel, which remains the product-critical semantic asset.
 flowchart TB
     Host["Host applications"] --> SDK["SDK<br/>Engine · Schema · Policy · Value"]
     Notebook["Planned notebook"] --> Session["Stateful session"]
-    WebApi["Experimental web API"] --> Session
+    WebFrontend["React/Vite web frontend"] --> BFF["ASP.NET Core BFF<br/>public /api/*"]
+    BFF --> EngineSvc["Internal C++ engine service<br/>/internal/*"]
+    EngineSvc --> Session
+    WebApi["Legacy web API core<br/>transitional tests"] --> Session
     CLI["CLI"] --> Session
     Session --> Kernel
     CLI --> SDK
@@ -119,12 +122,19 @@ symbolic semantics.
 The CLI, web API, examples, tests, and future applications are consumers. They
 may compose APIs and present results, but semantic rules do not belong there.
 
-The experimental stateful session layer is the first reusable interactive
-consumer boundary. It owns one kernel evaluation context across requests,
-returns rendered results plus structured diagnostics, and is used by the
-symbolic CLI REPL and the experimental web API core. The planned notebook and
-any later IDE consumers should build on this boundary rather than owning
-evaluator state themselves.
+The stateful session layer is the reusable interactive consumer boundary. It
+owns one kernel evaluation context across requests, returns rendered results
+plus structured diagnostics, and is used by the symbolic CLI REPL, the
+internal web engine service, and the transitional web API core. Notebook and
+IDE consumers build on this boundary rather than owning evaluator state
+themselves.
+
+The Web MVP public backend is the ASP.NET Core BFF. Browser traffic reaches
+only `/api/*` on the BFF, which validates product-facing requests and delegates
+computation to the internal C++ engine service. The engine service owns
+session lifecycle and symbolic evaluation over `/internal/*`; it does not own
+browser cookies, notebook ownership, Postgres product persistence, examples,
+or future account policy.
 
 ### Notebook
 
@@ -166,7 +176,9 @@ is a cache, never semantic authority.
 | `include/semantics`, `src/semantics` | SDK | schema and policy validation |
 | `include/sdk`, `src/sdk` | SDK | public host API |
 | `include/tooling`, `src/tooling` | tooling | CLI and supporting presentation |
-| `include/web`, `src/web` | product API | experimental transport-independent web API core over anonymous clients and shared sessions |
+| `include/web`, `src/web` | web computation/product transition | internal engine API over shared sessions plus transitional transport-independent web API core |
+| `web/bff` | product backend | ASP.NET Core public `/api/*` boundary, request validation, engine error mapping, and future product persistence |
+| `web/frontend` | product frontend | React/Vite editing and presentation surface that delegates execution to the BFF |
 | future notebook application | product | cells, documents, display, persistence, export |
 
 When ownership is unclear, ask: “Would changing this change expression meaning
@@ -252,7 +264,9 @@ flowchart TD
     Kernel["aleph3_kernel"] --> SDK["aleph3_sdk"]
     Kernel --> Algebra["aleph3_pack_algebra"]
     Algebra --> SDK
-    Kernel --> WebApi["aleph3_web_api"]
+    Kernel --> EngineApi["aleph3_engine_api"]
+    EngineApi --> EngineSvc["aleph3_engine_service"]
+    Kernel --> WebApi["aleph3_web_api<br/>legacy API core"]
     Kernel -. compatibility alias .-> Symbolic["aleph3_symbolic"]
     SDK --> CLI["aleph3_cli"]
     SDK --> Example["aleph3_sdk_example"]

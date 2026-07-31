@@ -107,11 +107,16 @@ journals, and migrations are not implemented.
 ## Web API Foundation
 
 The current build also includes an experimental `aleph3_web_api` library. It
-is a transport-independent API core for the planned web notebook MVP, not yet a
-network listener or deployed service. The API core has a notebook store
-boundary; ordinary tests use an in-memory store, and cloud-oriented builds can
-enable the Postgres store. The companion `aleph3_web_api_server --health`
-executable is only a smoke check for the API core.
+is a transport-independent API core for the planned web notebook MVP. It is
+now transitional contract evidence rather than the public browser backend. The
+Phase 6a web slice adds an internal C++ engine HTTP service, an ASP.NET Core
+BFF that owns public `/api/*` browser routes, a React/Vite evaluator surface,
+and a Docker Compose graph through Traefik.
+
+The API core still has a notebook store boundary; ordinary tests use an
+in-memory store, and cloud-oriented builds can enable the Postgres store. The
+companion `aleph3_web_api_server --health` executable remains a smoke check
+for that API core.
 
 The API core currently supports:
 
@@ -138,7 +143,7 @@ GET  /api/examples
 POST /api/examples/{exampleId}/copy
 ```
 
-Session endpoints require the anonymous client identifier in
+Legacy API-core session endpoints require the anonymous client identifier in
 `X-Aleph3-Client`. Evaluation requests accept JSON with a string `source`
 field and delegate directly to `session::Session` using the ordinary evaluate
 operation:
@@ -198,8 +203,8 @@ client, expire after the configured idle TTL, and enforce a per-client
 active-session limit. Notebook documents are persisted through the web
 notebook store boundary. Production web persistence is Postgres-backed when the
 backend is built with Postgres support and configured with
-`ALEPH3_DATABASE_URL`; there is no HTTP server, browser frontend, reverse
-proxy configuration, or production deployment in the current build.
+`ALEPH3_DATABASE_URL`. In the Web MVP architecture, BFF-owned Postgres
+persistence replaces this C++ product-store path in a later slice.
 
 Notebook endpoints persist versioned notebook JSON and validate it through the
 same headless notebook core used by local file persistence. Create requests may
@@ -281,12 +286,65 @@ the supported subset covered by existing tests: exact arithmetic, assignments,
 algebra, assumptions, rewriting, focused differentiation, exact matrices, and
 one deliberate parse diagnostic.
 
+## Phase 6a Web Evaluation Loop
+
+The current browser-facing web slice is deliberately narrow:
+
+```text
+browser -> BFF /api/* -> internal engine /internal/* -> session::Session
+```
+
+The internal engine service is built as `aleph3_engine_service`. Its smoke
+check is:
+
+```text
+aleph3_engine_service --health
+```
+
+The expected response is:
+
+```json
+{"ready":true,"service":"aleph3-engine","status":"ok"}
+```
+
+When run as a listener, the engine exposes only internal computation routes
+such as:
+
+```text
+GET  /internal/health
+POST /internal/sessions
+POST /internal/sessions/{sessionId}/evaluate
+POST /internal/sessions/{sessionId}/reset
+```
+
+The ASP.NET Core BFF exposes the first public browser API:
+
+```text
+GET  /api/health
+POST /api/sessions
+POST /api/sessions/{sessionId}/evaluate
+```
+
+The BFF validates browser JSON, forwards evaluation to the engine, and maps
+engine failures into public JSON error envelopes. It does not parse,
+evaluate, simplify, or maintain symbolic help catalogs. The React/Vite
+frontend creates a session, sends input source to the BFF, and renders
+canonical plain text plus diagnostics. Running `1/2 + 1/3` through the browser
+should display `5/6`.
+
+The production-like Compose graph routes `/` to the frontend and `/api/*` to
+the BFF through Traefik. The engine and Postgres services are internal-only in
+that profile. The development Compose override may publish frontend, BFF,
+engine, and Postgres ports for debugging.
+
 ## Graphical Notebook Status
 
-No graphical notebook application is included in the current build. The
-delivered headless core and JSON format are product foundations, not a claim
-that a desktop UI has shipped. Until it does, `aleph3_cli repl` is the runnable
-local interactive surface.
+No full graphical notebook application is included in the current build. The
+Phase 6a browser surface is a single evaluator loop, while the delivered
+headless core and JSON format remain product foundations rather than a claim
+that notebook persistence, examples, completion/help UI, or `Run All` have
+shipped in the browser. Until the full web notebook loop ships, `aleph3_cli
+repl` remains the runnable local interactive fallback.
 
 The planned application remains a thin consumer: the GUI owns cells,
 presentation, and file interaction; the session owns interactive state; the

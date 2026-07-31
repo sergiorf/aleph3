@@ -26,11 +26,12 @@ Use it to:
 - keep web, CLI, SDK, sessions, notebook documents, and math packs on one
   semantic path
 
-The web API target is new and intentionally narrow. It is currently a
-transport-independent API core plus a health-check executable, not yet a full
-HTTP listener, browser frontend, or production deployment. The CLI remains the
-easiest way to interact with the symbolic system manually while the web product
-is being assembled.
+The web MVP is being assembled in slices. The current tree includes the
+transport-independent legacy web API core, an internal C++ engine HTTP service,
+an ASP.NET Core BFF skeleton, a React/Vite evaluator surface, and Docker
+Compose routing through Traefik. Notebook persistence, examples in the browser,
+completion/help UI, and `Run All` through the BFF remain later MVP slices. The
+CLI remains the easiest fully local interactive fallback.
 
 ## Build Notifications
 
@@ -95,8 +96,9 @@ You need CMake 3.20+ and a C++20 compiler.
    ```
 
 This proves the current API-core executable is built and runnable. It does not
-start a listening HTTP server yet. The implemented API core is exercised
-through tests and currently covers:
+start the public web MVP backend. The implemented API core is exercised
+through tests and remains transitional contract evidence while browser traffic
+migrates to the BFF:
 
 ```text
 GET  /api/health
@@ -113,6 +115,160 @@ DELETE /api/sessions/{sessionId}
 Session endpoints use anonymous client ownership and delegate evaluation,
 completion, and focused help to `session::Session`; web code does not add
 symbolic parser, evaluator, discovery, or pack semantics.
+
+## Run The Phase 6a Web MVP Slice
+
+The first browser loop uses this path:
+
+```text
+React/Vite frontend -> ASP.NET Core BFF /api/* -> internal C++ engine /internal/* -> session::Session
+```
+
+### Internal C++ Engine
+
+Build and smoke-test the internal engine service:
+
+```bash
+cmake --build build --config Release --target aleph3_engine_service
+./build/bin/aleph3_engine_service --health
+```
+
+On Visual Studio and other multi-configuration generators:
+
+```powershell
+cmake --build build --config Release --target aleph3_engine_service
+.\build\bin\Release\aleph3_engine_service.exe --health
+```
+
+Expected output:
+
+```json
+{"ready":true,"service":"aleph3-engine","status":"ok"}
+```
+
+Run the focused engine tests:
+
+```bash
+cmake --build build --config Release --target aleph3_engine_api_tests
+ctest --test-dir build -C Release -R aleph3_engine_api_tests --output-on-failure
+```
+
+Start the internal engine listener for local BFF development:
+
+```bash
+ALEPH3_ENGINE_PORT=8080 ./build/bin/aleph3_engine_service
+```
+
+On PowerShell:
+
+```powershell
+$env:ALEPH3_ENGINE_PORT = "8080"
+.\build\bin\Release\aleph3_engine_service.exe
+```
+
+### ASP.NET Core BFF
+
+The BFF exposes the public browser API and forwards evaluation to the internal
+engine. It requires the .NET 8 SDK for local development:
+
+```bash
+cd web/bff
+dotnet run
+```
+
+By default it calls `http://localhost:8080`. Override the engine URL when
+needed:
+
+```bash
+ALEPH3_ENGINE_BASE_URL=http://localhost:8080 dotnet run --project web/bff/Aleph3.Bff.csproj
+```
+
+Smoke-test the BFF:
+
+```bash
+curl http://localhost:5000/api/health
+curl -X POST http://localhost:5000/api/sessions
+```
+
+Use the returned `sessionId` to evaluate:
+
+```bash
+curl -X POST http://localhost:5000/api/sessions/{sessionId}/evaluate \
+  -H "Content-Type: application/json" \
+  -d '{"source":"1/2 + 1/3"}'
+```
+
+Expected result payload contains:
+
+```json
+{"canonicalText":"5/6"}
+```
+
+### React/Vite Frontend
+
+The frontend opens directly into the evaluator workspace:
+
+```bash
+cd web/frontend
+npm install
+npm run dev
+```
+
+The Vite dev server proxies `/api/*` to `http://localhost:5000`. Open the
+printed Vite URL, run the default input `1/2 + 1/3`, and expect `5/6`.
+
+Frontend checks:
+
+```bash
+npm run typecheck
+npm run build
+```
+
+### Docker Compose
+
+The production-like Compose graph starts Traefik, frontend, BFF, internal
+engine, and Postgres:
+
+```bash
+docker compose up --build
+```
+
+Only Traefik publishes host ports in `docker-compose.yml`:
+
+```text
+80:80
+443:443
+```
+
+Routes:
+
+```text
+/      -> frontend
+/api/* -> BFF
+```
+
+The engine and Postgres are on the internal Compose network and are not routed
+publicly. For local debugging only, use the development override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+The dev override additionally publishes:
+
+```text
+frontend 5173
+BFF      5000
+engine   8080
+Postgres 5432
+```
+
+Full-slice smoke check:
+
+1. Start Compose.
+2. Open `http://localhost/`.
+3. Run `1/2 + 1/3`.
+4. Confirm the browser displays `5/6`.
 
 ## Build The Full Developer System
 

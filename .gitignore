@@ -18,6 +18,9 @@ build-*/
 cmake-build-*/
 bin/
 lib/
+node_modules/
+web/frontend/node_modules/
+.npm-cache/
 
 # Visual Studio specific files
 *.vcxproj.user
@@ -69,3 +72,129 @@ Thumbs.db
 .vscode/
 .idea/
 .vs/
+
+# ============================================================
+# .NET / ASP.NET Core
+# ============================================================
+
+# Build output
+[Bb]in/
+[Oo]bj/
+artifacts/
+out/
+publish/
+
+# Build logs and temporary compiler files
+*.log
+*.tmp
+*.temp
+*.cache
+*.dll
+*.exe
+*.pdb
+
+# Keep native or externally managed binaries when explicitly committed
+# with rules such as:
+# !path/to/required/library.dll
+
+# Test output and code coverage
+TestResults/
+[Tt]est[Rr]esult*/
+coverage/
+coverage-results/
+coverage-report/
+*.coverage
+*.coveragexml
+*.trx
+*.testlog
+*.opencover.xml
+*.cobertura.xml
+
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# Visual Studio generated files
+Generated\ Files/
+ipch/
+*.VC.db
+*.VC.VC.opendb
+*.opendb
+
+# JetBrains Rider / ReSharper
+.idea/
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+*.sln.iml
+
+# VS Code machine-specific state
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# NuGet generated artifacts
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts.json
+
+# Local .NET SDK/tool installation
+.dotnet/
+
+# ASP.NET Core local files
+appsettings.Local.json
+appsettings.*.Local.json
+appsettings.local.json
+appsettings.*.local.json
+
+# Local secrets and environment variables
+.env
+.env.*
+!.env.example
+secrets.json
+
+# Development HTTPS certificates
+*.pfx
+*.p12
+*.cer
+*.crt
+*.key
+https/
+
+# Entity Framework local database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Runtime-generated files
+logs/
+temp/
+tmp/
+uploads/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Crash dumps
+*.dmp
+*.dump
+core
+core.*

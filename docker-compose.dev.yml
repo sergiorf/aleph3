@@ -1,0 +1,16 @@
+services:
+  frontend:
+    ports:
+      - "5173:80"
+
+  bff:
+    ports:
+      - "5000:8080"
+
+  engine:
+    ports:
+      - "8080:8080"
+
+  postgres:
+    ports:
+      - "5432:5432"

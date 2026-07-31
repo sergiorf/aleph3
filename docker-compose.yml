@@ -1,0 +1,105 @@
+services:
+  traefik:
+    image: traefik:v3.2
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --ping=true
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - public
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: web/frontend/Dockerfile
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.aleph3-frontend.rule=PathPrefix(`/`)
+      - traefik.http.routers.aleph3-frontend.entrypoints=web
+      - traefik.http.routers.aleph3-frontend.priority=1
+      - traefik.http.services.aleph3-frontend.loadbalancer.server.port=80
+    networks:
+      - public
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  bff:
+    build:
+      context: .
+      dockerfile: web/bff/Dockerfile
+    environment:
+      ALEPH3_ENGINE_BASE_URL: http://engine:8080
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.aleph3-bff.rule=PathPrefix(`/api`)
+      - traefik.http.routers.aleph3-bff.entrypoints=web
+      - traefik.http.routers.aleph3-bff.priority=100
+      - traefik.http.services.aleph3-bff.loadbalancer.server.port=8080
+    depends_on:
+      engine:
+        condition: service_started
+      postgres:
+        condition: service_started
+    networks:
+      - public
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  engine:
+    build:
+      context: .
+      dockerfile: docker/engine.Dockerfile
+    environment:
+      ALEPH3_ENGINE_PORT: "8080"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "/app/aleph3_engine_service", "--health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: aleph3
+      POSTGRES_PASSWORD: aleph3_dev
+      POSTGRES_DB: aleph3
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aleph3 -d aleph3"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  public:
+  internal:
+    internal: true
+
+volumes:
+  postgres_data:
+  traefik_letsencrypt:

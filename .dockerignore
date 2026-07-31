@@ -1,0 +1,8 @@
+.git
+build
+build-*
+node_modules
+web/frontend/dist
+web/frontend/node_modules
+**/bin
+**/obj

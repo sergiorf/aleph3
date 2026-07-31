@@ -16,10 +16,11 @@ The MVP should validate the product loop:
 3. add and edit text and input cells;
 4. evaluate supported symbolic expressions;
 5. see canonical output and diagnostics;
-6. run all cells from a clean session;
-7. reset interactive state;
-8. save and reload notebooks;
-9. open verified example notebooks.
+6. discover supported functions through completion and focused help;
+7. run all cells from a clean session;
+8. reset interactive state;
+9. save and reload notebooks;
+10. open verified example notebooks.
 
 ## Architectural Strategy
 
@@ -46,8 +47,8 @@ Ownership remains:
 | interactive definitions, reset, completion, help, request lifecycle | session |
 | domain algorithms and symbols | registered packs |
 | cells, document JSON, generated results, run-all lifecycle | notebook core |
-| HTTP transport, request validation, anonymous limits, persistence access | web API |
-| editing, rendering, stale-output presentation, user workflow | frontend |
+| HTTP transport, request validation, anonymous limits, persistence access, completion/help serialization | web API |
+| editing, rendering, stale-output presentation, completion/help presentation, user workflow | frontend |
 | TLS, request body limits, edge rate limiting, static serving | reverse proxy |
 
 ## MVP Decisions
@@ -152,6 +153,8 @@ GET  /api/sessions/{sessionId}
 POST /api/sessions/{sessionId}/evaluate
 POST /api/sessions/{sessionId}/reset
 DELETE /api/sessions/{sessionId}
+GET  /api/sessions/{sessionId}/complete?prefix={prefix}
+GET  /api/sessions/{sessionId}/help?query={nameOrPrefix}
 
 POST /api/notebooks
 GET  /api/notebooks
@@ -205,6 +208,8 @@ Backend behavior:
 - reject oversized input before evaluation;
 - map invalid JSON, missing sessions, quota failures, oversized requests, and
   notebook ownership failures to stable HTTP status codes;
+- serve completion and help from the shared session and registry metadata, not
+  from a web-maintained list;
 - include request IDs in logs and responses where useful;
 - log endpoint, status, elapsed time, anonymous client ID hash, and failure
   class;
@@ -257,6 +262,8 @@ Required views and controls:
 - add input cell;
 - add text cell;
 - delete or clear cells if simple enough for MVP ergonomics;
+- supported symbol completion while editing input cells;
+- focused function help from completion details or a lightweight help panel;
 - run cell;
 - run all;
 - reset session;
@@ -274,10 +281,13 @@ Cell behavior:
 - a failed input records diagnostics and does not stop later cells;
 - canonical plain text is always renderable and copyable;
 - diagnostics are displayed near the responsible cell.
+- completion suggestions are discovery aids only; choosing a suggestion inserts
+  supported syntax but does not change parser or evaluator behavior.
 
 Deferred frontend behavior:
 
 - rich math editor;
+- AI completion or natural-language formula generation;
 - plotting;
 - collaboration;
 - account management;
@@ -327,6 +337,7 @@ Delivered:
 - anonymous client creation;
 - in-memory session creation, lookup, reset, deletion, and idle expiration;
 - evaluate endpoint backed by `session::Session`;
+- completion and focused help endpoints backed by `session::Session`;
 - JSON success and error envelopes;
 - ownership checks, session quota checks, source-size checks, request-body
   size checks, and malformed JSON diagnostics;
@@ -341,8 +352,8 @@ Not delivered in this slice:
 - frontend application;
 - reverse proxy or deployment configuration.
 
-The next slice should choose the HTTP transport boundary or add notebook
-persistence only after preserving the existing API-core tests.
+The next slice should add SQLite notebook persistence only after preserving
+the existing API-core tests.
 
 ### Phase 1: Contract And Skeleton
 
@@ -379,7 +390,27 @@ Exit criteria:
 - reset clears session-local definitions;
 - expired sessions are cleaned.
 
-### Phase 3: SQLite Notebook Persistence
+### Phase 3: Completion And Help API Follow-Through
+
+Delivered:
+
+- session completion endpoint for editor prefixes;
+- focused help endpoint for names, prefixes, packages, and supported REPL-like
+  topics where they make sense in the web app;
+- JSON schema for completion items and help entries;
+- tests proving parity with CLI/session discovery for builtins, registered
+  pack functions, and session-local user definitions.
+
+Exit criteria met:
+
+- the web API does not maintain a private completion catalog;
+- completion/help results remain deterministic and finite;
+- missing non-empty help queries fail with stable structured responses;
+- prefix, package, and category help queries return stable structured lists;
+- documentation states that completion covers the supported subset rather than
+  broad Mathematica compatibility.
+
+### Phase 4: SQLite Notebook Persistence
 
 Deliver:
 
@@ -396,7 +427,7 @@ Exit criteria:
 - cross-client notebook access is rejected;
 - cookie loss limitation is documented.
 
-### Phase 4: Notebook Run All Integration
+### Phase 5: Notebook Run All Integration
 
 Deliver:
 
@@ -412,12 +443,13 @@ Exit criteria:
 - one failed cell does not stop later cells;
 - examples are verified.
 
-### Phase 5: React MVP UI
+### Phase 6: React MVP UI
 
 Deliver:
 
 - notebook editor;
 - text and input cells;
+- completion and focused help inside the input-cell editing flow;
 - run cell, run all, reset, save, and load;
 - diagnostics and output rendering;
 - examples gallery.
@@ -428,7 +460,7 @@ Exit criteria:
 - desktop layout is usable;
 - basic mobile layout does not break.
 
-### Phase 6: Local And VM Deployment
+### Phase 7: Local And VM Deployment
 
 Deliver:
 
@@ -446,7 +478,7 @@ Exit criteria:
 - VM deployment smoke test passes;
 - reverse proxy limits and backend limits are both verified.
 
-### Phase 7: Acceptance And Documentation
+### Phase 8: Acceptance And Documentation
 
 Deliver:
 
@@ -500,6 +532,8 @@ create notebook
 add input cell
 evaluate expression
 show diagnostic
+use completion to insert a supported function
+open focused help for a supported function
 save notebook
 reload notebook
 run all
@@ -524,6 +558,8 @@ documentation.
 The MVP is launchable when:
 
 - anonymous users can use isolated sessions;
+- input editing includes deterministic supported-subset completion and focused
+  help backed by shared session metadata;
 - notebooks persist in SQLite;
 - `Run All` reconstructs state from source;
 - shipped examples are verified;

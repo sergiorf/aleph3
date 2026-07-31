@@ -9,6 +9,7 @@
 #include <random>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -47,6 +48,65 @@ std::string header_value(const ApiRequest& request, const std::string& name) {
         }
     }
     return {};
+}
+
+struct ParsedTarget {
+    std::string path;
+    std::map<std::string, std::string> query;
+};
+
+int hex_value(char ch) {
+    if (ch >= '0' && ch <= '9') return ch - '0';
+    if (ch >= 'a' && ch <= 'f') return 10 + (ch - 'a');
+    if (ch >= 'A' && ch <= 'F') return 10 + (ch - 'A');
+    return -1;
+}
+
+std::string url_decode(std::string_view value) {
+    std::string decoded;
+    decoded.reserve(value.size());
+    for (std::size_t i = 0; i < value.size(); ++i) {
+        if (value[i] == '+') {
+            decoded.push_back(' ');
+            continue;
+        }
+        if (value[i] == '%' && i + 2 < value.size()) {
+            const int high = hex_value(value[i + 1]);
+            const int low = hex_value(value[i + 2]);
+            if (high >= 0 && low >= 0) {
+                decoded.push_back(static_cast<char>((high << 4) | low));
+                i += 2;
+                continue;
+            }
+        }
+        decoded.push_back(value[i]);
+    }
+    return decoded;
+}
+
+ParsedTarget parse_target(const std::string& target) {
+    ParsedTarget parsed;
+    const auto query_start = target.find('?');
+    parsed.path = query_start == std::string::npos ? target : target.substr(0, query_start);
+    if (query_start == std::string::npos) {
+        return parsed;
+    }
+
+    std::size_t cursor = query_start + 1;
+    while (cursor <= target.size()) {
+        const auto next = target.find('&', cursor);
+        const auto length = (next == std::string::npos ? target.size() : next) - cursor;
+        const auto parameter = std::string_view(target).substr(cursor, length);
+        if (!parameter.empty()) {
+            const auto equals = parameter.find('=');
+            const auto key = equals == std::string_view::npos ? parameter : parameter.substr(0, equals);
+            const auto value = equals == std::string_view::npos ? std::string_view{} : parameter.substr(equals + 1);
+            parsed.query[url_decode(key)] = url_decode(value);
+        }
+        if (next == std::string::npos) break;
+        cursor = next + 1;
+    }
+    return parsed;
 }
 
 std::vector<std::string> split_path(const std::string& path) {
@@ -92,6 +152,29 @@ Json diagnostic_json(const session::SessionDiagnostic& diagnostic) {
         };
     }
     return encoded;
+}
+
+Json completion_json(const session::SessionCompletion& completion) {
+    return {
+        {"name", completion.name},
+        {"category", completion.category},
+        {"owningPackage", completion.owning_package.empty() ? Json(nullptr) : Json(completion.owning_package)},
+        {"documentation", completion.documentation}
+    };
+}
+
+Json help_entry_json(const session::SessionHelpEntry& entry) {
+    return {
+        {"name", entry.name},
+        {"category", entry.category},
+        {"owningPackage", entry.owning_package.empty() ? Json(nullptr) : Json(entry.owning_package)},
+        {"description", entry.description},
+        {"forms", entry.forms},
+        {"examples", entry.examples},
+        {"exactness", entry.exactness},
+        {"unsupported", entry.unsupported},
+        {"manualAnchor", entry.manual_anchor.empty() ? Json(nullptr) : Json(entry.manual_anchor)}
+    };
 }
 
 ApiResponse json_response(int status, Json body) {
@@ -174,7 +257,8 @@ ApiResponse WebApi::handle(const ApiRequest& request) {
     }
 
     expire_idle_sessions();
-    const auto parts = split_path(request.path);
+    const auto target = parse_target(request.path);
+    const auto parts = split_path(target.path);
 
     try {
         if (method_is(request, "GET") && parts == std::vector<std::string>{"api", "health"}) {
@@ -284,6 +368,49 @@ ApiResponse WebApi::handle(const ApiRequest& request) {
                         {"canonicalText", result.ok ? Json(result.output) : Json(nullptr)},
                         {"diagnostics", diagnostics}
                     }}
+                });
+            }
+
+            if (method_is(request, "GET") && parts[3] == "complete") {
+                const auto prefix_it = target.query.find("prefix");
+                const auto prefix = prefix_it == target.query.end() ? std::string{} : prefix_it->second;
+                const auto result = record.session->execute({prefix, session::SessionOperation::complete});
+                record.last_used_at = clock_();
+                if (!result.ok) {
+                    return error_response(500, "web.completion_failed", "Completion lookup failed.");
+                }
+
+                Json completions = Json::array();
+                for (const auto& completion : result.completions) {
+                    completions.push_back(completion_json(completion));
+                }
+                return ok({
+                    {"sessionId", parts[2]},
+                    {"prefix", prefix},
+                    {"completions", completions}
+                });
+            }
+
+            if (method_is(request, "GET") && parts[3] == "help") {
+                const auto query_it = target.query.find("query");
+                const auto query = query_it == target.query.end() ? std::string{} : query_it->second;
+                const auto result = record.session->execute({query, session::SessionOperation::help});
+                record.last_used_at = clock_();
+                if (!result.ok) {
+                    return error_response(500, "web.help_failed", "Help lookup failed.");
+                }
+                if (!query.empty() && result.help_entries.empty()) {
+                    return error_response(404, "web.help_not_found", "No supported help entry matches the query.");
+                }
+
+                Json entries = Json::array();
+                for (const auto& entry : result.help_entries) {
+                    entries.push_back(help_entry_json(entry));
+                }
+                return ok({
+                    {"sessionId", parts[2]},
+                    {"query", query},
+                    {"entries", entries}
                 });
             }
         }

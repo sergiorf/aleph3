@@ -18,6 +18,8 @@ Use it to:
 - build the experimental web API core for anonymous clients and isolated
   symbolic sessions
 - evaluate supported symbolic expressions through shared session semantics
+- discover supported functions through session-backed completion and focused
+  help metadata
 - run the CLI as the current interactive local fallback
 - validate and execute application formulas through a small SDK
 - work with exact rationals, assumptions, rewrite rules, and polynomial algebra
@@ -97,12 +99,14 @@ POST /api/sessions
 GET  /api/sessions/{sessionId}
 POST /api/sessions/{sessionId}/evaluate
 POST /api/sessions/{sessionId}/reset
+GET  /api/sessions/{sessionId}/complete?prefix={prefix}
+GET  /api/sessions/{sessionId}/help?query={nameOrPrefix}
 DELETE /api/sessions/{sessionId}
 ```
 
-Session endpoints use anonymous client ownership and delegate evaluation to
-`session::Session`; web code does not add symbolic parser, evaluator, or pack
-semantics.
+Session endpoints use anonymous client ownership and delegate evaluation,
+completion, and focused help to `session::Session`; web code does not add
+symbolic parser, evaluator, discovery, or pack semantics.
 
 ## Build The Full Developer System
 

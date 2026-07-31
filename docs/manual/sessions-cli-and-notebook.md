@@ -121,6 +121,8 @@ POST /api/sessions
 GET  /api/sessions/{sessionId}
 POST /api/sessions/{sessionId}/evaluate
 POST /api/sessions/{sessionId}/reset
+GET  /api/sessions/{sessionId}/complete?prefix={prefix}
+GET  /api/sessions/{sessionId}/help?query={nameOrPrefix}
 DELETE /api/sessions/{sessionId}
 ```
 
@@ -152,6 +154,32 @@ Parse or evaluation failures are represented as successful API requests with
 an error result and structured diagnostics. Invalid API input, missing clients,
 unknown sessions, ownership failures, quota failures, oversized requests, and
 unknown routes use a JSON error envelope instead.
+
+Completion and focused help endpoints delegate to the same session discovery
+operations used by the CLI. Completion returns deterministic supported-subset
+matches for builtins, registered pack functions, and session-local definitions:
+
+```json
+{
+  "status": "ok",
+  "sessionId": "opaque-session-id",
+  "prefix": "Fac",
+  "completions": [
+    {
+      "name": "Factor",
+      "category": "pack",
+      "owningPackage": "core-algebra",
+      "documentation": "Factor a supported exact polynomial expression."
+    }
+  ]
+}
+```
+
+Focused help accepts a name, prefix, package, or category query where the
+shared session catalog supports it. Unknown non-empty help queries return a
+stable JSON error envelope instead of an empty success response. These
+endpoints are discovery aids only; inserting a completion never changes parser
+or evaluator behavior.
 
 Anonymous clients and sessions are in-memory only in this slice. Sessions are
 isolated by anonymous client, expire after the configured idle TTL, and enforce

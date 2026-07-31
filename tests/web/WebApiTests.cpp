@@ -48,6 +48,28 @@ public:
             {{"X-Aleph3-Client", client_id}},
             nlohmann::json{{"source", source}}.dump()});
     }
+
+    aleph3::web::ApiResponse complete(
+        const std::string& client_id,
+        const std::string& session_id,
+        const std::string& prefix) {
+        return api.handle({
+            "GET",
+            "/api/sessions/" + session_id + "/complete?prefix=" + prefix,
+            {{"X-Aleph3-Client", client_id}},
+            ""});
+    }
+
+    aleph3::web::ApiResponse help(
+        const std::string& client_id,
+        const std::string& session_id,
+        const std::string& query) {
+        return api.handle({
+            "GET",
+            "/api/sessions/" + session_id + "/help?query=" + query,
+            {{"X-Aleph3-Client", client_id}},
+            ""});
+    }
 };
 
 }  // namespace
@@ -109,6 +131,75 @@ TEST_CASE("Web API reset clears session-local definitions", "[web][api][session]
     const auto value = body_json(harness.evaluate(client_id, session_id, "a"));
     REQUIRE(value.at("result").at("status") == "ok");
     REQUIRE(value.at("result").at("canonicalText") == "a");
+}
+
+TEST_CASE("Web API exposes session-backed completion metadata", "[web][api][session][completion]") {
+    ApiHarness harness;
+    const auto client_id = harness.create_client();
+    const auto session_id = harness.create_session(client_id);
+
+    const auto pack_completion = body_json(harness.complete(client_id, session_id, "Fac"));
+    REQUIRE(pack_completion.at("status") == "ok");
+    REQUIRE(pack_completion.at("prefix") == "Fac");
+    REQUIRE(pack_completion.at("completions").size() == 1);
+    REQUIRE(pack_completion.at("completions").at(0).at("name") == "Factor");
+    REQUIRE(pack_completion.at("completions").at(0).at("category") == "pack");
+    REQUIRE(pack_completion.at("completions").at(0).at("owningPackage") == "core-algebra");
+    REQUIRE(pack_completion.at("completions").at(0).at("documentation").get<std::string>().find("Factor") != std::string::npos);
+
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "localWebValue = 2")).at("result").at("status") == "ok");
+    const auto local_completion = body_json(harness.complete(client_id, session_id, "localWeb"));
+    REQUIRE(local_completion.at("completions").size() == 1);
+    REQUIRE(local_completion.at("completions").at(0).at("name") == "localWebValue");
+    REQUIRE(local_completion.at("completions").at(0).at("category") == "symbol");
+    REQUIRE(local_completion.at("completions").at(0).at("documentation") == "session-local own value");
+}
+
+TEST_CASE("Web API exposes focused help from the shared session catalog", "[web][api][session][help]") {
+    ApiHarness harness;
+    const auto client_id = harness.create_client();
+    const auto session_id = harness.create_session(client_id);
+
+    const auto factor_help = body_json(harness.help(client_id, session_id, "Factor"));
+    REQUIRE(factor_help.at("status") == "ok");
+    REQUIRE(factor_help.at("query") == "Factor");
+    REQUIRE(factor_help.at("entries").size() == 1);
+    REQUIRE(factor_help.at("entries").at(0).at("name") == "Factor");
+    REQUIRE(factor_help.at("entries").at(0).at("category") == "pack");
+    REQUIRE(factor_help.at("entries").at(0).at("owningPackage") == "core-algebra");
+    REQUIRE_FALSE(factor_help.at("entries").at(0).at("forms").empty());
+    REQUIRE_FALSE(factor_help.at("entries").at(0).at("examples").empty());
+    REQUIRE_FALSE(factor_help.at("entries").at(0).at("unsupported").get<std::string>().empty());
+
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "localHelpWeb[x_] := x + 1")).at("result").at("status") == "ok");
+    const auto local_help = body_json(harness.help(client_id, session_id, "localHelpWeb"));
+    REQUIRE(local_help.at("entries").size() == 1);
+    REQUIRE(local_help.at("entries").at(0).at("name") == "localHelpWeb");
+    REQUIRE(local_help.at("entries").at(0).at("category") == "function");
+    REQUIRE(local_help.at("entries").at(0).at("description") == "session-local user function");
+
+    const auto package_help = body_json(harness.help(client_id, session_id, "core-calculus"));
+    REQUIRE(package_help.at("entries").size() >= 1);
+    REQUIRE(package_help.at("entries").at(0).contains("manualAnchor"));
+
+    const auto missing_help = harness.help(client_id, session_id, "NoSuchWebHelpPrefix");
+    REQUIRE(missing_help.status == 404);
+    REQUIRE(body_json(missing_help).at("error").at("code") == "web.help_not_found");
+}
+
+TEST_CASE("Web API discovery routes decode query parameters and preserve ownership checks", "[web][api][session][completion][help]") {
+    ApiHarness harness;
+    const auto left_client = harness.create_client();
+    const auto right_client = harness.create_client();
+    const auto left_session = harness.create_session(left_client);
+
+    const auto plus_help = body_json(harness.help(left_client, left_session, "Replace%41ll"));
+    REQUIRE(plus_help.at("entries").size() == 1);
+    REQUIRE(plus_help.at("entries").at(0).at("name") == "ReplaceAll");
+
+    const auto forbidden = harness.complete(right_client, left_session, "Fac");
+    REQUIRE(forbidden.status == 403);
+    REQUIRE(body_json(forbidden).at("error").at("code") == "web.session_forbidden");
 }
 
 TEST_CASE("Web API returns structured diagnostics and request errors", "[web][api][diagnostics]") {

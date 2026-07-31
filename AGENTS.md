@@ -5,6 +5,12 @@ Before planning substantial work, read
 canonical specifications, and
 [`docs/feature_development_workflow.md`](docs/feature_development_workflow.md).
 
+Until the Web MVP is completed, interpret user references to "the plan" as
+[`docs/web_mvp_launch_plan.md`](docs/web_mvp_launch_plan.md) by default. Keep
+the unified plan as the longer-term roadmap, but do not switch planning focus
+back to it unless the user explicitly asks for the longer-term plan or the Web
+MVP plan is complete.
+
 Use the complete feature workflow automatically when work changes public or
 architectural behavior, subsystem ownership, or the supported symbolic subset.
 Keep small fixes lightweight.

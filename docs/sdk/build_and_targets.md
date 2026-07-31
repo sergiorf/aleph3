@@ -24,11 +24,14 @@ Related documents:
 | `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
 | `aleph3_pack_algebra` | library | Current polynomial implementation and registered algebra pack |
 | `aleph3_notebook_core` | library | Experimental notebook document model and session-backed `Run All` consumer |
+| `aleph3_web_api` | library | Experimental transport-independent web API core over anonymous clients and shared sessions |
+| `aleph3_web_api_server` | executable | Minimal smoke-check executable for the web API core; not a network listener |
 | `aleph3_sdk` | library | Public SDK facade over kernel-backed execution |
 | `aleph3_cli` | executable | Thin SDK tooling CLI for manual parser/validator/runtime checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
 | `aleph3_symbolic_tests` | executable | Kernel-oriented symbolic tests plus current symbolic tooling and pack-placeholder coverage |
 | `aleph3_notebook_tests` | executable | Notebook model, isolation, rerun, diagnostics, and shared-session fixture coverage |
+| `aleph3_web_api_tests` | executable | Web API core tests for health, anonymous clients, sessions, reset, isolation, diagnostics, ownership, quotas, and expiration |
 | `aleph3_sdk_tests` | executable | SDK-layer tests and SDK tooling coverage |
 
 ## Build Options
@@ -56,6 +59,11 @@ flowchart TD
     Kernel --> NotebookCore["aleph3_notebook_core"]
     NotebookCore --> NotebookTests["aleph3_notebook_tests"]
     Algebra --> NotebookTests
+    Kernel --> WebApi["aleph3_web_api"]
+    WebApi --> WebApiServer["aleph3_web_api_server"]
+    WebApi --> WebApiTests["aleph3_web_api_tests"]
+    Algebra --> WebApiServer
+    Algebra --> WebApiTests
     Kernel --> Sdk["aleph3_sdk"]
     Sdk --> SdkTests["aleph3_sdk_tests"]
     Sdk --> Cli["aleph3_cli"]
@@ -76,6 +84,9 @@ boundary.
 - Use `aleph3_cli` for fast manual checks while broader validation and custom host-function tooling are still under construction.
 - Use `aleph3_notebook_tests` to exercise the current headless document and
   clean `Run All` lifecycle. No notebook executable is built yet.
+- Use `aleph3_web_api_tests` to exercise the current anonymous-client and
+  session API core. `aleph3_web_api_server --health` is a build/run smoke
+  check only; a real HTTP listener and persistence layer are still planned.
 - `validate` in the CLI now exercises the real lexer/parser/validator path.
 - `evaluate` in the CLI now accepts `--var name=value` bindings for basic runtime checks.
 - `evaluate-host` in the CLI registers demo host functions for end-to-end SDK checks.
@@ -102,5 +113,8 @@ boundary.
   coverage.
 - `tests/tooling` is SDK/tooling consumer coverage.
 - `tests/notebook` is notebook-product model and session-consumer coverage.
+- `tests/web` is web-product API core coverage. It must remain a consumer of
+  session, notebook, kernel, and pack contracts rather than adding web-only
+  symbolic behavior.
 - `tests/packs/` is reserved for explicit future pack-owned test files once
   extraction moves beyond placeholder targets.

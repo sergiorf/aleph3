@@ -104,6 +104,61 @@ old file using the supported platform API. A failed validation, write, or
 replacement leaves the previous valid destination intact. Autosave, recovery
 journals, and migrations are not implemented.
 
+## Web API Foundation
+
+The current build also includes an experimental `aleph3_web_api` library. It
+is a transport-independent API core for the planned web notebook MVP, not yet a
+network listener, notebook store, or deployed service. The companion
+`aleph3_web_api_server --health` executable is only a smoke check for the API
+core.
+
+The API core currently supports:
+
+```text
+GET  /api/health
+POST /api/clients
+POST /api/sessions
+GET  /api/sessions/{sessionId}
+POST /api/sessions/{sessionId}/evaluate
+POST /api/sessions/{sessionId}/reset
+DELETE /api/sessions/{sessionId}
+```
+
+Session endpoints require the anonymous client identifier in
+`X-Aleph3-Client`. Evaluation requests accept JSON with a string `source`
+field and delegate directly to `session::Session` using the ordinary evaluate
+operation:
+
+```json
+{"source":"1/2 + 1/3"}
+```
+
+A successful evaluation response contains canonical plain text and the current
+session diagnostics array:
+
+```json
+{
+  "status": "ok",
+  "sessionId": "opaque-session-id",
+  "result": {
+    "status": "ok",
+    "canonicalText": "5/6",
+    "diagnostics": []
+  }
+}
+```
+
+Parse or evaluation failures are represented as successful API requests with
+an error result and structured diagnostics. Invalid API input, missing clients,
+unknown sessions, ownership failures, quota failures, oversized requests, and
+unknown routes use a JSON error envelope instead.
+
+Anonymous clients and sessions are in-memory only in this slice. Sessions are
+isolated by anonymous client, expire after the configured idle TTL, and enforce
+a per-client active-session limit. No notebooks are persisted through this API
+yet, and there is no HTTP server, SQLite store, browser frontend, reverse
+proxy configuration, or production deployment in the current build.
+
 ## Graphical Notebook Status
 
 No graphical notebook application is included in the current build. The

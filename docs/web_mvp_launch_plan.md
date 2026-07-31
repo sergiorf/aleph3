@@ -311,6 +311,39 @@ tests, and documentation ship.
 
 ## Delivery Phases
 
+## Delivered API-Core Slice
+
+The first implementation slice adds a transport-independent C++ web API core
+and focused tests. It is intentionally below a real HTTP listener so request
+validation, anonymous-client ownership, session isolation, reset behavior, and
+diagnostic serialization can be tested before choosing or vendoring transport
+infrastructure.
+
+Delivered:
+
+- `aleph3_web_api` library;
+- `aleph3_web_api_server --health` smoke executable;
+- `/api/health`;
+- anonymous client creation;
+- in-memory session creation, lookup, reset, deletion, and idle expiration;
+- evaluate endpoint backed by `session::Session`;
+- JSON success and error envelopes;
+- ownership checks, session quota checks, source-size checks, request-body
+  size checks, and malformed JSON diagnostics;
+- focused `aleph3_web_api_tests` coverage.
+
+Not delivered in this slice:
+
+- HTTP socket listener;
+- SQLite notebook persistence;
+- notebook CRUD endpoints;
+- `Run All` over persisted notebooks;
+- frontend application;
+- reverse proxy or deployment configuration.
+
+The next slice should choose the HTTP transport boundary or add notebook
+persistence only after preserving the existing API-core tests.
+
 ### Phase 1: Contract And Skeleton
 
 Deliver:

@@ -133,6 +133,21 @@ if(ALEPH3_BUILD_KERNEL)
     target_include_directories(aleph3_notebook_core PRIVATE third_party/nlohmann)
     target_link_libraries(aleph3_notebook_core PUBLIC aleph3_kernel)
 
+    add_library(aleph3_web_api
+        src/web/WebApi.cpp
+        include/web/WebApi.hpp)
+    target_include_directories(aleph3_web_api PUBLIC include)
+    target_include_directories(aleph3_web_api PRIVATE third_party/nlohmann)
+    target_link_libraries(aleph3_web_api PUBLIC aleph3_kernel)
+
+    add_executable(aleph3_web_api_server src/web/aleph3_web_api.cpp)
+    target_link_libraries(
+        aleph3_web_api_server
+        PRIVATE
+        aleph3_web_api
+        aleph3_pack_algebra
+        aleph3_pack_calculus)
+
     if(ALEPH3_BUILD_SDK)
         target_link_libraries(aleph3_sdk PUBLIC aleph3_kernel aleph3_pack_algebra aleph3_pack_calculus)
     endif()
@@ -199,6 +214,17 @@ if(BUILD_TESTING)
             aleph3_pack_calculus
             Catch2::Catch2WithMain)
         add_test(NAME aleph3_notebook_tests COMMAND aleph3_notebook_tests)
+
+        add_executable(aleph3_web_api_tests tests/web/WebApiTests.cpp)
+        target_link_libraries(
+            aleph3_web_api_tests
+            PRIVATE
+            aleph3_web_api
+            aleph3_pack_algebra
+            aleph3_pack_calculus
+            Catch2::Catch2WithMain)
+        target_include_directories(aleph3_web_api_tests PRIVATE third_party/nlohmann)
+        add_test(NAME aleph3_web_api_tests COMMAND aleph3_web_api_tests)
     endif()
 
     if(ALEPH3_BUILD_SDK)

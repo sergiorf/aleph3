@@ -6,25 +6,33 @@
 </p>
 
 # Aleph3
-Aleph3 is evolving into a lightweight local symbolic notebook and computation
-environment written in modern C++, designed for fast mathematical exploration,
-clean notation, and developer-friendly formula/code workflows.
+Aleph3 is evolving into a lightweight web-accessible symbolic notebook and
+local computation environment written in modern C++. The first MVP is a web
+notebook surface backed by the same C++ kernel, session layer, notebook core,
+and registered math packs used by the CLI and SDK.
 
-The notebook is the intended main product. Today, the repository provides the
-C++20 kernel, SDK, CLI, reusable session layer, and algebra pack that the
-notebook will build on; a desktop notebook executable has not shipped yet.
+The repository currently contains the foundation for that MVP:
 
 Use it to:
 
+- build the experimental web API core for anonymous clients and isolated
+  symbolic sessions
+- evaluate supported symbolic expressions through shared session semantics
+- run the CLI as the current interactive local fallback
 - validate and execute application formulas through a small SDK
-- register typed host functions and control evaluation with policies and budgets
 - work with exact rationals, assumptions, rewrite rules, and polynomial algebra
-- reuse the same kernel semantics from the SDK, CLI, sessions, and math packs
+- keep web, CLI, SDK, sessions, notebook documents, and math packs on one
+  semantic path
 
-The SDK is currently the most stable surface and the CLI is the current local
-interactive experience. Aleph3 is deliberately focused rather than a
-Mathematica, SageMath, or general-purpose CAS replacement. Unsupported
-algebraic forms fail explicitly instead of silently guessing.
+The web API target is new and intentionally narrow. It is currently a
+transport-independent API core plus a health-check executable, not yet a full
+HTTP listener, browser frontend, SQLite-backed notebook store, or production
+deployment. The CLI remains the easiest way to interact with the symbolic
+system manually while the web product is being assembled.
+
+Aleph3 is deliberately focused rather than a Mathematica, SageMath, or
+general-purpose CAS replacement. Unsupported algebraic forms fail explicitly
+instead of silently guessing.
 
 ## Syntax
 
@@ -42,20 +50,86 @@ That syntax is a current frontend, not the whole product identity.
 The long-term kernel design keeps syntax separate from semantics so Aleph3 can
 support compatibility syntax, a more Aleph3-native syntax, or both over time.
 
-## Getting Started
+## Build And Launch The Web API Core
 
 You need CMake 3.20+ and a C++20 compiler.
 
-1. Clone and build:
+1. Clone and configure:
 
    ```bash
    git clone https://github.com/sergiorf/aleph3.git
    cd aleph3
    cmake -S . -B build
+   ```
+
+2. Build the web API core and smoke executable:
+
+   ```bash
+   cmake --build build --config Release --target aleph3_web_api_server
+   ```
+
+3. Launch the current health-check entrypoint:
+
+   ```bash
+   ./build/bin/aleph3_web_api_server --health
+   ```
+
+   On Visual Studio and other multi-configuration generators:
+
+   ```powershell
+   .\build\bin\Release\aleph3_web_api_server.exe --health
+   ```
+
+   Expected output:
+
+   ```json
+   {"ready":true,"service":"aleph3-web-api","status":"ok"}
+   ```
+
+This proves the current API-core executable is built and runnable. It does not
+start a listening HTTP server yet. The implemented API core is exercised
+through tests and currently covers:
+
+```text
+GET  /api/health
+POST /api/clients
+POST /api/sessions
+GET  /api/sessions/{sessionId}
+POST /api/sessions/{sessionId}/evaluate
+POST /api/sessions/{sessionId}/reset
+DELETE /api/sessions/{sessionId}
+```
+
+Session endpoints use anonymous client ownership and delegate evaluation to
+`session::Session`; web code does not add symbolic parser, evaluator, or pack
+semantics.
+
+## Build The Full Developer System
+
+To build the kernel, packs, web API core, notebook core, CLI, SDK, examples,
+and tests:
+
+   ```bash
+   cmake -S . -B build
    cmake --build build --config Release
    ```
 
-2. Start the CLI REPL:
+Run all configured tests:
+
+   ```bash
+   ctest --test-dir build -C Release --output-on-failure
+   ```
+
+Focused web API verification:
+
+   ```bash
+   cmake --build build --config Release --target aleph3_web_api_tests
+   ctest --test-dir build -C Release -R aleph3_web_api_tests --output-on-failure
+   ```
+
+## Use The CLI While The Web UI Is In Progress
+
+Start the CLI REPL:
 
    ```bash
    ./build/bin/aleph3_cli repl
@@ -64,7 +138,7 @@ You need CMake 3.20+ and a C++20 compiler.
    On multi-configuration generators such as Visual Studio, the executable is
    normally under `build/bin/Release/`.
 
-3. Try the symbolic surface:
+Try the symbolic surface:
 
    ```text
    > 1/2 + 1/3
@@ -90,7 +164,7 @@ You need CMake 3.20+ and a C++20 compiler.
    [Concepts and terminology appendix](docs/manual/concepts-and-terminology.md)
    for a plain-language explanation.
 
-4. Try the trusted SDK-facing path and host functions:
+Try the trusted SDK-facing path and host functions:
 
    ```text
    > :validate If[True, 1, "no"]
@@ -100,12 +174,6 @@ You need CMake 3.20+ and a C++20 compiler.
    ```
 
    Run `aleph3_sdk_example` for an embedding example using the C++ API.
-
-5. Run the tests:
-
-   ```bash
-   ctest --test-dir build -C Release --output-on-failure
-   ```
 
 ## Build Options
 
@@ -128,11 +196,14 @@ runtime.
   embedding boundary.
 - math packs add domain functions through kernel registration; `core-algebra`
   currently owns the polynomial surface.
+- `aleph3_web_api` is the experimental web API core over anonymous clients and
+  shared sessions.
 - `aleph3_cli` and the reusable session layer expose those same semantics
   interactively.
-- the planned `aleph3_notebook` desktop application will own cells, documents,
-  display, and persistence while delegating all execution to the session and
-  kernel.
+- `aleph3_notebook_core` owns the current headless document model, JSON
+  persistence, and clean `Run All` lifecycle.
+- the planned web frontend will own editing and presentation while delegating
+  all execution to the API, session, kernel, and packs.
 
 `aleph3_symbolic` remains a compatibility target name during migration; it is
 not a second semantic engine.

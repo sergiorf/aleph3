@@ -17,6 +17,7 @@ shared symbolic kernel, which remains the product-critical semantic asset.
 flowchart TB
     Host["Host applications"] --> SDK["SDK<br/>Engine · Schema · Policy · Value"]
     Notebook["Planned notebook"] --> Session["Stateful session"]
+    WebApi["Experimental web API"] --> Session
     CLI["CLI"] --> Session
     Session --> Kernel
     CLI --> SDK
@@ -115,14 +116,15 @@ symbolic semantics.
 
 ### Tools and Products
 
-The CLI, examples, tests, and future applications are consumers. They may
-compose APIs and present results, but semantic rules do not belong there.
+The CLI, web API, examples, tests, and future applications are consumers. They
+may compose APIs and present results, but semantic rules do not belong there.
 
 The experimental stateful session layer is the first reusable interactive
 consumer boundary. It owns one kernel evaluation context across requests,
 returns rendered results plus structured diagnostics, and is used by the
-symbolic CLI REPL. The planned notebook and any later IDE consumers should
-build on this boundary rather than owning evaluator state themselves.
+symbolic CLI REPL and the experimental web API core. The planned notebook and
+any later IDE consumers should build on this boundary rather than owning
+evaluator state themselves.
 
 ### Notebook
 
@@ -164,6 +166,7 @@ is a cache, never semantic authority.
 | `include/semantics`, `src/semantics` | SDK | schema and policy validation |
 | `include/sdk`, `src/sdk` | SDK | public host API |
 | `include/tooling`, `src/tooling` | tooling | CLI and supporting presentation |
+| `include/web`, `src/web` | product API | experimental transport-independent web API core over anonymous clients and shared sessions |
 | future notebook application | product | cells, documents, display, persistence, export |
 
 When ownership is unclear, ask: “Would changing this change expression meaning
@@ -249,6 +252,7 @@ flowchart TD
     Kernel["aleph3_kernel"] --> SDK["aleph3_sdk"]
     Kernel --> Algebra["aleph3_pack_algebra"]
     Algebra --> SDK
+    Kernel --> WebApi["aleph3_web_api"]
     Kernel -. compatibility alias .-> Symbolic["aleph3_symbolic"]
     SDK --> CLI["aleph3_cli"]
     SDK --> Example["aleph3_sdk_example"]

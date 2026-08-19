@@ -62,6 +62,51 @@ TEST_CASE("Session reset discards local definitions and preserves providers", "[
     REQUIRE(pack.completions.front().category == "pack");
 }
 
+TEST_CASE("Session cleanup updates evaluation, completion, and help consistently", "[session][cleanup][completion][help]") {
+    Session session;
+
+    REQUIRE(session.execute({"a = 2"}).ok);
+    REQUIRE(session.execute({"f[x_] := x + a"}).ok);
+    REQUIRE(session.execute({"Plus[x_, y_] := 99"}).ok);
+
+    REQUIRE(session.execute({"f[3]"}).output == "5");
+    REQUIRE(session.execute({"1 + 2"}).output == "3");
+    REQUIRE(session.execute({"a", SessionOperation::complete}).completions.front().category == "symbol");
+    REQUIRE(session.execute({"f", SessionOperation::help}).help_entries.front().category == "function");
+    REQUIRE(session.execute({"Plus", SessionOperation::complete}).completions.front().category == "builtin");
+
+    REQUIRE(session.execute({"Clear[a]"}).ok);
+    REQUIRE(session.execute({"f[3]"}).output == "a + 3");
+    REQUIRE(session.execute({"a", SessionOperation::complete}).completions.empty());
+    REQUIRE(session.execute({"f", SessionOperation::complete}).completions.front().category == "function");
+
+    REQUIRE(session.execute({"Unset[f]"}).ok);
+    REQUIRE(session.execute({"f[3]"}).output == "a + 3");
+    REQUIRE(session.execute({"f", SessionOperation::complete}).completions.front().category == "function");
+
+    REQUIRE(session.execute({"Clear[f]"}).ok);
+    REQUIRE(session.execute({"f[3]"}).output == "f[3]");
+    REQUIRE(session.execute({"f", SessionOperation::help}).help_entries.empty());
+}
+
+TEST_CASE("Session reset clears assumptions and session-local provider shadows", "[session][reset][assumptions]") {
+    Session session;
+
+    REQUIRE(session.execute({"Assuming[x > 0, Positive[x]]"}).output == "True");
+    REQUIRE(session.execute({"Plus = 7"}).ok);
+    REQUIRE(session.execute({"Plus[x_, y_] := 99"}).ok);
+    REQUIRE(session.execute({"Plus"}).output == "7");
+    REQUIRE(session.execute({"1 + 2"}).output == "3");
+    REQUIRE(session.execute({"Plus", SessionOperation::complete}).completions.front().category == "builtin");
+
+    session.reset();
+
+    REQUIRE(session.execute({"Plus"}).output == "Plus");
+    REQUIRE(session.execute({"1 + 2"}).output == "3");
+    REQUIRE(session.execute({"D[x^2, x]"}).output == "2 * x");
+    REQUIRE(session.execute({"Plus", SessionOperation::complete}).completions.front().category == "builtin");
+}
+
 TEST_CASE("Session returns structured failures and supports all operations", "[session]") {
     Session session;
     const auto empty = session.execute({""});

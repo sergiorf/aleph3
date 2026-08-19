@@ -298,6 +298,21 @@ TEST_CASE("REPL completion reflects provider precedence and cleanup", "[tooling]
     REQUIRE(result.output.find("Plus\tbuiltin") != std::string::npos);
 }
 
+TEST_CASE("REPL cleanup keeps delayed functions and provider precedence consistent", "[tooling][cli][session]") {
+    const auto result = run_shell_command(make_repl_command(
+        {"a = 2", "f[x_] := x + a", "Plus[x_, y_] := 99", "f[3]", "1 + 2",
+         "Clear[a]", "f[3]", "Unset[f]", "f[3]", "Clear[f]", "f[3]",
+         ":complete Plus", ":quit"}));
+
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output.find("5\n") != std::string::npos);
+    REQUIRE(result.output.find("3\n") != std::string::npos);
+    REQUIRE(result.output.find("a + 3\n") != std::string::npos);
+    REQUIRE(count_substrings(result.output, "a + 3\n") == 2);
+    REQUIRE(result.output.find("f[3]\n") != std::string::npos);
+    REQUIRE(result.output.find("Plus\tbuiltin") != std::string::npos);
+}
+
 TEST_CASE("CLI one-shot evaluation is ephemeral and REPL recovers after errors", "[tooling][cli][session]") {
     const auto assignment = run_shell_command(make_direct_command("\"a = 2\""));
     REQUIRE(assignment.exit_code == 0);

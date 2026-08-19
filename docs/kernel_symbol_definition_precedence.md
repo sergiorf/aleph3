@@ -138,6 +138,12 @@ In this slice, that means:
 - immediate function definitions evaluate the body first and then store it
 - user-defined function bodies evaluate in a local copied context with bound
   parameters
+- delayed bodies observe the caller's current session state when invoked; if a
+  referenced own value is later removed with `Clear` or `Unset`, that name is
+  symbolic in later calls rather than retaining the old value
+- a symbol may have both an own value and a user function definition in the
+  same session; cleanup operations remove only the state category promised by
+  their contract
 
 ## Current Host Function Position
 

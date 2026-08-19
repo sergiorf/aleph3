@@ -1470,6 +1470,46 @@ TEST_CASE("Session cleanup clears own values and user functions", "[evaluator][s
     REQUIRE_FALSE(ctx.definition_records.contains("f", symbols::SymbolDefinitionKind::user_function));
 }
 
+TEST_CASE("Session cleanup keeps own values and function definitions distinct", "[evaluator][session-cleanup][mvp]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("h = 10"), ctx)) == "h");
+    REQUIRE(to_string(evaluate(parse_expression("h[x_] := x + h"), ctx)) == "h[x_] := h + x");
+    REQUIRE(to_string(evaluate(parse_expression("h[2]"), ctx)) == "12");
+
+    REQUIRE(to_string(evaluate(parse_expression("Unset[h]"), ctx)) == "h");
+    REQUIRE(to_string(evaluate(parse_expression("h"), ctx)) == "h");
+    REQUIRE(to_string(evaluate(parse_expression("h[2]"), ctx)) == "h + 2");
+    REQUIRE_FALSE(ctx.symbol_values.contains("h"));
+    REQUIRE_FALSE(ctx.definition_records.contains("h", symbols::SymbolDefinitionKind::own_value));
+    REQUIRE(ctx.function_definitions.contains("h"));
+    REQUIRE(ctx.definition_records.contains("h", symbols::SymbolDefinitionKind::user_function));
+
+    REQUIRE(to_string(evaluate(parse_expression("h = 20"), ctx)) == "h");
+    REQUIRE(to_string(evaluate(parse_expression("h[2]"), ctx)) == "22");
+    REQUIRE(to_string(evaluate(parse_expression("Clear[h]"), ctx)) == "h");
+    REQUIRE(to_string(evaluate(parse_expression("h"), ctx)) == "h");
+    REQUIRE(to_string(evaluate(parse_expression("h[2]"), ctx)) == "h[2]");
+    REQUIRE_FALSE(ctx.symbol_values.contains("h"));
+    REQUIRE_FALSE(ctx.function_definitions.contains("h"));
+    REQUIRE_FALSE(ctx.definition_records.contains("h", symbols::SymbolDefinitionKind::own_value));
+    REQUIRE_FALSE(ctx.definition_records.contains("h", symbols::SymbolDefinitionKind::user_function));
+}
+
+TEST_CASE("Delayed function definitions observe later cleanup of referenced symbols", "[evaluator][session-cleanup][mvp]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("a = 2"), ctx)) == "a");
+    REQUIRE(to_string(evaluate(parse_expression("f[x_] := x + a"), ctx)) == "f[x_] := a + x");
+    REQUIRE(to_string(evaluate(parse_expression("f[3]"), ctx)) == "5");
+
+    REQUIRE(to_string(evaluate(parse_expression("Clear[a]"), ctx)) == "a");
+    REQUIRE(to_string(evaluate(parse_expression("f[3]"), ctx)) == "a + 3");
+
+    REQUIRE(to_string(evaluate(parse_expression("Clear[f]"), ctx)) == "f");
+    REQUIRE(to_string(evaluate(parse_expression("f[3]"), ctx)) == "f[3]");
+}
+
 TEST_CASE("Session cleanup unset removes only own values", "[evaluator][session-cleanup][mvp]") {
     EvaluationContext ctx;
 

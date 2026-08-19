@@ -72,8 +72,10 @@ For the first release:
 3. the session parses and evaluates within per-request budgets;
 4. the notebook renders the structured result or diagnostic;
 5. successful definitions affect later requests in that session;
-6. editing an earlier cell does not silently re-evaluate dependent cells;
-7. `Run All` starts from a clean session and evaluates input cells in order.
+6. session-local cleanup operations such as `Clear` and `Unset` affect later
+   requests through the same shared session contract;
+7. editing an earlier cell does not silently re-evaluate dependent cells;
+8. `Run All` starts from a clean session and evaluates input cells in order.
 
 On reopen, `Run All` is the authoritative way to reconstruct session state.
 Persisted output is a display cache and must be visibly distinguishable when
@@ -186,6 +188,10 @@ user-visible release. Its behavior is covered by `aleph3_notebook_tests`.
 - `Run All` creates a new `session::Session`, clears all prior generated
   results, skips text cells, and submits every input cell in order using
   `SessionOperation::evaluate`.
+- Assignments, user functions, `Clear`, and `Unset` have the same effect
+  during `Run All` as they do in the CLI/session surface. A delayed function
+  whose body references a cleared own value sees that name as symbolic in later
+  cells.
 - Each attempted input produces exactly one generated record containing the
   source-cell identifier, success status, canonical plain text when present,
   and the diagnostics currently returned by the session. A failed input does

@@ -74,11 +74,18 @@ TEST_CASE("Engine API exposes reset without unloading registered packs", "[web][
     Harness harness;
     const auto session_id = harness.create_session();
 
+    REQUIRE(body_json(harness.evaluate(session_id, "a = 2")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(session_id, "f[x_] := x + a")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(session_id, "f[3]")).at("result").at("canonicalText") == "5");
+
     const auto reset = body_json(harness.api.handle({"POST", "/internal/sessions/" + session_id + "/reset", {}, ""}));
     REQUIRE(reset.at("status") == "ok");
     REQUIRE(reset.at("reset") == true);
 
+    REQUIRE(body_json(harness.evaluate(session_id, "a")).at("result").at("canonicalText") == "a");
+    REQUIRE(body_json(harness.evaluate(session_id, "f[3]")).at("result").at("canonicalText") == "f[3]");
     REQUIRE(body_json(harness.evaluate(session_id, "Factor[x^2 - 1]")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(session_id, "D[x^2, x]")).at("result").at("canonicalText") == "2 * x");
 }
 
 TEST_CASE("Engine API returns diagnostics and stable request errors", "[web][engine][diagnostics]") {

@@ -85,6 +85,29 @@ TEST_CASE("Notebook Run All starts clean and replaces generated results", "[note
     REQUIRE(document.results[1].output == "a + 3");
 }
 
+TEST_CASE("Notebook Run All uses cleanup semantics from the shared session", "[notebook][runner][session]") {
+    auto document = make_document({
+        {"define-a", CellKind::input, "a = 2"},
+        {"define-f", CellKind::input, "f[x_] := x + a"},
+        {"use-bound", CellKind::input, "f[3]"},
+        {"clear-a", CellKind::input, "Clear[a]"},
+        {"use-symbolic", CellKind::input, "f[3]"},
+        {"unset-f", CellKind::input, "Unset[f]"},
+        {"still-function", CellKind::input, "f[3]"},
+        {"clear-f", CellKind::input, "Clear[f]"},
+        {"unknown", CellKind::input, "f[3]"},
+        {"provider", CellKind::input, "Factor[x^2 - 1]"}});
+
+    Runner{}.run_all(document);
+
+    REQUIRE(document.results.size() == 10);
+    REQUIRE(document.results[2].output == "5");
+    REQUIRE(document.results[4].output == "a + 3");
+    REQUIRE(document.results[6].output == "a + 3");
+    REQUIRE(document.results[8].output == "f[3]");
+    REQUIRE(document.results[9].output == "(x - 1) * (x + 1)");
+}
+
 TEST_CASE("Notebook documents can clear cached generated results", "[notebook][model]") {
     auto document = make_document({
         {"define", CellKind::input, "a = 2"},
@@ -166,6 +189,20 @@ TEST_CASE("Notebook JSON persistence round trips cells and cached diagnostics", 
     REQUIRE(decoded.results.size() == 1);
     REQUIRE(decoded.results[0].diagnostics[0].code == "runtime.assumption_contradiction");
     REQUIRE_FALSE(decoded.results[0].producer_version.empty());
+}
+
+TEST_CASE("Notebook JSON loading preserves cached results without evaluating source", "[notebook][persistence][session]") {
+    const auto decoded = aleph3::notebook::decode_document(
+        R"({"format":"aleph3-notebook","version":1,"cells":[{"id":"define","kind":"input","source":"a = 2"},{"id":"use","kind":"input","source":"a + 3"}],"results":[{"source_cell_id":"use","ok":true,"output":"stale cached output","diagnostics":[],"producer_version":"old"}]})");
+
+    REQUIRE(decoded.cells.size() == 2);
+    REQUIRE(decoded.results.size() == 1);
+    REQUIRE(decoded.results[0].output == "stale cached output");
+
+    auto rerun = decoded;
+    Runner{}.run_all(rerun);
+    REQUIRE(rerun.results.size() == 2);
+    REQUIRE(rerun.results[1].output == "5");
 }
 
 TEST_CASE("Notebook JSON loading rejects corrupt, incompatible, and invalid documents", "[notebook][persistence]") {

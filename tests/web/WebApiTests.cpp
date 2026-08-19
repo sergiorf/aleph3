@@ -157,6 +157,8 @@ TEST_CASE("Web API reset clears session-local definitions", "[web][api][session]
     const auto client_id = harness.create_client();
     const auto session_id = harness.create_session(client_id);
     REQUIRE(body_json(harness.evaluate(client_id, session_id, "a = 2")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "f[x_] := x + a")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "f[3]")).at("result").at("canonicalText") == "5");
 
     const auto reset = harness.api.handle({
         "POST",
@@ -168,6 +170,8 @@ TEST_CASE("Web API reset clears session-local definitions", "[web][api][session]
     const auto value = body_json(harness.evaluate(client_id, session_id, "a"));
     REQUIRE(value.at("result").at("status") == "ok");
     REQUIRE(value.at("result").at("canonicalText") == "a");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "f[3]")).at("result").at("canonicalText") == "f[3]");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "Factor[x^2 - 1]")).at("result").at("status") == "ok");
 }
 
 TEST_CASE("Web API exposes session-backed completion metadata", "[web][api][session][completion]") {
@@ -190,6 +194,36 @@ TEST_CASE("Web API exposes session-backed completion metadata", "[web][api][sess
     REQUIRE(local_completion.at("completions").at(0).at("name") == "localWebValue");
     REQUIRE(local_completion.at("completions").at(0).at("category") == "symbol");
     REQUIRE(local_completion.at("completions").at(0).at("documentation") == "session-local own value");
+}
+
+TEST_CASE("Web API completion and help track cleanup through the shared session", "[web][api][session][cleanup][completion][help]") {
+    ApiHarness harness;
+    const auto client_id = harness.create_client();
+    const auto session_id = harness.create_session(client_id);
+
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "a = 2")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "f[x_] := x + a")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "Plus[x_, y_] := 99")).at("result").at("status") == "ok");
+
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "f[3]")).at("result").at("canonicalText") == "5");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "1 + 2")).at("result").at("canonicalText") == "3");
+    REQUIRE(body_json(harness.complete(client_id, session_id, "a")).at("completions").at(0).at("category") == "symbol");
+    REQUIRE(body_json(harness.help(client_id, session_id, "f")).at("entries").at(0).at("category") == "function");
+    REQUIRE(body_json(harness.complete(client_id, session_id, "Plus")).at("completions").at(0).at("category") == "builtin");
+
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "Clear[a]")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "f[3]")).at("result").at("canonicalText") == "a + 3");
+    REQUIRE(body_json(harness.complete(client_id, session_id, "a")).at("completions").empty());
+
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "Unset[f]")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "f[3]")).at("result").at("canonicalText") == "a + 3");
+    REQUIRE(body_json(harness.complete(client_id, session_id, "f")).at("completions").at(0).at("category") == "function");
+
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "Clear[f]")).at("result").at("status") == "ok");
+    REQUIRE(body_json(harness.evaluate(client_id, session_id, "f[3]")).at("result").at("canonicalText") == "f[3]");
+    const auto missing_help = harness.help(client_id, session_id, "f");
+    REQUIRE(missing_help.status == 404);
+    REQUIRE(body_json(missing_help).at("error").at("code") == "web.help_not_found");
 }
 
 TEST_CASE("Web API exposes focused help from the shared session catalog", "[web][api][session][help]") {

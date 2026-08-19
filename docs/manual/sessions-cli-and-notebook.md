@@ -63,12 +63,24 @@ definition. Use `Unset[symbol]` when only the own value should be removed:
 ```text
 a = 10
 Clear[a]
-a
+a                         -> a
 
-f[x_] := x + 1
+a = 2
+f[x_] := x + a
+f[3]                     -> 5
+Clear[a]
+f[3]                     -> a + 3
 Unset[f]
-f[2]
+f[3]                     -> a + 3
+Clear[f]
+f[3]                     -> f[3]
 ```
+
+Delayed user functions evaluate their stored body against the current session
+state when called. Clearing a referenced own value therefore affects later
+calls, while `Unset[f]` does not remove `f`'s user function definition.
+Provider-owned behavior keeps precedence over user definitions and remains
+available after cleanup or `:reset`.
 
 For stateful batch work, a script contains one expression per non-empty line:
 
@@ -92,12 +104,14 @@ fresh session, skips text cells, evaluates every input in order, and replaces
 the previous generated results. Documents can also clear cached generated
 results without changing cells or source.
 
-Definitions flow to later cells during a run. Repeating `Run All` starts clean,
-and one failed input records its session diagnostics without preventing later
-inputs from running. Generated results retain canonical plain text and current
+Definitions and cleanup operations flow to later cells during a run using the
+same session contract as the CLI. Repeating `Run All` starts clean, and one
+failed input records its session diagnostics without preventing later inputs
+from running. Generated results retain canonical plain text and current
 diagnostic codes/messages. The core saves and loads bounded UTF-8 JSON v1
 documents, including optional cached results marked with their producer
-version. Loading never evaluates source.
+version. Loading preserves cached results as data and never evaluates source;
+rerunning the notebook replaces the cache from a fresh session.
 
 Saves validate first, write beside the destination, and atomically replace the
 old file using the supported platform API. A failed validation, write, or

@@ -255,6 +255,11 @@ The implementation updates symbol values, user function tables, and
 session-owned definition records together. If a symbol has both session-owned
 state and provider-owned behavior, cleanup removes only the session-owned
 records and leaves provider behavior visible through normal precedence.
+If a symbol has both an own value and a user function definition, `Unset`
+removes only the own value and leaves the function callable. `Clear` removes
+both session-owned records. Delayed function bodies are not rewritten when a
+referenced own value is cleared; later calls evaluate that referenced name
+against the current session state.
 
 Implemented session lifecycle reset:
 
@@ -277,6 +282,9 @@ Implemented interactive discovery contract:
   precedence.
 - session-local own values are reported as `symbol`; session-local user
   functions are reported as `function`.
+- `Clear`, `Unset`, and reset update completion and help immediately because
+  discovery reads the active registry plus current session-local definition
+  state on each request.
 - session help uses the same registry and session-local state, with static
   help metadata providing accepted forms, concise descriptions, short examples,
   exactness notes, unsupported boundaries, and manual anchors where available.

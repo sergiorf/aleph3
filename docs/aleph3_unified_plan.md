@@ -177,10 +177,9 @@ Remaining work:
 
 - introduce one minimal lexical binding construct, preferably `With`, before
   broader `Module` or `Block` semantics;
-- extend exact algebra with `Cancel`, `Together`, `Numerator`, `Denominator`,
-  `Coefficient`, and `CoefficientList` over the current polynomial and rational
-  expression subset, leaving `Apart` until the partial-fraction contract is
-  credible;
+- extend exact algebra with `Cancel`, `Together`, `Numerator`, and
+  `Denominator` over a bounded rational-expression subset, leaving `Apart`
+  until the partial-fraction contract is credible;
 - follow the focused differentiation pack with higher-order `D[expr, {x, n}]`
   and simple partial-derivative workflows;
 - specify a small exact `Solve` tranche after the notebook MVP unless a
@@ -194,6 +193,112 @@ Remaining work:
 Broad scoping, general functional programming, general-purpose simplification,
 solver infrastructure, broad integration, arbitrary precision, and full
 Mathematica compatibility remain outside this milestone.
+
+### CAS Engine Roadmap Gap Closure
+
+Outcome: Aleph3 grows from a bounded symbolic notebook engine toward a more
+capable CAS without weakening the kernel ownership, exactness, diagnostics,
+assumption, domain, and unsupported-behavior contracts that make the smaller
+system reliable.
+
+This roadmap records the engine gaps identified against the desired CAS
+checklist. It is not part of the Web MVP launch scope, and it must not cause
+the browser, BFF, CLI, session, SDK, or packs to invent private symbolic
+semantics. Each item below needs a focused specification before implementation
+unless an existing specification already owns the contract.
+
+Already implemented foundations to preserve:
+
+- shared `Expr` representation for symbols, exact integers and rationals,
+  machine numbers, complex values, calls, lists, assignments, rules, and user
+  definitions;
+- normalization, structural equality, canonical ordering, bounded rewriting,
+  capture-safe substitution, free and bound variable inspection, and limited
+  like-term and exponent normalization;
+- exact checked-rational arithmetic, explicit overflow diagnostics, and
+  opt-in machine-real approximation through the current `N` surface;
+- bounded algebra pack support for `Expand`, `Factor`, `Collect`, `GCD`,
+  `PolynomialQuotient`, `Coefficient`, `CoefficientList`, and exact dense
+  matrix operations;
+- narrow assumption and domain facts through `Assuming`, `Refine`, sign
+  predicates, nonzero facts, and integer/rational/real predicates;
+- focused differentiation through the calculus pack.
+
+Near-term engine gaps after the Web MVP:
+
+- finish rational-expression helpers: `Cancel`, `Together`, `Numerator`, and
+  `Denominator`, with domain restrictions and singularities represented or
+  diagnosed instead of erased;
+- add a first mathematical equivalence contract, such as
+  `Equivalent[expr1, expr2]`, with proof-bearing methods limited to structural
+  equality after normalization, supported algebraic reduction, polynomial
+  comparison, and `expr1 - expr2 -> 0` inside the exact supported subset;
+- keep any numerical sampling fallback separate from proof results and label
+  it as evidence, not equivalence;
+- define a domain-restriction carrier for transformations that can introduce,
+  remove, or preserve excluded points, starting with rational-expression
+  cancellation and square-root or logarithm rewrites;
+- extend focused differentiation with higher-order derivatives and simple
+  partial-derivative workflows before broad calculus.
+
+Mid-term CAS tranche:
+
+- specify and implement the first exact `Solve` subset for one equation in one
+  variable covering linear and quadratic cases, with explicit solution sets,
+  domain restrictions, and rejection of unsupported multivariate,
+  transcendental, inequality, numerical, and general polynomial solving;
+- specify local truncated `Series` after differentiation and exact algebra
+  helpers are stable, including expansion variable, expansion point, order,
+  order-term representation, truncation arithmetic, and conversion back to an
+  ordinary expression;
+- specify simple algebraic and known-function `Limit` separately from series,
+  including finite and infinite target forms, one-sided limits as deferred
+  unless explicitly included, and deterministic unsupported diagnostics;
+- add a deliberately small rule-based `Integrate` subset only after
+  assumptions, domains, and transformation metadata can prevent invalid
+  antiderivative claims;
+- broaden exact dense linear algebra only where checked exact coefficients,
+  diagnostics, and resource budgets remain explicit.
+
+Longer-term CAS tranche:
+
+- introduce arbitrary-precision integer and rational arithmetic only through an
+  approved exact-scalar compatibility design that accounts for storage,
+  printing, SDK exposure, overflow replacement, and performance budgets;
+- broaden complex arithmetic from the current representation and arithmetic
+  into exact symbolic constants, conjugation, real and imaginary part,
+  magnitude, argument, and branch-sensitive simplification;
+- add first-class `Piecewise` before broad limits, integration, summation, or
+  solving workflows depend on case splits;
+- grow equation solving beyond the first exact subset only through separate
+  contracts for polynomial systems, inequalities, transcendental equations, and
+  numerical fallback;
+- expand matrices beyond the current dense exact surface only after symbolic,
+  approximate, inverse, rank, eigenvalue, and decomposition contracts are
+  specified.
+
+Tutor-grade equivalence and step validation are architectural capabilities, not
+optional polish. The first validation surface should be designed before broad
+solving or integration becomes active:
+
+- define a `ValidateTransformation`-style contract over a before expression,
+  after expression, and assumptions;
+- return structured outcomes such as `VALID`, `INVALID`,
+  `VALID_WITH_CONDITIONS`, `LOSES_SOLUTIONS`, `INTRODUCES_SOLUTIONS`, and
+  `UNKNOWN`, with machine-readable conditions and diagnostics;
+- distinguish implication direction for equations and transformations, so a
+  step like `x^2 = 4` to `x = 2` can be reported as incomplete or
+  solution-losing rather than simply false;
+- reuse shared assumptions, domain restrictions, equivalence checking,
+  polynomial comparison, and exact solving subsets instead of building a
+  separate tutor evaluator;
+- attach transformation metadata to simplification, algebra, calculus, and
+  rewrite results where the metadata is needed for validation or explanation.
+
+Broad CAS behavior remains incremental. No milestone may claim general
+Mathematica or SymPy parity, broad theorem proving, broad integration, broad
+solving, or broad branch analysis until focused contracts, tests, diagnostics,
+manual pages, help entries, and cross-surface fixtures make those claims true.
 
 ### Bounded Numerical and Finite Data MVP
 
@@ -429,8 +534,7 @@ Use this order unless a regression or dependency changes it:
    sparse structured help entries with manual-backed examples and unsupported
    boundaries for the current supported surface.
 2. Specify and implement the remaining symbolic MVP gap-closure items across
-   rational-expression helpers, coefficient extraction, lexical binding, and
-   calculus follow-ups.
+   rational-expression helpers, lexical binding, and calculus follow-ups.
 3. Specify and fill the remaining bounded numerical and finite-list gaps,
    especially `Range`, `Table`, `Total`, budget behavior, and unsupported
    diagnostics.
@@ -438,13 +542,18 @@ Use this order unless a regression or dependency changes it:
 5. Build the first graphical notebook vertical slice, then add cancellation,
    reset, help, example gallery, packaging, and keyboard workflow checks.
 6. Continue exact algebra hardening required by calculus, bounded solving,
-   finite summation, and future DSP work.
-7. Specify the focused DSP kernel prerequisite slice, including piecewise,
+   finite summation, future DSP work, and the CAS engine roadmap gap-closure
+   tranche.
+7. After the Web MVP is stable, start the CAS engine gap-closure sequence with
+   rational-expression helpers, mathematical equivalence, and
+   domain-restriction contracts before broad solving, integration, or
+   validation.
+8. Specify the focused DSP kernel prerequisite slice, including piecewise,
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.
-8. Deliver the first DSP pack for finite sequences, convolution, FIR
+9. Deliver the first DSP pack for finite sequences, convolution, FIR
    filtering, direct DFT, and inverse DFT.
-9. Specify the bounded Z-transform and later transform tranche, keeping FFT
+10. Specify the bounded Z-transform and later transform tranche, keeping FFT
    acceleration and broad Fourier work deferred.
 
 ## Deferred Work
@@ -452,6 +561,9 @@ Use this order unless a regression or dependency changes it:
 Defer until an active milestone establishes the required contracts:
 
 - broad integration and differential-equation solving;
+- broad CAS parity beyond the staged CAS engine roadmap gap-closure contracts;
+- tutor-grade step or transformation validation beyond a separately specified
+  equivalence, domain-restriction, and validation contract;
 - broad symbolic summation and product simplification beyond the focused
   bound-variable contracts;
 - infinite symbolic summation beyond a later bounded, convergence-aware tranche;

@@ -22,6 +22,9 @@ The current symbolic algebra surface is:
 - `PolynomialQuotient[a, b]`
 - `PolynomialQuotient[a, b, var]`
 - `PolynomialQuotient[a, b, {var1, ...}]` for exact multivariate inputs
+- `Coefficient[poly, var]`
+- `Coefficient[poly, var, n]`
+- `CoefficientList[poly, var]`
 - `MatrixAdd[a, b]`, `MatrixMultiply[a, b]`, `IdentityMatrix[n]`, and `Transpose[a]`
 - `Det[a]`, `RowReduce[a]`, and `LinearSolve[a, b]` for bounded exact dense matrices
 
@@ -119,6 +122,8 @@ Current boundary:
   univariate and multivariate supported polynomial inputs
 - supported univariate `GCD` and univariate or explicitly selected multivariate
   `PolynomialQuotient` preserve exact rational coefficients
+- `Coefficient` and `CoefficientList` preserve exact integer and rational
+  coefficients in the selected univariate polynomial subset
 - supported explicitly selected multivariate `GCD` returns the monic common
   monomial determined by the operands' minimum variable exponents
 - inexact `Number` inputs stay on the existing floating-point path
@@ -139,8 +144,34 @@ Examples:
 - `GCD[x*y + x, x, {x, y}]` -> `x`
 - `GCD[x^2*y, x*y^2, {x, y}]` -> `x*y`
 - `PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]` -> `{x + y, y}`
+- `Coefficient[3*x^2 + 2*x + 1, x]` -> `2`
+- `Coefficient[3*x^2 + 2*x + 1, x, 2]` -> `3`
+- `CoefficientList[(1/2)*x^2 + x, x]` -> `{0, 1, 1/2}`
 - `Factor[(1/2) * x^2 + x]` -> `1/2 * x * (x + 2)`
 - `Factor[(1/2) * x^2 + x + 1/2]` -> `1/2 * (x + 1) * (x + 1)`
+
+## Exact Coefficient Extraction
+
+`Coefficient` and `CoefficientList` are exact extraction helpers over the
+current polynomial subset. They do not collect symbolic coefficients and they
+do not simplify rational expressions.
+
+Supported forms:
+
+- `Coefficient[poly, x]` returns the coefficient of `x^1`;
+- `Coefficient[poly, x, n]` returns the coefficient of `x^n`, where `n` is a
+  non-negative exact integer;
+- `CoefficientList[poly, x]` returns coefficients from degree zero through the
+  largest exponent of `x`.
+
+Boundaries:
+
+- the selector must be a single symbol;
+- input must be univariate in the selected symbol for this slice;
+- exact integer and rational coefficients are preserved;
+- decimal coefficients, symbolic coefficients, non-polynomial inputs,
+  unsupported variables outside the selected univariate polynomial, negative
+  or symbolic exponents, and exact coefficient overflow fail explicitly.
 
 ## Symbolic Rewrite Product Contracts
 
@@ -220,8 +251,6 @@ Not part of the current supported subset:
 
 - `Cancel`, `Together`, `Numerator`, and `Denominator` over a bounded exact
   rational-expression contract
-- `Coefficient` and `CoefficientList` over the current polynomial selector and
-  coefficient subset
 - bounded `Apart` after factorization and partial-fraction preconditions are
   specified
 - general multivariate polynomial GCD and configurable or multi-divisor division
@@ -230,7 +259,7 @@ Not part of the current supported subset:
 - arbitrary-precision exact algebra
 - symbolic, approximate, sparse, or arbitrary-rank matrix algebra
 
-## Planned Rational-Expression And Coefficient Slice
+## Planned Rational-Expression Slice
 
 The symbolic MVP algebra extension should add rational-expression helpers only
 where exactness and domain behavior can be explicit.
@@ -244,8 +273,6 @@ Planned first functions:
   variable set and factorization path are inside the supported subset.
 - `Together[expr]` combines supported rational sums into one rational
   expression with deterministic denominator ordering.
-- `Coefficient[poly, x]` and `CoefficientList[poly, x]` read coefficients from
-  the same polynomial subset accepted by `Collect`.
 
 Required boundaries:
 

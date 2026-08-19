@@ -252,6 +252,21 @@ TEST_CASE("Symbolic CLI support reports parse and evaluation failures", "[toolin
     REQUIRE(rational_expand_result.ok);
     REQUIRE(rational_expand_result.output == "1/2 * x + 1/2");
 
+    const auto coefficient_result =
+        tooling::symbolic_evaluate_expression("Coefficient[(1/2)*x^2 + x, x, 2]");
+    REQUIRE(coefficient_result.ok);
+    REQUIRE(coefficient_result.output == "1/2");
+
+    const auto coefficient_list_result =
+        tooling::symbolic_evaluate_expression("CoefficientList[(1/2)*x^2 + x, x]");
+    REQUIRE(coefficient_list_result.ok);
+    REQUIRE(coefficient_list_result.output == "{0, 1, 1/2}");
+
+    const auto coefficient_selector_failure =
+        tooling::symbolic_evaluate_expression("Coefficient[x^2, {x}]");
+    REQUIRE_FALSE(coefficient_selector_failure.ok);
+    REQUIRE(coefficient_selector_failure.error_message == "Variable argument must be a symbol");
+
     const auto replace_failure =
         tooling::symbolic_evaluate_expression("Replace[f[x], 3]");
     REQUIRE_FALSE(replace_failure.ok);

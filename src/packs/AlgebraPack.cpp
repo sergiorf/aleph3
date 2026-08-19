@@ -146,6 +146,24 @@ std::vector<std::string> extract_variables(const ExprPtr& expr) {
     throw_invalid_form("Variable argument must be a symbol or list of symbols");
 }
 
+std::string extract_single_variable(const ExprPtr& expr) {
+    if (auto sym = std::get_if<Symbol>(&(*expr))) {
+        return sym->name;
+    }
+    throw_invalid_form("Variable argument must be a symbol");
+}
+
+int extract_non_negative_integer_exponent(const ExprPtr& expr) {
+    const auto* number = std::get_if<Number>(expr.get());
+    if (!number || !std::isfinite(number->value) ||
+        std::trunc(number->value) != number->value ||
+        number->value < 0.0 ||
+        number->value > static_cast<double>(std::numeric_limits<int>::max())) {
+        throw_invalid_form("Coefficient exponent must be a non-negative integer");
+    }
+    return static_cast<int>(number->value);
+}
+
 std::vector<std::string> infer_variables(const ExprPtr& expr) {
     std::set<std::string> vars;
     std::function<void(const ExprPtr&)> visit = [&](const ExprPtr& current) {
@@ -231,6 +249,33 @@ ExprPtr evaluate_polynomial_quotient(const FunctionCall& func, EvaluationContext
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     } catch (const std::domain_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+    }
+}
+
+ExprPtr evaluate_coefficient(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2 && func.args.size() != 3) {
+        throw_invalid_arity_between("Coefficient", 2, 3);
+    }
+    const auto variable = extract_single_variable(func.args[1]);
+    const int exponent = func.args.size() == 3
+        ? extract_non_negative_integer_exponent(func.args[2])
+        : 1;
+    try {
+        return coefficient_polynomial(func.args[0], variable, exponent, ctx);
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+    }
+}
+
+ExprPtr evaluate_coefficient_list(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) {
+        throw_invalid_arity_exact("CoefficientList", 2);
+    }
+    const auto variable = extract_single_variable(func.args[1]);
+    try {
+        return coefficient_list_polynomial(func.args[0], variable, ctx);
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     }
 }
 
@@ -374,6 +419,18 @@ void register_algebra_pack(kernel::FunctionRegistry& registry) {
         "PolynomialQuotient",
         evaluate_polynomial_quotient,
         "Return polynomial quotient and remainder for the current supported subset.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "Coefficient",
+        evaluate_coefficient,
+        "Extract one exact polynomial coefficient in a single selected variable.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "CoefficientList",
+        evaluate_coefficient_list,
+        "Return exact polynomial coefficients from degree zero upward.",
         true);
 }
 

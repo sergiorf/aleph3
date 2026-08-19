@@ -148,7 +148,7 @@ TEST_CASE("Session discovers registered packs deterministically", "[session][pac
     REQUIRE(result.packs.size() == 2);
     REQUIRE(result.packs[0].name == "core-algebra");
     REQUIRE(result.packs[0].symbols ==
-        std::vector<std::string>{"Collect", "Det", "Expand", "Factor", "GCD", "IdentityMatrix",
+        std::vector<std::string>{"Coefficient", "CoefficientList", "Collect", "Det", "Expand", "Factor", "GCD", "IdentityMatrix",
             "LinearSolve", "MatrixAdd", "MatrixMultiply", "PolynomialQuotient", "RowReduce", "Transpose"});
     REQUIRE(result.packs[1].name == "core-calculus");
     REQUIRE(result.packs[1].symbols == std::vector<std::string>{"D", "Differentiate"});
@@ -372,6 +372,41 @@ TEST_CASE("Session exposes bounded multivariate GCD values and diagnostics", "[s
     REQUIRE_FALSE(domain.ok);
     REQUIRE(domain.diagnostics.size() == 1);
     REQUIRE(domain.diagnostics.front().code == "kernel.domain_violation");
+}
+
+TEST_CASE("Session exposes exact coefficient extraction values and diagnostics", "[session][algebra][coefficient]") {
+    Session session;
+
+    REQUIRE(session.execute({"Coefficient[3*x^2 + 2*x + 1, x]"}).output == "2");
+    REQUIRE(session.execute({"Coefficient[3*x^2 + 2*x + 1, x, 2]"}).output == "3");
+    REQUIRE(session.execute({"Coefficient[3*x^2 + 2*x + 1, x, 0]"}).output == "1");
+    REQUIRE(session.execute({"CoefficientList[(1/2)*x^2 + x, x]"}).output == "{0, 1, 1/2}");
+
+    const auto completion = session.execute({"Coeff", SessionOperation::complete});
+    REQUIRE(completion.completions.size() == 2);
+    REQUIRE(completion.completions.front().category == "pack");
+    REQUIRE(completion.completions.front().owning_package == "core-algebra");
+
+    const auto help = session.execute({"Coefficient", SessionOperation::help});
+    REQUIRE(help.ok);
+    REQUIRE(help.help_entries.size() == 1);
+    REQUIRE(help.help_entries.front().owning_package == "core-algebra");
+    REQUIRE_FALSE(help.help_entries.front().examples.empty());
+
+    const auto bad_selector = session.execute({"Coefficient[x^2, {x}]"});
+    REQUIRE_FALSE(bad_selector.ok);
+    REQUIRE(bad_selector.diagnostics.size() == 1);
+    REQUIRE(bad_selector.diagnostics.front().code == "kernel.invalid_form");
+
+    const auto bad_exponent = session.execute({"Coefficient[x^2, x, -1]"});
+    REQUIRE_FALSE(bad_exponent.ok);
+    REQUIRE(bad_exponent.diagnostics.size() == 1);
+    REQUIRE(bad_exponent.diagnostics.front().code == "kernel.invalid_form");
+
+    const auto unsupported = session.execute({"Coefficient[y*x + x, x]"});
+    REQUIRE_FALSE(unsupported.ok);
+    REQUIRE(unsupported.diagnostics.size() == 1);
+    REQUIRE(unsupported.diagnostics.front().code == "kernel.invalid_form");
 }
 
 TEST_CASE("Session preserves assumption contradiction diagnostics", "[session][assumptions][diagnostics]") {

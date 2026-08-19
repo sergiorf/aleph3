@@ -94,6 +94,29 @@ PolynomialQuotient[x*y, x]             -> explicit selector required
 PolynomialQuotient[0.5*x*y, x, {x,y}]  -> unsupported inexact division
 ```
 
+## Coefficient Extraction
+
+`Coefficient` and `CoefficientList` read exact coefficients from the current
+polynomial subset. They do not collect symbolic coefficients and they do not
+simplify rational expressions.
+
+```text
+Coefficient[3*x^2 + 2*x + 1, x]       -> 2
+Coefficient[3*x^2 + 2*x + 1, x, 2]    -> 3
+Coefficient[3*x^2 + 2*x + 1, x, 0]    -> 1
+CoefficientList[(1/2)*x^2 + x, x]     -> {0, 1, 1/2}
+```
+
+`Coefficient[poly, x]` means the coefficient of `x^1`.
+`Coefficient[poly, x, n]` requires `n` to be a non-negative integer.
+`CoefficientList[poly, x]` returns coefficients from degree zero through the
+largest exponent of `x`.
+
+The selector must be a single symbol. Decimal coefficients, symbolic
+coefficients, non-polynomial inputs, unsupported variables outside the selected
+univariate polynomial, negative or symbolic exponents, and exact coefficient
+overflow are rejected explicitly.
+
 ## Exact Dense Matrices
 
 Matrices are written as rectangular nested lists. The algebra pack validates

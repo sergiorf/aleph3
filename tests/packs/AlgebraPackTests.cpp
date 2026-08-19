@@ -86,11 +86,33 @@ TEST_CASE("Algebra pack owns bounded exact multivariate GCD", "[packs][algebra][
     REQUIRE(gcd_spec->metadata.owning_package == "core-algebra");
 }
 
+TEST_CASE("Algebra pack extracts exact polynomial coefficients", "[packs][algebra][exact][coefficient]") {
+    kernel::FunctionRegistry registry;
+    packs::register_algebra_pack(registry);
+    EvaluationContext ctx(registry);
+
+    REQUIRE(to_string(*evaluate_source("Coefficient[3*x^2 + 2*x + 1, x]", ctx)) == "2");
+    REQUIRE(to_string(*evaluate_source("Coefficient[3*x^2 + 2*x + 1, x, 2]", ctx)) == "3");
+    REQUIRE(to_string(*evaluate_source("Coefficient[3*x^2 + 2*x + 1, x, 0]", ctx)) == "1");
+    REQUIRE(to_string(*evaluate_source("Coefficient[(1/2)*x^2 + x, x, 2]", ctx)) == "1/2");
+    REQUIRE(to_string(*evaluate_source("CoefficientList[(1/2)*x^2 + x, x]", ctx)) == "{0, 1, 1/2}");
+
+    const auto* coefficient_spec = registry.find_symbolic_function_spec("Coefficient");
+    const auto* coefficient_list_spec = registry.find_symbolic_function_spec("CoefficientList");
+    REQUIRE(coefficient_spec != nullptr);
+    REQUIRE(coefficient_list_spec != nullptr);
+    REQUIRE(coefficient_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(coefficient_list_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(coefficient_spec->metadata.owning_package == "core-algebra");
+    REQUIRE(coefficient_list_spec->metadata.owning_package == "core-algebra");
+}
+
 TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][algebra]") {
     kernel::FunctionRegistry registry;
     packs::register_algebra_pack(registry);
 
     for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient",
+             "Coefficient", "CoefficientList",
              "MatrixAdd", "MatrixMultiply", "IdentityMatrix", "Transpose", "Det", "RowReduce",
              "LinearSolve"}) {
         const auto* spec = registry.find_symbolic_function_spec(name);

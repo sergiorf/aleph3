@@ -148,8 +148,9 @@ TEST_CASE("Session discovers registered packs deterministically", "[session][pac
     REQUIRE(result.packs.size() == 2);
     REQUIRE(result.packs[0].name == "core-algebra");
     REQUIRE(result.packs[0].symbols ==
-        std::vector<std::string>{"Coefficient", "CoefficientList", "Collect", "Det", "Expand", "Factor", "GCD", "IdentityMatrix",
-            "LinearSolve", "MatrixAdd", "MatrixMultiply", "PolynomialQuotient", "RowReduce", "Transpose"});
+        std::vector<std::string>{"Coefficient", "CoefficientList", "Collect", "Denominator", "Det", "Expand", "Factor", "GCD",
+            "IdentityMatrix", "LinearSolve", "MatrixAdd", "MatrixMultiply", "Numerator", "PolynomialQuotient", "RowReduce",
+            "Transpose"});
     REQUIRE(result.packs[1].name == "core-calculus");
     REQUIRE(result.packs[1].symbols == std::vector<std::string>{"D", "Differentiate"});
 }
@@ -407,6 +408,37 @@ TEST_CASE("Session exposes exact coefficient extraction values and diagnostics",
     REQUIRE_FALSE(unsupported.ok);
     REQUIRE(unsupported.diagnostics.size() == 1);
     REQUIRE(unsupported.diagnostics.front().code == "kernel.invalid_form");
+}
+
+TEST_CASE("Session exposes rational expression numerator and denominator", "[session][algebra][rational-expression]") {
+    Session session;
+
+    REQUIRE(session.execute({"Numerator[1/2]"}).output == "1");
+    REQUIRE(session.execute({"Denominator[1/2]"}).output == "2");
+    REQUIRE(session.execute({"Numerator[(1/2)*x]"}).output == "x");
+    REQUIRE(session.execute({"Denominator[(1/2)*x]"}).output == "2");
+    REQUIRE(session.execute({"Numerator[x/(x + 1)]"}).output == "x");
+    REQUIRE(session.execute({"Denominator[x/(x + 1)]"}).output == "x + 1");
+
+    const auto completion = session.execute({"Num", SessionOperation::complete});
+    REQUIRE(completion.completions.size() == 1);
+    REQUIRE(completion.completions.front().category == "pack");
+    REQUIRE(completion.completions.front().owning_package == "core-algebra");
+
+    const auto help = session.execute({"Denominator", SessionOperation::help});
+    REQUIRE(help.ok);
+    REQUIRE(help.help_entries.size() == 1);
+    REQUIRE(help.help_entries.front().owning_package == "core-algebra");
+
+    const auto unsupported = session.execute({"Numerator[0.5*x]"});
+    REQUIRE_FALSE(unsupported.ok);
+    REQUIRE(unsupported.diagnostics.size() == 1);
+    REQUIRE(unsupported.diagnostics.front().code == "kernel.unsupported_construct");
+
+    const auto zero_denominator = session.execute({"Denominator[x/0]"});
+    REQUIRE_FALSE(zero_denominator.ok);
+    REQUIRE(zero_denominator.diagnostics.size() == 1);
+    REQUIRE(zero_denominator.diagnostics.front().code == "runtime.division_by_zero");
 }
 
 TEST_CASE("Session preserves assumption contradiction diagnostics", "[session][assumptions][diagnostics]") {

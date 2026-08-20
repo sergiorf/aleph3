@@ -117,6 +117,31 @@ coefficients, non-polynomial inputs, unsupported variables outside the selected
 univariate polynomial, negative or symbolic exponents, and exact coefficient
 overflow are rejected explicitly.
 
+## Rational Expression Parts
+
+`Numerator` and `Denominator` expose the exact polynomial numerator and
+denominator of the current bounded rational-expression subset:
+
+```text
+Numerator[1/2]                          -> 1
+Denominator[1/2]                        -> 2
+Numerator[(1/2)*x]                      -> x
+Denominator[(1/2)*x]                    -> 2
+Numerator[x/(x + 1)]                    -> x
+Denominator[x/(x + 1)]                  -> x + 1
+```
+
+The helpers clear exact rational coefficients, so `(1/2)*x` is treated as
+`x/2`. Supported inputs are exact integers, exact rationals, supported exact
+polynomial expressions, products of supported rational-expression factors, and
+explicit division with a nonzero supported denominator.
+
+Decimal coefficients, symbolic coefficients outside the selected polynomial
+variables, unsupported powers, and denominator zero are rejected explicitly.
+`Cancel`, `Together`, `Apart`, and singularity-aware domain metadata are not
+part of this slice, so these helpers do not prove expression equivalence after
+cancellation.
+
 ## Exact Dense Matrices
 
 Matrices are written as rectangular nested lists. The algebra pack validates

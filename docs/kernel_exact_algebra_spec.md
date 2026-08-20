@@ -78,6 +78,8 @@ is public to pack-owned helpers through:
 - exact low-level `expand`, `collect`, `gcd`, and `divide` overloads
 - exact univariate coefficient extraction for `Coefficient` and
   `CoefficientList`
+- exact rational-expression part extraction for `Numerator` and `Denominator`
+  over supported exact polynomial numerators and denominators
 - exact single-divisor multivariate division using explicit variable
   precedence and fixed graded-lexicographic leading terms
 - exact monomial-bounded multivariate GCD using explicit selectors
@@ -86,8 +88,9 @@ Ownership in this slice is intentionally narrow:
 
 - the algebra layer owns exact integer/rational coefficient preservation for
   `Expand`, `Collect`, `Coefficient`, `CoefficientList`, supported univariate
-  `GCD`, and supported univariate `PolynomialQuotient`, including explicitly
-  selected multivariate inputs where that function supports them
+  `GCD`, supported univariate `PolynomialQuotient`, `Numerator`, and
+  `Denominator`, including explicitly selected multivariate inputs where that
+  function supports them
 - the current `Polynomial` type with `double` coefficients remains in place
   for the existing factorization path
 - general multivariate exact `GCD` and broader factorization remain unsupported

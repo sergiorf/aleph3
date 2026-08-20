@@ -27,6 +27,8 @@ namespace aleph3 {
     std::pair<ExprPtr, ExprPtr> divide_polynomial(const ExprPtr& dividend, const ExprPtr& divisor, const std::vector<std::string>& variables, EvaluationContext& ctx);
     ExprPtr coefficient_polynomial(const ExprPtr& expr, const std::string& variable, int exponent, EvaluationContext& ctx);
     ExprPtr coefficient_list_polynomial(const ExprPtr& expr, const std::string& variable, EvaluationContext& ctx);
+    ExprPtr numerator_rational_expression(const ExprPtr& expr, EvaluationContext& ctx);
+    ExprPtr denominator_rational_expression(const ExprPtr& expr, EvaluationContext& ctx);
 
     // Low-level API: operate directly on Polynomial objects
     Polynomial expand(const Polynomial& poly);

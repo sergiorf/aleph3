@@ -279,6 +279,20 @@ ExprPtr evaluate_coefficient_list(const FunctionCall& func, EvaluationContext& c
     }
 }
 
+ExprPtr evaluate_numerator(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) {
+        throw_invalid_arity_exact("Numerator", 1);
+    }
+    return numerator_rational_expression(func.args[0], ctx);
+}
+
+ExprPtr evaluate_denominator(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) {
+        throw_invalid_arity_exact("Denominator", 1);
+    }
+    return denominator_rational_expression(func.args[0], ctx);
+}
+
 ExprPtr evaluate_matrix_add(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 2) throw_invalid_arity_exact("MatrixAdd", 2);
     return run_matrix_operation([&] {
@@ -431,6 +445,18 @@ void register_algebra_pack(kernel::FunctionRegistry& registry) {
         "CoefficientList",
         evaluate_coefficient_list,
         "Return exact polynomial coefficients from degree zero upward.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "Numerator",
+        evaluate_numerator,
+        "Extract the numerator of a supported exact rational expression.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "Denominator",
+        evaluate_denominator,
+        "Extract the denominator of a supported exact rational expression.",
         true);
 }
 

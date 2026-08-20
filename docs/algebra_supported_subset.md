@@ -25,6 +25,8 @@ The current symbolic algebra surface is:
 - `Coefficient[poly, var]`
 - `Coefficient[poly, var, n]`
 - `CoefficientList[poly, var]`
+- `Numerator[expr]`
+- `Denominator[expr]`
 - `MatrixAdd[a, b]`, `MatrixMultiply[a, b]`, `IdentityMatrix[n]`, and `Transpose[a]`
 - `Det[a]`, `RowReduce[a]`, and `LinearSolve[a, b]` for bounded exact dense matrices
 
@@ -149,6 +151,9 @@ Examples:
 - `CoefficientList[(1/2)*x^2 + x, x]` -> `{0, 1, 1/2}`
 - `Factor[(1/2) * x^2 + x]` -> `1/2 * x * (x + 2)`
 - `Factor[(1/2) * x^2 + x + 1/2]` -> `1/2 * (x + 1) * (x + 1)`
+- `Numerator[(1/2)*x]` -> `x`
+- `Denominator[(1/2)*x]` -> `2`
+- `Denominator[x/(x + 1)]` -> `x + 1`
 
 ## Exact Coefficient Extraction
 
@@ -172,6 +177,39 @@ Boundaries:
 - decimal coefficients, symbolic coefficients, non-polynomial inputs,
   unsupported variables outside the selected univariate polynomial, negative
   or symbolic exponents, and exact coefficient overflow fail explicitly.
+
+## Rational Expression Parts
+
+`Numerator` and `Denominator` expose the exact polynomial numerator and
+denominator of a bounded rational-expression subset. They clear exact rational
+coefficients before returning their result.
+
+Supported forms:
+
+- exact integer and rational values;
+- supported exact polynomial expressions;
+- products of supported rational-expression factors;
+- explicit division with a nonzero supported denominator.
+
+Examples:
+
+- `Numerator[1/2]` -> `1`
+- `Denominator[1/2]` -> `2`
+- `Numerator[x]` -> `x`
+- `Denominator[x]` -> `1`
+- `Numerator[(1/2)*x]` -> `x`
+- `Denominator[(1/2)*x]` -> `2`
+- `Numerator[x/(x + 1)]` -> `x`
+- `Denominator[x/(x + 1)]` -> `x + 1`
+
+Boundaries:
+
+- decimal coefficients and unsupported powers are rejected explicitly;
+- symbolic coefficients outside the selected exact polynomial subset are
+  rejected explicitly;
+- denominator zero is a domain failure;
+- this slice does not cancel common factors, combine sums, or attach domain
+  metadata for excluded denominator zeros.
 
 ## Symbolic Rewrite Product Contracts
 
@@ -249,8 +287,7 @@ known limitation.
 
 Not part of the current supported subset:
 
-- `Cancel`, `Together`, `Numerator`, and `Denominator` over a bounded exact
-  rational-expression contract
+- `Cancel` and `Together` over a bounded exact rational-expression contract
 - bounded `Apart` after factorization and partial-fraction preconditions are
   specified
 - general multivariate polynomial GCD and configurable or multi-divisor division
@@ -259,16 +296,13 @@ Not part of the current supported subset:
 - arbitrary-precision exact algebra
 - symbolic, approximate, sparse, or arbitrary-rank matrix algebra
 
-## Planned Rational-Expression Slice
+## Planned Rational-Expression Follow-Up
 
-The symbolic MVP algebra extension should add rational-expression helpers only
-where exactness and domain behavior can be explicit.
+The next symbolic MVP algebra extension should add rational-expression
+transformations only where exactness and domain behavior can be explicit.
 
 Planned first functions:
 
-- `Numerator[expr]` and `Denominator[expr]` expose the normalized numerator and
-  denominator for supported rational numbers and supported rational
-  expressions.
 - `Cancel[expr]` cancels common exact polynomial factors only when the selected
   variable set and factorization path are inside the supported subset.
 - `Together[expr]` combines supported rational sums into one rational

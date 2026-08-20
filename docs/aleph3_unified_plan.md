@@ -177,9 +177,9 @@ Remaining work:
 
 - introduce one minimal lexical binding construct, preferably `With`, before
   broader `Module` or `Block` semantics;
-- extend exact algebra with `Cancel`, `Together`, `Numerator`, and
-  `Denominator` over a bounded rational-expression subset, leaving `Apart`
-  until the partial-fraction contract is credible;
+- extend exact algebra with `Cancel` and `Together` over the bounded
+  rational-expression subset started by `Numerator` and `Denominator`, leaving
+  `Apart` until the partial-fraction contract is credible;
 - follow the focused differentiation pack with higher-order `D[expr, {x, n}]`
   and simple partial-derivative workflows;
 - specify a small exact `Solve` tranche after the notebook MVP unless a
@@ -218,17 +218,17 @@ Already implemented foundations to preserve:
 - exact checked-rational arithmetic, explicit overflow diagnostics, and
   opt-in machine-real approximation through the current `N` surface;
 - bounded algebra pack support for `Expand`, `Factor`, `Collect`, `GCD`,
-  `PolynomialQuotient`, `Coefficient`, `CoefficientList`, and exact dense
-  matrix operations;
+  `PolynomialQuotient`, `Coefficient`, `CoefficientList`, `Numerator`,
+  `Denominator`, and exact dense matrix operations;
 - narrow assumption and domain facts through `Assuming`, `Refine`, sign
   predicates, nonzero facts, and integer/rational/real predicates;
 - focused differentiation through the calculus pack.
 
 Near-term engine gaps after the Web MVP:
 
-- finish rational-expression helpers: `Cancel`, `Together`, `Numerator`, and
-  `Denominator`, with domain restrictions and singularities represented or
-  diagnosed instead of erased;
+- finish rational-expression transformations: `Cancel` and `Together`, with
+  domain restrictions and singularities represented or diagnosed instead of
+  erased;
 - add a first mathematical equivalence contract, such as
   `Equivalent[expr1, expr2]`, with proof-bearing methods limited to structural
   equality after normalization, supported algebraic reduction, polynomial

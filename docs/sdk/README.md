@@ -38,7 +38,7 @@ The surviving host-facing SDK surface is:
 - Aleph3 CLI target `aleph3_cli`
 - Aleph3 CLI REPL, built-in help/examples, `host-functions`, `evaluate --var ...`, and `evaluate-host`
 - When the symbolic engine is built, `aleph3_cli` also exposes `symbolic-evaluate`, `symbolic-simplify`, and `symbolic-fullform`
-- The symbolic polynomial tier now supports product-facing `Expand`, `Factor`, `Collect`, `GCD`, and `PolynomialQuotient` from that CLI surface
+- The symbolic polynomial tier now supports product-facing `Expand`, `Factor`, `Collect`, `GCD`, `PolynomialQuotient`, `Numerator`, and `Denominator` from that CLI surface
 - SDK example target `aleph3_sdk_example` for host-app embedding
 - Contract direction defined by the top-level architecture and product docs
 

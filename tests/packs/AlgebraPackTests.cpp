@@ -107,12 +107,38 @@ TEST_CASE("Algebra pack extracts exact polynomial coefficients", "[packs][algebr
     REQUIRE(coefficient_list_spec->metadata.owning_package == "core-algebra");
 }
 
+TEST_CASE("Algebra pack extracts supported rational expression parts", "[packs][algebra][rational-expression]") {
+    kernel::FunctionRegistry registry;
+    packs::register_algebra_pack(registry);
+    EvaluationContext ctx(registry);
+
+    REQUIRE(to_string(*evaluate_source("Numerator[1/2]", ctx)) == "1");
+    REQUIRE(to_string(*evaluate_source("Denominator[1/2]", ctx)) == "2");
+    REQUIRE(to_string(*evaluate_source("Numerator[x]", ctx)) == "x");
+    REQUIRE(to_string(*evaluate_source("Denominator[x]", ctx)) == "1");
+    REQUIRE(to_string(*evaluate_source("Numerator[(1/2)*x]", ctx)) == "x");
+    REQUIRE(to_string(*evaluate_source("Denominator[(1/2)*x]", ctx)) == "2");
+    REQUIRE(to_string(*evaluate_source("Numerator[(2/3)*x]", ctx)) == "2 * x");
+    REQUIRE(to_string(*evaluate_source("Denominator[(2/3)*x]", ctx)) == "3");
+    REQUIRE(to_string(*evaluate_source("Numerator[x/(x + 1)]", ctx)) == "x");
+    REQUIRE(to_string(*evaluate_source("Denominator[x/(x + 1)]", ctx)) == "x + 1");
+
+    const auto* numerator_spec = registry.find_symbolic_function_spec("Numerator");
+    const auto* denominator_spec = registry.find_symbolic_function_spec("Denominator");
+    REQUIRE(numerator_spec != nullptr);
+    REQUIRE(denominator_spec != nullptr);
+    REQUIRE(numerator_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(denominator_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(numerator_spec->metadata.owning_package == "core-algebra");
+    REQUIRE(denominator_spec->metadata.owning_package == "core-algebra");
+}
+
 TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][algebra]") {
     kernel::FunctionRegistry registry;
     packs::register_algebra_pack(registry);
 
     for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient",
-             "Coefficient", "CoefficientList",
+             "Coefficient", "CoefficientList", "Numerator", "Denominator",
              "MatrixAdd", "MatrixMultiply", "IdentityMatrix", "Transpose", "Det", "RowReduce",
              "LinearSolve"}) {
         const auto* spec = registry.find_symbolic_function_spec(name);

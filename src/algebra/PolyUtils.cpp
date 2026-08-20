@@ -6,6 +6,7 @@
 #include <utility>
 #include <set>
 #include <algorithm>
+#include <cstdlib>
 #include <cmath>
 #include <functional>
 #include <numeric>
@@ -48,6 +49,10 @@ namespace aleph3 {
         int64_t numerator = 0;
         int64_t denominator = 1;
     };
+
+    ExactPolynomial expr_to_exact_polynomial_impl(
+        const ExprPtr& expr,
+        const std::vector<std::string>& variables);
 
     std::vector<std::string> infer_variables(const ExprPtr& expr) {
         std::set<std::string> vars;
@@ -140,6 +145,26 @@ namespace aleph3 {
         return poly.terms.size() == 1
             && poly.terms.begin()->first.empty()
             && is_near_zero(poly.terms.begin()->second);
+    }
+
+    bool is_exact_constant_zero(const ExactPolynomial& poly) {
+        return poly.terms.size() == 1
+            && poly.terms.begin()->first.empty()
+            && poly.terms.begin()->second.is_zero();
+    }
+
+    ExactPolynomial exact_constant(const ExactCoefficient& coefficient) {
+        return ExactPolynomial(coefficient);
+    }
+
+    ExactPolynomial multiply_by_scalar(
+        ExactPolynomial polynomial,
+        const ExactCoefficient& coefficient) {
+        for (auto& [_, term_coefficient] : polynomial.terms) {
+            term_coefficient = term_coefficient * coefficient;
+        }
+        polynomial.normalize();
+        return polynomial;
     }
 
     bool is_exact_polynomial_candidate(const ExprPtr& expr) {
@@ -362,6 +387,124 @@ namespace aleph3 {
         }
         polynomial.normalize();
         return polynomial;
+    }
+
+    ExactCoefficient leading_coefficient_for_order(
+        const ExactPolynomial& polynomial,
+        const std::vector<std::string>& variables) {
+        if (polynomial.is_zero()) return ExactCoefficient::zero();
+        return leading_term(polynomial, variables).second;
+    }
+
+    int64_t coefficient_denominator_lcm(const ExactPolynomial& polynomial) {
+        int64_t result = 1;
+        for (const auto& [_, coefficient] : polynomial.terms) {
+            result = std::lcm(result, coefficient.denominator);
+        }
+        return result;
+    }
+
+    int64_t checked_abs_int64(int64_t value) {
+        if (value == std::numeric_limits<int64_t>::min()) {
+            throw std::overflow_error("Exact coefficient overflow");
+        }
+        return std::llabs(value);
+    }
+
+    int64_t integer_content(const ExactPolynomial& polynomial) {
+        int64_t result = 0;
+        for (const auto& [_, coefficient] : polynomial.terms) {
+            if (coefficient.is_zero()) continue;
+            if (coefficient.denominator != 1) {
+                throw_internal_inconsistency(
+                    "Integer content requires cleared exact coefficients");
+            }
+            const int64_t abs_numerator = checked_abs_int64(coefficient.numerator);
+            result = result == 0
+                ? abs_numerator
+                : std::gcd(result, abs_numerator);
+        }
+        return result == 0 ? 1 : result;
+    }
+
+    ExactPolynomial divide_by_integer_content(
+        ExactPolynomial polynomial,
+        int64_t content) {
+        if (content <= 1) return polynomial;
+        for (auto& [_, coefficient] : polynomial.terms) {
+            coefficient = coefficient / ExactCoefficient(content, 1);
+        }
+        polynomial.normalize();
+        return polynomial;
+    }
+
+    struct RationalExpression {
+        ExactPolynomial numerator;
+        ExactPolynomial denominator;
+        std::vector<std::string> variables;
+    };
+
+    RationalExpression normalize_rational_expression(
+        ExactPolynomial numerator,
+        ExactPolynomial denominator,
+        std::vector<std::string> variables) {
+        if (is_exact_constant_zero(denominator)) {
+            throw std::domain_error("Rational expression denominator is zero");
+        }
+
+        const int64_t numerator_lcm = coefficient_denominator_lcm(numerator);
+        const int64_t denominator_lcm = coefficient_denominator_lcm(denominator);
+        numerator = multiply_by_scalar(numerator, ExactCoefficient(numerator_lcm, 1));
+        denominator = multiply_by_scalar(denominator, ExactCoefficient(denominator_lcm, 1));
+        numerator = multiply_by_scalar(numerator, ExactCoefficient(denominator_lcm, 1));
+        denominator = multiply_by_scalar(denominator, ExactCoefficient(numerator_lcm, 1));
+
+        const int64_t common_integer_content = std::gcd(
+            integer_content(numerator),
+            integer_content(denominator));
+        numerator = divide_by_integer_content(std::move(numerator), common_integer_content);
+        denominator = divide_by_integer_content(std::move(denominator), common_integer_content);
+
+        const ExactCoefficient denominator_lead =
+            leading_coefficient_for_order(denominator, variables);
+        if (denominator_lead.numerator < 0) {
+            numerator = multiply_by_scalar(numerator, ExactCoefficient(-1, 1));
+            denominator = multiply_by_scalar(denominator, ExactCoefficient(-1, 1));
+        }
+
+        return {std::move(numerator), std::move(denominator), std::move(variables)};
+    }
+
+    RationalExpression rational_expression_from_expr(
+        const ExprPtr& expr,
+        const std::vector<std::string>& variables) {
+        if (const auto* divide = std::get_if<FunctionCall>(&(*expr));
+            divide && divide->head == "Divide" && divide->args.size() == 2) {
+            auto numerator = rational_expression_from_expr(divide->args[0], variables);
+            auto denominator = rational_expression_from_expr(divide->args[1], variables);
+            return normalize_rational_expression(
+                numerator.numerator * denominator.denominator,
+                numerator.denominator * denominator.numerator,
+                variables);
+        }
+
+        if (const auto* times = std::get_if<FunctionCall>(&(*expr));
+            times && times->head == "Times") {
+            ExactPolynomial numerator(ExactCoefficient::one());
+            ExactPolynomial denominator(ExactCoefficient::one());
+            for (const auto& arg : times->args) {
+                auto factor = rational_expression_from_expr(arg, variables);
+                numerator = numerator * factor.numerator;
+                denominator = denominator * factor.denominator;
+            }
+            return normalize_rational_expression(std::move(numerator), std::move(denominator), variables);
+        }
+
+        const ExactPolynomial polynomial = expr_to_exact_polynomial_impl(expr, variables);
+        return normalize_rational_expression(
+            polynomial,
+            exact_constant(ExactCoefficient::one()),
+            variables);
     }
 
     size_t nonzero_term_count(const ExactPolynomial& polynomial) {
@@ -1236,6 +1379,32 @@ namespace aleph3 {
             coefficients.push_back(exact_coefficient_to_expr(coefficient));
         }
         return make_expr<List>(List{std::move(coefficients)});
+    }
+
+    ExprPtr numerator_rational_expression(const ExprPtr& expr, EvaluationContext& ctx) {
+        static_cast<void>(ctx);
+        try {
+            const auto variables = infer_variables(expr);
+            return exact_polynomial_to_expr(
+                rational_expression_from_expr(expr, variables).numerator);
+        } catch (const std::overflow_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        } catch (const std::domain_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        }
+    }
+
+    ExprPtr denominator_rational_expression(const ExprPtr& expr, EvaluationContext& ctx) {
+        static_cast<void>(ctx);
+        try {
+            const auto variables = infer_variables(expr);
+            return exact_polynomial_to_expr(
+                rational_expression_from_expr(expr, variables).denominator);
+        } catch (const std::overflow_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        } catch (const std::domain_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        }
     }
 
     // --- Low-level API ---

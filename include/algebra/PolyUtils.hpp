@@ -29,6 +29,8 @@ namespace aleph3 {
     ExprPtr coefficient_list_polynomial(const ExprPtr& expr, const std::string& variable, EvaluationContext& ctx);
     ExprPtr numerator_rational_expression(const ExprPtr& expr, EvaluationContext& ctx);
     ExprPtr denominator_rational_expression(const ExprPtr& expr, EvaluationContext& ctx);
+    ExprPtr together_rational_expression(const ExprPtr& expr, EvaluationContext& ctx);
+    ExprPtr cancel_rational_expression(const ExprPtr& expr, EvaluationContext& ctx);
 
     // Low-level API: operate directly on Polynomial objects
     Polynomial expand(const Polynomial& poly);

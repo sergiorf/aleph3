@@ -133,12 +133,30 @@ TEST_CASE("Algebra pack extracts supported rational expression parts", "[packs][
     REQUIRE(denominator_spec->metadata.owning_package == "core-algebra");
 }
 
+TEST_CASE("Algebra pack owns rational expression transformations", "[packs][algebra][rational-expression]") {
+    kernel::FunctionRegistry registry;
+    packs::register_algebra_pack(registry);
+    EvaluationContext ctx(registry);
+
+    REQUIRE(simplify_string(evaluate_source("Together[1/x + 1/y]", ctx)) == "(x + y)/(x * y)");
+    REQUIRE(simplify_string(evaluate_source("Cancel[(x^2 - 1)/(x - 1)]", ctx)) == "x + 1");
+
+    const auto* together_spec = registry.find_symbolic_function_spec("Together");
+    const auto* cancel_spec = registry.find_symbolic_function_spec("Cancel");
+    REQUIRE(together_spec != nullptr);
+    REQUIRE(cancel_spec != nullptr);
+    REQUIRE(together_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(cancel_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(together_spec->metadata.owning_package == "core-algebra");
+    REQUIRE(cancel_spec->metadata.owning_package == "core-algebra");
+}
+
 TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][algebra]") {
     kernel::FunctionRegistry registry;
     packs::register_algebra_pack(registry);
 
     for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient",
-             "Coefficient", "CoefficientList", "Numerator", "Denominator",
+             "Coefficient", "CoefficientList", "Numerator", "Denominator", "Together", "Cancel",
              "MatrixAdd", "MatrixMultiply", "IdentityMatrix", "Transpose", "Det", "RowReduce",
              "LinearSolve"}) {
         const auto* spec = registry.find_symbolic_function_spec(name);

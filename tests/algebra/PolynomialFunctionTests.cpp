@@ -212,6 +212,43 @@ TEST_CASE("Polynomial algebra preserves exact rationals for supported helpers", 
     REQUIRE(simplify_string(result_list.elements[1]) == "0");
 }
 
+TEST_CASE("Rational expression transformations preserve exact supported forms", "[algebra][functions][rational-expression]") {
+    EvaluationContext ctx;
+
+    REQUIRE(simplify_string(evaluate_source("Together[1/x + 1/y]", ctx)) == "(x + y)/(x * y)");
+    REQUIRE(simplify_string(evaluate_source("Together[1/2 + 1/x]", ctx)) == "(x + 2)/(2 * x)");
+    REQUIRE(simplify_string(evaluate_source("Together[x/(x + 1) + 1/(x + 1)]", ctx)) == "(x + 1)/(x + 1)");
+
+    REQUIRE(simplify_string(evaluate_source("Cancel[(x^2 - 1)/(x - 1)]", ctx)) == "x + 1");
+    REQUIRE(simplify_string(evaluate_source("Cancel[(1/2*x)/(1/4)]", ctx)) == "2 * x");
+    REQUIRE(simplify_string(evaluate_source("Cancel[(x*y)/(x)]", ctx)) == "y");
+}
+
+TEST_CASE("Rational expression transformations reject unsupported and invalid inputs", "[algebra][functions][rational-expression]") {
+    EvaluationContext ctx;
+
+    try {
+        static_cast<void>(evaluate_source("Together[0.5*x + 1/x]", ctx));
+        FAIL("Expected Together to reject inexact rational-expression input");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+    }
+
+    try {
+        static_cast<void>(evaluate_source("Cancel[(x*y + x)/(x + 1)]", ctx));
+        FAIL("Expected Cancel to reject unsupported multivariate cancellation");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+    }
+
+    try {
+        static_cast<void>(evaluate_source("Together[1/0 + x]", ctx));
+        FAIL("Expected Together to reject denominator zero");
+    } catch (const kernel::RuntimeFailure& failure) {
+        REQUIRE(failure.error().code == "runtime.division_by_zero");
+    }
+}
+
 TEST_CASE("Polynomial factor supports exact rational univariate coefficients", "[algebra][functions][rational]") {
     EvaluationContext ctx;
 

@@ -153,6 +153,12 @@ namespace aleph3 {
             && poly.terms.begin()->second.is_zero();
     }
 
+    bool is_exact_constant_one(const ExactPolynomial& poly) {
+        return poly.terms.size() == 1
+            && poly.terms.begin()->first.empty()
+            && poly.terms.begin()->second.is_one();
+    }
+
     ExactPolynomial exact_constant(const ExactCoefficient& coefficient) {
         return ExactPolynomial(coefficient);
     }
@@ -500,11 +506,52 @@ namespace aleph3 {
             return normalize_rational_expression(std::move(numerator), std::move(denominator), variables);
         }
 
+        if (const auto* plus = std::get_if<FunctionCall>(&(*expr));
+            plus && plus->head == "Plus") {
+            ExactPolynomial numerator(ExactCoefficient::zero());
+            ExactPolynomial denominator(ExactCoefficient::one());
+            for (const auto& arg : plus->args) {
+                auto term = rational_expression_from_expr(arg, variables);
+                if (variables.empty()) {
+                    numerator = numerator * term.denominator + term.numerator * denominator;
+                    denominator = denominator * term.denominator;
+                    continue;
+                }
+
+                const ExactPolynomial common_denominator =
+                    gcd(denominator, term.denominator, variables);
+                auto [left_scale, left_remainder] =
+                    divide(term.denominator, common_denominator, variables);
+                auto [right_scale, right_remainder] =
+                    divide(denominator, common_denominator, variables);
+                if (!left_remainder.is_zero() || !right_remainder.is_zero()) {
+                    throw_internal_inconsistency(
+                        "Exact rational-expression denominator GCD did not divide both denominators");
+                }
+                numerator = numerator * left_scale + term.numerator * right_scale;
+                denominator = denominator * left_scale;
+            }
+            return normalize_rational_expression(std::move(numerator), std::move(denominator), variables);
+        }
+
         const ExactPolynomial polynomial = expr_to_exact_polynomial_impl(expr, variables);
         return normalize_rational_expression(
             polynomial,
             exact_constant(ExactCoefficient::one()),
             variables);
+    }
+
+    ExprPtr rational_expression_to_expr(const RationalExpression& expression) {
+        ExprPtr numerator = exact_polynomial_to_expr(expression.numerator);
+        if (is_exact_constant_one(expression.denominator)) {
+            return numerator;
+        }
+        return make_expr<FunctionCall>(
+            "Divide",
+            std::vector<ExprPtr>{
+                std::move(numerator),
+                exact_polynomial_to_expr(expression.denominator)
+            });
     }
 
     size_t nonzero_term_count(const ExactPolynomial& polynomial) {
@@ -1400,6 +1447,53 @@ namespace aleph3 {
             const auto variables = infer_variables(expr);
             return exact_polynomial_to_expr(
                 rational_expression_from_expr(expr, variables).denominator);
+        } catch (const std::overflow_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        } catch (const std::domain_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        }
+    }
+
+    ExprPtr together_rational_expression(const ExprPtr& expr, EvaluationContext& ctx) {
+        static_cast<void>(ctx);
+        try {
+            const auto variables = infer_variables(expr);
+            return rational_expression_to_expr(
+                rational_expression_from_expr(expr, variables));
+        } catch (const std::overflow_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        } catch (const std::domain_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        }
+    }
+
+    ExprPtr cancel_rational_expression(const ExprPtr& expr, EvaluationContext& ctx) {
+        static_cast<void>(ctx);
+        try {
+            const auto variables = infer_variables(expr);
+            auto expression = rational_expression_from_expr(expr, variables);
+            if (expression.variables.empty()) {
+                return rational_expression_to_expr(expression);
+            }
+
+            const ExactPolynomial common =
+                gcd(expression.numerator, expression.denominator, expression.variables);
+            if (is_exact_constant_one(common)) {
+                return rational_expression_to_expr(expression);
+            }
+
+            auto [numerator, numerator_remainder] =
+                divide(expression.numerator, common, expression.variables);
+            auto [denominator, denominator_remainder] =
+                divide(expression.denominator, common, expression.variables);
+            if (!numerator_remainder.is_zero() || !denominator_remainder.is_zero()) {
+                throw_internal_inconsistency("Exact rational-expression GCD did not divide both parts");
+            }
+            return rational_expression_to_expr(
+                normalize_rational_expression(
+                    std::move(numerator),
+                    std::move(denominator),
+                    expression.variables));
         } catch (const std::overflow_error& error) {
             kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
         } catch (const std::domain_error& error) {

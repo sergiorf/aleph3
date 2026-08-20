@@ -148,9 +148,9 @@ TEST_CASE("Session discovers registered packs deterministically", "[session][pac
     REQUIRE(result.packs.size() == 2);
     REQUIRE(result.packs[0].name == "core-algebra");
     REQUIRE(result.packs[0].symbols ==
-        std::vector<std::string>{"Coefficient", "CoefficientList", "Collect", "Denominator", "Det", "Expand", "Factor", "GCD",
+        std::vector<std::string>{"Cancel", "Coefficient", "CoefficientList", "Collect", "Denominator", "Det", "Expand", "Factor", "GCD",
             "IdentityMatrix", "LinearSolve", "MatrixAdd", "MatrixMultiply", "Numerator", "PolynomialQuotient", "RowReduce",
-            "Transpose"});
+            "Together", "Transpose"});
     REQUIRE(result.packs[1].name == "core-calculus");
     REQUIRE(result.packs[1].symbols == std::vector<std::string>{"D", "Differentiate"});
 }
@@ -439,6 +439,29 @@ TEST_CASE("Session exposes rational expression numerator and denominator", "[ses
     REQUIRE_FALSE(zero_denominator.ok);
     REQUIRE(zero_denominator.diagnostics.size() == 1);
     REQUIRE(zero_denominator.diagnostics.front().code == "runtime.division_by_zero");
+}
+
+TEST_CASE("Session exposes rational expression transformations", "[session][algebra][rational-expression]") {
+    Session session;
+
+    REQUIRE(session.execute({"Together[1/x + 1/y]"}).output == "(x + y)/(x * y)");
+    REQUIRE(session.execute({"Cancel[(x^2 - 1)/(x - 1)]"}).output == "x + 1");
+
+    const auto completion = session.execute({"Tog", SessionOperation::complete});
+    REQUIRE(completion.completions.size() == 1);
+    REQUIRE(completion.completions.front().category == "pack");
+    REQUIRE(completion.completions.front().owning_package == "core-algebra");
+
+    const auto help = session.execute({"Cancel", SessionOperation::help});
+    REQUIRE(help.ok);
+    REQUIRE(help.help_entries.size() == 1);
+    REQUIRE(help.help_entries.front().owning_package == "core-algebra");
+    REQUIRE_FALSE(help.help_entries.front().examples.empty());
+
+    const auto unsupported = session.execute({"Cancel[(x*y + x)/(x + 1)]"});
+    REQUIRE_FALSE(unsupported.ok);
+    REQUIRE(unsupported.diagnostics.size() == 1);
+    REQUIRE(unsupported.diagnostics.front().code == "kernel.unsupported_construct");
 }
 
 TEST_CASE("Session preserves assumption contradiction diagnostics", "[session][assumptions][diagnostics]") {

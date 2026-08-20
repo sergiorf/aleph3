@@ -172,7 +172,7 @@ TEST_CASE("REPL meta commands use colon prefixes", "[tooling][cli]") {
 TEST_CASE("REPL help exposes focused symbolic and command entries", "[tooling][cli][session][help]") {
     const auto result = run_shell_command(make_repl_command(
         {":help Factor", ":help Clear", ":help :reset", ":help core-algebra", ":help Log",
-         ":help ArcTan", ":help Length", ":help FullForm", ":help Assuming", ":help MatrixAdd", ":help D", ":quit"}));
+         ":help ArcTan", ":help Length", ":help FullForm", ":help Assuming", ":help MatrixAdd", ":help Cancel", ":help D", ":quit"}));
 
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output.find("Factor [pack] (core-algebra)") != std::string::npos);
@@ -183,6 +183,9 @@ TEST_CASE("REPL help exposes focused symbolic and command entries", "[tooling][c
     REQUIRE(result.output.find(":reset") != std::string::npos);
     REQUIRE(result.output.find("without unloading builtins or packs") != std::string::npos);
     REQUIRE(result.output.find("PolynomialQuotient [pack] (core-algebra)") != std::string::npos);
+    REQUIRE(result.output.find("Cancel [pack] (core-algebra)") != std::string::npos);
+    REQUIRE(result.output.find("Cancel[(x^2 - 1)/(x - 1)] -> x + 1") != std::string::npos);
+    REQUIRE(result.output.find("Manual: manual/packs-algebra.md#rational-expression-transformations") != std::string::npos);
     REQUIRE(result.output.find("Log [builtin]") != std::string::npos);
     REQUIRE(result.output.find("Log[base, x]") != std::string::npos);
     REQUIRE(result.output.find("ArcTan [builtin]") != std::string::npos);

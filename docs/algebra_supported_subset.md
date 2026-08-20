@@ -27,6 +27,8 @@ The current symbolic algebra surface is:
 - `CoefficientList[poly, var]`
 - `Numerator[expr]`
 - `Denominator[expr]`
+- `Together[expr]`
+- `Cancel[expr]`
 - `MatrixAdd[a, b]`, `MatrixMultiply[a, b]`, `IdentityMatrix[n]`, and `Transpose[a]`
 - `Det[a]`, `RowReduce[a]`, and `LinearSolve[a, b]` for bounded exact dense matrices
 
@@ -154,6 +156,8 @@ Examples:
 - `Numerator[(1/2)*x]` -> `x`
 - `Denominator[(1/2)*x]` -> `2`
 - `Denominator[x/(x + 1)]` -> `x + 1`
+- `Together[1/x + 1/y]` -> `(x + y)/(x * y)`
+- `Cancel[(x^2 - 1)/(x - 1)]` -> `x + 1`
 
 ## Exact Coefficient Extraction
 
@@ -208,8 +212,55 @@ Boundaries:
 - symbolic coefficients outside the selected exact polynomial subset are
   rejected explicitly;
 - denominator zero is a domain failure;
-- this slice does not cancel common factors, combine sums, or attach domain
-  metadata for excluded denominator zeros.
+- these part-extraction helpers do not cancel common polynomial factors;
+  `Together` and `Cancel` own those transformations.
+
+## Rational Expression Transformations
+
+`Together` and `Cancel` transform the same bounded exact rational-expression
+subset used by `Numerator` and `Denominator`.
+
+`Together[expr]` combines supported sums and products of exact rational
+expressions into one fraction. It clears exact rational coefficients and uses
+deterministic denominator ordering through the exact polynomial renderer, but
+it does not cancel common polynomial factors.
+
+Examples:
+
+- `Together[1/x + 1/y]` -> `(x + y)/(x * y)`
+- `Together[1/2 + 1/x]` -> `(x + 2)/(2 * x)`
+- `Together[x/(x + 1) + 1/(x + 1)]` -> `(x + 1)/(x + 1)`
+
+`Cancel[expr]` cancels common numerator and denominator factors only when the
+existing exact polynomial GCD and division contracts support that factor
+discovery. Supported cases include univariate exact polynomial cancellation
+and monomial-bounded multivariate cancellation where at least one side's
+common-factor query is monomial-bounded.
+
+Examples:
+
+- `Cancel[(x^2 - 1)/(x - 1)]` -> `x + 1`
+- `Cancel[(1/2*x)/(1/4)]` -> `2 * x`
+- `Cancel[(x*y)/x]` -> `y`
+
+Domain boundary:
+
+- cancellation is valid on the original expression's nonzero-denominator
+  domain;
+- this slice does not attach first-class excluded-point metadata to the
+  result;
+- cancellation across unsupported symbolic or general multivariate
+  denominators is rejected rather than silently erasing possible
+  singularities.
+
+Unsupported cases:
+
+- decimal coefficients;
+- symbolic coefficients outside the selected exact polynomial variables;
+- unsupported powers or expression heads;
+- denominator zero;
+- general multivariate cancellation such as `Cancel[(x*y + x)/(x + 1)]`;
+- `Apart` and partial-fraction decomposition.
 
 ## Symbolic Rewrite Product Contracts
 
@@ -287,7 +338,6 @@ known limitation.
 
 Not part of the current supported subset:
 
-- `Cancel` and `Together` over a bounded exact rational-expression contract
 - bounded `Apart` after factorization and partial-fraction preconditions are
   specified
 - general multivariate polynomial GCD and configurable or multi-divisor division
@@ -298,23 +348,7 @@ Not part of the current supported subset:
 
 ## Planned Rational-Expression Follow-Up
 
-The next symbolic MVP algebra extension should add rational-expression
-transformations only where exactness and domain behavior can be explicit.
-
-Planned first functions:
-
-- `Cancel[expr]` cancels common exact polynomial factors only when the selected
-  variable set and factorization path are inside the supported subset.
-- `Together[expr]` combines supported rational sums into one rational
-  expression with deterministic denominator ordering.
-
-Required boundaries:
-
-- cancellation across unknown symbolic denominators must either preserve the
-  expression with a documented condition or reject the unsupported form; it
-  must not silently erase singularities outside the chosen contract.
-- decimal, symbolic-coefficient, unsupported multivariate, and overflow cases
-  use existing explicit diagnostics rather than approximate fallback.
-- `Apart` is second in this tranche because it requires a separate
-  partial-fraction contract, factorization preconditions, and variable
-  selector behavior.
+The next rational-expression tranche should add first-class domain-restriction
+metadata or a partial-fraction contract before broadening cancellation.
+`Apart` remains second in this area because it requires separate
+partial-fraction preconditions and variable-selector behavior.

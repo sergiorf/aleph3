@@ -138,9 +138,32 @@ explicit division with a nonzero supported denominator.
 
 Decimal coefficients, symbolic coefficients outside the selected polynomial
 variables, unsupported powers, and denominator zero are rejected explicitly.
-`Cancel`, `Together`, `Apart`, and singularity-aware domain metadata are not
-part of this slice, so these helpers do not prove expression equivalence after
-cancellation.
+
+## Rational Expression Transformations
+
+`Together` combines a supported exact rational expression into one fraction:
+
+```text
+Together[1/x + 1/y]                     -> (x + y)/(x * y)
+Together[1/2 + 1/x]                     -> (x + 2)/(2 * x)
+Together[x/(x + 1) + 1/(x + 1)]         -> (x + 1)/(x + 1)
+```
+
+`Together` does not cancel common polynomial factors. Use `Cancel` when the
+shared factor is inside the current exact polynomial GCD subset:
+
+```text
+Cancel[(x^2 - 1)/(x - 1)]               -> x + 1
+Cancel[(1/2*x)/(1/4)]                   -> 2 * x
+Cancel[(x*y)/x]                         -> y
+```
+
+Cancellation is valid on the original expression's nonzero-denominator
+domain, but Aleph3 does not yet attach first-class excluded-point metadata to
+the result. Decimal coefficients, symbolic coefficients outside the selected
+polynomial variables, unsupported powers, denominator zero, and general
+multivariate cancellation such as `Cancel[(x*y + x)/(x + 1)]` are rejected
+explicitly. `Apart` remains outside the supported subset.
 
 ## Exact Dense Matrices
 

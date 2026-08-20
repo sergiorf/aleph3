@@ -293,6 +293,20 @@ ExprPtr evaluate_denominator(const FunctionCall& func, EvaluationContext& ctx) {
     return denominator_rational_expression(func.args[0], ctx);
 }
 
+ExprPtr evaluate_together(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) {
+        throw_invalid_arity_exact("Together", 1);
+    }
+    return together_rational_expression(func.args[0], ctx);
+}
+
+ExprPtr evaluate_cancel(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) {
+        throw_invalid_arity_exact("Cancel", 1);
+    }
+    return cancel_rational_expression(func.args[0], ctx);
+}
+
 ExprPtr evaluate_matrix_add(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 2) throw_invalid_arity_exact("MatrixAdd", 2);
     return run_matrix_operation([&] {
@@ -457,6 +471,18 @@ void register_algebra_pack(kernel::FunctionRegistry& registry) {
         "Denominator",
         evaluate_denominator,
         "Extract the denominator of a supported exact rational expression.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "Together",
+        evaluate_together,
+        "Combine a supported exact rational expression into one fraction.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "Cancel",
+        evaluate_cancel,
+        "Cancel supported common exact rational-expression factors.",
         true);
 }
 

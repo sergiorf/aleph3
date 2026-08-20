@@ -80,6 +80,9 @@ is public to pack-owned helpers through:
   `CoefficientList`
 - exact rational-expression part extraction for `Numerator` and `Denominator`
   over supported exact polynomial numerators and denominators
+- exact rational-expression transformation for `Together` and `Cancel` over
+  the same bounded rational-expression subset, with `Cancel` limited to the
+  existing exact polynomial GCD and division contracts
 - exact single-divisor multivariate division using explicit variable
   precedence and fixed graded-lexicographic leading terms
 - exact monomial-bounded multivariate GCD using explicit selectors
@@ -101,6 +104,8 @@ Practical implication:
 
 - exact multivariate coefficient preservation is now an explicit pack-facing
   contract for safe helper paths
+- rational-expression transformation is pack-owned and does not introduce
+  first-class domain-restriction carriers yet
 - exact factorization remains out of scope until the broader coefficient-ring
   and algorithm story is stronger
 - exact coefficient operations detect `int64_t` overflow and fail explicitly;

@@ -147,9 +147,9 @@ variables, unsupported powers, and denominator zero are rejected explicitly.
 `Together` combines a supported exact rational expression into one fraction:
 
 ```text
-Together[1/x + 1/y]                     -> (x + y)/(x * y)
-Together[1/2 + 1/x]                     -> (x + 2)/(2 * x)
-Together[x/(x + 1) + 1/(x + 1)]         -> (x + 1)/(x + 1)
+Together[1/x + 1/y]                     -> (x + y) / (x * y)
+Together[1/2 + 1/x]                     -> (x + 2) / (2 * x)
+Together[x/(x + 1) + 1/(x + 1)]         -> (x + 1) / (x + 1)
 ```
 
 `Together` does not cancel common polynomial factors. Use `Cancel` when the

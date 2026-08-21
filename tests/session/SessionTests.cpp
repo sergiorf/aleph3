@@ -444,7 +444,7 @@ TEST_CASE("Session exposes rational expression numerator and denominator", "[ses
 TEST_CASE("Session exposes rational expression transformations", "[session][algebra][rational-expression]") {
     Session session;
 
-    REQUIRE(session.execute({"Together[1/x + 1/y]"}).output == "(x + y)/(x * y)");
+    REQUIRE(session.execute({"Together[1/x + 1/y]"}).output == "(x + y) / (x * y)");
     REQUIRE(session.execute({"Cancel[(x^2 - 1)/(x - 1)]"}).output == "x + 1");
 
     const auto completion = session.execute({"Tog", SessionOperation::complete});

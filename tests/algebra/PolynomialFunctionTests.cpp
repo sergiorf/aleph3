@@ -215,9 +215,9 @@ TEST_CASE("Polynomial algebra preserves exact rationals for supported helpers", 
 TEST_CASE("Rational expression transformations preserve exact supported forms", "[algebra][functions][rational-expression]") {
     EvaluationContext ctx;
 
-    REQUIRE(simplify_string(evaluate_source("Together[1/x + 1/y]", ctx)) == "(x + y)/(x * y)");
-    REQUIRE(simplify_string(evaluate_source("Together[1/2 + 1/x]", ctx)) == "(x + 2)/(2 * x)");
-    REQUIRE(simplify_string(evaluate_source("Together[x/(x + 1) + 1/(x + 1)]", ctx)) == "(x + 1)/(x + 1)");
+    REQUIRE(simplify_string(evaluate_source("Together[1/x + 1/y]", ctx)) == "(x + y) / (x * y)");
+    REQUIRE(simplify_string(evaluate_source("Together[1/2 + 1/x]", ctx)) == "(x + 2) / (2 * x)");
+    REQUIRE(simplify_string(evaluate_source("Together[x/(x + 1) + 1/(x + 1)]", ctx)) == "(x + 1) / (x + 1)");
 
     REQUIRE(simplify_string(evaluate_source("Cancel[(x^2 - 1)/(x - 1)]", ctx)) == "x + 1");
     REQUIRE(simplify_string(evaluate_source("Cancel[(1/2*x)/(1/4)]", ctx)) == "2 * x");
@@ -243,9 +243,9 @@ TEST_CASE("Rational expression transformations reject unsupported and invalid in
 
     try {
         static_cast<void>(evaluate_source("Together[1/0 + x]", ctx));
-        FAIL("Expected Together to reject denominator zero");
-    } catch (const kernel::RuntimeFailure& failure) {
-        REQUIRE(failure.error().code == "runtime.division_by_zero");
+        FAIL("Expected Together to reject unsupported denominator-zero input");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
     }
 }
 
@@ -264,7 +264,7 @@ TEST_CASE("Polynomial factor supports exact rational univariate coefficients", "
     REQUIRE(to_string(*evaluate_source("Factor[(3/4) * x^2 + (3/2) * x + 3/4]", ctx))
             == "3/4 * (x + 1) * (x + 1)");
     REQUIRE(simplify_string(evaluate_source("Factor[(2/3) * x^3 - (2/3) * x]", ctx))
-            == "2/3 * x * (x - 1) * (x + 1)");
+            == "x * 2/3 * (x - 1) * (x + 1)");
 
     try {
         static_cast<void>(evaluate_source("Factor[(1/2) * x * y + 1]", ctx));

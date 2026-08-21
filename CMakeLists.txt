@@ -122,6 +122,7 @@ if(ALEPH3_BUILD_KERNEL)
     target_link_libraries(aleph3_pack_core_math INTERFACE aleph3_kernel)
 
     add_library(aleph3_pack_algebra
+        src/algebra/ExactFactorization.cpp
         src/algebra/Polynomial.cpp
         src/algebra/PolyUtils.cpp
         src/packs/AlgebraPack.cpp)

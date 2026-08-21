@@ -157,7 +157,7 @@ Examples:
 - `Numerator[(1/2)*x]` -> `x`
 - `Denominator[(1/2)*x]` -> `2`
 - `Denominator[x/(x + 1)]` -> `x + 1`
-- `Together[1/x + 1/y]` -> `(x + y)/(x * y)`
+- `Together[1/x + 1/y]` -> `(x + y) / (x * y)`
 - `Cancel[(x^2 - 1)/(x - 1)]` -> `x + 1`
 
 ## Exact Coefficient Extraction
@@ -228,9 +228,9 @@ it does not cancel common polynomial factors.
 
 Examples:
 
-- `Together[1/x + 1/y]` -> `(x + y)/(x * y)`
-- `Together[1/2 + 1/x]` -> `(x + 2)/(2 * x)`
-- `Together[x/(x + 1) + 1/(x + 1)]` -> `(x + 1)/(x + 1)`
+- `Together[1/x + 1/y]` -> `(x + y) / (x * y)`
+- `Together[1/2 + 1/x]` -> `(x + 2) / (2 * x)`
+- `Together[x/(x + 1) + 1/(x + 1)]` -> `(x + 1) / (x + 1)`
 
 `Cancel[expr]` cancels common numerator and denominator factors only when the
 existing exact polynomial GCD and division contracts support that factor

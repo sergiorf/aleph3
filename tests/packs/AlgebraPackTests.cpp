@@ -140,7 +140,7 @@ TEST_CASE("Algebra pack owns rational expression transformations", "[packs][alge
     packs::register_algebra_pack(registry);
     EvaluationContext ctx(registry);
 
-    REQUIRE(simplify_string(evaluate_source("Together[1/x + 1/y]", ctx)) == "(x + y)/(x * y)");
+    REQUIRE(simplify_string(evaluate_source("Together[1/x + 1/y]", ctx)) == "(x + y) / (x * y)");
     REQUIRE(simplify_string(evaluate_source("Cancel[(x^2 - 1)/(x - 1)]", ctx)) == "x + 1");
 
     const auto* together_spec = registry.find_symbolic_function_spec("Together");

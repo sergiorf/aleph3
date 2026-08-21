@@ -95,7 +95,8 @@ Ownership in this slice is intentionally narrow:
   `Denominator`, including explicitly selected multivariate inputs where that
   function supports them
 - the current `Polynomial` type with `double` coefficients remains in place
-  for the existing factorization path
+  for inexact inputs and transitional internals, while supported univariate
+  integer and rational `Factor` inputs now use the exact polynomial path
 - general multivariate exact `GCD` and broader factorization remain unsupported
 - multivariate division is limited to one divisor, explicit variable
   precedence, and the fixed graded-lexicographic order
@@ -106,8 +107,10 @@ Practical implication:
   contract for safe helper paths
 - rational-expression transformation is pack-owned and does not introduce
   first-class domain-restriction carriers yet
-- exact factorization remains out of scope until the broader coefficient-ring
-  and algorithm story is stronger
+- broad exact factorization remains out of scope until the broader
+  coefficient-ring and algorithm story is stronger; the current exact
+  factorization support is limited to the documented univariate rational-root
+  subset
 - exact coefficient operations detect `int64_t` overflow and fail explicitly;
   arbitrary precision remains outside this contract
 

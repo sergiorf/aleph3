@@ -26,6 +26,9 @@ Factor[1/2*x^2 + x + 1/2]                -> 1/2 * (x + 1) * (x + 1)
 ```
 
 General multivariate factorization is not yet supported.
+Supported univariate integer and rational coefficients are handled by the
+exact polynomial path with checked `int64_t` arithmetic. Decimal inputs remain
+outside this exact factorization subset.
 
 ## Polynomial GCD
 

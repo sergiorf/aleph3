@@ -132,7 +132,8 @@ Current boundary:
   monomial determined by the operands' minimum variable exponents
 - inexact `Number` inputs stay on the existing floating-point path
 - `Factor` supports exact rational coefficients for univariate rational-root
-  factorization by clearing denominators and restoring exact scalar content
+  factorization through the exact polynomial path by clearing denominators and
+  restoring exact scalar content
 - multivariate rational factorization remains explicitly unsupported
 
 Examples:
@@ -330,9 +331,11 @@ simplification.
   path
 - arbitrary-precision exact arithmetic
 
-The current coefficient storage uses `double` in the polynomial layer and
-`int64_t` for exact rationals. Large intermediates and overflow risk remain a
-known limitation.
+Supported univariate integer and rational `Factor` inputs use the exact
+polynomial path. The legacy `double` polynomial layer remains present for
+inexact inputs and transitional internals. Large exact intermediates are still
+bounded by checked `int64_t` coefficient storage; overflow is reported rather
+than wrapped.
 
 ## Future Work
 

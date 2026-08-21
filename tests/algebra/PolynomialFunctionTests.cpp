@@ -261,6 +261,10 @@ TEST_CASE("Polynomial factor supports exact rational univariate coefficients", "
             == "1/2 * (x + 1) * (x + 1)");
     REQUIRE(to_string(*evaluate_source("Factor[(-1/2) * x^2 + 1/2]", ctx))
             == "-1/2 * (x - 1) * (x + 1)");
+    REQUIRE(to_string(*evaluate_source("Factor[(3/4) * x^2 + (3/2) * x + 3/4]", ctx))
+            == "3/4 * (x + 1) * (x + 1)");
+    REQUIRE(simplify_string(evaluate_source("Factor[(2/3) * x^3 - (2/3) * x]", ctx))
+            == "2/3 * x * (x - 1) * (x + 1)");
 
     try {
         static_cast<void>(evaluate_source("Factor[(1/2) * x * y + 1]", ctx));

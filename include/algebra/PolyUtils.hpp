@@ -10,7 +10,7 @@
 #include "ExactPolynomialConversion.hpp"
 #include "ExactPolynomialOps.hpp"
 #include "ExactPolynomial.hpp"
-#include "Polynomial.hpp"
+#include "PolynomialOps.hpp"
 #include "expr/Expr.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include <vector>
@@ -33,14 +33,4 @@ namespace aleph3 {
     ExprPtr denominator_rational_expression(const ExprPtr& expr, EvaluationContext& ctx);
     ExprPtr together_rational_expression(const ExprPtr& expr, EvaluationContext& ctx);
     ExprPtr cancel_rational_expression(const ExprPtr& expr, EvaluationContext& ctx);
-
-    // Low-level API: operate directly on Polynomial objects
-    Polynomial expand(const Polynomial& poly);
-    Polynomial collect(const Polynomial& poly, const std::vector<std::string>& variables);
-    Polynomial gcd(const Polynomial& a, const Polynomial& b, const std::vector<std::string>& variables);
-    std::pair<Polynomial, Polynomial> divide(const Polynomial& dividend, const Polynomial& divisor, const std::vector<std::string>& variables);
-
-    // Conversion utilities
-    Polynomial expr_to_polynomial(const ExprPtr& expr, const std::vector<std::string>& variables);
-    ExprPtr polynomial_to_expr(const Polynomial& poly);
 } // namespace aleph3

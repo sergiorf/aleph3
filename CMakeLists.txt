@@ -127,6 +127,7 @@ if(ALEPH3_BUILD_KERNEL)
         src/algebra/ExactPolynomialOps.cpp
         src/algebra/ExactRationalExpression.cpp
         src/algebra/Polynomial.cpp
+        src/algebra/PolynomialOps.cpp
         src/algebra/PolyUtils.cpp
         src/packs/AlgebraPack.cpp)
     target_include_directories(aleph3_pack_algebra PUBLIC include PRIVATE third_party/utf8cpp)

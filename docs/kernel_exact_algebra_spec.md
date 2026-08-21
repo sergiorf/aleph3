@@ -87,7 +87,7 @@ is public to pack-owned helpers through:
   precedence and fixed graded-lexicographic leading terms
 - exact monomial-bounded multivariate GCD using explicit selectors
 
-Ownership in this slice is intentionally narrow:
+Current ownership is intentionally narrow:
 
 - the algebra layer owns exact integer/rational coefficient preservation for
   `Expand`, `Collect`, `Coefficient`, `CoefficientList`, supported univariate

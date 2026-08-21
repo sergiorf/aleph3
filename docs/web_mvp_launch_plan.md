@@ -471,53 +471,17 @@ tests, and documentation ship.
 
 ## Delivery Phases
 
-## Delivered API-Core Slice
-
-The first implementation slice adds a transport-independent C++ web API core
-and focused tests. It is intentionally below a real HTTP listener so request
-validation, anonymous-client ownership, session isolation, reset behavior, and
-diagnostic serialization can be tested before choosing or vendoring transport
-infrastructure.
-
-After the BFF decision, this delivered work is best treated as repository
-evidence and transitional infrastructure. The session, evaluation, completion,
-help, notebook validation, and run-all behavior remain valuable. Public
-browser API ownership, product persistence, anonymous identity, and examples
-move to the BFF plan instead of staying in a public C++ backend.
-
-Delivered:
-
-- `aleph3_web_api` library;
-- `aleph3_web_api_server --health` smoke executable;
-- `/api/health`;
-- anonymous client creation;
-- in-memory session creation, lookup, reset, deletion, and idle expiration;
-- evaluate endpoint backed by `session::Session`;
-- completion and focused help endpoints backed by `session::Session`;
-- JSON success and error envelopes;
-- ownership checks, session quota checks, source-size checks, request-body
-  size checks, and malformed JSON diagnostics;
-- focused `aleph3_web_api_tests` coverage.
-
-Not delivered in this slice:
-
-- HTTP socket listener;
-- `Run All` over persisted notebooks;
-- frontend application;
-- Traefik, BFF, or deployment configuration.
-
-Postgres-oriented notebook persistence and notebook CRUD endpoints were
-delivered in the following slice. Backend `Run All`, generated-result
-persistence, clear-results, and verified example notebook fixtures were
-delivered after that.
+Current active delivery starts at the BFF migration phases. Existing C++ API
+core and notebook core behavior remains useful repository evidence and
+migration source while the public web product converges on the BFF-owned API,
+persistence, anonymous identity, and examples.
 
 ## BFF Migration Plan
 
-The BFF is implemented at the start of Phase 6, not after the React UI is
-complete. Phase 6a creates the BFF process, public `/api/*` boundary, internal
-engine call path, and Compose service graph before notebook persistence or the
-full editor is built. From that point forward, browser-facing work targets the
-BFF API first.
+The BFF starts Phase 6, before the React UI is complete. Phase 6a creates the
+BFF process, public `/api/*` boundary, internal engine call path, and Compose
+service graph before notebook persistence or the full editor is built. From
+that point forward, browser-facing work targets the BFF API first.
 
 The existing C++ `aleph3_web_api` code should be handled as a migration source
 with three possible outcomes for each responsibility:
@@ -568,118 +532,6 @@ exists:
 Completion of Phase 6 requires one authoritative public API owner: the BFF.
 Any remaining C++ web API target must be documented as internal, transitional,
 or test-only.
-
-### Phase 1: Contract And Skeleton
-
-Deliver:
-
-- API contract draft;
-- C++ web service target;
-- `/api/health`;
-- JSON error envelope;
-- local development run command;
-- initial deployment boundary notes.
-
-Exit criteria:
-
-- service builds and runs locally;
-- health endpoint works;
-- no Aleph3 semantics are duplicated in web code.
-
-### Phase 2: Anonymous Clients And Sessions
-
-Deliver:
-
-- anonymous client token issuance;
-- session creation, lookup, reset, and deletion;
-- session TTL cleanup;
-- evaluate endpoint backed by `session::Session`;
-- per-client and per-session limits;
-- structured diagnostics.
-
-Exit criteria:
-
-- multiple anonymous clients can hold isolated sessions;
-- assignments persist within one session;
-- reset clears session-local definitions;
-- expired sessions are cleaned.
-
-### Phase 3: Completion And Help API Follow-Through
-
-Delivered:
-
-- session completion endpoint for editor prefixes;
-- focused help endpoint for names, prefixes, packages, and supported REPL-like
-  topics where they make sense in the web app;
-- JSON schema for completion items and help entries;
-- tests proving parity with CLI/session discovery for builtins, registered
-  pack functions, and session-local user definitions.
-
-Exit criteria met:
-
-- the web API does not maintain a private completion catalog;
-- completion/help results remain deterministic and finite;
-- missing non-empty help queries fail with stable structured responses;
-- prefix, package, and category help queries return stable structured lists;
-- documentation states that completion covers the supported subset rather than
-  broad Mathematica compatibility.
-
-### Phase 4: Postgres Notebook Persistence
-
-Delivered:
-
-- Postgres store contract, schema initialization, and optional libpq-backed
-  implementation;
-- notebook create, list, load, save, and delete;
-- ownership checks by anonymous client;
-- storage quotas;
-- document size validation.
-
-Exit criteria met in the API-core test harness:
-
-- invalid or oversized notebooks fail cleanly;
-- cross-client notebook access is rejected;
-- cookie loss limitation is documented.
-
-Exit criteria that applied to the earlier C++ Postgres path:
-
-- notebooks survive backend process restart against a real Postgres database;
-- production build links against libpq with `ALEPH3_ENABLE_POSTGRES=ON`;
-- `ALEPH3_DATABASE_URL` is documented and exercised in a deployment smoke
-  check.
-
-These are no longer launch criteria for the public web MVP after the BFF
-decision. The BFF-owned Postgres path carries the future deployment criteria.
-
-Not delivered in this slice:
-
-- `Run All` over persisted notebooks;
-- generated result persistence updates through `run-all`;
-- clear generated results endpoint;
-- example notebook fixtures;
-- HTTP socket listener or frontend application.
-
-### Phase 5: Notebook Run All Integration
-
-Delivered:
-
-- backend `run-all` using `aleph3_notebook_core`;
-- generated result persistence;
-- clear generated results;
-- example notebook fixtures.
-
-Exit criteria met in the API-core test harness:
-
-- `Run All` starts from clean state;
-- definitions flow from earlier cells to later cells during one run;
-- one failed cell does not stop later cells;
-- examples are verified.
-
-Not delivered in this slice:
-
-- HTTP socket listener;
-- browser frontend;
-- Traefik, BFF, or deployment configuration.
 
 ### Phase 6a: BFF Boundary And First Evaluation Loop
 

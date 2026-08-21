@@ -65,9 +65,8 @@ services receive substantial investment.
 
 1. Finish the remaining interactive definition, session reset, completion,
    help, and cross-surface conformance work needed for coherent notebook use.
-2. Close the smallest symbolic MVP gaps that are not already implemented:
-   minimal lexical binding, rational-expression helpers, coefficient
-   extraction, and first calculus follow-ups.
+2. Close the remaining small symbolic MVP gaps: minimal lexical binding and
+   first calculus follow-ups.
 3. Fill bounded numerical and finite-list gaps that make the notebook useful
    for sampled data and exact-or-approximate exploration without weakening the
    exact symbolic default.
@@ -88,7 +87,7 @@ services receive substantial investment.
 Each product tranche should pair a contract improvement with a mathematical
 capability and a user-visible or cross-surface way to exercise it. Missing
 shared behavior feeds back into the kernel or session rather than being
-implemented privately in a pack or UI.
+built privately in a pack or UI.
 
 ## Active Milestones
 
@@ -104,8 +103,8 @@ Remaining work:
 - define richer definition categories and their lookup/precedence rules;
 - prove another nontrivial behavior through shared definition state rather
   than evaluator-local branching;
-- grow beyond the implemented registry lifecycle contract only when runtime
-  pack loading or unload becomes an active slice;
+- grow registry lifecycle behavior only when runtime pack loading or unload
+  becomes an active slice;
 - keep evaluation-control attributes deliberately bounded until their hooks
   and precedence are tested.
 
@@ -115,9 +114,8 @@ Outcome: notebook, CLI, session, and SDK consumers that admit symbolic input
 use one predictable state model for assignments, user functions, cleanup,
 completion, and reset behavior.
 
-The implemented `Set`, `SetDelayed`, user function, `Clear`, `Unset`, and
-precedence foundations are owned by the symbol model, definition precedence,
-and manual documents rather than tracked here as unfinished work.
+Current definition behavior is owned by the symbol model, definition
+precedence, and manual documents rather than tracked here as unfinished work.
 
 Remaining work:
 
@@ -177,9 +175,9 @@ Remaining work:
 
 - introduce one minimal lexical binding construct, preferably `With`, before
   broader `Module` or `Block` semantics;
-- extend rational-expression work beyond the implemented `Cancel` and
-  `Together` subset only after excluded-domain metadata or partial-fraction
-  contracts are credible; `Apart` remains deferred;
+- extend rational-expression transformations only after excluded-domain
+  metadata or partial-fraction contracts are credible; `Apart` remains
+  deferred;
 - follow the focused differentiation pack with higher-order `D[expr, {x, n}]`
   and simple partial-derivative workflows;
 - specify a small exact `Solve` tranche after the notebook MVP unless a
@@ -201,29 +199,13 @@ capable CAS without weakening the kernel ownership, exactness, diagnostics,
 assumption, domain, and unsupported-behavior contracts that make the smaller
 system reliable.
 
-This roadmap records the engine gaps identified against the desired CAS
-checklist. It is not part of the Web MVP launch scope, and it must not cause
-the browser, BFF, CLI, session, SDK, or packs to invent private symbolic
-semantics. Each item below needs a focused specification before implementation
+This roadmap records the remaining engine gaps identified against the desired
+CAS checklist. It is not part of the Web MVP launch scope, and it must not
+cause the browser, BFF, CLI, session, SDK, or packs to invent private symbolic
+semantics. Current foundations are documented in the focused specifications,
+architecture guide, and user manual rather than repeated here as roadmap
+items. Each item below needs a focused specification before implementation
 unless an existing specification already owns the contract.
-
-Already implemented foundations to preserve:
-
-- shared `Expr` representation for symbols, exact integers and rationals,
-  machine numbers, complex values, calls, lists, assignments, rules, and user
-  definitions;
-- normalization, structural equality, canonical ordering, bounded rewriting,
-  capture-safe substitution, free and bound variable inspection, and limited
-  like-term and exponent normalization;
-- exact checked-rational arithmetic, explicit overflow diagnostics, and
-  opt-in machine-real approximation through the current `N` surface;
-- bounded algebra pack support for `Expand`, `Factor`, `Collect`, `GCD`,
-  `PolynomialQuotient`, `Coefficient`, `CoefficientList`, `Numerator`,
-  `Denominator`, bounded `Together` and `Cancel`, and exact dense matrix
-  operations;
-- narrow assumption and domain facts through `Assuming`, `Refine`, sign
-  predicates, nonzero facts, and integer/rational/real predicates;
-- focused differentiation through the calculus pack.
 
 Near-term engine gaps after the Web MVP:
 
@@ -303,8 +285,8 @@ manual pages, help entries, and cross-surface fixtures make those claims true.
 Outcome: the notebook can mix exact symbolic work with opt-in machine-real
 approximation and finite data operations without silently abandoning exactness.
 
-Already implemented numeric and list behavior remains documented in the manual
-and focused specifications. Roadmap work here is only for the remaining gaps.
+Current numeric and list behavior is documented in the manual and focused
+specifications. Roadmap work here is only for the remaining gaps.
 
 Remaining work:
 
@@ -317,10 +299,7 @@ Remaining work:
   deterministic errors for invalid indexes, unsupported symbolic bounds, and
   oversized results;
 - decide which operations are kernel structural contracts and which belong in
-  a core pack, while keeping DSP-specific sequence conventions in the DSP pack;
-- preserve implemented `List`, `Length`, one-level `Part`, `Map`, `Apply`,
-  `Select`, `Cases`, and current `N` behavior as current-contract foundations,
-  not future work.
+  a core pack, while keeping DSP-specific sequence conventions in the DSP pack.
 
 Arbitrary precision, broad numerical analysis, interval arithmetic,
 arbitrary-precision transcendental evaluation, lazy sequences, sequence
@@ -368,9 +347,9 @@ Remaining work:
   conventions are actually needed;
 - introduce held or bound-variable constructs for a focused `Sum` surface, and
   leave `Product` to follow only after the same binding contract is proven;
-- build on the implemented `FreeVariables`, `BoundVariables`, `DependsOn`, and
-  capture-safe substitution contract when adding summation, calculus, or
-  rewrite features that need shared binding;
+- use the shared variable-analysis and capture-safe substitution contracts
+  when adding summation, calculus, or rewrite features that need shared
+  binding;
 - add only the linear inequality normalization and bounded integer-range
   counting needed by the first DSP and summation workflows;
 - add conditional rewrite-rule support through the shared assumptions query
@@ -532,8 +511,8 @@ Use this order unless a regression or dependency changes it:
    sparse structured help entries with manual-backed examples and unsupported
    boundaries for the current supported surface.
 2. Specify and implement the remaining symbolic MVP gap-closure items across
-   lexical binding, calculus follow-ups, and rational-expression follow-through
-   such as excluded-domain metadata.
+   lexical binding, calculus follow-ups, and excluded-domain metadata for
+   transformations that need it.
 3. Specify and fill the remaining bounded numerical and finite-list gaps,
    especially `Range`, `Table`, `Total`, budget behavior, and unsupported
    diagnostics.

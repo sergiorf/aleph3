@@ -177,7 +177,7 @@ Supported forms:
 Boundaries:
 
 - the selector must be a single symbol;
-- input must be univariate in the selected symbol for this slice;
+- input must be univariate in the selected symbol for the current contract;
 - exact integer and rational coefficients are preserved;
 - decimal coefficients, symbolic coefficients, non-polynomial inputs,
   unsupported variables outside the selected univariate polynomial, negative
@@ -248,7 +248,7 @@ Domain boundary:
 
 - cancellation is valid on the original expression's nonzero-denominator
   domain;
-- this slice does not attach first-class excluded-point metadata to the
+- the current contract does not attach first-class excluded-point metadata to the
   result;
 - cancellation across unsupported symbolic or general multivariate
   denominators is rejected rather than silently erasing possible

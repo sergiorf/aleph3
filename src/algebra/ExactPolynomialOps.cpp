@@ -226,7 +226,8 @@ int exact_degree_in_variable(
 int64_t coefficient_denominator_lcm(const ExactPolynomial& polynomial) {
     int64_t result = 1;
     for (const auto& [_, coefficient] : polynomial.terms) {
-        result = std::lcm(result, coefficient.denominator);
+        const int64_t common = std::gcd(result, coefficient.denominator);
+        result = checked_exact_multiply(result / common, coefficient.denominator);
     }
     return result;
 }

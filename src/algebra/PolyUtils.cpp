@@ -17,7 +17,11 @@ ExprPtr expand_polynomial(const ExprPtr& expr, EvaluationContext& ctx) {
     static_cast<void>(ctx);
     const std::vector<std::string> variables = infer_polynomial_variables(expr);
     if (is_exact_polynomial_candidate(expr)) {
-        return exact_polynomial_to_expr(expand(expr_to_exact_polynomial(expr, variables)));
+        try {
+            return exact_polynomial_to_expr(expand(expr_to_exact_polynomial(expr, variables)));
+        } catch (const std::overflow_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        }
     }
 
     const Polynomial poly = expr_to_polynomial(expr, variables);
@@ -65,8 +69,12 @@ ExprPtr collect_polynomial(
     }
 
     if (is_exact_polynomial_candidate(expr)) {
-        return exact_polynomial_to_expr(
-            collect(expr_to_exact_polynomial(expr, polynomial_variables), variables));
+        try {
+            return exact_polynomial_to_expr(
+                collect(expr_to_exact_polynomial(expr, polynomial_variables), variables));
+        } catch (const std::overflow_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        }
     }
 
     const Polynomial poly = expr_to_polynomial(expr, polynomial_variables);

@@ -1,6 +1,7 @@
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "expr/Expr.hpp"
+#include "kernel/Diagnostics.hpp"
 #include "parser/Parser.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "transforms/Transforms.hpp"
@@ -19,6 +20,17 @@ ExprPtr evaluate_source(std::string_view source, EvaluationContext& ctx) {
 
 std::string simplify_string(const ExprPtr& expr) {
     return to_string(simplify(expr));
+}
+
+template <typename Operation>
+void require_exact_overflow(Operation&& operation) {
+    try {
+        operation();
+        FAIL("Expected exact overflow");
+    } catch (const kernel::RuntimeFailure& error) {
+        REQUIRE(error.error().code == "runtime.exact_overflow");
+        REQUIRE(std::string(error.what()) == "Exact coefficient overflow");
+    }
 }
 
 }  // namespace
@@ -331,6 +343,26 @@ TEST_CASE("Polynomial factor supports exact rational univariate coefficients", "
         REQUIRE(std::string(error.what()) ==
                 "Factor does not support multivariate rational coefficients");
     }
+}
+
+TEST_CASE("Polynomial helpers map exact overflow to public diagnostics", "[algebra][functions][overflow]") {
+    EvaluationContext ctx;
+
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("Expand[(3037000500*x) * (3037000500*x)]", ctx));
+    });
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("Collect[(3037000500*x) * (3037000500*x), x]", ctx));
+    });
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("PolynomialQuotient[3037000500*x, 1/3037000500, x]", ctx));
+    });
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("Factor[(3037000500*x) * (3037000500*x)]", ctx));
+    });
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("Together[1/3037000500 + 1/3037000501]", ctx));
+    });
 }
 
 TEST_CASE("Polynomial helpers preserve documented round-trip invariants", "[algebra][functions][contract]") {

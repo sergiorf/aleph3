@@ -255,6 +255,18 @@ TEST_CASE("exact multivariate gcd rejects two multi-term operands and reports ov
 
 TEST_CASE("exact coefficient arithmetic rejects overflow", "[algebra][conversion][exact][overflow]") {
     const ExactCoefficient large(std::numeric_limits<int64_t>::max(), 1);
+    const ExactCoefficient small(std::numeric_limits<int64_t>::min(), 1);
     REQUIRE_THROWS_AS(large * ExactCoefficient(2, 1), std::overflow_error);
     REQUIRE_THROWS_AS(large + ExactCoefficient(1, 1), std::overflow_error);
+    REQUIRE_THROWS_AS(small - ExactCoefficient(1, 1), std::overflow_error);
+    REQUIRE_THROWS_AS(large / ExactCoefficient(1, 2), std::overflow_error);
+}
+
+TEST_CASE("exact polynomial denominator LCM rejects overflow", "[algebra][conversion][exact][overflow]") {
+    const ExactPolynomial polynomial({
+        {Monomial{{"x", 1}}, ExactCoefficient(1, std::numeric_limits<int64_t>::max())},
+        {Monomial{}, ExactCoefficient(1, 2)}
+    });
+
+    REQUIRE_THROWS_AS(coefficient_denominator_lcm(polynomial), std::overflow_error);
 }

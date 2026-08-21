@@ -1,6 +1,7 @@
 #include "algebra/PolyUtils.hpp"
 #include "algebra/ExactFactorization.hpp"
 #include "algebra/ExactPolynomialConversion.hpp"
+#include "algebra/ExactPolynomialOps.hpp"
 #include "algebra/Polynomial.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/Expr.hpp"
@@ -148,32 +149,6 @@ namespace aleph3 {
             && is_near_zero(poly.terms.begin()->second);
     }
 
-    bool is_exact_constant_zero(const ExactPolynomial& poly) {
-        return poly.terms.size() == 1
-            && poly.terms.begin()->first.empty()
-            && poly.terms.begin()->second.is_zero();
-    }
-
-    bool is_exact_constant_one(const ExactPolynomial& poly) {
-        return poly.terms.size() == 1
-            && poly.terms.begin()->first.empty()
-            && poly.terms.begin()->second.is_one();
-    }
-
-    ExactPolynomial exact_constant(const ExactCoefficient& coefficient) {
-        return ExactPolynomial(coefficient);
-    }
-
-    ExactPolynomial multiply_by_scalar(
-        ExactPolynomial polynomial,
-        const ExactCoefficient& coefficient) {
-        for (auto& [_, term_coefficient] : polynomial.terms) {
-            term_coefficient = term_coefficient * coefficient;
-        }
-        polynomial.normalize();
-        return polynomial;
-    }
-
     struct PolynomialContent {
         double coefficient = 1.0;
         Monomial monomial;
@@ -288,18 +263,6 @@ namespace aleph3 {
         return true;
     }
 
-    bool is_univariate_in(const ExactPolynomial& poly, const std::string& var) {
-        for (const auto& [mono, coeff] : poly.terms) {
-            if (coeff.is_zero()) continue;
-            for (const auto& [mono_var, exponent] : mono) {
-                if (mono_var != var && exponent != 0) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
     int degree_in_variable(const Polynomial& poly, const std::string& var) {
         int degree = 0;
         for (const auto& [mono, coeff] : poly.terms) {
@@ -310,121 +273,6 @@ namespace aleph3 {
             }
         }
         return degree;
-    }
-
-    int degree_in_variable(const ExactPolynomial& poly, const std::string& var) {
-        int degree = 0;
-        for (const auto& [mono, coeff] : poly.terms) {
-            if (coeff.is_zero()) continue;
-            auto it = mono.find(var);
-            if (it != mono.end()) {
-                degree = std::max(degree, it->second);
-            }
-        }
-        return degree;
-    }
-
-    std::pair<Monomial, ExactCoefficient> leading_term(
-        const ExactPolynomial& poly,
-        const std::string& var) {
-        Monomial lead_monomial;
-        ExactCoefficient lead_coefficient = ExactCoefficient::zero();
-        int max_degree = -1;
-        for (const auto& [mono, coeff] : poly.terms) {
-            if (coeff.is_zero()) continue;
-            int degree = 0;
-            auto it = mono.find(var);
-            if (it != mono.end()) {
-                degree = it->second;
-            }
-            if (degree > max_degree) {
-                max_degree = degree;
-                lead_monomial = mono;
-                lead_coefficient = coeff;
-            }
-        }
-        return {lead_monomial, lead_coefficient};
-    }
-
-    std::pair<Monomial, ExactCoefficient> leading_term(
-        const ExactPolynomial& poly,
-        const std::vector<std::string>& variables) {
-        auto selected = poly.terms.end();
-        for (auto it = poly.terms.begin(); it != poly.terms.end(); ++it) {
-            if (it->second.is_zero()) continue;
-            if (selected == poly.terms.end() || exact_monomial_precedes(
-                    it->first,
-                    selected->first,
-                    MonomialOrder::graded_lexicographic,
-                    variables)) {
-                selected = it;
-            }
-        }
-        if (selected == poly.terms.end()) {
-            throw_internal_inconsistency("A zero polynomial has no leading term");
-        }
-        return {selected->first, selected->second};
-    }
-
-    ExactPolynomial make_monic(
-        ExactPolynomial polynomial,
-        const std::vector<std::string>& variables) {
-        if (polynomial.is_zero()) return polynomial;
-        const auto lead = leading_term(polynomial, variables).second;
-        for (auto& [_, coefficient] : polynomial.terms) {
-            coefficient = coefficient / lead;
-        }
-        polynomial.normalize();
-        return polynomial;
-    }
-
-    ExactCoefficient leading_coefficient_for_order(
-        const ExactPolynomial& polynomial,
-        const std::vector<std::string>& variables) {
-        if (polynomial.is_zero()) return ExactCoefficient::zero();
-        return leading_term(polynomial, variables).second;
-    }
-
-    int64_t coefficient_denominator_lcm(const ExactPolynomial& polynomial) {
-        int64_t result = 1;
-        for (const auto& [_, coefficient] : polynomial.terms) {
-            result = std::lcm(result, coefficient.denominator);
-        }
-        return result;
-    }
-
-    int64_t checked_abs_int64(int64_t value) {
-        if (value == std::numeric_limits<int64_t>::min()) {
-            throw std::overflow_error("Exact coefficient overflow");
-        }
-        return std::llabs(value);
-    }
-
-    int64_t integer_content(const ExactPolynomial& polynomial) {
-        int64_t result = 0;
-        for (const auto& [_, coefficient] : polynomial.terms) {
-            if (coefficient.is_zero()) continue;
-            if (coefficient.denominator != 1) {
-                throw_internal_inconsistency(
-                    "Integer content requires cleared exact coefficients");
-            }
-            const int64_t abs_numerator = checked_abs_int64(coefficient.numerator);
-            result = result == 0
-                ? abs_numerator
-                : std::gcd(result, abs_numerator);
-        }
-        return result == 0 ? 1 : result;
-    }
-
-    ExactPolynomial divide_by_integer_content(
-        ExactPolynomial polynomial,
-        int64_t content) {
-        if (content <= 1) return polynomial;
-        for (auto& [_, coefficient] : polynomial.terms) {
-            coefficient = coefficient / ExactCoefficient(content, 1);
-        }
-        polynomial.normalize();
-        return polynomial;
     }
 
     struct RationalExpression {
@@ -535,137 +383,6 @@ namespace aleph3 {
                 std::move(numerator),
                 exact_polynomial_to_expr(expression.denominator)
             });
-    }
-
-    size_t nonzero_term_count(const ExactPolynomial& polynomial) {
-        return static_cast<size_t>(std::count_if(
-            polynomial.terms.begin(),
-            polynomial.terms.end(),
-            [](const auto& term) { return !term.second.is_zero(); }));
-    }
-
-    int valuation_in_variable(
-        const ExactPolynomial& polynomial,
-        const std::string& variable) {
-        int valuation = std::numeric_limits<int>::max();
-        for (const auto& [monomial, coefficient] : polynomial.terms) {
-            if (coefficient.is_zero()) continue;
-            valuation = std::min(valuation, monomial_exponent(monomial, variable));
-        }
-        return valuation;
-    }
-
-    ExactPolynomial monomial_bounded_multivariate_gcd(
-        const ExactPolynomial& left,
-        const ExactPolynomial& right,
-        const std::vector<std::string>& variables) {
-        if (left.is_zero() && right.is_zero()) {
-            throw_domain_violation("gcd: GCD of two zero polynomials is undefined");
-        }
-        if (left.is_zero()) return make_monic(right, variables);
-        if (right.is_zero()) return make_monic(left, variables);
-
-        if (nonzero_term_count(left) != 1 && nonzero_term_count(right) != 1) {
-            throw_unsupported_construct(
-                "gcd: at least one multivariate operand must be a monomial");
-        }
-
-        Monomial common;
-        for (const auto& variable : variables) {
-            const int exponent = std::min(
-                valuation_in_variable(left, variable),
-                valuation_in_variable(right, variable));
-            if (exponent > 0) common[variable] = exponent;
-        }
-        return ExactPolynomial({{common, ExactCoefficient::one()}});
-    }
-
-    std::pair<ExactPolynomial, ExactPolynomial> divide_exact(
-        const ExactPolynomial& dividend,
-        const ExactPolynomial& divisor,
-        const std::vector<std::string>& variables) {
-        if (variables.empty()) throw_invalid_form("divide: variable selector cannot be empty");
-        if (divisor.is_zero()) {
-            throw std::domain_error("Polynomial division by zero");
-        }
-
-        ExactPolynomial remainder = dividend;
-        ExactPolynomial quotient;
-        ExactPolynomial reduced;
-
-        const auto leading = [&](const ExactPolynomial& polynomial) {
-            auto selected = polynomial.terms.end();
-            for (auto it = polynomial.terms.begin(); it != polynomial.terms.end(); ++it) {
-                if (it->second.is_zero()) continue;
-                if (selected == polynomial.terms.end() || exact_monomial_precedes(
-                        it->first,
-                        selected->first,
-                        MonomialOrder::graded_lexicographic,
-                        variables)) {
-                    selected = it;
-                }
-            }
-            return std::pair<Monomial, ExactCoefficient>{selected->first, selected->second};
-        };
-        const auto divides = [](const Monomial& divisor_mono, const Monomial& dividend_mono) {
-            for (const auto& [variable, exponent] : divisor_mono) {
-                if (monomial_exponent(dividend_mono, variable) < exponent) return false;
-            }
-            return true;
-        };
-        const auto subtract_monomial = [](Monomial dividend_mono, const Monomial& divisor_mono) {
-            for (const auto& [variable, exponent] : divisor_mono) {
-                dividend_mono[variable] -= exponent;
-                if (dividend_mono[variable] == 0) dividend_mono.erase(variable);
-            }
-            return dividend_mono;
-        };
-        const auto [divisor_mono, divisor_coeff] = leading(divisor);
-
-        while (!remainder.is_zero()) {
-            const auto [remainder_mono, remainder_coeff] = leading(remainder);
-            if (!divides(divisor_mono, remainder_mono)) {
-                const ExactPolynomial remainder_term({{remainder_mono, remainder_coeff}});
-                reduced = reduced + remainder_term;
-                remainder = remainder - remainder_term;
-                continue;
-            }
-            const Monomial quotient_mono = subtract_monomial(remainder_mono, divisor_mono);
-            ExactPolynomial quotient_term({
-                {quotient_mono, remainder_coeff / divisor_coeff}
-            });
-            quotient = quotient + quotient_term;
-            remainder = remainder - (divisor * quotient_term);
-        }
-
-        quotient.normalize();
-        reduced.normalize();
-        return {quotient, reduced};
-    }
-
-    ExactPolynomial gcd_exact(
-        const ExactPolynomial& left,
-        const ExactPolynomial& right,
-        const std::vector<std::string>& variables) {
-        if (variables.empty()) throw_invalid_form("gcd: variable selector cannot be empty");
-        if (variables.size() > 1) {
-            return monomial_bounded_multivariate_gcd(left, right, variables);
-        }
-
-        const std::string& var = variables[0];
-        if (!is_univariate_in(left, var) || !is_univariate_in(right, var)) {
-            throw_unsupported_construct("gcd: only univariate GCD is implemented");
-        }
-
-        ExactPolynomial a = left;
-        ExactPolynomial b = right;
-        while (!b.is_zero()) {
-            auto [_, remainder] = divide_exact(a, b, variables);
-            a = b;
-            b = remainder;
-        }
-
-        return make_monic(a, variables);
     }
 
     std::vector<int64_t> univariate_coefficients(const Polynomial& poly, const std::string& var) {
@@ -1241,7 +958,7 @@ namespace aleph3 {
         static_cast<void>(ctx);
         const std::vector<std::string> variables{variable};
         const ExactPolynomial poly = expr_to_exact_polynomial(expr, variables);
-        const int degree = degree_in_variable(poly, variable);
+        const int degree = exact_degree_in_variable(poly, variable);
         std::vector<ExprPtr> coefficients;
         coefficients.reserve(static_cast<std::size_t>(degree) + 1);
         for (int exponent = 0; exponent <= degree; ++exponent) {
@@ -1353,26 +1070,6 @@ namespace aleph3 {
         if (variables.size() != 1)
             throw_unsupported_construct("divide: only univariate division is implemented");
         return dividend.divide(divisor);
-    }
-
-    ExactPolynomial expand(const ExactPolynomial& poly) {
-        return poly;
-    }
-
-    ExactPolynomial collect(const ExactPolynomial& poly, const std::vector<std::string>& variables) {
-        static_cast<void>(variables);
-        return poly;
-    }
-
-    ExactPolynomial gcd(const ExactPolynomial& a, const ExactPolynomial& b, const std::vector<std::string>& variables) {
-        return gcd_exact(a, b, variables);
-    }
-
-    std::pair<ExactPolynomial, ExactPolynomial> divide(
-        const ExactPolynomial& dividend,
-        const ExactPolynomial& divisor,
-        const std::vector<std::string>& variables) {
-        return divide_exact(dividend, divisor, variables);
     }
 
 } // namespace aleph3

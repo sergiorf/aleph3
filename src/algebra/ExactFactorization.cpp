@@ -1,12 +1,12 @@
 #include "algebra/ExactFactorization.hpp"
 
 #include "algebra/ExactPolynomialConversion.hpp"
+#include "algebra/ExactPolynomialOps.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
 
 #include <algorithm>
 #include <cstdlib>
-#include <limits>
 #include <numeric>
 #include <optional>
 #include <set>
@@ -41,12 +41,6 @@ bool is_univariate_in(const ExactPolynomial& poly, const std::string& var) {
     return true;
 }
 
-bool is_exact_constant_one(const ExactPolynomial& poly) {
-    return poly.terms.size() == 1 &&
-        poly.terms.begin()->first.empty() &&
-        poly.terms.begin()->second.is_one();
-}
-
 int degree_in_variable(const ExactPolynomial& poly, const std::string& var) {
     int degree = 0;
     for (const auto& [mono, coeff] : poly.terms) {
@@ -57,67 +51,9 @@ int degree_in_variable(const ExactPolynomial& poly, const std::string& var) {
     return degree;
 }
 
-std::pair<Monomial, ExactCoefficient> leading_term(
-    const ExactPolynomial& poly,
-    const std::vector<std::string>& variables) {
-    auto selected = poly.terms.end();
-    for (auto it = poly.terms.begin(); it != poly.terms.end(); ++it) {
-        if (it->second.is_zero()) continue;
-        if (selected == poly.terms.end() ||
-            exact_monomial_precedes(
-                it->first,
-                selected->first,
-                MonomialOrder::graded_lexicographic,
-                variables)) {
-            selected = it;
-        }
-    }
-    if (selected == poly.terms.end()) {
-        throw_internal_inconsistency("A zero polynomial has no leading term");
-    }
-    return {selected->first, selected->second};
-}
-
-ExactCoefficient leading_coefficient_for_order(
-    const ExactPolynomial& polynomial,
-    const std::vector<std::string>& variables) {
-    if (polynomial.is_zero()) return ExactCoefficient::zero();
-    return leading_term(polynomial, variables).second;
-}
-
-ExactPolynomial multiply_by_scalar(
-    ExactPolynomial polynomial,
-    const ExactCoefficient& coefficient) {
-    for (auto& [_, term_coefficient] : polynomial.terms) {
-        term_coefficient = term_coefficient * coefficient;
-    }
-    polynomial.normalize();
-    return polynomial;
-}
-
 int64_t checked_exact_lcm(int64_t left, int64_t right) {
     if (left == 0 || right == 0) return 0;
     return checked_exact_multiply(left / std::gcd(left, right), right);
-}
-
-int64_t checked_abs_int64(int64_t value) {
-    if (value == std::numeric_limits<int64_t>::min()) {
-        throw std::overflow_error("Exact coefficient overflow");
-    }
-    return std::llabs(value);
-}
-
-int64_t integer_content(const ExactPolynomial& polynomial) {
-    int64_t result = 0;
-    for (const auto& [_, coefficient] : polynomial.terms) {
-        if (coefficient.is_zero()) continue;
-        if (coefficient.denominator != 1) {
-            throw_internal_inconsistency("Integer content requires cleared exact coefficients");
-        }
-        const int64_t abs_numerator = checked_abs_int64(coefficient.numerator);
-        result = result == 0 ? abs_numerator : std::gcd(result, abs_numerator);
-    }
-    return result == 0 ? 1 : result;
 }
 
 struct ExactPolynomialContent {

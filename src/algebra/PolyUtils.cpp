@@ -112,6 +112,11 @@ std::pair<ExprPtr, ExprPtr> divide_polynomial(
         };
     }
 
+    if (variables.size() > 1) {
+        throw_unsupported_construct(
+            "divide: multivariate division requires exact polynomial coefficients");
+    }
+
     const Polynomial left = expr_to_polynomial(dividend, variables);
     const Polynomial right = expr_to_polynomial(divisor, variables);
     auto [quotient, remainder] = divide(left, right, variables);

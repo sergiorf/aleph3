@@ -212,6 +212,32 @@ TEST_CASE("Polynomial algebra preserves exact rationals for supported helpers", 
     REQUIRE(simplify_string(result_list.elements[1]) == "0");
 }
 
+TEST_CASE("Exact algebra dispatch keeps supported rational inputs on exact paths", "[algebra][functions][rational][dispatch]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(*evaluate_source("Expand[(1/2) * (x + y)]", ctx))
+            == "1/2 * x + 1/2 * y");
+    REQUIRE(to_string(*evaluate_source("Collect[(1/2)*x*y + (3/2)*y, y]", ctx))
+            == "1/2 * x * y + 3/2 * y");
+    REQUIRE(simplify_string(evaluate_source("GCD[x^2 - 1/4, x - 1/2, x]", ctx))
+            == "x - 1/2");
+
+    const auto quotient_result =
+        evaluate_source("PolynomialQuotient[x^2 - 1/4, x - 1/2, x]", ctx);
+    REQUIRE(std::holds_alternative<List>(*quotient_result));
+    const auto& quotient_parts = std::get<List>(*quotient_result).elements;
+    REQUIRE(quotient_parts.size() == 2);
+    REQUIRE(simplify_string(quotient_parts[0]) == "x + 1/2");
+    REQUIRE(simplify_string(quotient_parts[1]) == "0");
+
+    REQUIRE(to_string(*evaluate_source("Factor[(1/2)*x^2 + x + 1/2]", ctx))
+            == "1/2 * (x + 1) * (x + 1)");
+    REQUIRE(simplify_string(evaluate_source("Together[1/2 + 1/x]", ctx))
+            == "(x + 2) / (2 * x)");
+    REQUIRE(simplify_string(evaluate_source("Cancel[(1/2*x)/(1/4)]", ctx))
+            == "2 * x");
+}
+
 TEST_CASE("Rational expression transformations preserve exact supported forms", "[algebra][functions][rational-expression]") {
     EvaluationContext ctx;
 
@@ -246,6 +272,38 @@ TEST_CASE("Rational expression transformations reject unsupported and invalid in
         FAIL("Expected Together to reject unsupported denominator-zero input");
     } catch (const EvaluatorError& ex) {
         REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+    }
+}
+
+TEST_CASE("Inexact inputs do not enter exact multivariate algebra dispatch", "[algebra][functions][dispatch]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(*evaluate_source("Expand[0.5 * (x + y)]", ctx))
+            == "0.5 * x + 0.5 * y");
+
+    try {
+        static_cast<void>(evaluate_source("Together[0.5*x + 1/x]", ctx));
+        FAIL("Expected Together to reject inexact rational-expression input");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+    }
+
+    try {
+        static_cast<void>(evaluate_source("GCD[0.5*x*y, x, {x, y}]", ctx));
+        FAIL("Expected inexact multivariate GCD to remain unsupported");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(ex.what()) ==
+            "gcd: multivariate GCD requires exact polynomial coefficients");
+    }
+
+    try {
+        static_cast<void>(evaluate_source("PolynomialQuotient[0.5*x*y, x, {x, y}]", ctx));
+        FAIL("Expected inexact multivariate division to remain unsupported");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(ex.what()) ==
+            "divide: multivariate division requires exact polynomial coefficients");
     }
 }
 

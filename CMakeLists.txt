@@ -125,6 +125,7 @@ if(ALEPH3_BUILD_KERNEL)
         src/algebra/ExactFactorization.cpp
         src/algebra/ExactPolynomialConversion.cpp
         src/algebra/ExactPolynomialOps.cpp
+        src/algebra/ExactRationalExpression.cpp
         src/algebra/Polynomial.cpp
         src/algebra/PolyUtils.cpp
         src/packs/AlgebraPack.cpp)

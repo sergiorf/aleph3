@@ -1,6 +1,6 @@
 #include "algebra/ExactFactorization.hpp"
 
-#include "algebra/PolyUtils.hpp"
+#include "algebra/ExactPolynomialConversion.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
 
@@ -19,13 +19,6 @@ struct RationalRoot {
     int64_t numerator = 0;
     int64_t denominator = 1;
 };
-
-ExprPtr exact_coefficient_to_expr(const ExactCoefficient& coefficient) {
-    if (coefficient.denominator == 1) {
-        return make_expr<Number>(static_cast<double>(coefficient.numerator));
-    }
-    return make_expr<Rational>(coefficient.numerator, coefficient.denominator);
-}
 
 std::vector<std::string> infer_variables(const ExactPolynomial& poly) {
     std::set<std::string> vars;

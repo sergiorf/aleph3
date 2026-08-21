@@ -123,6 +123,7 @@ if(ALEPH3_BUILD_KERNEL)
 
     add_library(aleph3_pack_algebra
         src/algebra/ExactFactorization.cpp
+        src/algebra/ExactPolynomialConversion.cpp
         src/algebra/Polynomial.cpp
         src/algebra/PolyUtils.cpp
         src/packs/AlgebraPack.cpp)

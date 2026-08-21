@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "ExactPolynomialConversion.hpp"
 #include "ExactPolynomial.hpp"
 #include "Polynomial.hpp"
 #include "expr/Expr.hpp"
@@ -47,7 +48,4 @@ namespace aleph3 {
     // Conversion utilities
     Polynomial expr_to_polynomial(const ExprPtr& expr, const std::vector<std::string>& variables);
     ExprPtr polynomial_to_expr(const Polynomial& poly);
-    ExactPolynomial expr_to_exact_polynomial(const ExprPtr& expr, const std::vector<std::string>& variables);
-    ExprPtr exact_polynomial_to_expr(const ExactPolynomial& poly);
-
 } // namespace aleph3

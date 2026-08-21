@@ -88,9 +88,13 @@ ExprPtr gcd_polynomial(
     EvaluationContext& ctx) {
     static_cast<void>(ctx);
     if (is_exact_polynomial_candidate(a) && is_exact_polynomial_candidate(b)) {
-        const ExactPolynomial left = expr_to_exact_polynomial(a, variables);
-        const ExactPolynomial right = expr_to_exact_polynomial(b, variables);
-        return exact_polynomial_to_expr(gcd(left, right, variables));
+        try {
+            const ExactPolynomial left = expr_to_exact_polynomial(a, variables);
+            const ExactPolynomial right = expr_to_exact_polynomial(b, variables);
+            return exact_polynomial_to_expr(gcd(left, right, variables));
+        } catch (const std::overflow_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        }
     }
 
     if (variables.size() > 1) {
@@ -111,13 +115,19 @@ std::pair<ExprPtr, ExprPtr> divide_polynomial(
     static_cast<void>(ctx);
     if (is_exact_polynomial_candidate(dividend) &&
         is_exact_polynomial_candidate(divisor)) {
-        const ExactPolynomial left = expr_to_exact_polynomial(dividend, variables);
-        const ExactPolynomial right = expr_to_exact_polynomial(divisor, variables);
-        auto [quotient, remainder] = divide(left, right, variables);
-        return {
-            exact_polynomial_to_expr(quotient),
-            exact_polynomial_to_expr(remainder)
-        };
+        try {
+            const ExactPolynomial left = expr_to_exact_polynomial(dividend, variables);
+            const ExactPolynomial right = expr_to_exact_polynomial(divisor, variables);
+            auto [quotient, remainder] = divide(left, right, variables);
+            return {
+                exact_polynomial_to_expr(quotient),
+                exact_polynomial_to_expr(remainder)
+            };
+        } catch (const std::overflow_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        } catch (const std::domain_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        }
     }
 
     if (variables.size() > 1) {
@@ -142,14 +152,18 @@ ExprPtr coefficient_polynomial(
     }
 
     const std::vector<std::string> variables{variable};
-    const ExactPolynomial poly = expr_to_exact_polynomial(expr, variables);
-    ExactCoefficient coefficient = ExactCoefficient::zero();
-    for (const auto& [monomial, term_coefficient] : poly.terms) {
-        if (monomial_exponent(monomial, variable) == exponent) {
-            coefficient = coefficient + term_coefficient;
+    try {
+        const ExactPolynomial poly = expr_to_exact_polynomial(expr, variables);
+        ExactCoefficient coefficient = ExactCoefficient::zero();
+        for (const auto& [monomial, term_coefficient] : poly.terms) {
+            if (monomial_exponent(monomial, variable) == exponent) {
+                coefficient = coefficient + term_coefficient;
+            }
         }
+        return exact_coefficient_to_expr(coefficient);
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     }
-    return exact_coefficient_to_expr(coefficient);
 }
 
 ExprPtr coefficient_list_polynomial(
@@ -158,20 +172,24 @@ ExprPtr coefficient_list_polynomial(
     EvaluationContext& ctx) {
     static_cast<void>(ctx);
     const std::vector<std::string> variables{variable};
-    const ExactPolynomial poly = expr_to_exact_polynomial(expr, variables);
-    const int degree = exact_degree_in_variable(poly, variable);
-    std::vector<ExprPtr> coefficients;
-    coefficients.reserve(static_cast<std::size_t>(degree) + 1);
-    for (int exponent = 0; exponent <= degree; ++exponent) {
-        ExactCoefficient coefficient = ExactCoefficient::zero();
-        for (const auto& [monomial, term_coefficient] : poly.terms) {
-            if (monomial_exponent(monomial, variable) == exponent) {
-                coefficient = coefficient + term_coefficient;
+    try {
+        const ExactPolynomial poly = expr_to_exact_polynomial(expr, variables);
+        const int degree = exact_degree_in_variable(poly, variable);
+        std::vector<ExprPtr> coefficients;
+        coefficients.reserve(static_cast<std::size_t>(degree) + 1);
+        for (int exponent = 0; exponent <= degree; ++exponent) {
+            ExactCoefficient coefficient = ExactCoefficient::zero();
+            for (const auto& [monomial, term_coefficient] : poly.terms) {
+                if (monomial_exponent(monomial, variable) == exponent) {
+                    coefficient = coefficient + term_coefficient;
+                }
             }
+            coefficients.push_back(exact_coefficient_to_expr(coefficient));
         }
-        coefficients.push_back(exact_coefficient_to_expr(coefficient));
+        return make_expr<List>(List{std::move(coefficients)});
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     }
-    return make_expr<List>(List{std::move(coefficients)});
 }
 
 ExprPtr numerator_rational_expression(const ExprPtr& expr, EvaluationContext& ctx) {

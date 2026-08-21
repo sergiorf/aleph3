@@ -33,6 +33,20 @@ void require_exact_overflow(Operation&& operation) {
     }
 }
 
+template <typename Operation>
+void require_runtime_diagnostic(
+    Operation&& operation,
+    std::string_view code,
+    std::string_view message) {
+    try {
+        operation();
+        FAIL("Expected runtime diagnostic");
+    } catch (const kernel::RuntimeFailure& error) {
+        REQUIRE(error.error().code == code);
+        REQUIRE(std::string_view(error.what()) == message);
+    }
+}
+
 }  // namespace
 
 TEST_CASE("Polynomial functions expand and collect to stable polynomial forms", "[algebra][functions]") {
@@ -375,14 +389,42 @@ TEST_CASE("Polynomial helpers map exact overflow to public diagnostics", "[algeb
         static_cast<void>(evaluate_source("Collect[(3037000500*x) * (3037000500*x), x]", ctx));
     });
     require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("GCD[(3037000500*x) * (3037000500*x), 3037000500*x, x]", ctx));
+    });
+    require_exact_overflow([&] {
         static_cast<void>(evaluate_source("PolynomialQuotient[3037000500*x, 1/3037000500, x]", ctx));
+    });
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("Coefficient[(3037000500*x) * (3037000500*x), x, 2]", ctx));
+    });
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("CoefficientList[(3037000500*x) * (3037000500*x), x]", ctx));
     });
     require_exact_overflow([&] {
         static_cast<void>(evaluate_source("Factor[(3037000500*x) * (3037000500*x)]", ctx));
     });
     require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("Numerator[1/3037000500 + 1/3037000501]", ctx));
+    });
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("Denominator[1/3037000500 + 1/3037000501]", ctx));
+    });
+    require_exact_overflow([&] {
         static_cast<void>(evaluate_source("Together[1/3037000500 + 1/3037000501]", ctx));
     });
+}
+
+TEST_CASE("Polynomial helpers map exact division by zero to public diagnostics", "[algebra][functions][diagnostics]") {
+    EvaluationContext ctx;
+
+    require_runtime_diagnostic(
+        [&] { static_cast<void>(evaluate_source("PolynomialQuotient[x, 0, x]", ctx)); },
+        "runtime.division_by_zero",
+        "Polynomial division by zero");
+    require_runtime_diagnostic(
+        [&] { static_cast<void>(evaluate_source("Cancel[x/0]", ctx)); },
+        "runtime.division_by_zero",
+        "Rational expression denominator is zero");
 }
 
 TEST_CASE("Polynomial helpers preserve documented round-trip invariants", "[algebra][functions][contract]") {

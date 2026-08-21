@@ -121,6 +121,64 @@ TEST_CASE("Polynomial quotient preserves nonzero remainders", "[algebra][functio
     REQUIRE(simplify_string(result_list.elements[1]) == "2");
 }
 
+TEST_CASE("Polynomial remainder exposes the supported division remainder", "[algebra][functions]") {
+    EvaluationContext ctx;
+
+    REQUIRE(simplify_string(evaluate_source("PolynomialRemainder[x^2 + 1, x + 1, x]", ctx)) == "2");
+    REQUIRE(simplify_string(evaluate_source("PolynomialRemainder[x^2 - 1, x - 1, x]", ctx)) == "0");
+    REQUIRE(simplify_string(evaluate_source("PolynomialRemainder[x^2 - 1/4, x - 1/2, x]", ctx)) == "0");
+    REQUIRE(simplify_string(evaluate_source(
+        "PolynomialRemainder[x^2*y + x*y^2 + y, x*y, {x, y}]", ctx)) == "y");
+
+    try {
+        static_cast<void>(evaluate_source("PolynomialRemainder[x*y, x]", ctx));
+        FAIL("Expected PolynomialRemainder inference across multivariate input to reject");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(ex.what()) ==
+            "divide: multivariate division requires an explicit variable selector");
+    }
+}
+
+TEST_CASE("Polynomial inspection helpers return exact degree and leading coefficient", "[algebra][functions]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(*evaluate_source("PolynomialDegree[3*x^2 + 2*x + 1, x]", ctx)) == "2");
+    REQUIRE(to_string(*evaluate_source("PolynomialDegree[7, x]", ctx)) == "0");
+    REQUIRE(to_string(*evaluate_source("PolynomialDegree[(1/2)*x^3 + x, x]", ctx)) == "3");
+
+    REQUIRE(to_string(*evaluate_source("LeadingCoefficient[3*x^2 + 2*x + 1, x]", ctx)) == "3");
+    REQUIRE(to_string(*evaluate_source("LeadingCoefficient[(1/2)*x^2 + x, x]", ctx)) == "1/2");
+    REQUIRE(to_string(*evaluate_source("LeadingCoefficient[7, x]", ctx)) == "7");
+}
+
+TEST_CASE("Polynomial inspection helpers reject zero and unsupported inputs explicitly", "[algebra][functions][diagnostics]") {
+    EvaluationContext ctx;
+
+    require_runtime_diagnostic(
+        [&] { static_cast<void>(evaluate_source("PolynomialDegree[0, x]", ctx)); },
+        "runtime.domain_violation",
+        "PolynomialDegree of zero polynomial is undefined in the current subset");
+    require_runtime_diagnostic(
+        [&] { static_cast<void>(evaluate_source("LeadingCoefficient[0, x]", ctx)); },
+        "runtime.domain_violation",
+        "LeadingCoefficient of zero polynomial is undefined in the current subset");
+
+    try {
+        static_cast<void>(evaluate_source("PolynomialDegree[x*y + 1, x]", ctx));
+        FAIL("Expected PolynomialDegree to reject unsupported multivariate input");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::invalid_form);
+    }
+
+    try {
+        static_cast<void>(evaluate_source("LeadingCoefficient[0.5*x + 1, x]", ctx));
+        FAIL("Expected LeadingCoefficient to reject inexact polynomial input");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+    }
+}
+
 TEST_CASE("Polynomial GCD supports bounded exact multivariate input", "[algebra][functions]") {
     EvaluationContext ctx;
 
@@ -395,6 +453,15 @@ TEST_CASE("Polynomial helpers map exact overflow to public diagnostics", "[algeb
         static_cast<void>(evaluate_source("PolynomialQuotient[3037000500*x, 1/3037000500, x]", ctx));
     });
     require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("PolynomialRemainder[3037000500*x, 1/3037000500, x]", ctx));
+    });
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("PolynomialDegree[(3037000500*x) * (3037000500*x), x]", ctx));
+    });
+    require_exact_overflow([&] {
+        static_cast<void>(evaluate_source("LeadingCoefficient[(3037000500*x) * (3037000500*x), x]", ctx));
+    });
+    require_exact_overflow([&] {
         static_cast<void>(evaluate_source("Coefficient[(3037000500*x) * (3037000500*x), x, 2]", ctx));
     });
     require_exact_overflow([&] {
@@ -419,6 +486,10 @@ TEST_CASE("Polynomial helpers map exact division by zero to public diagnostics",
 
     require_runtime_diagnostic(
         [&] { static_cast<void>(evaluate_source("PolynomialQuotient[x, 0, x]", ctx)); },
+        "runtime.division_by_zero",
+        "Polynomial division by zero");
+    require_runtime_diagnostic(
+        [&] { static_cast<void>(evaluate_source("PolynomialRemainder[x, 0, x]", ctx)); },
         "runtime.division_by_zero",
         "Polynomial division by zero");
     require_runtime_diagnostic(
@@ -511,6 +582,8 @@ TEST_CASE("Polynomial helpers keep multivariate support boundaries explicit", "[
     REQUIRE(simplify_string(parts[1]) == "y");
     REQUIRE(simplify_string(evaluate_source(
         "Expand[x*y*(x+y)+y]", ctx)) == "x^2 * y + x * y^2 + y");
+    REQUIRE(simplify_string(evaluate_source(
+        "PolynomialRemainder[x^2*y + x*y^2 + y, x*y, {x, y}]", ctx)) == "y");
 
     REQUIRE_THROWS_AS(
         evaluate_source("PolynomialQuotient[0.5*x*y, x, {x, y}]", ctx),

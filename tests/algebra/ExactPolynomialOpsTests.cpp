@@ -88,6 +88,21 @@ TEST_CASE("Exact polynomial division reconstructs supported dividend", "[algebra
     REQUIRE((divisor * quotient + remainder).terms == dividend.terms);
 }
 
+TEST_CASE("Exact polynomial degree and leading term helpers inspect supported polynomials", "[algebra][exact][inspect]") {
+    const ExactPolynomial polynomial({
+        {Monomial{{"x", 3}}, ExactCoefficient(2, 3)},
+        {Monomial{{"x", 1}}, ExactCoefficient(-1, 2)},
+        {Monomial{}, ExactCoefficient(4, 1)}
+    });
+
+    REQUIRE(exact_degree_in_variable(polynomial, "x") == 3);
+    REQUIRE(leading_coefficient_for_order(polynomial, {"x"}) == ExactCoefficient(2, 3));
+
+    const ExactPolynomial constant(ExactCoefficient(7, 1));
+    REQUIRE(exact_degree_in_variable(constant, "x") == 0);
+    REQUIRE(leading_coefficient_for_order(constant, {"x"}) == ExactCoefficient(7, 1));
+}
+
 TEST_CASE("Exact monomial ordering follows explicit variable precedence", "[algebra][exact][order]") {
     const Monomial xy{{"x", 1}, {"y", 1}};
     const Monomial x2{{"x", 2}};

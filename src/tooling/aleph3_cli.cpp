@@ -309,7 +309,8 @@ void print_help() {
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
         << "  symbolic-* commands use the broader symbolic engine, including\n"
         << "  polynomial functions such as Expand, Factor, Collect, GCD, PolynomialQuotient,\n"
-        << "  Coefficient, CoefficientList, Numerator, Denominator, Together, and Cancel.\n"
+        << "  PolynomialRemainder, PolynomialDegree, LeadingCoefficient, Coefficient,\n"
+        << "  CoefficientList, Numerator, Denominator, Together, and Cancel.\n"
         << "  It also supports first-step symbolic rule workflows through Replace,\n"
         << "  ReplaceAll, /., ReplaceRepeated, and MatchQ over the current named-binder pattern subset.\n"
         << "  Factor currently supports common-content extraction and integer-coefficient\n"

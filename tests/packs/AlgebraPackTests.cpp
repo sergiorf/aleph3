@@ -109,6 +109,29 @@ TEST_CASE("Algebra pack extracts exact polynomial coefficients", "[packs][algebr
     REQUIRE(coefficient_list_spec->metadata.owning_package == "core-algebra");
 }
 
+TEST_CASE("Algebra pack owns exact polynomial inspection helpers", "[packs][algebra][exact][inspect]") {
+    kernel::FunctionRegistry registry;
+    packs::register_algebra_pack(registry);
+    EvaluationContext ctx(registry);
+
+    REQUIRE(to_string(*evaluate_source("PolynomialRemainder[x^2 + 1, x + 1, x]", ctx)) == "2");
+    REQUIRE(to_string(*evaluate_source("PolynomialDegree[(1/2)*x^3 + x, x]", ctx)) == "3");
+    REQUIRE(to_string(*evaluate_source("LeadingCoefficient[(1/2)*x^3 + x, x]", ctx)) == "1/2");
+
+    const auto* remainder_spec = registry.find_symbolic_function_spec("PolynomialRemainder");
+    const auto* degree_spec = registry.find_symbolic_function_spec("PolynomialDegree");
+    const auto* leading_coefficient_spec = registry.find_symbolic_function_spec("LeadingCoefficient");
+    REQUIRE(remainder_spec != nullptr);
+    REQUIRE(degree_spec != nullptr);
+    REQUIRE(leading_coefficient_spec != nullptr);
+    REQUIRE(remainder_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(degree_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(leading_coefficient_spec->metadata.source == kernel::RegistrationSource::pack);
+    REQUIRE(remainder_spec->metadata.owning_package == "core-algebra");
+    REQUIRE(degree_spec->metadata.owning_package == "core-algebra");
+    REQUIRE(leading_coefficient_spec->metadata.owning_package == "core-algebra");
+}
+
 TEST_CASE("Algebra pack extracts supported rational expression parts", "[packs][algebra][rational-expression]") {
     kernel::FunctionRegistry registry;
     packs::register_algebra_pack(registry);
@@ -158,6 +181,7 @@ TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][
     packs::register_algebra_pack(registry);
 
     for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient",
+             "PolynomialRemainder", "PolynomialDegree", "LeadingCoefficient",
              "Coefficient", "CoefficientList", "Numerator", "Denominator", "Together", "Cancel",
              "MatrixAdd", "MatrixMultiply", "IdentityMatrix", "Transpose", "Det", "RowReduce",
              "LinearSolve"}) {

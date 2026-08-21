@@ -252,6 +252,43 @@ ExprPtr evaluate_polynomial_quotient(const FunctionCall& func, EvaluationContext
     }
 }
 
+ExprPtr evaluate_polynomial_remainder(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2 && func.args.size() != 3) {
+        throw_invalid_arity_between("PolynomialRemainder", 2, 3);
+    }
+    const auto variables = func.args.size() == 3
+        ? extract_variables(func.args[2])
+        : infer_variables(func.args[0], func.args[1]);
+    if (func.args.size() == 2 && variables.size() != 1) {
+        throw_unsupported_construct(
+            "divide: multivariate division requires an explicit variable selector");
+    }
+    try {
+        return remainder_polynomial(func.args[0], func.args[1], variables, ctx);
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+    } catch (const std::domain_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+    }
+}
+
+ExprPtr evaluate_polynomial_degree(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) {
+        throw_invalid_arity_exact("PolynomialDegree", 2);
+    }
+    return degree_polynomial(func.args[0], extract_single_variable(func.args[1]), ctx);
+}
+
+ExprPtr evaluate_leading_coefficient(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) {
+        throw_invalid_arity_exact("LeadingCoefficient", 2);
+    }
+    return leading_coefficient_polynomial(
+        func.args[0],
+        extract_single_variable(func.args[1]),
+        ctx);
+}
+
 ExprPtr evaluate_coefficient(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 2 && func.args.size() != 3) {
         throw_invalid_arity_between("Coefficient", 2, 3);
@@ -447,6 +484,24 @@ void register_algebra_pack(kernel::FunctionRegistry& registry) {
         "PolynomialQuotient",
         evaluate_polynomial_quotient,
         "Return polynomial quotient and remainder for the current supported subset.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "PolynomialRemainder",
+        evaluate_polynomial_remainder,
+        "Return the polynomial remainder for the current supported division subset.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "PolynomialDegree",
+        evaluate_polynomial_degree,
+        "Return the degree of a supported exact polynomial in one variable.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "LeadingCoefficient",
+        evaluate_leading_coefficient,
+        "Return the leading coefficient of a supported exact polynomial.",
         true);
     registry.register_pack_function(
         std::string(kPackageName),

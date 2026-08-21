@@ -37,6 +37,19 @@ namespace aleph3 {
         const ExprPtr& divisor,
         const std::vector<std::string>& variables,
         EvaluationContext& ctx);
+    ExprPtr remainder_polynomial(
+        const ExprPtr& dividend,
+        const ExprPtr& divisor,
+        const std::vector<std::string>& variables,
+        EvaluationContext& ctx);
+    ExprPtr degree_polynomial(
+        const ExprPtr& expr,
+        const std::string& variable,
+        EvaluationContext& ctx);
+    ExprPtr leading_coefficient_polynomial(
+        const ExprPtr& expr,
+        const std::string& variable,
+        EvaluationContext& ctx);
     ExprPtr coefficient_polynomial(
         const ExprPtr& expr,
         const std::string& variable,

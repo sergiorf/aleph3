@@ -22,6 +22,11 @@ The current symbolic algebra surface is:
 - `PolynomialQuotient[a, b]`
 - `PolynomialQuotient[a, b, var]`
 - `PolynomialQuotient[a, b, {var1, ...}]` for exact multivariate inputs
+- `PolynomialRemainder[a, b]`
+- `PolynomialRemainder[a, b, var]`
+- `PolynomialRemainder[a, b, {var1, ...}]` for exact multivariate inputs
+- `PolynomialDegree[poly, var]`
+- `LeadingCoefficient[poly, var]`
 - `Coefficient[poly, var]`
 - `Coefficient[poly, var, n]`
 - `CoefficientList[poly, var]`
@@ -91,10 +96,11 @@ Variable selectors follow this contract:
 - a selector must be a symbol or a non-empty list of symbols
 - duplicate symbols in a selector list are ignored after the first occurrence
 - `Collect` accepts a selector that names variables not present in the input
-- `GCD` and `PolynomialQuotient` infer a single variable from both operands
-  when no explicit selector is provided
-- exact multivariate `PolynomialQuotient` requires an explicit selector list;
-  its order defines variable precedence under fixed graded lexicographic order
+- `GCD`, `PolynomialQuotient`, and `PolynomialRemainder` infer a single
+  variable from both operands when no explicit selector is provided
+- exact multivariate `PolynomialQuotient` and `PolynomialRemainder` require an
+  explicit selector list; its order defines variable precedence under fixed
+  graded lexicographic order
 - exact multivariate `GCD` requires an explicit selector list and at least one
   single-term monomial operand when both operands are nonzero
 - inexact multivariate `GCD` and division remain unsupported
@@ -106,6 +112,7 @@ Examples of explicit failures:
 - `GCD[x^2 - 1, y - 1]` -> unsupported multivariate inference
 - `GCD[x + y, x - y, {x, y}]` -> unsupported two-multi-term case
 - `PolynomialQuotient[x*y, x]` -> explicit selector required
+- `PolynomialRemainder[x*y, x]` -> explicit selector required
 - `PolynomialQuotient[0.5*x*y, x, {x, y}]` -> unsupported inexact division
 
 ## Exact Rational Contract
@@ -125,7 +132,10 @@ Current boundary:
 - `Expand` and `Collect` preserve exact rational coefficients for both
   univariate and multivariate supported polynomial inputs
 - supported univariate `GCD` and univariate or explicitly selected multivariate
-  `PolynomialQuotient` preserve exact rational coefficients
+  `PolynomialQuotient` and `PolynomialRemainder` preserve exact rational
+  coefficients
+- `PolynomialDegree` and `LeadingCoefficient` inspect exact univariate
+  integer/rational polynomials without approximate fallback
 - `Coefficient` and `CoefficientList` preserve exact integer and rational
   coefficients in the selected univariate polynomial subset
 - supported explicitly selected multivariate `GCD` returns the monic common
@@ -146,6 +156,12 @@ Examples:
 - `Collect[(1/2) * x + 1, x]` -> `1/2 * x + 1`
 - `Collect[(1/2) * x * y + (3/2) * y, y]` -> `1/2 * x * y + 3/2 * y`
 - `PolynomialQuotient[x^2 - 1/4, x - 1/2, x]` -> `{x + 1/2, 0}`
+- `PolynomialRemainder[x^2 + 1, x + 1, x]` -> `2`
+- `PolynomialRemainder[x^2*y + x*y^2 + y, x*y, {x, y}]` -> `y`
+- `PolynomialDegree[3*x^2 + 2*x + 1, x]` -> `2`
+- `PolynomialDegree[7, x]` -> `0`
+- `LeadingCoefficient[3*x^2 + 2*x + 1, x]` -> `3`
+- `LeadingCoefficient[(1/2)*x^2 + x, x]` -> `1/2`
 - `GCD[x*y + x, x, {x, y}]` -> `x`
 - `GCD[x^2*y, x*y^2, {x, y}]` -> `x*y`
 - `PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]` -> `{x + y, y}`
@@ -179,6 +195,54 @@ Boundaries:
 - the selector must be a single symbol;
 - input must be univariate in the selected symbol for the current contract;
 - exact integer and rational coefficients are preserved;
+- decimal coefficients, symbolic coefficients, non-polynomial inputs,
+  unsupported variables outside the selected univariate polynomial, negative
+  or symbolic exponents, and exact coefficient overflow fail explicitly.
+
+## Polynomial Inspection
+
+`PolynomialRemainder`, `PolynomialDegree`, and `LeadingCoefficient` expose
+small exact-polynomial facts without broadening the factorization or solving
+contract.
+
+`PolynomialRemainder` returns only the remainder part of the same supported
+division contract used by `PolynomialQuotient`.
+
+Supported forms:
+
+- `PolynomialRemainder[a, b]`
+- `PolynomialRemainder[a, b, x]`
+- `PolynomialRemainder[a, b, {x, y}]`
+
+Examples:
+
+- `PolynomialRemainder[x^2 + 1, x + 1, x]` -> `2`
+- `PolynomialRemainder[x^2 - 1, x - 1, x]` -> `0`
+- `PolynomialRemainder[x^2*y + x*y^2 + y, x*y, {x, y}]` -> `y`
+
+`PolynomialDegree[poly, x]` returns the largest non-negative exponent of `x`
+in a supported exact univariate polynomial. Constants have degree zero.
+
+`LeadingCoefficient[poly, x]` returns the exact coefficient of that largest
+power.
+
+Examples:
+
+- `PolynomialDegree[3*x^2 + 2*x + 1, x]` -> `2`
+- `PolynomialDegree[7, x]` -> `0`
+- `LeadingCoefficient[3*x^2 + 2*x + 1, x]` -> `3`
+- `LeadingCoefficient[(1/2)*x^2 + x, x]` -> `1/2`
+
+Boundaries:
+
+- `PolynomialRemainder` has the same division-by-zero, selector, inexact
+  multivariate, multiple-divisor, and configurable-order boundaries as
+  `PolynomialQuotient`;
+- `PolynomialDegree` and `LeadingCoefficient` accept one symbol selector and
+  the current exact univariate polynomial subset only;
+- the zero polynomial is a domain violation for `PolynomialDegree` and
+  `LeadingCoefficient` in this slice because Aleph3 does not expose a
+  first-class negative-infinity degree value;
 - decimal coefficients, symbolic coefficients, non-polynomial inputs,
   unsupported variables outside the selected univariate polynomial, negative
   or symbolic exponents, and exact coefficient overflow fail explicitly.

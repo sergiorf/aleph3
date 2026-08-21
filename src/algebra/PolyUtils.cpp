@@ -141,6 +141,59 @@ std::pair<ExprPtr, ExprPtr> divide_polynomial(
     return {polynomial_to_expr(quotient), polynomial_to_expr(remainder)};
 }
 
+ExprPtr remainder_polynomial(
+    const ExprPtr& dividend,
+    const ExprPtr& divisor,
+    const std::vector<std::string>& variables,
+    EvaluationContext& ctx) {
+    return divide_polynomial(dividend, divisor, variables, ctx).second;
+}
+
+ExprPtr degree_polynomial(
+    const ExprPtr& expr,
+    const std::string& variable,
+    EvaluationContext& ctx) {
+    static_cast<void>(ctx);
+    const std::vector<std::string> variables{variable};
+    try {
+        const ExactPolynomial poly = expr_to_exact_polynomial(expr, variables);
+        if (poly.is_zero()) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::domain_violation,
+                "PolynomialDegree of zero polynomial is undefined in the current subset");
+        }
+        return make_expr<Number>(static_cast<double>(exact_degree_in_variable(poly, variable)));
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+    }
+}
+
+ExprPtr leading_coefficient_polynomial(
+    const ExprPtr& expr,
+    const std::string& variable,
+    EvaluationContext& ctx) {
+    static_cast<void>(ctx);
+    const std::vector<std::string> variables{variable};
+    try {
+        const ExactPolynomial poly = expr_to_exact_polynomial(expr, variables);
+        if (poly.is_zero()) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::domain_violation,
+                "LeadingCoefficient of zero polynomial is undefined in the current subset");
+        }
+        const int degree = exact_degree_in_variable(poly, variable);
+        ExactCoefficient coefficient = ExactCoefficient::zero();
+        for (const auto& [monomial, term_coefficient] : poly.terms) {
+            if (monomial_exponent(monomial, variable) == degree) {
+                coefficient = coefficient + term_coefficient;
+            }
+        }
+        return exact_coefficient_to_expr(coefficient);
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+    }
+}
+
 ExprPtr coefficient_polynomial(
     const ExprPtr& expr,
     const std::string& variable,

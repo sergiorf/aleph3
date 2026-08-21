@@ -154,7 +154,8 @@ TEST_CASE("Algebra pack registers polynomial functions with pack ownership", "[a
     kernel::FunctionRegistry registry;
     packs::register_algebra_pack(registry);
 
-    for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient"}) {
+    for (const auto* name : {"Expand", "Factor", "Collect", "GCD", "PolynomialQuotient",
+             "PolynomialRemainder", "PolynomialDegree", "LeadingCoefficient"}) {
         const auto* spec = registry.find_symbolic_function_spec(name);
         REQUIRE(spec != nullptr);
         REQUIRE(spec->metadata.name == name);

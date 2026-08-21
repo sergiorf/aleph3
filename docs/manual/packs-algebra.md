@@ -16,6 +16,8 @@ Expand[(1/3*x + 1/6)*6]                 -> 2 * x + 1
 GCD[x^2 - 1/9, x - 1/3, x]              -> x - 1/3
 PolynomialQuotient[x^2 - 1/9, x - 1/3, x]
     -> {x + 1/3, 0}
+PolynomialRemainder[x^2 + 1, x + 1, x]  -> 2
+LeadingCoefficient[(1/2)*x^2 + x, x]    -> 1/2
 ```
 
 If an exact coefficient intermediate overflows the checked representation,
@@ -78,6 +80,7 @@ operands, and `GCD[0, 0, {x, y}]` remain unsupported or invalid as appropriate.
 
 ```text
 PolynomialQuotient[x^2 + 1, x + 1, x]    -> {x - 1, 2}
+PolynomialRemainder[x^2 + 1, x + 1, x]   -> 2
 ```
 
 The result satisfies `dividend = divisor*quotient + remainder`.
@@ -91,6 +94,8 @@ Exact single-divisor multivariate division requires explicit precedence:
 ```text
 PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]
     -> {x + y, y}
+PolynomialRemainder[x^2*y + x*y^2 + y, x*y, {x, y}]
+    -> y
 ```
 
 The variable list controls leading terms under graded lexicographic order.
@@ -114,8 +119,27 @@ Examples outside the current boundary include:
 GCD[x^2 - 1, y - 1]                    -> unsupported multivariate input
 GCD[x + y, x - y, {x,y}]               -> unsupported two-multi-term input
 PolynomialQuotient[x*y, x]             -> explicit selector required
+PolynomialRemainder[x*y, x]            -> explicit selector required
 PolynomialQuotient[0.5*x*y, x, {x,y}]  -> unsupported inexact division
 ```
+
+## Polynomial Inspection
+
+`PolynomialDegree` and `LeadingCoefficient` inspect the current exact
+univariate polynomial subset:
+
+```text
+PolynomialDegree[3*x^2 + 2*x + 1, x]   -> 2
+PolynomialDegree[7, x]                 -> 0
+LeadingCoefficient[3*x^2 + 2*x + 1, x] -> 3
+LeadingCoefficient[(1/2)*x^2 + x, x]   -> 1/2
+```
+
+The selector must be one symbol. Decimal coefficients, symbolic coefficients,
+non-polynomial inputs, unsupported variables outside the selected univariate
+polynomial, negative or symbolic exponents, and exact coefficient overflow are
+rejected explicitly. The zero polynomial is a domain violation in this slice;
+Aleph3 does not yet expose a first-class negative-infinity degree value.
 
 ## Coefficient Extraction
 

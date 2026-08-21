@@ -221,6 +221,9 @@ is public to pack-owned helpers through:
 - `ExactPolynomial`
 - exact conversion helpers between `Expr` and exact polynomial form
 - exact low-level `expand`, `collect`, `gcd`, and `divide` overloads
+- exact polynomial remainder exposure through the division result
+- exact degree and leading-coefficient inspection over the selected
+  univariate polynomial subset
 - exact univariate coefficient extraction for `Coefficient` and
   `CoefficientList`
 - exact rational-expression part extraction for `Numerator` and `Denominator`
@@ -236,15 +239,19 @@ Current ownership is intentionally narrow:
 
 - the algebra layer owns exact integer/rational coefficient preservation for
   `Expand`, `Collect`, `Coefficient`, `CoefficientList`, supported univariate
-  `GCD`, supported univariate `PolynomialQuotient`, `Numerator`, and
-  `Denominator`, including explicitly selected multivariate inputs where that
-  function supports them
+  `GCD`, supported univariate `PolynomialQuotient`,
+  `PolynomialRemainder`, `PolynomialDegree`, `LeadingCoefficient`,
+  `Numerator`, and `Denominator`, including explicitly selected multivariate
+  inputs where that function supports them
 - the current `Polynomial` type with `double` coefficients remains in place
   for inexact inputs and transitional internals, while supported univariate
   integer and rational `Factor` inputs now use the exact polynomial path
 - general multivariate exact `GCD` and broader factorization remain unsupported
 - multivariate division is limited to one divisor, explicit variable
   precedence, and the fixed graded-lexicographic order
+- `PolynomialDegree` and `LeadingCoefficient` are exact univariate inspection
+  helpers; the zero polynomial is diagnosed rather than represented with a
+  negative-infinity degree value
 
 Practical implication:
 

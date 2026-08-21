@@ -15,13 +15,21 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <algorithm>
 #include <vector>
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <conio.h>
+#include <io.h>
+#include <windows.h>
+#else
 #include <termios.h>
 #include <unistd.h>
 #endif
@@ -315,8 +323,8 @@ void print_help() {
 #endif
         << "  Use `:mode` to inspect the active evaluator, or `:mode symbolic` / `:mode sdk`\n"
         << "  to switch the bare-expression backend.\n"
-        << "  In the REPL on Unix-like terminals, up/down arrows walk command history,\n"
-        << "  left/right arrows move the cursor, and Tab completes command names.\n"
+        << "  In the REPL on Windows and Unix-like interactive terminals, up/down arrows\n"
+        << "  walk command history, left/right arrows move the cursor, and Tab completes names.\n"
         << "\n"
         << style_stdout("Quick Start", cli_palette().accent) << '\n'
         << "  aleph3_cli repl\n"
@@ -701,7 +709,57 @@ int run_host_evaluate_command(const aleph3::tooling::EvaluateCommandOptions& opt
     return 0;
 }
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+class WindowsConsoleMode {
+public:
+    WindowsConsoleMode() {
+        input_ = ::GetStdHandle(STD_INPUT_HANDLE);
+        output_ = ::GetStdHandle(STD_OUTPUT_HANDLE);
+        active_ = input_ != INVALID_HANDLE_VALUE && output_ != INVALID_HANDLE_VALUE &&
+            ::GetConsoleMode(input_, &original_input_mode_) != 0 &&
+            ::GetConsoleMode(output_, &original_output_mode_) != 0;
+        if (!active_) {
+            return;
+        }
+
+        DWORD input_mode = original_input_mode_;
+        input_mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+        if (::SetConsoleMode(input_, input_mode) == 0) {
+            active_ = false;
+            return;
+        }
+
+        DWORD output_mode = original_output_mode_ | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        virtual_terminal_output_ = ::SetConsoleMode(output_, output_mode) != 0;
+    }
+
+    WindowsConsoleMode(const WindowsConsoleMode&) = delete;
+    WindowsConsoleMode& operator=(const WindowsConsoleMode&) = delete;
+
+    ~WindowsConsoleMode() {
+        if (active_) {
+            ::SetConsoleMode(input_, original_input_mode_);
+            ::SetConsoleMode(output_, original_output_mode_);
+        }
+    }
+
+    [[nodiscard]] bool active() const noexcept {
+        return active_;
+    }
+
+    [[nodiscard]] bool virtual_terminal_output() const noexcept {
+        return virtual_terminal_output_;
+    }
+
+private:
+    HANDLE input_ = INVALID_HANDLE_VALUE;
+    HANDLE output_ = INVALID_HANDLE_VALUE;
+    DWORD original_input_mode_ = 0;
+    DWORD original_output_mode_ = 0;
+    bool active_ = false;
+    bool virtual_terminal_output_ = false;
+};
+#else
 class RawTerminalMode {
 public:
     RawTerminalMode() {
@@ -743,13 +801,54 @@ private:
 };
 #endif
 
-void redraw_prompt_line(const std::string& prompt, const std::string& line, std::size_t cursor) {
+void redraw_prompt_line_ansi(const std::string& prompt, const std::string& line, std::size_t cursor) {
     std::cout << '\r' << prompt << line << "\033[K";
     const std::size_t tail = line.size() > cursor ? line.size() - cursor : 0;
     if (tail > 0) {
         std::cout << "\033[" << tail << 'D';
     }
     std::cout << std::flush;
+}
+
+#if defined(_WIN32)
+void redraw_prompt_line_win32(const std::string& prompt, const std::string& line, std::size_t cursor) {
+    HANDLE output = ::GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO info{};
+    if (output == INVALID_HANDLE_VALUE || ::GetConsoleScreenBufferInfo(output, &info) == 0) {
+        redraw_prompt_line_ansi(prompt, line, cursor);
+        return;
+    }
+
+    const SHORT row = info.dwCursorPosition.Y;
+    const COORD start{0, row};
+    DWORD ignored = 0;
+    const DWORD width = static_cast<DWORD>(info.dwSize.X > 0 ? info.dwSize.X : 120);
+    ::SetConsoleCursorPosition(output, start);
+    ::FillConsoleOutputCharacterA(output, ' ', width, start, &ignored);
+    ::SetConsoleCursorPosition(output, start);
+    std::cout << prompt << line << std::flush;
+
+    const auto target_x = static_cast<SHORT>(std::min<std::size_t>(
+        static_cast<std::size_t>(std::numeric_limits<SHORT>::max()),
+        prompt.size() + cursor));
+    ::SetConsoleCursorPosition(output, COORD{target_x, row});
+}
+#endif
+
+void redraw_prompt_line(
+    const std::string& prompt,
+    const std::string& line,
+    std::size_t cursor,
+    bool virtual_terminal_output = true) {
+#if defined(_WIN32)
+    if (!virtual_terminal_output) {
+        redraw_prompt_line_win32(prompt, line, cursor);
+        return;
+    }
+#else
+    static_cast<void>(virtual_terminal_output);
+#endif
+    redraw_prompt_line_ansi(prompt, line, cursor);
 }
 
 std::vector<std::string> complete_command_prefix(const std::string& prefix) {
@@ -792,7 +891,8 @@ bool try_complete_repl_line(
     const std::string& prompt,
     std::string& buffer,
     std::size_t& cursor,
-    aleph3::session::Session* session) {
+    aleph3::session::Session* session,
+    bool virtual_terminal_output = true) {
     std::size_t token_start = 0;
     std::vector<std::string> matches;
     if (!buffer.empty() && buffer.front() == ':') {
@@ -823,7 +923,7 @@ bool try_complete_repl_line(
             buffer.push_back(' ');
             ++cursor;
         }
-        redraw_prompt_line(prompt, buffer, cursor);
+        redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
         return true;
     }
 
@@ -832,12 +932,12 @@ bool try_complete_repl_line(
     if (prefix_match.size() > typed_prefix.size()) {
         buffer.replace(token_start, cursor - token_start, prefix_match);
         cursor = token_start + prefix_match.size();
-        redraw_prompt_line(prompt, buffer, cursor);
+        redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
         return true;
     }
 
     print_completion_choices(matches);
-    redraw_prompt_line(prompt, buffer, cursor);
+    redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
     return true;
 }
 
@@ -847,8 +947,121 @@ bool read_repl_line(
     std::string& line,
     aleph3::session::Session* completion_session) {
 #if defined(_WIN32)
-    std::cout << prompt;
-    return static_cast<bool>(std::getline(std::cin, line));
+    if (_isatty(_fileno(stdin)) == 0) {
+        std::cout << prompt;
+        return static_cast<bool>(std::getline(std::cin, line));
+    }
+
+    WindowsConsoleMode console_mode;
+    if (!console_mode.active()) {
+        std::cout << prompt;
+        return static_cast<bool>(std::getline(std::cin, line));
+    }
+
+    const bool virtual_terminal_output = console_mode.virtual_terminal_output();
+    std::string buffer;
+    std::size_t cursor = 0;
+    std::size_t history_index = history.size();
+    std::cout << prompt << std::flush;
+
+    while (true) {
+        const int ch = _getch();
+        if (ch == '\r' || ch == '\n') {
+            std::cout << '\n';
+            line = buffer;
+            return true;
+        }
+
+        if (ch == 3 || ch == 4 || ch == 26) {
+            if (buffer.empty()) {
+                std::cout << '\n';
+                return false;
+            }
+            buffer.clear();
+            cursor = 0;
+            redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+            continue;
+        }
+
+        if (ch == '\b' || ch == 127) {
+            if (cursor > 0) {
+                buffer.erase(cursor - 1, 1);
+                --cursor;
+                redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+            }
+            continue;
+        }
+
+        if (ch == '\t') {
+            try_complete_repl_line(
+                prompt,
+                buffer,
+                cursor,
+                completion_session,
+                virtual_terminal_output);
+            continue;
+        }
+
+        if (ch == 0 || ch == 224) {
+            const int key = _getch();
+            if (key == 72) {
+                if (!history.empty() && history_index > 0) {
+                    --history_index;
+                    buffer = history[history_index];
+                    cursor = buffer.size();
+                    redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+                }
+                continue;
+            }
+            if (key == 80) {
+                if (history_index < history.size()) {
+                    ++history_index;
+                    buffer = history_index < history.size() ? history[history_index] : "";
+                    cursor = buffer.size();
+                    redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+                }
+                continue;
+            }
+            if (key == 77) {
+                if (cursor < buffer.size()) {
+                    ++cursor;
+                    redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+                }
+                continue;
+            }
+            if (key == 75) {
+                if (cursor > 0) {
+                    --cursor;
+                    redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+                }
+                continue;
+            }
+            if (key == 71) {
+                cursor = 0;
+                redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+                continue;
+            }
+            if (key == 79) {
+                cursor = buffer.size();
+                redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+                continue;
+            }
+            if (key == 83) {
+                if (cursor < buffer.size()) {
+                    buffer.erase(cursor, 1);
+                    redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+                }
+                continue;
+            }
+            continue;
+        }
+
+        if (std::isprint(static_cast<unsigned char>(ch)) != 0) {
+            buffer.insert(buffer.begin() + static_cast<std::ptrdiff_t>(cursor), static_cast<char>(ch));
+            ++cursor;
+            redraw_prompt_line(prompt, buffer, cursor, virtual_terminal_output);
+        }
+    }
 #else
     if (::isatty(STDIN_FILENO) == 0) {
         std::cout << prompt;

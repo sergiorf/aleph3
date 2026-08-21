@@ -11,6 +11,16 @@ This is shared infrastructure for the CLI and future graphical products.
 
 ## CLI Workflow
 
+`aleph3_cli repl` is the current local single-process kernel workbench. It
+does not require the web BFF, the internal engine HTTP service, Traefik, or
+Postgres:
+
+```text
+aleph3_cli repl
+  -> session::Session
+  -> kernel + registered packs
+```
+
 ```text
 :help
 :help Factor
@@ -24,8 +34,9 @@ This is shared infrastructure for the CLI and future graphical products.
 ```
 
 The symbolic REPL preserves assignments and definitions. One-shot commands
-start fresh. On supported terminals Tab completes commands and symbols;
-`:complete` is the deterministic, pipe-friendly fallback.
+start fresh. On Windows and Unix-like interactive terminals, Tab completes
+commands and symbols, arrow keys navigate history, and left/right arrows edit
+the current line. `:complete` is the deterministic, pipe-friendly fallback.
 
 Use bare `:help` as the high-level discovery menu. It groups REPL commands,
 builtins, special forms, discovered packs, and current user-defined names.

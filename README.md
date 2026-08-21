@@ -293,53 +293,111 @@ Focused web API verification:
    ctest --test-dir build -C Release -R aleph3_web_api_tests --output-on-failure
    ```
 
-## Use The CLI While The Web UI Is In Progress
+## Build And Run The CLI Workbench
 
-Start the CLI REPL:
+The CLI is the fastest way to try the kernel locally. It is a single-process
+workbench over the shared session, kernel, and registered packs; it does not
+require the web BFF, internal engine HTTP service, Traefik, or Postgres.
 
-   ```bash
-   ./build/bin/aleph3_cli repl
-   ```
+Build the CLI:
 
-   On multi-configuration generators such as Visual Studio, the executable is
-   normally under `build/bin/Release/`.
+```bash
+cmake -S . -B build
+cmake --build build --config Release --target aleph3_cli
+```
 
-Try the symbolic surface:
+Run the REPL on Unix-like single-configuration builds:
 
-   ```text
-   > 1/2 + 1/3
-   5/6
+```bash
+./build/bin/aleph3_cli repl
+```
 
-   > Refine[Sqrt[x^2], x >= 0]
-   x
+Run the REPL on Windows or other multi-configuration builds:
 
-   > Replace[f[f[x], x], x -> y, {1, 2}]
-   f[f[y], y]
+```powershell
+.\build\bin\Release\aleph3_cli.exe repl
+```
 
-   > PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]
-   {x + y, y}
+If you are using the local BuildTools directory from this repository's
+development setup, the executable may be:
 
-   > :inspect Factor[x^2 - 1]
-   > :packs
-   > :complete Pol
-   > :quit
-   ```
+```powershell
+.\build-codex-buildtools-local\bin\aleph3_cli.exe repl
+```
 
-   The variable list `{x, y}` is significant: it declares variable precedence
-   for multivariate division. See the manual's
-   [Concepts and terminology appendix](docs/manual/concepts-and-terminology.md)
-   for a plain-language explanation.
+In the REPL, type formulas directly:
 
-Try the trusted SDK-facing path and host functions:
+```text
+> 1/2 + 1/3
+5/6
 
-   ```text
-   > :validate If[True, 1, "no"]
-   > :compile 1 + 2
-   > :evaluate --var x=3 x + 1
-   > :evaluate-host --var x=12 Clamp[x, 0, 10]
-   ```
+> a = 2
+2
 
-   Run `aleph3_sdk_example` for an embedding example using the C++ API.
+> a + 3
+5
+
+> Refine[Sqrt[x^2], x >= 0]
+x
+
+> Factor[x^2 - 1]
+(x - 1) * (x + 1)
+
+> PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]
+{x + y, y}
+```
+
+Interactive commands:
+
+```text
+> :help
+> :help Factor
+> :packs
+> :complete Pol
+> :inspect Factor[x^2 - 1]
+> :reset
+> :quit
+```
+
+On Windows and Unix-like interactive terminals, Tab completes commands and
+symbol names, arrows navigate history, and left/right arrows edit the current
+line. `:complete <prefix>` is the portable fallback and is also useful in
+piped tests.
+
+One-shot evaluation also works:
+
+```bash
+./build/bin/aleph3_cli "Factor[x^2 - 1]"
+```
+
+```powershell
+.\build\bin\Release\aleph3_cli.exe "Factor[x^2 - 1]"
+```
+
+Run stateful scripts with one expression per non-empty line:
+
+```bash
+./build/bin/aleph3_cli script calculations.aleph3
+./build/bin/aleph3_cli script --json calculations.aleph3
+```
+
+The variable list `{x, y}` in multivariate algebra declares variable
+precedence. See the manual's
+[Concepts and terminology appendix](docs/manual/concepts-and-terminology.md)
+for a plain-language explanation.
+
+The REPL can also switch to the trusted SDK-facing path and demo host
+functions:
+
+```text
+> :mode sdk
+> :validate If[True, 1, "no"]
+> :compile 1 + 2
+> :evaluate --var x=3 x + 1
+> :evaluate-host --var x=12 Clamp[x, 0, 10]
+```
+
+Run `aleph3_sdk_example` for an embedding example using the C++ API.
 
 ## Build Options
 

@@ -11,7 +11,6 @@
 #include <numeric>
 #include <optional>
 #include <set>
-#include <tuple>
 
 namespace aleph3 {
 

@@ -114,6 +114,33 @@ Practical implication:
 - exact coefficient operations detect `int64_t` overflow and fail explicitly;
   arbitrary precision remains outside this contract
 
+## Current Algebra Implementation Ownership
+
+The algebra pack implementation keeps the public evaluator-facing entrypoints
+separate from polynomial representation and algorithm helpers:
+
+- `PolyUtils` is the adapter layer used by the registered algebra pack
+  functions. It infers selectors, dispatches between exact and transitional
+  polynomial paths, and maps implementation exceptions into kernel diagnostics.
+- `PolynomialOps` owns the transitional `Polynomial` path with `double`
+  coefficients: expression conversion, variable inference, low-level
+  `expand`/`collect`/`gcd`/`divide`, and the approximate univariate
+  factorization fallback.
+- `ExactPolynomialConversion` owns conversion between `Expr` and
+  `ExactPolynomial`.
+- `ExactPolynomialOps` owns low-level operations over `ExactPolynomial`,
+  including exact normalization helpers, coefficient content helpers, and exact
+  `expand`/`collect`/`gcd`/`divide` overloads.
+- `ExactFactorization` owns exact univariate factorization over the documented
+  rational-root subset.
+- `ExactRationalExpression` owns exact rational-expression normalization,
+  `Together` composition, numerator/denominator extraction, and `Cancel`
+  reduction over the bounded exact polynomial subset.
+
+`PolyUtils.hpp` remains a compatibility umbrella for algebra helper tests and
+pack consumers, but new implementation code should include the narrower owner
+header directly.
+
 ## Acceptance Criteria
 
 This spec is sufficient when:

@@ -2,7 +2,9 @@
  * ExactPolynomial.hpp
  * -------------------
  * Defines the exact polynomial layer used by the algebra pack for exact
- * integer and rational coefficient preservation.
+ * integer and rational coefficient preservation. Coefficients use checked
+ * int64_t numerator/denominator storage; overflow is reported explicitly
+ * rather than wrapping or falling back to approximate arithmetic.
  */
 
 #pragma once

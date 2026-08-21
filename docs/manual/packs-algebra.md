@@ -5,6 +5,26 @@ expressions, exact arithmetic, diagnostics, and registration rather than a
 private evaluator. See [Polynomial Vocabulary](concepts-and-terminology.md#polynomial-vocabulary)
 for monomials, total degree, and variable precedence.
 
+## Exact Coefficient Boundary
+
+Supported exact polynomial helpers use checked `int64_t` integer and rational
+coefficients. Exact rational coefficients stay exact in the documented
+polynomial subset:
+
+```text
+Expand[(1/3*x + 1/6)*6]                 -> 2 * x + 1
+GCD[x^2 - 1/9, x - 1/3, x]              -> x - 1/3
+PolynomialQuotient[x^2 - 1/9, x - 1/3, x]
+    -> {x + 1/3, 0}
+```
+
+If an exact coefficient intermediate overflows the checked representation,
+Aleph3 reports an exact-overflow diagnostic. It does not wrap and does not
+fall back to approximate arithmetic. Decimal inputs are inexact; they only use
+the documented transitional inexact polynomial paths and are rejected by
+exact-only helpers such as rational-expression transformations and exact
+multivariate division.
+
 ## Expand And Collect
 
 ```text

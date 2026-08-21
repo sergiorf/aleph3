@@ -1,11 +1,11 @@
 /*
  * Polynomial.hpp
  * --------------
- * Defines the multivariate Polynomial class for Aleph3.
+ * Defines the transitional inexact multivariate Polynomial class for Aleph3.
  *
  * This class represents multivariate polynomials with double coefficients,
- * supporting basic arithmetic operations (addition, subtraction, multiplication, division),
- * GCD computation, normalization, and string conversion.
+ * supporting basic arithmetic operations (addition, subtraction, multiplication,
+ * division), GCD computation, normalization, and string conversion.
  *
  * Each monomial is represented as a mapping from variable names to exponents.
  * The polynomial is a mapping from monomials to coefficients.
@@ -13,8 +13,9 @@
  * Example: 3*x^2*y + 2*y^3 is represented as:
  *   { {{"x",2},{"y",1}}: 3.0, {{"y",3}}: 2.0 }
  *
- * This class is intended for internal use in polynomial manipulation routines.
- * Conversion utilities should be used to translate between ExprPtr and Polynomial.
+ * This class is retained for inexact inputs and transitional internals. New
+ * exact integer/rational algebra behavior belongs in ExactCoefficient,
+ * ExactPolynomial, and their narrower operation/conversion helpers.
  */
 #pragma once
 

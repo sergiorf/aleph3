@@ -2,45 +2,190 @@
 
 ## Status
 
-Draft implementation spec referenced by the
+Current implementation contract referenced by the
 [Aleph3 Unified Plan](aleph3_unified_plan.md).
 
 ## Purpose
 
-This document will define the exact arithmetic and algebra-facing foundations
-required for stronger symbolic math.
+This document defines the current exact arithmetic and algebra-facing
+foundations required for stronger symbolic math. It is intentionally narrower
+than arbitrary-precision or general coefficient-ring algebra.
 
-It should specify:
+The current exact algebra layer provides:
 
-- exact scalar abstractions
-- polynomial coefficient strategy
-- ownership boundary between kernel exact math and algebra packs
-- migration away from floating-point-centered algebra internals
+- checked integer and rational coefficient storage;
+- exact polynomial conversion and helper operations for the algebra pack;
+- explicit overflow and unsupported-case behavior;
+- a migration boundary away from floating-point-centered polynomial internals.
 
 ## Scope
 
-This spec should cover:
+This spec covers:
 
-- integer and rational foundation choices
-- exact complex support expectations
-- coefficient-ring abstractions
-- algebra helper interfaces needed by the kernel and packs
-- overflow and large-number strategy
+- the current integer and rational foundation choices;
+- coefficient abstractions used by polynomial helpers;
+- the polynomial/algebra ownership boundary;
+- evaluator and simplification interaction;
+- migration strategy from current transitional internals;
+- testing invariants.
 
-## Required Sections
+Exact complex coefficients, symbolic coefficients, broad coefficient-ring
+abstractions, arbitrary precision, algebraic-number coefficients, and
+approximate polynomial algorithms are outside this contract.
 
-1. exact scalar model
-2. coefficient abstractions
-3. polynomial/algebra ownership boundary
-4. interaction with evaluator simplification
-5. migration strategy from current algebra internals
-6. testing invariants
+## Exact Scalar Model
 
-## Initial Design Questions
+`ExactCoefficient` is the current algebra coefficient value. It stores a
+normalized rational number as checked `int64_t` numerator and denominator.
 
-- whether big-integer support should be introduced immediately or staged
-- which exact abstractions belong in the kernel versus algebra pack layer
-- how exact coefficients interact with current polynomial APIs
+Invariants:
+
+- denominator is positive after normalization;
+- zero normalizes to `0/1`;
+- equal rational values compare structurally equal after normalization;
+- addition, subtraction, multiplication, and division preserve exactness;
+- denominator zero is invalid;
+- arithmetic overflow throws an exact-overflow condition before wraparound.
+
+The current model deliberately does not allocate arbitrary-precision integers.
+When an intermediate numerator, denominator, scale factor, content value, or
+least common multiple cannot fit in `int64_t`, the operation fails explicitly.
+No exact algebra operation may silently demote to `Number` or a `double`
+polynomial path to avoid overflow.
+
+## Coefficient Abstractions
+
+`ExactCoefficient` is the only current exact polynomial coefficient
+abstraction. It is sufficient for the supported integer/rational polynomial
+subset but is not a general coefficient-ring interface.
+
+Near-term algorithms may rely on:
+
+- exact zero and one checks;
+- rational normalization;
+- checked arithmetic;
+- exact division by a nonzero coefficient;
+- integer-content extraction after denominators are cleared.
+
+Algorithms must not assume:
+
+- arbitrary-precision growth;
+- symbolic coefficients;
+- algebraic-number coefficients;
+- approximate fallback;
+- field operations outside checked rationals.
+
+## Polynomial Representation
+
+`ExactPolynomial` maps monomials to `ExactCoefficient` values. A monomial is
+the shared `Monomial` map from variable name to non-negative integer exponent.
+
+Invariants:
+
+- zero terms are removed during normalization;
+- the zero polynomial has one constant zero term;
+- monomial exponents are non-negative;
+- exact polynomial operations preserve exact coefficients or fail explicitly;
+- leading terms for current multivariate division use fixed graded
+  lexicographic order with caller-provided variable precedence.
+
+The exact polynomial layer is the supported foundation for exact
+integer/rational algebra helper behavior. The older `Polynomial` type with
+`double` coefficients remains a transitional inexact representation and must
+not receive new exact-only algorithms.
+
+## Ownership Boundary
+
+Ownership is layered as follows:
+
+- the kernel owns expressions, exact scalar value types, evaluation context,
+  diagnostics, budgets, and function registration contracts;
+- the `core-algebra` pack owns public algebra functions and maps helper
+  failures to public diagnostics;
+- `ExactPolynomialConversion` owns conversion between `Expr` and
+  `ExactPolynomial`;
+- `ExactPolynomialOps` owns low-level exact polynomial operations such as
+  exact normalization helpers, `expand`, `collect`, `gcd`, and `divide`;
+- `ExactFactorization` owns supported exact univariate rational-root
+  factorization;
+- `ExactRationalExpression` owns supported exact rational-expression
+  extraction, `Together`, and `Cancel`;
+- `PolynomialOps` owns the transitional `double` polynomial path for inexact
+  inputs and legacy internals.
+
+Public consumers must enter algebra behavior through the registered pack
+functions. They must not create CLI-, session-, SDK-, notebook-, or web-only
+polynomial semantics.
+
+## Evaluator And Simplification Interaction
+
+Exact algebra helpers consume evaluated `Expr` inputs through pack-registered
+functions. They may reuse normal expression rendering and simplification after
+constructing results, but they do not replace the kernel's general evaluator or
+rewrite system.
+
+The narrow kernel-owned symbolic coefficient rewrite contract remains separate
+from full exact polynomial algebra. Like-term collection for the documented
+single-symbol basis shapes may proceed without requiring this full exact
+polynomial layer. Algebra-heavy transformations such as polynomial division,
+GCD, rational-expression cancellation, and future solving/equivalence helpers
+must use explicit exact-algebra contracts instead of broad rewrite heuristics.
+
+## Dispatch Contract
+
+Pack-facing dispatch follows this rule:
+
+- exact integer/rational polynomial candidates enter the exact polynomial path;
+- decimal or other inexact polynomial inputs may use the transitional
+  `Polynomial` path only where the supported subset documents that behavior;
+- exact-only helpers such as coefficient extraction and rational-expression
+  transformations reject inexact inputs explicitly;
+- exact multivariate `GCD` and `PolynomialQuotient` require exact polynomial
+  coefficients and explicit selector lists;
+- exact overflow maps to `runtime.exact_overflow`;
+- division by a zero exact polynomial denominator maps to the stable
+  division-by-zero diagnostic where it reaches a public runtime boundary.
+
+Unsupported cases must be rejected deterministically. They must not be
+partially rewritten through `double` arithmetic.
+
+## Migration Strategy
+
+New exact algebra implementation work should include the narrow owning header
+directly and should not add exact-only behavior to `PolynomialOps`.
+
+Acceptable near-term migration steps:
+
+- add tests proving exact integer/rational inputs stay on exact paths;
+- move exact helper logic from transitional files to exact owner files when a
+  concrete boundary issue is found;
+- preserve `Polynomial` for documented inexact behavior until that path is
+  either replaced or explicitly retired;
+- keep documentation synchronized whenever an exact/inexact boundary changes.
+
+Non-goals for the current migration:
+
+- removing all `double` polynomial code in one large refactor;
+- introducing arbitrary precision as a cleanup side effect;
+- broadening factorization, GCD, division, or rational-expression cancellation
+  without a focused specification.
+
+## Testing Invariants
+
+Tests for exact algebra growth should cover:
+
+- exact coefficient sign and denominator normalization;
+- rational arithmetic preservation;
+- explicit overflow;
+- zero polynomial normalization;
+- exact polynomial addition and multiplication;
+- division reconstruction,
+  `dividend = divisor * quotient + remainder`, for supported cases;
+- fixed monomial ordering under explicit variable precedence;
+- pack-level exact dispatch for supported integer/rational public helpers;
+- explicit rejection of inexact inputs in exact-only paths;
+- stable public diagnostics for overflow, invalid forms, unsupported
+  constructs, and division by zero.
 
 ## Current Decision Relevant To Rewrite Migration
 

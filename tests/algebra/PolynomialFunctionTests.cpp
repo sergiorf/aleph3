@@ -227,12 +227,18 @@ TEST_CASE("Polynomial algebra preserves exact rationals for supported helpers", 
 TEST_CASE("Exact algebra dispatch keeps supported rational inputs on exact paths", "[algebra][functions][rational][dispatch]") {
     EvaluationContext ctx;
 
+    REQUIRE(to_string(*evaluate_source("Expand[(1/3*x + 1/6) * 6]", ctx))
+            == "2 * x + 1");
     REQUIRE(to_string(*evaluate_source("Expand[(1/2) * (x + y)]", ctx))
             == "1/2 * x + 1/2 * y");
     REQUIRE(to_string(*evaluate_source("Collect[(1/2)*x*y + (3/2)*y, y]", ctx))
             == "1/2 * x * y + 3/2 * y");
+    REQUIRE(to_string(*evaluate_source("Collect[(1/3)*x*y + (2/3)*y, y]", ctx))
+            == "1/3 * x * y + 2/3 * y");
     REQUIRE(simplify_string(evaluate_source("GCD[x^2 - 1/4, x - 1/2, x]", ctx))
             == "x - 1/2");
+    REQUIRE(simplify_string(evaluate_source("GCD[x^2 - 1/9, x - 1/3, x]", ctx))
+            == "x - 1/3");
 
     const auto quotient_result =
         evaluate_source("PolynomialQuotient[x^2 - 1/4, x - 1/2, x]", ctx);
@@ -242,12 +248,26 @@ TEST_CASE("Exact algebra dispatch keeps supported rational inputs on exact paths
     REQUIRE(simplify_string(quotient_parts[0]) == "x + 1/2");
     REQUIRE(simplify_string(quotient_parts[1]) == "0");
 
+    const auto third_quotient_result =
+        evaluate_source("PolynomialQuotient[x^2 - 1/9, x - 1/3, x]", ctx);
+    REQUIRE(std::holds_alternative<List>(*third_quotient_result));
+    const auto& third_quotient_parts = std::get<List>(*third_quotient_result).elements;
+    REQUIRE(third_quotient_parts.size() == 2);
+    REQUIRE(simplify_string(third_quotient_parts[0]) == "x + 1/3");
+    REQUIRE(simplify_string(third_quotient_parts[1]) == "0");
+
     REQUIRE(to_string(*evaluate_source("Factor[(1/2)*x^2 + x + 1/2]", ctx))
             == "1/2 * (x + 1) * (x + 1)");
+    REQUIRE(to_string(*evaluate_source("Factor[(1/3)*x^2 + (2/3)*x + 1/3]", ctx))
+            == "1/3 * (x + 1) * (x + 1)");
     REQUIRE(simplify_string(evaluate_source("Together[1/2 + 1/x]", ctx))
             == "(x + 2) / (2 * x)");
+    REQUIRE(simplify_string(evaluate_source("Together[1/3 + 1/x]", ctx))
+            == "(x + 3) / (3 * x)");
     REQUIRE(simplify_string(evaluate_source("Cancel[(1/2*x)/(1/4)]", ctx))
             == "2 * x");
+    REQUIRE(simplify_string(evaluate_source("Cancel[(1/3*x)/(1/9)]", ctx))
+            == "3 * x");
 }
 
 TEST_CASE("Rational expression transformations preserve exact supported forms", "[algebra][functions][rational-expression]") {

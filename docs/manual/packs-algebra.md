@@ -206,11 +206,12 @@ Cancel[(x*y)/x]                         -> y
 ```
 
 Cancellation is valid on the original expression's nonzero-denominator
-domain, but Aleph3 does not yet attach first-class excluded-point metadata to
-the result. Decimal coefficients, symbolic coefficients outside the selected
-polynomial variables, unsupported powers, denominator zero, and general
-multivariate cancellation such as `Cancel[(x*y + x)/(x + 1)]` are rejected
-explicitly. `Apart` remains outside the supported subset.
+domain. Aleph3 now preserves supported denominator exclusions internally for
+future condition-aware operations, but the printed result is still only the
+simplified expression. Decimal coefficients, symbolic coefficients outside the
+selected polynomial variables, unsupported powers, denominator zero, and
+general multivariate cancellation such as `Cancel[(x*y + x)/(x + 1)]` are
+rejected explicitly. `Apart` remains outside the supported subset.
 
 ## Exact Dense Matrices
 

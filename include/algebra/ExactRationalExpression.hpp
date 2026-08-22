@@ -8,6 +8,7 @@
 
 #include "algebra/ExactPolynomial.hpp"
 #include "expr/Expr.hpp"
+#include "kernel/DomainRestrictions.hpp"
 
 #include <string>
 #include <vector>
@@ -18,12 +19,19 @@ struct ExactRationalExpression {
     ExactPolynomial numerator;
     ExactPolynomial denominator;
     std::vector<std::string> variables;
+    kernel::DomainRestrictions restrictions;
 };
 
 ExactRationalExpression normalize_exact_rational_expression(
     ExactPolynomial numerator,
     ExactPolynomial denominator,
     std::vector<std::string> variables);
+
+ExactRationalExpression normalize_exact_rational_expression(
+    ExactPolynomial numerator,
+    ExactPolynomial denominator,
+    std::vector<std::string> variables,
+    kernel::DomainRestrictions restrictions);
 
 ExactRationalExpression exact_rational_expression_from_expr(
     const ExprPtr& expr,

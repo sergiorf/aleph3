@@ -175,9 +175,10 @@ Remaining work:
 
 - introduce one minimal lexical binding construct, preferably `With`, before
   broader `Module` or `Block` semantics;
-- extend rational-expression transformations only after excluded-domain
-  metadata or partial-fraction contracts are credible; `Apart` remains
-  deferred;
+- consume the internal rational-expression excluded-domain metadata from
+  condition-aware transformation or equivalence workflows before broadening
+  rational-expression transformations; `Apart` remains deferred until
+  partial-fraction contracts are credible;
 - follow the focused differentiation pack with simple partial-derivative
   workflows;
 - specify a small exact `Solve` tranche after the notebook MVP unless a
@@ -209,13 +210,15 @@ unless an existing specification already owns the contract.
 
 Near-term engine gaps after the Web MVP:
 
-- define a domain-restriction carrier for transformations that can introduce,
-  remove, or preserve excluded points, starting with rational-expression
-  cancellation and square-root or logarithm rewrites;
+- extend the internal domain-restriction carrier beyond the first
+  rational-expression denominator metadata slice to other transformations that
+  can introduce, remove, or preserve excluded points, such as square-root or
+  logarithm rewrites;
 - add a first mathematical equivalence contract, such as
   `Equivalent[expr1, expr2]`, with proof-bearing methods limited to structural
   equality after normalization, supported algebraic reduction, polynomial
-  comparison, and `expr1 - expr2 -> 0` inside the exact supported subset;
+  comparison, rational-expression domain restrictions, and
+  `expr1 - expr2 -> 0` inside the exact supported subset;
 - keep any numerical sampling fallback separate from proof results and label
   it as evidence, not equivalence;
 - extend focused differentiation with simple partial-derivative workflows
@@ -511,8 +514,8 @@ Use this order unless a regression or dependency changes it:
    sparse structured help entries with manual-backed examples and unsupported
    boundaries for the current supported surface.
 2. Specify and implement the remaining symbolic MVP gap-closure items across
-   lexical binding, calculus follow-ups, and excluded-domain metadata for
-   transformations that need it.
+   lexical binding, calculus follow-ups, and condition-aware consumers for the
+   first rational-expression excluded-domain metadata slice.
 3. Specify and fill the remaining bounded numerical and finite-list gaps,
    especially `Range`, `Table`, `Total`, budget behavior, and unsupported
    diagnostics.
@@ -523,8 +526,8 @@ Use this order unless a regression or dependency changes it:
    finite summation, future DSP work, and the CAS engine roadmap gap-closure
    tranche.
 7. After the Web MVP is stable, start the CAS engine gap-closure sequence with
-   mathematical equivalence and domain-restriction contracts before broad
-   solving, integration, or validation.
+   mathematical equivalence and broader domain-restriction consumers before
+   broad solving, integration, or validation.
 8. Specify the focused DSP kernel prerequisite slice, including piecewise,
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.

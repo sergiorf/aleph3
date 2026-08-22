@@ -312,8 +312,12 @@ Domain boundary:
 
 - cancellation is valid on the original expression's nonzero-denominator
   domain;
-- the current contract does not attach first-class excluded-point metadata to the
-  result;
+- rational-expression transformations now carry internal excluded-denominator
+  metadata for supported nonconstant denominator factors, so future
+  condition-aware consumers can distinguish the simplified expression from the
+  original domain;
+- this metadata is not yet rendered as a public `ConditionalExpression` or
+  exposed through a user-facing equivalence function;
 - cancellation across unsupported symbolic or general multivariate
   denominators is rejected rather than silently erasing possible
   singularities.
@@ -415,7 +419,8 @@ Not part of the current supported subset:
 
 ## Planned Rational-Expression Follow-Up
 
-The next rational-expression tranche should add first-class domain-restriction
-metadata or a partial-fraction contract before broadening cancellation.
-`Apart` remains second in this area because it requires separate
-partial-fraction preconditions and variable-selector behavior.
+The next rational-expression tranche should consume the internal
+domain-restriction metadata from condition-aware operations such as a future
+equivalence or validation contract before broadening cancellation. `Apart`
+remains second in this area because it requires separate partial-fraction
+preconditions and variable-selector behavior.

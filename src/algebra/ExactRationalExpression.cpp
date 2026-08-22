@@ -11,10 +11,39 @@
 
 namespace aleph3 {
 
+namespace {
+
+bool is_exact_nonzero_constant(const ExactPolynomial& polynomial) {
+    return polynomial.terms.size() == 1
+        && polynomial.terms.begin()->first.empty()
+        && !polynomial.terms.begin()->second.is_zero();
+}
+
+void add_nonconstant_nonzero_restriction(
+    kernel::DomainRestrictions& restrictions,
+    const ExactPolynomial& polynomial) {
+    if (is_exact_nonzero_constant(polynomial)) return;
+    restrictions.add_excluded_zero(exact_polynomial_to_expr(polynomial));
+}
+
+}  // namespace
+
 ExactRationalExpression normalize_exact_rational_expression(
     ExactPolynomial numerator,
     ExactPolynomial denominator,
     std::vector<std::string> variables) {
+    return normalize_exact_rational_expression(
+        std::move(numerator),
+        std::move(denominator),
+        std::move(variables),
+        {});
+}
+
+ExactRationalExpression normalize_exact_rational_expression(
+    ExactPolynomial numerator,
+    ExactPolynomial denominator,
+    std::vector<std::string> variables,
+    kernel::DomainRestrictions restrictions) {
     if (is_exact_constant_zero(denominator)) {
         throw std::domain_error("Rational expression denominator is zero");
     }
@@ -39,7 +68,12 @@ ExactRationalExpression normalize_exact_rational_expression(
         denominator = multiply_by_scalar(denominator, ExactCoefficient(-1, 1));
     }
 
-    return {std::move(numerator), std::move(denominator), std::move(variables)};
+    return {
+        std::move(numerator),
+        std::move(denominator),
+        std::move(variables),
+        std::move(restrictions)
+    };
 }
 
 ExactRationalExpression exact_rational_expression_from_expr(
@@ -49,33 +83,42 @@ ExactRationalExpression exact_rational_expression_from_expr(
         divide && divide->head == "Divide" && divide->args.size() == 2) {
         auto numerator = exact_rational_expression_from_expr(divide->args[0], variables);
         auto denominator = exact_rational_expression_from_expr(divide->args[1], variables);
+        kernel::DomainRestrictions restrictions = numerator.restrictions;
+        restrictions.merge(denominator.restrictions);
+        add_nonconstant_nonzero_restriction(restrictions, denominator.numerator);
         return normalize_exact_rational_expression(
             numerator.numerator * denominator.denominator,
             numerator.denominator * denominator.numerator,
-            variables);
+            variables,
+            std::move(restrictions));
     }
 
     if (const auto* times = std::get_if<FunctionCall>(&(*expr));
         times && times->head == "Times") {
         ExactPolynomial numerator(ExactCoefficient::one());
         ExactPolynomial denominator(ExactCoefficient::one());
+        kernel::DomainRestrictions restrictions;
         for (const auto& arg : times->args) {
             auto factor = exact_rational_expression_from_expr(arg, variables);
+            restrictions.merge(factor.restrictions);
             numerator = numerator * factor.numerator;
             denominator = denominator * factor.denominator;
         }
         return normalize_exact_rational_expression(
             std::move(numerator),
             std::move(denominator),
-            variables);
+            variables,
+            std::move(restrictions));
     }
 
     if (const auto* plus = std::get_if<FunctionCall>(&(*expr));
         plus && plus->head == "Plus") {
         ExactPolynomial numerator(ExactCoefficient::zero());
         ExactPolynomial denominator(ExactCoefficient::one());
+        kernel::DomainRestrictions restrictions;
         for (const auto& arg : plus->args) {
             auto term = exact_rational_expression_from_expr(arg, variables);
+            restrictions.merge(term.restrictions);
             if (variables.empty()) {
                 numerator = numerator * term.denominator + term.numerator * denominator;
                 denominator = denominator * term.denominator;
@@ -98,14 +141,16 @@ ExactRationalExpression exact_rational_expression_from_expr(
         return normalize_exact_rational_expression(
             std::move(numerator),
             std::move(denominator),
-            variables);
+            variables,
+            std::move(restrictions));
     }
 
     const ExactPolynomial polynomial = expr_to_exact_polynomial(expr, variables);
     return normalize_exact_rational_expression(
         polynomial,
         exact_constant(ExactCoefficient::one()),
-        variables);
+        variables,
+        {});
 }
 
 ExprPtr exact_rational_expression_to_expr(
@@ -127,6 +172,7 @@ ExactRationalExpression cancel_exact_rational_expression(
     const ExactPolynomial common =
         gcd(expression.numerator, expression.denominator, expression.variables);
     if (is_exact_constant_one(common)) return expression;
+    add_nonconstant_nonzero_restriction(expression.restrictions, common);
 
     auto [numerator, numerator_remainder] =
         divide(expression.numerator, common, expression.variables);
@@ -139,7 +185,8 @@ ExactRationalExpression cancel_exact_rational_expression(
     return normalize_exact_rational_expression(
         std::move(numerator),
         std::move(denominator),
-        expression.variables);
+        expression.variables,
+        std::move(expression.restrictions));
 }
 
 }  // namespace aleph3

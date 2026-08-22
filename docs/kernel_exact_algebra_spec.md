@@ -231,6 +231,9 @@ is public to pack-owned helpers through:
 - exact rational-expression transformation for `Together` and `Cancel` over
   the same bounded rational-expression subset, with `Cancel` limited to the
   existing exact polynomial GCD and division contracts
+- internal domain-restriction metadata for supported rational-expression
+  denominators and canceled factors, represented as excluded-zero expression
+  conditions for future condition-aware consumers
 - exact single-divisor multivariate division using explicit variable
   precedence and fixed graded-lexicographic leading terms
 - exact monomial-bounded multivariate GCD using explicit selectors
@@ -257,8 +260,9 @@ Practical implication:
 
 - exact multivariate coefficient preservation is now an explicit pack-facing
   contract for safe helper paths
-- rational-expression transformation is pack-owned and does not introduce
-  first-class domain-restriction carriers yet
+- rational-expression transformation is pack-owned and now carries an internal
+  domain-restriction set for supported denominator exclusions; this metadata is
+  not yet a public expression wrapper or equivalence result
 - broad exact factorization remains out of scope until the broader
   coefficient-ring and algorithm story is stronger; the current exact
   factorization support is limited to the documented univariate rational-root
@@ -287,7 +291,8 @@ separate from polynomial representation and algorithm helpers:
   rational-root subset.
 - `ExactRationalExpression` owns exact rational-expression normalization,
   `Together` composition, numerator/denominator extraction, and `Cancel`
-  reduction over the bounded exact polynomial subset.
+  reduction over the bounded exact polynomial subset. It also preserves
+  internal excluded-zero denominator metadata through those transformations.
 
 `PolyUtils.hpp` remains a compatibility umbrella for algebra helper tests and
 pack consumers, but new implementation code should include the narrower owner

@@ -1,6 +1,7 @@
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "expr/Expr.hpp"
+#include "algebra/ExactRationalExpression.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "parser/Parser.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
@@ -45,6 +46,23 @@ void require_runtime_diagnostic(
         REQUIRE(error.error().code == code);
         REQUIRE(std::string_view(error.what()) == message);
     }
+}
+
+std::vector<std::string> rational_restrictions(
+    std::string_view source,
+    const std::vector<std::string>& variables) {
+    return exact_rational_expression_from_expr(
+        parse_expression(std::string(source)),
+        variables).restrictions.excluded_zero_strings();
+}
+
+std::vector<std::string> canceled_rational_restrictions(
+    std::string_view source,
+    const std::vector<std::string>& variables) {
+    return cancel_exact_rational_expression(
+        exact_rational_expression_from_expr(
+            parse_expression(std::string(source)),
+            variables)).restrictions.excluded_zero_strings();
 }
 
 }  // namespace
@@ -352,6 +370,30 @@ TEST_CASE("Rational expression transformations preserve exact supported forms", 
     REQUIRE(simplify_string(evaluate_source("Cancel[(x^2 - 1)/(x - 1)]", ctx)) == "x + 1");
     REQUIRE(simplify_string(evaluate_source("Cancel[(1/2*x)/(1/4)]", ctx)) == "2 * x");
     REQUIRE(simplify_string(evaluate_source("Cancel[(x*y)/(x)]", ctx)) == "y");
+}
+
+TEST_CASE("Rational expression metadata records nonzero denominator restrictions", "[algebra][functions][rational-expression][domain]") {
+    REQUIRE(rational_restrictions("x/(x + 1)", {"x"}) ==
+            std::vector<std::string>{"x + 1"});
+    REQUIRE(rational_restrictions("1/x + 1/y", {"x", "y"}) ==
+            std::vector<std::string>{"x", "y"});
+    REQUIRE(rational_restrictions("x/(1/y)", {"x", "y"}) ==
+            std::vector<std::string>{"y"});
+    REQUIRE(rational_restrictions("(x/(x + 1)) + (1/(x + 1))", {"x"}) ==
+            std::vector<std::string>{"x + 1"});
+}
+
+TEST_CASE("Cancellation preserves excluded denominator metadata for removed factors", "[algebra][functions][rational-expression][domain]") {
+    REQUIRE(canceled_rational_restrictions("(x^2 - 1)/(x - 1)", {"x"}) ==
+            std::vector<std::string>{"x - 1"});
+    REQUIRE(canceled_rational_restrictions("(x*y)/x", {"x", "y"}) ==
+            std::vector<std::string>{"x"});
+
+    const auto expression = cancel_exact_rational_expression(
+        exact_rational_expression_from_expr(
+            parse_expression("(x^2 - 1)/(x - 1)"),
+            {"x"}));
+    REQUIRE(simplify_string(exact_rational_expression_to_expr(expression)) == "x + 1");
 }
 
 TEST_CASE("Rational expression transformations reject unsupported and invalid inputs", "[algebra][functions][rational-expression]") {

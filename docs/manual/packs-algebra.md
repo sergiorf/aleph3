@@ -207,11 +207,46 @@ Cancel[(x*y)/x]                         -> y
 
 Cancellation is valid on the original expression's nonzero-denominator
 domain. Aleph3 now preserves supported denominator exclusions internally for
-future condition-aware operations, but the printed result is still only the
-simplified expression. Decimal coefficients, symbolic coefficients outside the
-selected polynomial variables, unsupported powers, denominator zero, and
-general multivariate cancellation such as `Cancel[(x*y + x)/(x + 1)]` are
-rejected explicitly. `Apart` remains outside the supported subset.
+condition-aware operations, but the printed result is still only the simplified
+expression. Decimal coefficients, symbolic coefficients outside the selected
+polynomial variables, unsupported powers, denominator zero, and general
+multivariate cancellation such as `Cancel[(x*y + x)/(x + 1)]` are rejected
+explicitly. `Apart` remains outside the supported subset.
+
+## Equivalence
+
+`Equivalent[expr1, expr2]` proves equivalence only inside the current exact
+algebra subset:
+
+```text
+Equivalent[x + 1, 1 + x]                         -> True
+Equivalent[x^2 + 2*x + 1, x^2 + x + x + 1]       -> True
+Equivalent[x + 1, x + 2]                         -> False
+Equivalent[1/x, 1/x]                             -> True
+```
+
+The result `Unknown` means Aleph3 does not have an unconditional proof in this
+slice. It does not mean the statement is false.
+
+Rational-expression equivalence is domain-sensitive:
+
+```text
+Equivalent[(x^2 - 1)/(x - 1), x + 1]             -> Unknown
+Equivalent[(x*y)/x, y]                           -> Unknown
+Equivalent[Cancel[(x*y)/x], y]                   -> True
+```
+
+The first two comparisons simplify to the same printed expression only after
+dropping a nonzero-denominator condition. Because Aleph3 does not yet expose a
+public conditional-equivalence result, they return `Unknown`.
+
+Trigonometric identities, numerical sampling proofs, broad branch reasoning,
+solving, quantifiers, and general theorem proving are outside this subset:
+
+```text
+Equivalent[Sin[x]^2 + Cos[x]^2, 1]               -> Unknown
+Equivalent[Sqrt[x^2], x]                         -> Unknown
+```
 
 ## Exact Dense Matrices
 

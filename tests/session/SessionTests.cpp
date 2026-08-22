@@ -148,8 +148,9 @@ TEST_CASE("Session discovers registered packs deterministically", "[session][pac
     REQUIRE(result.packs.size() == 2);
     REQUIRE(result.packs[0].name == "core-algebra");
     REQUIRE(result.packs[0].symbols ==
-        std::vector<std::string>{"Cancel", "Coefficient", "CoefficientList", "Collect", "Denominator", "Det", "Expand", "Factor", "GCD",
-            "IdentityMatrix", "LinearSolve", "MatrixAdd", "MatrixMultiply", "Numerator", "PolynomialQuotient", "RowReduce",
+        std::vector<std::string>{"Cancel", "Coefficient", "CoefficientList", "Collect", "Denominator", "Det", "Equivalent", "Expand", "Factor", "GCD",
+            "IdentityMatrix", "LeadingCoefficient", "LinearSolve", "MatrixAdd", "MatrixMultiply", "Numerator", "PolynomialDegree",
+            "PolynomialQuotient", "PolynomialRemainder", "RowReduce",
             "Together", "Transpose"});
     REQUIRE(result.packs[1].name == "core-calculus");
     REQUIRE(result.packs[1].symbols == std::vector<std::string>{"D", "Differentiate"});
@@ -462,6 +463,32 @@ TEST_CASE("Session exposes rational expression transformations", "[session][alge
     REQUIRE_FALSE(unsupported.ok);
     REQUIRE(unsupported.diagnostics.size() == 1);
     REQUIRE(unsupported.diagnostics.front().code == "kernel.unsupported_construct");
+}
+
+TEST_CASE("Session exposes bounded algebra equivalence", "[session][algebra][equivalence]") {
+    Session session;
+
+    REQUIRE(session.execute({"Equivalent[x + 1, 1 + x]"}).output == "True");
+    REQUIRE(session.execute({"Equivalent[x + 1, x + 2]"}).output == "False");
+    REQUIRE(session.execute({"Equivalent[(x^2 - 1)/(x - 1), x + 1]"}).output == "Unknown");
+    REQUIRE(session.execute({"Equivalent[Sin[x]^2 + Cos[x]^2, 1]"}).output == "Unknown");
+
+    const auto completion = session.execute({"Equ", SessionOperation::complete});
+    const auto equivalent_completion = std::find_if(
+        completion.completions.begin(),
+        completion.completions.end(),
+        [](const auto& entry) {
+            return entry.name == "Equivalent";
+        });
+    REQUIRE(equivalent_completion != completion.completions.end());
+    REQUIRE(equivalent_completion->category == "pack");
+    REQUIRE(equivalent_completion->owning_package == "core-algebra");
+
+    const auto help = session.execute({"Equivalent", SessionOperation::help});
+    REQUIRE(help.ok);
+    REQUIRE(help.help_entries.size() == 1);
+    REQUIRE(help.help_entries.front().owning_package == "core-algebra");
+    REQUIRE_FALSE(help.help_entries.front().unsupported.empty());
 }
 
 TEST_CASE("Session preserves assumption contradiction diagnostics", "[session][assumptions][diagnostics]") {

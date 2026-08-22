@@ -214,11 +214,6 @@ Near-term engine gaps after the Web MVP:
   rational-expression denominator metadata slice to other transformations that
   can introduce, remove, or preserve excluded points, such as square-root or
   logarithm rewrites;
-- add a first mathematical equivalence contract, such as
-  `Equivalent[expr1, expr2]`, with proof-bearing methods limited to structural
-  equality after normalization, supported algebraic reduction, polynomial
-  comparison, rational-expression domain restrictions, and
-  `expr1 - expr2 -> 0` inside the exact supported subset;
 - keep any numerical sampling fallback separate from proof results and label
   it as evidence, not equivalence;
 - extend focused differentiation with simple partial-derivative workflows
@@ -525,9 +520,9 @@ Use this order unless a regression or dependency changes it:
 6. Continue exact algebra hardening required by calculus, bounded solving,
    finite summation, future DSP work, and the CAS engine roadmap gap-closure
    tranche.
-7. After the Web MVP is stable, start the CAS engine gap-closure sequence with
-   mathematical equivalence and broader domain-restriction consumers before
-   broad solving, integration, or validation.
+7. After the Web MVP is stable, continue the CAS engine gap-closure sequence
+   with broader domain-restriction consumers before broad solving, integration,
+   or validation.
 8. Specify the focused DSP kernel prerequisite slice, including piecewise,
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.

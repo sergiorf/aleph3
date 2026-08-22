@@ -233,7 +233,7 @@ is public to pack-owned helpers through:
   existing exact polynomial GCD and division contracts
 - internal domain-restriction metadata for supported rational-expression
   denominators and canceled factors, represented as excluded-zero expression
-  conditions for future condition-aware consumers
+  conditions and consumed by the first bounded public `Equivalent` contract
 - exact single-divisor multivariate division using explicit variable
   precedence and fixed graded-lexicographic leading terms
 - exact monomial-bounded multivariate GCD using explicit selectors
@@ -262,7 +262,8 @@ Practical implication:
   contract for safe helper paths
 - rational-expression transformation is pack-owned and now carries an internal
   domain-restriction set for supported denominator exclusions; this metadata is
-  not yet a public expression wrapper or equivalence result
+  consumed by `Equivalent` to avoid unconditional proofs that would drop
+  denominator restrictions, but it is not yet a public condition wrapper
 - broad exact factorization remains out of scope until the broader
   coefficient-ring and algorithm story is stronger; the current exact
   factorization support is limited to the documented univariate rational-root

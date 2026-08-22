@@ -372,6 +372,35 @@ TEST_CASE("Rational expression transformations preserve exact supported forms", 
     REQUIRE(simplify_string(evaluate_source("Cancel[(x*y)/(x)]", ctx)) == "y");
 }
 
+TEST_CASE("Equivalent proves only the bounded exact algebra subset", "[algebra][functions][equivalence]") {
+    EvaluationContext ctx;
+
+    REQUIRE(simplify_string(evaluate_source("Equivalent[x + 1, 1 + x]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source(
+        "Equivalent[x^2 + 2*x + 1, x^2 + x + x + 1]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[x + 1, x + 2]", ctx)) == "False");
+    REQUIRE(simplify_string(evaluate_source(
+        "Equivalent[Sin[x]^2 + Cos[x]^2, 1]", ctx)) == "Unknown");
+}
+
+TEST_CASE("Equivalent preserves rational-expression domain boundaries", "[algebra][functions][equivalence][domain]") {
+    EvaluationContext ctx;
+
+    REQUIRE(simplify_string(evaluate_source(
+        "Equivalent[(x^2 - 1)/(x - 1), x + 1]", ctx)) == "Unknown");
+    REQUIRE(simplify_string(evaluate_source(
+        "Equivalent[(x*y)/x, y]", ctx)) == "Unknown");
+    REQUIRE(simplify_string(evaluate_source(
+        "Equivalent[Cancel[(x*y)/x], y]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source(
+        "Equivalent[1/x, 1/x]", ctx)) == "True");
+
+    require_runtime_diagnostic(
+        [&] { static_cast<void>(evaluate_source("Equivalent[x/0, x]", ctx)); },
+        "runtime.division_by_zero",
+        "Rational expression denominator is zero");
+}
+
 TEST_CASE("Rational expression metadata records nonzero denominator restrictions", "[algebra][functions][rational-expression][domain]") {
     REQUIRE(rational_restrictions("x/(x + 1)", {"x"}) ==
             std::vector<std::string>{"x + 1"});

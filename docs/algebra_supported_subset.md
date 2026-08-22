@@ -34,6 +34,7 @@ The current symbolic algebra surface is:
 - `Denominator[expr]`
 - `Together[expr]`
 - `Cancel[expr]`
+- `Equivalent[expr1, expr2]`
 - `MatrixAdd[a, b]`, `MatrixMultiply[a, b]`, `IdentityMatrix[n]`, and `Transpose[a]`
 - `Det[a]`, `RowReduce[a]`, and `LinearSolve[a, b]` for bounded exact dense matrices
 
@@ -321,6 +322,29 @@ Domain boundary:
 - cancellation across unsupported symbolic or general multivariate
   denominators is rejected rather than silently erasing possible
   singularities.
+
+## Equivalence
+
+`Equivalent[expr1, expr2]` is a bounded proof-bearing helper over the current
+exact algebra subset. It returns `True`, `False`, or `Unknown`.
+
+Supported proof methods are canonical structural equality after evaluation,
+exact polynomial comparison, and exact rational-expression comparison when the
+preserved denominator-exclusion metadata also matches.
+
+Examples:
+
+- `Equivalent[x + 1, 1 + x]` -> `True`
+- `Equivalent[x^2 + 2*x + 1, x^2 + x + x + 1]` -> `True`
+- `Equivalent[x + 1, x + 2]` -> `False`
+- `Equivalent[1/x, 1/x]` -> `True`
+- `Equivalent[(x^2 - 1)/(x - 1), x + 1]` -> `Unknown`
+- `Equivalent[Sin[x]^2 + Cos[x]^2, 1]` -> `Unknown`
+
+`Unknown` means the current proof methods cannot return an unconditional
+answer. It is used for unsupported identities, such as trigonometric
+identities, and for rational-expression comparisons that would need public
+condition output to be precise. Numerical sampling is not a proof method.
 
 Unsupported cases:
 

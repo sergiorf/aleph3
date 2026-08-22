@@ -1,6 +1,7 @@
 #include "packs/AlgebraPack.hpp"
 
 #include "algebra/DenseMatrix.hpp"
+#include "algebra/ExactEquivalence.hpp"
 #include "algebra/ExactPolynomial.hpp"
 #include "algebra/PolyUtils.hpp"
 #include "evaluator/Evaluator.hpp"
@@ -344,6 +345,32 @@ ExprPtr evaluate_cancel(const FunctionCall& func, EvaluationContext& ctx) {
     return cancel_rational_expression(func.args[0], ctx);
 }
 
+ExprPtr evaluate_equivalent(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) {
+        throw_invalid_arity_exact("Equivalent", 2);
+    }
+
+    try {
+        const auto result = prove_exact_equivalence(
+            evaluate(func.args[0], ctx),
+            evaluate(func.args[1], ctx));
+        switch (result) {
+            case ExactEquivalenceKind::equivalent:
+                return make_expr<Boolean>(true);
+            case ExactEquivalenceKind::not_equivalent:
+                return make_expr<Boolean>(false);
+            case ExactEquivalenceKind::unknown:
+                return make_expr<Symbol>("Unknown");
+        }
+    } catch (const std::overflow_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+    } catch (const std::domain_error& error) {
+        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+    }
+
+    return make_expr<Symbol>("Unknown");
+}
+
 ExprPtr evaluate_matrix_add(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 2) throw_invalid_arity_exact("MatrixAdd", 2);
     return run_matrix_operation([&] {
@@ -538,6 +565,12 @@ void register_algebra_pack(kernel::FunctionRegistry& registry) {
         "Cancel",
         evaluate_cancel,
         "Cancel supported common exact rational-expression factors.",
+        true);
+    registry.register_pack_function(
+        std::string(kPackageName),
+        "Equivalent",
+        evaluate_equivalent,
+        "Prove equivalence for the current exact algebra subset.",
         true);
 }
 

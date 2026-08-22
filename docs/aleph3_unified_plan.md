@@ -178,8 +178,8 @@ Remaining work:
 - extend rational-expression transformations only after excluded-domain
   metadata or partial-fraction contracts are credible; `Apart` remains
   deferred;
-- follow the focused differentiation pack with higher-order `D[expr, {x, n}]`
-  and simple partial-derivative workflows;
+- follow the focused differentiation pack with simple partial-derivative
+  workflows;
 - specify a small exact `Solve` tranche after the notebook MVP unless a
   dedicated architecture pass proves it belongs earlier. The first credible
   subset is one equation in one variable for exact linear and quadratic cases,
@@ -218,8 +218,8 @@ Near-term engine gaps after the Web MVP:
   comparison, and `expr1 - expr2 -> 0` inside the exact supported subset;
 - keep any numerical sampling fallback separate from proof results and label
   it as evidence, not equivalence;
-- extend focused differentiation with higher-order derivatives and simple
-  partial-derivative workflows before broad calculus.
+- extend focused differentiation with simple partial-derivative workflows
+  before broad calculus.
 
 Mid-term CAS tranche:
 

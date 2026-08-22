@@ -584,14 +584,16 @@ namespace aleph3 {
 
             // Calculus pack
             {"D", "Differentiate an expression with respect to a symbol in the focused calculus subset.", "Calculus",
-                {"D[expr, x]"}, {"D[x^2 + 3*x, x] -> 2 * x + 3"},
+                {"D[expr, x]", "D[expr, {x, n}]"},
+                {"D[x^2 + 3*x, x] -> 2 * x + 3", "D[x^3, {x, 2}] -> 6 * x"},
                 "Exact polynomial-style results stay exact.",
-                "Higher-order, broad partial-derivative, and general calculus workflows are outside this slice.",
+                "Compact partial-derivative syntax, integration, limits, and general calculus workflows are outside this slice.",
                 "core-calculus", "manual/packs-calculus.md#differentiation"},
-            {"Differentiate", "Long-form alias for D[expr, x].", "Calculus",
-                {"Differentiate[expr, x]"}, {"Differentiate[x^2, x] -> 2 * x"},
+            {"Differentiate", "Long-form alias for D.", "Calculus",
+                {"Differentiate[expr, x]", "Differentiate[expr, {x, n}]"},
+                {"Differentiate[x^2, x] -> 2 * x", "Differentiate[x^3, {x, 2}] -> 6 * x"},
                 "Exact polynomial-style results stay exact.",
-                "Higher-order, broad partial-derivative, and general calculus workflows are outside this slice.",
+                "Compact partial-derivative syntax, integration, limits, and general calculus workflows are outside this slice.",
                 "core-calculus", "manual/packs-calculus.md#differentiation"},
 
             // Constants

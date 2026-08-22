@@ -72,9 +72,27 @@ TEST_CASE("Calculus pack differentiates focused chain rules", "[packs][calculus]
     REQUIRE(evaluated_string("D[Sqrt[x], x]") == "1/2 * x^-1/2");
 }
 
+TEST_CASE("Calculus pack supports higher-order derivatives", "[packs][calculus]") {
+    REQUIRE(evaluated_string("D[x^3, {x, 0}]") == "x^3");
+    REQUIRE(evaluated_string("D[x^3, {x, 1}]") == "3 * x^2");
+    REQUIRE(evaluated_string("D[x^3, {x, 2}]") == "6 * x");
+    REQUIRE(evaluated_string("D[x^3, {x, 3}]") == "6");
+    REQUIRE(evaluated_string("D[x^3, {x, 4}]") == "0");
+    REQUIRE(evaluated_string("Differentiate[x^3, {x, 2}]") == "6 * x");
+    REQUIRE(evaluated_string("D[Sin[x], {x, 2}]") == "-(Sin[x])");
+    REQUIRE(evaluated_string("D[x*y, {x, 2}]") == "0");
+}
+
 TEST_CASE("Calculus pack preserves unsupported dependent heads and validates variables", "[packs][calculus][diagnostics]") {
     REQUIRE(evaluated_string("D[f[x], x]") == "D[f[x], x]");
     REQUIRE(code_for("D[x, x + 1]") == "kernel.invalid_form");
+    REQUIRE(code_for("D[x, {x, -1}]") == "kernel.invalid_form");
+    REQUIRE(code_for("D[x, {x, 1/2}]") == "kernel.invalid_form");
+    REQUIRE(code_for("D[x, {x, n}]") == "kernel.invalid_form");
+    REQUIRE(code_for("D[x, {x}]") == "kernel.invalid_form");
+    REQUIRE(code_for("D[x, {x, 1, 2}]") == "kernel.invalid_form");
+    REQUIRE(code_for("D[x, {x + 1, 2}]") == "kernel.invalid_form");
+    REQUIRE(code_for("D[x, {x, 1025}]") == "kernel.invalid_form");
 }
 
 TEST_CASE("Calculus pack consumes shared evaluation budget", "[packs][calculus][budget]") {
@@ -88,6 +106,22 @@ TEST_CASE("Calculus pack consumes shared evaluation budget", "[packs][calculus][
     try {
         (void)evaluate_source("D[x^2 + 3*x + Sin[x], x]", ctx);
         FAIL("Expected differentiation to exhaust the shared evaluation budget");
+    } catch (const kernel::RuntimeFailure& failure) {
+        REQUIRE(failure.error().code == "runtime.step_budget_exhausted");
+    }
+}
+
+TEST_CASE("Higher-order differentiation consumes shared evaluation budget", "[packs][calculus][budget]") {
+    Policy policy = Policy::default_policy();
+    policy.budget().max_evaluation_steps = 3;
+    Bindings bindings;
+    std::unordered_map<std::string, HostFunctionSpec> host_functions;
+    EvaluationContext ctx(bindings, bindings, host_functions, policy);
+    ctx.enable_runtime_strict_semantics(true);
+
+    try {
+        (void)evaluate_source("D[x^5 + Sin[x], {x, 3}]", ctx);
+        FAIL("Expected higher-order differentiation to exhaust the shared evaluation budget");
     } catch (const kernel::RuntimeFailure& failure) {
         REQUIRE(failure.error().code == "runtime.step_budget_exhausted");
     }

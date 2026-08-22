@@ -6,8 +6,9 @@ registration contracts rather than private evaluator behavior.
 
 ## Differentiation
 
-Use `D[expr, x]` to differentiate with respect to a symbol. `Differentiate` is
-the long-form alias.
+Use `D[expr, x]` to differentiate with respect to a symbol. Use
+`D[expr, {x, n}]` for the `n`th derivative with respect to `x`.
+`Differentiate` is the long-form alias.
 
 ```text
 D[x, x]                                  -> 1
@@ -17,6 +18,7 @@ D[x^2 + 3*x, x]                          -> 2 * x + 3
 D[x*y, x]                                -> y
 D[Sin[x], x]                             -> Cos[x]
 D[Exp[x^2], x]                           -> 2 * x * (Exp[x^2])
+D[x^3, {x, 2}]                           -> 6 * x
 ```
 
 Mathematically, `D[expr, x]` computes the derivative
@@ -82,6 +84,21 @@ D[Log[x], x]                             -> x^-1
 D[Sqrt[x], x]                            -> 1/2 * x^-1/2
 ```
 
+Higher-order derivatives repeat the same focused first-derivative contract.
+The order must be a nonnegative integer-valued numeric order inside the
+supported limit. Order zero evaluates the input expression and returns it
+unchanged.
+
+```text
+D[x^3, {x, 0}]                           -> x^3
+D[x^3, {x, 1}]                           -> 3 * x^2
+D[x^3, {x, 2}]                           -> 6 * x
+D[x^3, {x, 3}]                           -> 6
+D[x^3, {x, 4}]                           -> 0
+Differentiate[x^3, {x, 2}]               -> 6 * x
+D[Sin[x], {x, 2}]                        -> -(Sin[x])
+```
+
 Exact rational exponents and coefficients remain exact where the existing
 arithmetic path supports them. Decimal inputs remain decimal expressions when
 they participate in arithmetic.
@@ -101,11 +118,15 @@ The differentiation variable must be a symbol:
 
 ```text
 D[x, x + 1]                              -> kernel.invalid_form
+D[x, {x + 1, 2}]                         -> kernel.invalid_form
+D[x, {x, -1}]                            -> kernel.invalid_form
+D[x, {x, 1/2}]                           -> kernel.invalid_form
+D[x, {x, n}]                             -> kernel.invalid_form
 ```
 
 The current calculus boundary excludes `Piecewise`, `Sum`, `Product`,
-higher-order derivatives, partial-derivative notation, integration, limits,
-branch-sensitive assumption simplification, and broad special functions.
+compact partial-derivative notation, integration, limits, branch-sensitive
+assumption simplification, and broad special functions.
 Composite powers such as `D[(x + 1)^2, x]` are not part of the v1 power-rule
 surface unless they are reached through one of the supported chain-rule heads.
 

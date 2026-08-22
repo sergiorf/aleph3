@@ -6,6 +6,7 @@
 #include "normalizer/Normalizer.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -14,10 +15,16 @@ namespace aleph3::packs {
 namespace {
 
 constexpr std::string_view kPackageName = "core-calculus";
+constexpr std::int64_t kMaxDerivativeOrder = 1024;
 
 struct DerivativeResult {
     ExprPtr expr;
     bool contains_held_derivative = false;
+};
+
+struct DerivativeRequest {
+    std::string variable;
+    std::int64_t order = 1;
 };
 
 bool is_exact_or_inexact_constant_atom(const ExprPtr& expr) {
@@ -243,9 +250,51 @@ DerivativeResult differentiate_expr(const ExprPtr& expr, const std::string& vari
 std::string require_variable_symbol(const ExprPtr& expr) {
     const auto* symbol = std::get_if<Symbol>(expr.get());
     if (symbol == nullptr) {
-        throw_invalid_form("D expects the second argument to be a symbol");
+        throw_invalid_form("D expects a derivative variable to be a symbol");
     }
     return symbol->name;
+}
+
+std::int64_t require_derivative_order(const ExprPtr& expr) {
+    std::int64_t order = 0;
+    if (const auto* number = std::get_if<Number>(expr.get())) {
+        if (!std::isfinite(number->value) ||
+            number->value < 0.0 ||
+            std::floor(number->value) != number->value) {
+            throw_invalid_form("D derivative order must be a nonnegative exact integer");
+        }
+        if (number->value > static_cast<double>(kMaxDerivativeOrder)) {
+            throw_invalid_form("D derivative order exceeds the supported limit");
+        }
+        order = static_cast<std::int64_t>(number->value);
+    } else if (const auto* rational = std::get_if<Rational>(expr.get())) {
+        if (rational->denominator != 1 || rational->numerator < 0) {
+            throw_invalid_form("D derivative order must be a nonnegative exact integer");
+        }
+        if (rational->numerator > kMaxDerivativeOrder) {
+            throw_invalid_form("D derivative order exceeds the supported limit");
+        }
+        order = rational->numerator;
+    } else {
+        throw_invalid_form("D derivative order must be a nonnegative exact integer");
+    }
+    return order;
+}
+
+DerivativeRequest require_derivative_request(const ExprPtr& expr) {
+    if (std::holds_alternative<Symbol>(*expr)) {
+        return {require_variable_symbol(expr), 1};
+    }
+
+    const auto* list = std::get_if<List>(expr.get());
+    if (list == nullptr || list->elements.size() != 2) {
+        throw_invalid_form("D expects the second argument to be a symbol or {symbol, nonnegative exact integer}");
+    }
+
+    return {
+        require_variable_symbol(list->elements[0]),
+        require_derivative_order(list->elements[1])
+    };
 }
 
 ExprPtr evaluate_derivative_call(const FunctionCall& func, EvaluationContext& ctx) {
@@ -253,9 +302,12 @@ ExprPtr evaluate_derivative_call(const FunctionCall& func, EvaluationContext& ct
         throw_invalid_arity_exact(func.head, 2);
     }
 
-    const std::string variable = require_variable_symbol(func.args[1]);
-    auto expr = evaluate(func.args[0], ctx);
-    return differentiate_expr(expr, variable, ctx).expr;
+    const DerivativeRequest request = require_derivative_request(func.args[1]);
+    auto result = evaluate(func.args[0], ctx);
+    for (std::int64_t order = 0; order < request.order; ++order) {
+        result = differentiate_expr(result, request.variable, ctx).expr;
+    }
+    return result;
 }
 
 }  // namespace
@@ -271,7 +323,7 @@ void register_calculus_pack(kernel::FunctionRegistry& registry) {
         std::string(kPackageName),
         "Differentiate",
         evaluate_derivative_call,
-        "Alias for D[expr, x].",
+        "Alias for D.",
         true);
 }
 

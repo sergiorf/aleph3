@@ -75,6 +75,7 @@ TEST_CASE("Simplify combines constants and like terms", "[simplify]") {
     expect_simplifies_to("2 + 3 + 4", "9");
     expect_simplifies_to("2 * 3 * 0", "0");
     expect_simplifies_to("2*x + 3*x", "5 * x");
+    expect_simplifies_to("x/2 + x/3", "x * 5/6");
 }
 
 TEST_CASE("Simplify preserves symbolic structure when no numeric reduction applies", "[simplify]") {

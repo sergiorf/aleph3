@@ -3,6 +3,7 @@
 #include "expr/ExprUtils.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <algorithm>
 
@@ -27,6 +28,116 @@ namespace aleph3 {
             return true;
         }
         return false;
+    }
+
+    struct LinearCoefficient {
+        int64_t numerator = 0;
+        int64_t denominator = 1;
+
+        void add(int64_t n, int64_t d) {
+            const auto [scaled_n, scaled_d] =
+                normalize_rational(numerator * d + n * denominator, denominator * d);
+            numerator = scaled_n;
+            denominator = scaled_d;
+        }
+
+        bool is_zero() const {
+            return numerator == 0;
+        }
+
+        bool is_one() const {
+            return numerator == 1 && denominator == 1;
+        }
+
+        ExprPtr to_expr() const {
+            return denominator == 1
+                ? make_number(static_cast<double>(numerator))
+                : make_expr<Rational>(numerator, denominator);
+        }
+    };
+
+    bool try_get_exact_scalar(const ExprPtr& expr, int64_t& numerator, int64_t& denominator) {
+        if (const auto* rational = std::get_if<Rational>(expr.get())) {
+            numerator = rational->numerator;
+            denominator = rational->denominator;
+            return true;
+        }
+        if (const auto* number = std::get_if<Number>(expr.get())) {
+            if (std::floor(number->value) != number->value) {
+                return false;
+            }
+            numerator = static_cast<int64_t>(number->value);
+            denominator = 1;
+            return true;
+        }
+        return false;
+    }
+
+    bool try_extract_exact_linear_term(
+        const ExprPtr& expr,
+        std::string& symbol,
+        int64_t& numerator,
+        int64_t& denominator) {
+        if (const auto* direct_symbol = std::get_if<Symbol>(expr.get())) {
+            symbol = direct_symbol->name;
+            numerator = 1;
+            denominator = 1;
+            return true;
+        }
+
+        const auto* call = std::get_if<FunctionCall>(expr.get());
+        if (call == nullptr) {
+            return false;
+        }
+
+        if (call->head == "Times" && call->args.size() == 2) {
+            const ExprPtr* coefficient_expr = nullptr;
+            const ExprPtr* symbol_expr = nullptr;
+            if (std::holds_alternative<Symbol>(*call->args[0])) {
+                symbol_expr = &call->args[0];
+                coefficient_expr = &call->args[1];
+            } else if (std::holds_alternative<Symbol>(*call->args[1])) {
+                symbol_expr = &call->args[1];
+                coefficient_expr = &call->args[0];
+            } else {
+                return false;
+            }
+            if (!try_get_exact_scalar(*coefficient_expr, numerator, denominator)) {
+                return false;
+            }
+            symbol = std::get<Symbol>(**symbol_expr).name;
+            return true;
+        }
+
+        if (call->head == "Divide" && call->args.size() == 2 &&
+            std::holds_alternative<Symbol>(*call->args[0])) {
+            int64_t denom_numerator = 0;
+            int64_t denom_denominator = 1;
+            if (!try_get_exact_scalar(call->args[1], denom_numerator, denom_denominator) ||
+                denom_numerator == 0) {
+                return false;
+            }
+            const auto [n, d] = normalize_rational(denom_denominator, denom_numerator);
+            symbol = std::get<Symbol>(*call->args[0]).name;
+            numerator = n;
+            denominator = d;
+            return true;
+        }
+
+        return false;
+    }
+
+    ExprPtr make_symbol_term(const std::string& symbol, const LinearCoefficient& coefficient) {
+        if (coefficient.is_zero()) {
+            return make_number(0);
+        }
+        if (coefficient.is_one()) {
+            return make_expr<Symbol>(symbol);
+        }
+        if (coefficient.denominator != 1) {
+            return make_times(make_expr<Symbol>(symbol), coefficient.to_expr());
+        }
+        return make_times(coefficient.to_expr(), make_expr<Symbol>(symbol));
     }
 
     ExprPtr make_symbol_term(const std::string& symbol, double coefficient) {
@@ -201,11 +312,26 @@ namespace aleph3 {
                     }
                 }
 
-                // Combine like terms (e.g., 2 * x + 3 * x → 5 * x)
+                // Combine supported single-symbol terms without losing exact rational coefficients.
+                std::map<std::string, LinearCoefficient> exact_term_coefficients;
                 std::map<std::string, double> term_coefficients;
                 std::vector<ExprPtr> non_numeric_terms;
 
                 for (const auto& arg : simplified_args) {
+                    std::string exact_symbol;
+                    int64_t exact_numerator = 0;
+                    int64_t exact_denominator = 1;
+                    if (try_extract_exact_linear_term(
+                            arg,
+                            exact_symbol,
+                            exact_numerator,
+                            exact_denominator)) {
+                        exact_term_coefficients[exact_symbol].add(
+                            exact_numerator,
+                            exact_denominator);
+                        continue;
+                    }
+
                     if (auto times_func = std::get_if<FunctionCall>(arg.get())) {
                         if (times_func->head == "Times" && times_func->args.size() == 2) {
                             if (auto coeff = std::get_if<Number>(times_func->args[0].get())) {
@@ -223,6 +349,13 @@ namespace aleph3 {
                         continue;
                     }
                     non_numeric_terms.push_back(arg);
+                }
+
+                for (const auto& [symbol, coeff] : exact_term_coefficients) {
+                    if (coeff.is_zero()) {
+                        continue;
+                    }
+                    non_numeric_terms.push_back(make_symbol_term(symbol, coeff));
                 }
 
                 for (const auto& [symbol, coeff] : term_coefficients) {

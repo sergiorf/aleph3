@@ -162,6 +162,7 @@ simplification pass:
 ```text
 Simplify[x + x + 2*x]                  -> 4 * x
 Simplify[0 + (1 * x)]                  -> x
+Simplify[(x/2) + (x/3)]                -> x * 5/6
 Simplify[1/2 + 1/3]                    -> 5/6
 Simplify[Sin[0]]                       -> 0
 ```

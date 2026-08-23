@@ -1419,6 +1419,7 @@ TEST_CASE("Simplify builtin evaluates then applies symbolic simplification", "[e
     EvaluationContext ctx;
 
     REQUIRE(to_string(evaluate(parse_expression("Simplify[x + x + 2*x]"), ctx)) == "4 * x");
+    REQUIRE(to_string(evaluate(parse_expression("Simplify[(x/2) + (x/3)]"), ctx)) == "x * 5/6");
     REQUIRE(to_string(evaluate(parse_expression("Simplify[Sin[0]]"), ctx)) == "0");
     REQUIRE(to_string(evaluate(parse_expression("Simplify[1/2 + 1/3]"), ctx)) == "5/6");
 }

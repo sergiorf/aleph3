@@ -215,7 +215,7 @@ TEST_CASE("REPL mode command reports and switches evaluators", "[tooling][cli]")
     INFO("command: " << command);
     INFO("output: " << mode_result.output);
     REQUIRE(mode_result.exit_code == 0);
-    REQUIRE(mode_result.output.find("A3[sym] >") != std::string::npos);
+    REQUIRE(mode_result.output.find("aleph3[sym] >") != std::string::npos);
     REQUIRE(mode_result.output.find("Default mode: symbolic") != std::string::npos);
     REQUIRE(mode_result.output.find("mode set to sdk") != std::string::npos);
     REQUIRE(mode_result.output.find("2\n") != std::string::npos);

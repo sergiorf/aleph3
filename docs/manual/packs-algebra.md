@@ -31,6 +31,7 @@ multivariate division.
 
 ```text
 Expand[(x + 1)*(x + 2)]                  -> x^2 + 3 * x + 2
+Expand[(x + 1)^3]                        -> x^3 + 3 * x^2 + 3 * x + 1
 Expand[(1/2)*(x + y)]                    -> 1/2 * x + 1/2 * y
 Collect[y*x + x^2 + z*x, x]              -> x^2 + x * y + x * z
 ```

@@ -10,6 +10,12 @@ TEST_CASE("Symbolic CLI support evaluates polynomial expressions", "[tooling][sy
 
     REQUIRE(result.ok);
     REQUIRE(result.output == "x^2 + 3 * x + 2");
+
+    const auto power_result =
+        tooling::symbolic_evaluate_expression("Expand[(x + 1)^3]");
+
+    REQUIRE(power_result.ok);
+    REQUIRE(power_result.output == "x^3 + 3 * x^2 + 3 * x + 1");
 }
 
 TEST_CASE("Symbolic CLI support exposes polynomial factoring", "[tooling][symbolic-cli]") {

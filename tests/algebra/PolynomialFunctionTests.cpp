@@ -73,6 +73,9 @@ TEST_CASE("Polynomial functions expand and collect to stable polynomial forms", 
     const auto expanded = evaluate_source("Expand[(x + 1) * (x + 2)]", ctx);
     REQUIRE(simplify_string(expanded) == "x^2 + 3 * x + 2");
 
+    const auto expanded_power = evaluate_source("Expand[(x + 1)^3]", ctx);
+    REQUIRE(simplify_string(expanded_power) == "x^3 + 3 * x^2 + 3 * x + 1");
+
     const auto multivariate_expanded = evaluate_source("Expand[(x + y) * (x - y)]", ctx);
     REQUIRE(simplify_string(multivariate_expanded) == "-(y^2) + x^2");
 
@@ -296,6 +299,8 @@ TEST_CASE("Polynomial algebra preserves exact rationals for supported helpers", 
 
     REQUIRE(to_string(*evaluate_source("Expand[(1/2) * (x + 1)]", ctx))
             == "1/2 * x + 1/2");
+    REQUIRE(to_string(*evaluate_source("Expand[((1/2) * x + 1)^2]", ctx))
+            == "1/4 * x^2 + x + 1");
     REQUIRE(to_string(*evaluate_source("Expand[(1/2) * (x + y)]", ctx))
             == "1/2 * x + 1/2 * y");
     REQUIRE(to_string(*evaluate_source("Collect[(1/2) * x + 1, x]", ctx))

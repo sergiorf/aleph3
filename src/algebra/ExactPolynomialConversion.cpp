@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <map>
 
 namespace aleph3 {
@@ -114,18 +115,21 @@ ExactPolynomial expr_to_exact_polynomial_impl(
             power && power->head == "Power" && power->args.size() == 2) {
             const auto& base = power->args[0];
             const auto& exponent = power->args[1];
-            if (const auto* symbol = std::get_if<Symbol>(&(*base))) {
-                if (!contains_variable(variables, symbol->name)) {
+            if (const auto* number_exponent = std::get_if<Number>(&(*exponent))) {
+                if (!is_near_integer(number_exponent->value) ||
+                    number_exponent->value < 0.0 ||
+                    number_exponent->value >
+                        static_cast<double>(std::numeric_limits<int>::max())) {
                     throw_invalid_form(
-                        "expr_to_polynomial: Symbol `" + symbol->name +
-                        "` is not in the selected polynomial variable set");
+                        "expr_to_polynomial: Polynomial powers require non-negative "
+                        "integer exponents");
                 }
-                if (const auto* number_exponent = std::get_if<Number>(&(*exponent))) {
-                    if (!is_near_integer(number_exponent->value) ||
-                        number_exponent->value < 0.0) {
+
+                if (const auto* symbol = std::get_if<Symbol>(&(*base))) {
+                    if (!contains_variable(variables, symbol->name)) {
                         throw_invalid_form(
-                            "expr_to_polynomial: Polynomial powers require non-negative "
-                            "integer exponents");
+                            "expr_to_polynomial: Symbol `" + symbol->name +
+                            "` is not in the selected polynomial variable set");
                     }
                     std::map<std::string, int> exponents;
                     exponents[symbol->name] = static_cast<int>(number_exponent->value);
@@ -133,6 +137,13 @@ ExactPolynomial expr_to_exact_polynomial_impl(
                         {make_monomial(exponents), ExactCoefficient::one()}
                     });
                 }
+
+                ExactPolynomial result(ExactCoefficient::one());
+                const ExactPolynomial base_polynomial = recur(base);
+                for (int i = 0; i < static_cast<int>(number_exponent->value); ++i) {
+                    result = result * base_polynomial;
+                }
+                return result;
             }
         }
         throw_unsupported_construct("expr_to_polynomial: Not implemented for this expression");

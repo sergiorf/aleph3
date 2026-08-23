@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <functional>
+#include <limits>
 #include <numeric>
 #include <optional>
 #include <set>
@@ -556,23 +557,32 @@ Polynomial expr_to_polynomial(
             if (pow->args.size() == 2) {
                 auto base = pow->args[0];
                 auto exp = pow->args[1];
-                if (auto s = std::get_if<Symbol>(&(*base))) {
-                    if (auto n = std::get_if<Number>(&(*exp))) {
-                        const double exponent = n->value;
+                if (auto n = std::get_if<Number>(&(*exp))) {
+                    const double exponent = n->value;
+                    if (std::floor(exponent) != exponent || exponent < 0.0 ||
+                        exponent > static_cast<double>(std::numeric_limits<int>::max())) {
+                        throw_invalid_form(
+                            "expr_to_polynomial: Polynomial powers require "
+                            "non-negative integer exponents");
+                    }
+
+                    if (auto s = std::get_if<Symbol>(&(*base))) {
                         if (!contains_variable(variables, s->name)) {
                             throw_invalid_form(
                                 "expr_to_polynomial: Symbol `" + s->name +
                                 "` is not in the selected polynomial variable set");
                         }
-                        if (std::floor(exponent) != exponent || exponent < 0.0) {
-                            throw_invalid_form(
-                                "expr_to_polynomial: Polynomial powers require "
-                                "non-negative integer exponents");
-                        }
                         std::map<std::string, int> exps;
                         exps[s->name] = static_cast<int>(exponent);
                         return Polynomial({{make_monomial(exps), 1.0}});
                     }
+
+                    Polynomial result(1.0);
+                    const Polynomial base_polynomial = recur(base);
+                    for (int i = 0; i < static_cast<int>(exponent); ++i) {
+                        result = result * base_polynomial;
+                    }
+                    return result;
                 }
             }
         }

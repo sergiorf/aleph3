@@ -99,7 +99,7 @@ std::string style_stderr(std::string_view text, const std::string& color) {
 
 void print_cli_logo(bool compact = false) {
     const auto& palette = cli_palette();
-    const auto title = style_stdout("ℵ3 aleph3", palette.highlight);
+    const auto title = style_stdout("aleph3", palette.highlight);
 
     if (compact) {
         std::cout << title << ' ' << style_stdout("symbolic sdk + math core", palette.dim) << "\n\n";
@@ -107,7 +107,7 @@ void print_cli_logo(bool compact = false) {
     }
 
     std::cout
-        << "              " << style_stdout("ℵ", palette.accent) << '\n'
+        << "              " << style_stdout("aleph3", palette.accent) << '\n'
         << "           " << style_stdout("aleph-three", palette.accent_soft) << '\n'
         << "  " << title << "  " << style_stdout("symbolic sdk + embeddable math engine", palette.dim) << "\n\n";
 }
@@ -613,7 +613,7 @@ std::string_view repl_mode_short_name(ReplMode mode) {
 }
 
 std::string make_repl_prompt(ReplMode mode) {
-    return style_stdout("ℵ3", cli_palette().highlight) +
+    return style_stdout("aleph3", cli_palette().highlight) +
            style_stdout("[", cli_palette().dim) +
            style_stdout(repl_mode_short_name(mode), cli_palette().accent_soft) +
            style_stdout("]", cli_palette().dim) +

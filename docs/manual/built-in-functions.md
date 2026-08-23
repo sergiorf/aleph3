@@ -154,6 +154,24 @@ serialization format. CLI and session inspection commands such as
 `symbolic-fullform` and `:inspect` inspect parsed input structure before normal
 evaluation.
 
+## Symbolic Simplification
+
+`Simplify[expr]` evaluates its argument, then applies the supported symbolic
+simplification pass:
+
+```text
+Simplify[x + x + 2*x]                  -> 4 * x
+Simplify[0 + (1 * x)]                  -> x
+Simplify[1/2 + 1/3]                    -> 5/6
+Simplify[Sin[0]]                       -> 0
+```
+
+This is the same simplification path used by the session simplify operation.
+It covers the documented arithmetic cleanup, exact rational arithmetic, and
+narrow symbolic coefficient collection for supported single-symbol terms. It
+does not imply broad CAS simplification, arbitrary factor cancellation, or
+collection of unsupported symbolic bases such as `x*y + 2*x*y`.
+
 ## Symbolic Predicates
 
 ```text

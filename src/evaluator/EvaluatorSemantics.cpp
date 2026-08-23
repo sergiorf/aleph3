@@ -82,6 +82,7 @@ const std::unordered_map<std::string, FunctionSemantics>& function_semantics_reg
         {"Cancel", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
         {"Equivalent", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 2)},
         {"FullForm", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
+        {"Simplify", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 1)},
         {"ReplaceAll", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, false, false, false, false, false, 2)},
 
         {"Sin", exact_arity_semantics(EvaluationMode::Eager, DispatchKind::Default, false, true, false, true, false, false, 1)},

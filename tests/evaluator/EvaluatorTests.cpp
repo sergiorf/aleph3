@@ -1415,6 +1415,21 @@ TEST_CASE("FullForm builtin rejects invalid arity", "[evaluator][structural][dia
     REQUIRE_THROWS_WITH(evaluate(parse_expression("FullForm[x, y]"), ctx), "FullForm expects exactly 1 argument");
 }
 
+TEST_CASE("Simplify builtin evaluates then applies symbolic simplification", "[evaluator][simplify]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(evaluate(parse_expression("Simplify[x + x + 2*x]"), ctx)) == "4 * x");
+    REQUIRE(to_string(evaluate(parse_expression("Simplify[Sin[0]]"), ctx)) == "0");
+    REQUIRE(to_string(evaluate(parse_expression("Simplify[1/2 + 1/3]"), ctx)) == "5/6");
+}
+
+TEST_CASE("Simplify builtin rejects invalid arity", "[evaluator][simplify][diagnostics]") {
+    EvaluationContext ctx;
+
+    REQUIRE_THROWS_WITH(evaluate(parse_expression("Simplify[]"), ctx), "Simplify expects exactly 1 argument");
+    REQUIRE_THROWS_WITH(evaluate(parse_expression("Simplify[x, y]"), ctx), "Simplify expects exactly 1 argument");
+}
+
 TEST_CASE("Structural inspection rejects unsupported part requests", "[evaluator][structural][diagnostics]") {
     EvaluationContext ctx;
 

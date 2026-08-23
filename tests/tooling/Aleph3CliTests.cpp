@@ -197,6 +197,8 @@ TEST_CASE("REPL help exposes focused symbolic and command entries", "[tooling][c
     REQUIRE(result.output.find("Length[{a, b, c}] -> 3") != std::string::npos);
     REQUIRE(result.output.find("FullForm [builtin]") != std::string::npos);
     REQUIRE(result.output.find("FullForm[x + 1] -> \"Plus[x, 1]\"") != std::string::npos);
+    REQUIRE(result.output.find("Simplify [builtin]") != std::string::npos);
+    REQUIRE(result.output.find("Simplify[x + x + 2*x] -> 4 * x") != std::string::npos);
     REQUIRE(result.output.find("Assuming [builtin]") != std::string::npos);
     REQUIRE(result.output.find("Facts are scoped to the evaluation") != std::string::npos);
     REQUIRE(result.output.find("MatrixAdd [pack] (core-algebra)") != std::string::npos);

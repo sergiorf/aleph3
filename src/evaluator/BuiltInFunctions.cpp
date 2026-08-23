@@ -10,6 +10,7 @@
 #include "packs/AlgebraPack.hpp"
 #include "packs/CalculusPack.hpp"
 #include "expr/ExprUtils.hpp"
+#include "transforms/Transforms.hpp"
 #include "util/Overloaded.hpp"
 #include "Constants.hpp"
 #include <cmath>
@@ -621,6 +622,13 @@ namespace aleph3 {
                 throw_invalid_arity_exact("FullForm", 1);
             }
             return make_expr<String>(to_fullform(evaluate_fullform_tree(func.args[0], ctx)));
+            });
+
+        registry.register_function("Simplify", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {
+            if (func.args.size() != 1) {
+                throw_invalid_arity_exact("Simplify", 1);
+            }
+            return simplify(evaluate(func.args[0], ctx));
             });
 
         registry.register_function("Replace", [](const FunctionCall& func, EvaluationContext& ctx) -> ExprPtr {

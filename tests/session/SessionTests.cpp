@@ -124,6 +124,7 @@ TEST_CASE("Session returns structured failures and supports all operations", "[s
     REQUIRE(session.execute({"a + 1"}).output == "5");
 
     REQUIRE(session.execute({"0 + x", SessionOperation::simplify}).output == "x");
+    REQUIRE(session.execute({"Simplify[x + x + 2*x]"}).output == "4 * x");
     REQUIRE(session.execute({"f[x]", SessionOperation::full_form}).output == "f[x]");
 }
 
@@ -327,7 +328,7 @@ TEST_CASE("Help catalog has rich metadata for registered provider entries", "[se
 TEST_CASE("Session help exposes rich entries across supported discovery groups", "[session][help]") {
     Session session;
     const std::vector<std::string> names = {
-        "Log", "ArcTan", "Length", "Assuming", "MatrixAdd", "D", "If", "Rule"
+        "Log", "ArcTan", "Length", "Simplify", "Assuming", "MatrixAdd", "D", "If", "Rule"
     };
 
     for (const auto& name : names) {

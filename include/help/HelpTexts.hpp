@@ -461,6 +461,11 @@ namespace aleph3 {
                 "FullForm returns an exact string containing the evaluated expression structure.",
                 "It is diagnostic text, not a stable serialization format.",
                 "builtin", "manual/built-in-functions.md#numeric-and-structural-output"},
+            {"Simplify", "Evaluate an expression and apply the supported symbolic simplifier.", "Symbolic",
+                {"Simplify[expr]"}, {"Simplify[x + x + 2*x] -> 4 * x", "Simplify[1/2 + 1/3] -> 5/6"},
+                "Uses the same simplification pass as the session simplify operation.",
+                "This is the documented supported simplifier, not a broad CAS simplification engine.",
+                "builtin", "manual/built-in-functions.md#symbolic-simplification"},
 
             // Algebra pack
             {"Expand", "Expand products and powers in the current polynomial subset.", "Polynomial",

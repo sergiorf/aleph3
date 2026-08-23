@@ -6,302 +6,82 @@
 </p>
 
 # Aleph3
-Aleph3 is evolving into a lightweight web-accessible symbolic notebook and
-local computation environment written in modern C++. The first MVP is a web
-notebook surface backed by the same C++ kernel, session layer, notebook core,
-and registered math packs used by the CLI and SDK.
 
-The repository currently contains the foundation for that MVP:
+Aleph3 is a modern C++ symbolic mathematics engine and interactive notebook
+project for exact computation, algebra, expression manipulation, and
+extensible mathematical computing.
 
-Use it to:
+The symbolic kernel is the core of the project. The CLI, SDK, session layer,
+web API, and notebook-facing interfaces are intended to share that same
+semantic engine rather than implement separate evaluator behavior.
 
-- build the experimental web API core for anonymous clients and isolated
-  symbolic sessions
-- evaluate supported symbolic expressions through shared session semantics
-- discover supported functions through session-backed completion and focused
-  help metadata
-- run the CLI as the current interactive local fallback
-- validate and execute application formulas through a small SDK
-- work with exact rationals, assumptions, rewrite rules, and polynomial algebra
-- keep web, CLI, SDK, sessions, notebook documents, and math packs on one
-  semantic path
+Aleph3 is under active development. APIs and product surfaces may still evolve,
+and the supported symbolic subset is deliberately smaller than systems such as
+Mathematica, Maple, SageMath, or SymPy. Unsupported operations should produce
+explicit diagnostics instead of silently guessing.
 
-The web MVP is being assembled in slices. The current tree includes the
-transport-independent legacy web API core, an internal C++ engine HTTP service,
-an ASP.NET Core BFF skeleton, a React/Vite evaluator surface, and Docker
-Compose routing through Traefik. Notebook persistence, examples in the browser,
-completion/help UI, and `Run All` through the BFF remain later MVP slices. The
-CLI remains the easiest fully local interactive fallback.
+## Quick Examples
 
-## Build Notifications
+The CLI and session-backed surfaces currently accept a Wolfram-like expression
+syntax:
 
-GitHub Actions runs the `CI` workflow for pushes and pull requests targeting
-`main`. The workflow builds and runs the CTest suite on Ubuntu and Windows, and
-checks changed C++ source/header formatting with `clang-format` on Ubuntu.
+```text
+1/2 + 1/3
+Factor[x^2 - 1]
+Refine[Sqrt[x^2], x >= 0]
+PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]
+```
 
-Aleph3 is deliberately focused rather than a Mathematica, SageMath, or
-general-purpose CAS replacement. Unsupported algebraic forms fail explicitly
-instead of silently guessing.
+In the REPL:
 
-## Syntax
+```text
+> 1/2 + 1/3
+5/6
 
-Aleph3 currently accepts a Wolfram-like expression syntax for its symbolic and
-CLI-facing workflows.
+> Factor[x^2 - 1]
+(x - 1) * (x + 1)
 
-Examples:
+> Refine[Sqrt[x^2], x >= 0]
+x
 
-- `If[x >= 1, "ok", False]`
-- `Refine[Sqrt[x^2], x >= 0]`
-- `Replace[f[f[x], x], x -> y, {1, 2}]`
-- `PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]`
+> PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]
+{x + y, y}
+```
 
-That syntax is a current frontend, not the whole product identity.
-The long-term kernel design keeps syntax separate from semantics so Aleph3 can
-support compatibility syntax, a more Aleph3-native syntax, or both over time.
+The syntax is a current frontend, not the whole product identity. The kernel
+keeps syntax separate from expression meaning so compatibility syntax,
+Aleph3-native syntax, or both can evolve over time.
 
-## Build And Launch The Web API Core
+## What Works Today
+
+Current implemented surfaces include:
+
+- a C++20 symbolic kernel with exact rationals, expression evaluation,
+  assumptions, diagnostics, rewrite support, and function registration;
+- a CLI workbench over the shared session, kernel, and registered packs;
+- a C++ SDK path for validating and executing application formulas through the
+  shared kernel;
+- algebra pack functionality including focused polynomial operations;
+- a headless notebook core for document structure, JSON persistence, and clean
+  `Run All` lifecycle behavior;
+- an internal C++ engine service and transitional web API core over shared
+  sessions;
+- an ASP.NET Core BFF skeleton and React/Vite frontend slice for the Web MVP.
+
+The CLI is currently the fastest way to try the engine locally. The web layer
+is being assembled around this path:
+
+```text
+React/Vite frontend -> ASP.NET Core BFF /api/* -> internal C++ engine /internal/* -> session::Session -> kernel + packs
+```
+
+## Build And Try The CLI
 
 You need CMake 3.20+ and a C++20 compiler.
 
-1. Clone and configure:
-
-   ```bash
-   git clone https://github.com/sergiorf/aleph3.git
-   cd aleph3
-   cmake -S . -B build
-   ```
-
-2. Build the web API core and smoke executable:
-
-   ```bash
-   cmake --build build --config Release --target aleph3_web_api_server
-   ```
-
-3. Launch the current health-check entrypoint:
-
-   ```bash
-   ./build/bin/aleph3_web_api_server --health
-   ```
-
-   On Visual Studio and other multi-configuration generators:
-
-   ```powershell
-   .\build\bin\Release\aleph3_web_api_server.exe --health
-   ```
-
-   Expected output:
-
-   ```json
-   {"ready":true,"service":"aleph3-web-api","status":"ok"}
-   ```
-
-This proves the current API-core executable is built and runnable. It does not
-start the public web MVP backend. The implemented API core is exercised
-through tests and remains transitional contract evidence while browser traffic
-migrates to the BFF:
-
-```text
-GET  /api/health
-POST /api/clients
-POST /api/sessions
-GET  /api/sessions/{sessionId}
-POST /api/sessions/{sessionId}/evaluate
-POST /api/sessions/{sessionId}/reset
-GET  /api/sessions/{sessionId}/complete?prefix={prefix}
-GET  /api/sessions/{sessionId}/help?query={nameOrPrefix}
-DELETE /api/sessions/{sessionId}
-```
-
-Session endpoints use anonymous client ownership and delegate evaluation,
-completion, and focused help to `session::Session`; web code does not add
-symbolic parser, evaluator, discovery, or pack semantics.
-
-## Run The Phase 6a Web MVP Slice
-
-The first browser loop uses this path:
-
-```text
-React/Vite frontend -> ASP.NET Core BFF /api/* -> internal C++ engine /internal/* -> session::Session
-```
-
-### Internal C++ Engine
-
-Build and smoke-test the internal engine service:
-
 ```bash
-cmake --build build --config Release --target aleph3_engine_service
-./build/bin/aleph3_engine_service --health
-```
-
-On Visual Studio and other multi-configuration generators:
-
-```powershell
-cmake --build build --config Release --target aleph3_engine_service
-.\build\bin\Release\aleph3_engine_service.exe --health
-```
-
-Expected output:
-
-```json
-{"ready":true,"service":"aleph3-engine","status":"ok"}
-```
-
-Run the focused engine tests:
-
-```bash
-cmake --build build --config Release --target aleph3_engine_api_tests
-ctest --test-dir build -C Release -R aleph3_engine_api_tests --output-on-failure
-```
-
-Start the internal engine listener for local BFF development:
-
-```bash
-ALEPH3_ENGINE_PORT=8080 ./build/bin/aleph3_engine_service
-```
-
-On PowerShell:
-
-```powershell
-$env:ALEPH3_ENGINE_PORT = "8080"
-.\build\bin\Release\aleph3_engine_service.exe
-```
-
-### ASP.NET Core BFF
-
-The BFF exposes the public browser API and forwards evaluation to the internal
-engine. It requires the .NET 8 SDK for local development:
-
-```bash
-cd web/bff
-dotnet run
-```
-
-By default it calls `http://localhost:8080`. Override the engine URL when
-needed:
-
-```bash
-ALEPH3_ENGINE_BASE_URL=http://localhost:8080 dotnet run --project web/bff/Aleph3.Bff.csproj
-```
-
-Smoke-test the BFF:
-
-```bash
-curl http://localhost:5000/api/health
-curl -X POST http://localhost:5000/api/sessions
-```
-
-Use the returned `sessionId` to evaluate:
-
-```bash
-curl -X POST http://localhost:5000/api/sessions/{sessionId}/evaluate \
-  -H "Content-Type: application/json" \
-  -d '{"source":"1/2 + 1/3"}'
-```
-
-Expected result payload contains:
-
-```json
-{"canonicalText":"5/6"}
-```
-
-### React/Vite Frontend
-
-The frontend opens directly into the evaluator workspace:
-
-```bash
-cd web/frontend
-npm install
-npm run dev
-```
-
-The Vite dev server proxies `/api/*` to `http://localhost:5000`. Open the
-printed Vite URL, run the default input `1/2 + 1/3`, and expect `5/6`.
-
-Frontend checks:
-
-```bash
-npm run typecheck
-npm run build
-```
-
-### Docker Compose
-
-The production-like Compose graph starts Traefik, frontend, BFF, internal
-engine, and Postgres:
-
-```bash
-docker compose up --build
-```
-
-Only Traefik publishes host ports in `docker-compose.yml`:
-
-```text
-80:80
-443:443
-```
-
-Routes:
-
-```text
-/      -> frontend
-/api/* -> BFF
-```
-
-The engine and Postgres are on the internal Compose network and are not routed
-publicly. For local debugging only, use the development override:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-The dev override additionally publishes:
-
-```text
-frontend 5173
-BFF      5000
-engine   8080
-Postgres 5432
-```
-
-Full-slice smoke check:
-
-1. Start Compose.
-2. Open `http://localhost/`.
-3. Run `1/2 + 1/3`.
-4. Confirm the browser displays `5/6`.
-
-## Build The Full Developer System
-
-To build the kernel, packs, web API core, notebook core, CLI, SDK, examples,
-and tests:
-
-   ```bash
-   cmake -S . -B build
-   cmake --build build --config Release
-   ```
-
-Run all configured tests:
-
-   ```bash
-   ctest --test-dir build -C Release --output-on-failure
-   ```
-
-Focused web API verification:
-
-   ```bash
-   cmake --build build --config Release --target aleph3_web_api_tests
-   ctest --test-dir build -C Release -R aleph3_web_api_tests --output-on-failure
-   ```
-
-## Build And Run The CLI Workbench
-
-The CLI is the fastest way to try the kernel locally. It is a single-process
-workbench over the shared session, kernel, and registered packs; it does not
-require the web BFF, internal engine HTTP service, Traefik, or Postgres.
-
-Build the CLI:
-
-```bash
+git clone https://github.com/sergiorf/aleph3.git
+cd aleph3
 cmake -S . -B build
 cmake --build build --config Release --target aleph3_cli
 ```
@@ -317,52 +97,6 @@ Run the REPL on Windows or other multi-configuration builds:
 ```powershell
 .\build\bin\Release\aleph3_cli.exe repl
 ```
-
-If you are using the local BuildTools directory from this repository's
-development setup, the executable may be:
-
-```powershell
-.\build-codex-buildtools-local\bin\aleph3_cli.exe repl
-```
-
-In the REPL, type formulas directly:
-
-```text
-> 1/2 + 1/3
-5/6
-
-> a = 2
-2
-
-> a + 3
-5
-
-> Refine[Sqrt[x^2], x >= 0]
-x
-
-> Factor[x^2 - 1]
-(x - 1) * (x + 1)
-
-> PolynomialQuotient[x^2*y + x*y^2 + y, x*y, {x, y}]
-{x + y, y}
-```
-
-Interactive commands:
-
-```text
-> :help
-> :help Factor
-> :packs
-> :complete Pol
-> :inspect Factor[x^2 - 1]
-> :reset
-> :quit
-```
-
-On Windows and Unix-like interactive terminals, Tab completes commands and
-symbol names, arrows navigate history, and left/right arrows edit the current
-line. `:complete <prefix>` is the portable fallback and is also useful in
-piped tests.
 
 One-shot evaluation also works:
 
@@ -381,63 +115,139 @@ Run stateful scripts with one expression per non-empty line:
 ./build/bin/aleph3_cli script --json calculations.aleph3
 ```
 
+Useful REPL commands:
+
+```text
+> :help
+> :help Factor
+> :packs
+> :complete Pol
+> :inspect Factor[x^2 - 1]
+> :reset
+> :quit
+```
+
+On Windows and Unix-like interactive terminals, Tab completes commands and
+symbol names, arrows navigate history, and left/right arrows edit the current
+line. `:complete <prefix>` is the portable fallback and is also useful in
+piped tests.
+
+## Build The Developer System
+
+Build the kernel, packs, CLI, SDK, notebook core, web components, examples,
+and tests:
+
+```bash
+cmake -S . -B build
+cmake --build build --config Release
+```
+
+Run the configured CTest suite:
+
+```bash
+ctest --test-dir build -C Release --output-on-failure
+```
+
+For a smaller SDK-focused configuration:
+
+```bash
+cmake -S . -B build-sdk -DALEPH3_BUILD_SYMBOLIC_ENGINE=OFF -DBUILD_TESTING=OFF
+cmake --build build-sdk --config Release
+```
+
+The SDK still uses the kernel in this configuration. The option disables the
+broader symbolic product surface and its tests; it does not introduce a
+separate runtime.
+
+## Web MVP Slice
+
+The current web implementation uses ASP.NET Core for the BFF and React/Vite
+for the browser frontend. The C++ engine service owns symbolic sessions and
+delegates computation to the same session, kernel, and pack code used by the
+CLI.
+
+Build and smoke-test the internal engine service:
+
+```bash
+cmake --build build --config Release --target aleph3_engine_service
+./build/bin/aleph3_engine_service --health
+```
+
+Start the BFF and frontend for local development:
+
+```bash
+cd web/bff
+dotnet run
+```
+
+```bash
+cd web/frontend
+npm install
+npm run dev
+```
+
+Detailed service endpoints, ports, Docker Compose topology, Traefik routing,
+and smoke-test procedures live in
+[Web MVP Operations](docs/web_mvp_operations.md). Launch scope and sequencing
+live in the [Web MVP Launch Plan](docs/web_mvp_launch_plan.md).
+
+## Architecture At A Glance
+
+- `aleph3_kernel` owns expressions, evaluation, rewriting, exact arithmetic,
+  assumptions, diagnostics, resource budgets, and registration.
+- Math packs add domain functions through kernel registration; `core-algebra`
+  currently owns the focused polynomial surface.
+- `aleph3_sdk` adds schemas, policies, host-facing values, and the trusted
+  embedding boundary over the kernel.
+- The reusable session layer owns interactive state and exposes evaluation,
+  completion, help, and reset behavior to CLI and web consumers.
+- `aleph3_cli` is the local interactive and scripting workbench.
+- `aleph3_notebook_core` owns the current headless document model,
+  persistence, and clean `Run All` lifecycle.
+- The web product path uses React/Vite, an ASP.NET Core BFF, and an internal
+  C++ engine service; browser and BFF code must not add private symbolic
+  semantics.
+
+`aleph3_symbolic` remains a compatibility target name during migration; it is
+not a second semantic engine.
+
+For the full ownership model, see [Architecture](docs/architecture.md).
+
+## Project Status
+
+Aleph3 is an open-source personal engineering project in active development.
+The strongest current surfaces are the kernel, CLI, SDK, sessions, focused
+algebra support, notebook core, and the first web evaluation path.
+
+The near-term product work is the Web MVP: a usable browser notebook backed by
+the shared semantic engine. Broader CAS features, richer notebook UX, wider
+calculus, solving, plotting, arbitrary-precision expansion, DSP packs, and
+large compatibility claims remain future work unless documented as supported
+in the manual and specifications.
+
+GitHub Actions runs the `CI` workflow for pushes and pull requests targeting
+`main`. The workflow builds and runs the CTest suite on Ubuntu and Windows,
+and checks changed C++ source/header formatting with `clang-format` on Ubuntu.
+
+## Documentation
+
+- [Aleph3 Manual](docs/manual/README.md) - supported workflows and examples.
+- [Documentation Index](docs/README.md) - canonical documentation map.
+- [Architecture](docs/architecture.md) - system shape and ownership
+  boundaries.
+- [SDK Guide](docs/sdk/README.md) - embedding surface and SDK references.
+- [Web MVP Launch Plan](docs/web_mvp_launch_plan.md) - current web product
+  scope and sequencing.
+- [Unified Plan](docs/aleph3_unified_plan.md) - longer-term implementation
+  roadmap.
+
 The variable list `{x, y}` in multivariate algebra declares variable
 precedence. See the manual's
 [Concepts and terminology appendix](docs/manual/concepts-and-terminology.md)
 for a plain-language explanation.
 
-The REPL can also switch to the trusted SDK-facing path and demo host
-functions:
-
-```text
-> :mode sdk
-> :validate If[True, 1, "no"]
-> :compile 1 + 2
-> :evaluate --var x=3 x + 1
-> :evaluate-host --var x=12 Clamp[x, 0, 10]
-```
-
-Run `aleph3_sdk_example` for an embedding example using the C++ API.
-
-## Build Options
-
-For a smaller SDK-focused configuration:
-
-   ```bash
-   cmake -S . -B build-sdk -DALEPH3_BUILD_SYMBOLIC_ENGINE=OFF -DBUILD_TESTING=OFF
-   cmake --build build-sdk --config Release
-   ```
-
-The SDK still uses the kernel in this configuration. The option disables the
-broader symbolic surface and its tests; it does not introduce a separate
-runtime.
-
-## Architecture At A Glance
-
-- `aleph3_kernel` owns expressions, evaluation, rewriting, exact arithmetic,
-  assumptions, diagnostics, and registration.
-- `aleph3_sdk` adds schemas, policies, host-facing values, and the trusted
-  embedding boundary.
-- math packs add domain functions through kernel registration; `core-algebra`
-  currently owns the polynomial surface.
-- `aleph3_web_api` is the experimental web API core over anonymous clients and
-  shared sessions.
-- `aleph3_cli` and the reusable session layer expose those same semantics
-  interactively.
-- `aleph3_notebook_core` owns the current headless document model, JSON
-  persistence, and clean `Run All` lifecycle.
-- the planned web frontend will own editing and presentation while delegating
-  all execution to the API, session, kernel, and packs.
-
-`aleph3_symbolic` remains a compatibility target name during migration; it is
-not a second semantic engine.
-
-## Documentation
-
-Read the [Aleph3 Manual](docs/manual/README.md) for supported workflows and
-examples. The [documentation index](docs/README.md) maps normative contracts,
-architecture, product design, and the unified roadmap without duplicating that
-material here.
-
 ## License
-[MIT License](LICENSE)
+
+Copyright 2025 Sergio Rodriguez Freire.
+
+Aleph3 is licensed under the [Apache License 2.0](LICENSE).

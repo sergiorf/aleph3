@@ -587,6 +587,21 @@ TEST_CASE("Polynomial helpers preserve documented round-trip invariants", "[alge
     REQUIRE(simplify_string(factored) == "x * (x - 1) * (x + 1)");
 }
 
+TEST_CASE("Polynomial helpers compose supported algebra transformations", "[algebra][functions][contract]") {
+    EvaluationContext ctx;
+
+    REQUIRE(simplify_string(evaluate_source("Expand[Factor[x^5 - x^3]]", ctx)) ==
+            "x^5 - x^3");
+    REQUIRE(simplify_string(evaluate_source("Factor[Expand[(x + 1) * (x + 2)]]", ctx)) ==
+            "(x + 1) * (x + 2)");
+    REQUIRE(simplify_string(evaluate_source("Collect[Expand[(x + 1)^2], x]", ctx)) ==
+            "x^2 + 2 * x + 1");
+
+    ctx.variables["x"] = make_expr<Number>(99.0);
+    REQUIRE(simplify_string(evaluate_source("Expand[Factor[x^3 - x]]", ctx)) ==
+            "x^3 - x");
+}
+
 TEST_CASE("Polynomial quotient and gcd satisfy documented consistency identities", "[algebra][functions][contract]") {
     EvaluationContext ctx;
 

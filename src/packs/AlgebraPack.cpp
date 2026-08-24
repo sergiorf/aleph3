@@ -193,40 +193,67 @@ std::vector<std::string> infer_variables(const ExprPtr& left, const ExprPtr& rig
     return variables;
 }
 
+bool is_algebra_expression_head(const std::string& head) {
+    return head == "Expand" ||
+        head == "Factor" ||
+        head == "GCD" ||
+        head == "PolynomialRemainder" ||
+        head == "PolynomialDegree" ||
+        head == "LeadingCoefficient" ||
+        head == "Coefficient" ||
+        head == "Numerator" ||
+        head == "Denominator" ||
+        head == "Together" ||
+        head == "Cancel";
+}
+
+ExprPtr evaluate_algebra_expression_operand(const ExprPtr& expr, EvaluationContext& ctx) {
+    const auto* call = std::get_if<FunctionCall>(expr.get());
+    if (call == nullptr || !is_algebra_expression_head(call->head)) {
+        return expr;
+    }
+    return evaluate(expr, ctx);
+}
+
 ExprPtr evaluate_expand(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Expand", 1);
     }
-    return expand_polynomial(func.args[0], ctx);
+    return expand_polynomial(evaluate_algebra_expression_operand(func.args[0], ctx), ctx);
 }
 
 ExprPtr evaluate_factor(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Factor", 1);
     }
-    return factor_polynomial(func.args[0], ctx);
+    return factor_polynomial(evaluate_algebra_expression_operand(func.args[0], ctx), ctx);
 }
 
 ExprPtr evaluate_collect(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 2) {
         throw_invalid_arity_exact("Collect", 2);
     }
-    return collect_polynomial(func.args[0], extract_variables(func.args[1]), ctx);
+    return collect_polynomial(
+        evaluate_algebra_expression_operand(func.args[0], ctx),
+        extract_variables(func.args[1]),
+        ctx);
 }
 
 ExprPtr evaluate_gcd(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 2 && func.args.size() != 3) {
         throw_invalid_arity_between("GCD", 2, 3);
     }
+    const auto left = evaluate_algebra_expression_operand(func.args[0], ctx);
+    const auto right = evaluate_algebra_expression_operand(func.args[1], ctx);
     const auto variables = func.args.size() == 3
         ? extract_variables(func.args[2])
-        : infer_variables(func.args[0], func.args[1]);
+        : infer_variables(left, right);
     if (func.args.size() == 2 && variables.size() > 1) {
         throw_unsupported_construct(
             "gcd: multivariate GCD requires an explicit variable selector");
     }
     try {
-        return gcd_polynomial(func.args[0], func.args[1], variables, ctx);
+        return gcd_polynomial(left, right, variables, ctx);
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     }
@@ -236,15 +263,17 @@ ExprPtr evaluate_polynomial_quotient(const FunctionCall& func, EvaluationContext
     if (func.args.size() != 2 && func.args.size() != 3) {
         throw_invalid_arity_between("PolynomialQuotient", 2, 3);
     }
+    const auto dividend = evaluate_algebra_expression_operand(func.args[0], ctx);
+    const auto divisor = evaluate_algebra_expression_operand(func.args[1], ctx);
     const auto variables = func.args.size() == 3
         ? extract_variables(func.args[2])
-        : infer_variables(func.args[0], func.args[1]);
+        : infer_variables(dividend, divisor);
     if (func.args.size() == 2 && variables.size() != 1) {
         throw_unsupported_construct(
             "divide: multivariate division requires an explicit variable selector");
     }
     try {
-        const auto result = divide_polynomial(func.args[0], func.args[1], variables, ctx);
+        const auto result = divide_polynomial(dividend, divisor, variables, ctx);
         return make_expr<List>(std::vector<ExprPtr>{result.first, result.second});
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
@@ -257,15 +286,17 @@ ExprPtr evaluate_polynomial_remainder(const FunctionCall& func, EvaluationContex
     if (func.args.size() != 2 && func.args.size() != 3) {
         throw_invalid_arity_between("PolynomialRemainder", 2, 3);
     }
+    const auto dividend = evaluate_algebra_expression_operand(func.args[0], ctx);
+    const auto divisor = evaluate_algebra_expression_operand(func.args[1], ctx);
     const auto variables = func.args.size() == 3
         ? extract_variables(func.args[2])
-        : infer_variables(func.args[0], func.args[1]);
+        : infer_variables(dividend, divisor);
     if (func.args.size() == 2 && variables.size() != 1) {
         throw_unsupported_construct(
             "divide: multivariate division requires an explicit variable selector");
     }
     try {
-        return remainder_polynomial(func.args[0], func.args[1], variables, ctx);
+        return remainder_polynomial(dividend, divisor, variables, ctx);
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     } catch (const std::domain_error& error) {
@@ -277,7 +308,10 @@ ExprPtr evaluate_polynomial_degree(const FunctionCall& func, EvaluationContext& 
     if (func.args.size() != 2) {
         throw_invalid_arity_exact("PolynomialDegree", 2);
     }
-    return degree_polynomial(func.args[0], extract_single_variable(func.args[1]), ctx);
+    return degree_polynomial(
+        evaluate_algebra_expression_operand(func.args[0], ctx),
+        extract_single_variable(func.args[1]),
+        ctx);
 }
 
 ExprPtr evaluate_leading_coefficient(const FunctionCall& func, EvaluationContext& ctx) {
@@ -285,7 +319,7 @@ ExprPtr evaluate_leading_coefficient(const FunctionCall& func, EvaluationContext
         throw_invalid_arity_exact("LeadingCoefficient", 2);
     }
     return leading_coefficient_polynomial(
-        func.args[0],
+        evaluate_algebra_expression_operand(func.args[0], ctx),
         extract_single_variable(func.args[1]),
         ctx);
 }
@@ -299,7 +333,11 @@ ExprPtr evaluate_coefficient(const FunctionCall& func, EvaluationContext& ctx) {
         ? extract_non_negative_integer_exponent(func.args[2])
         : 1;
     try {
-        return coefficient_polynomial(func.args[0], variable, exponent, ctx);
+        return coefficient_polynomial(
+            evaluate_algebra_expression_operand(func.args[0], ctx),
+            variable,
+            exponent,
+            ctx);
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     }
@@ -311,7 +349,10 @@ ExprPtr evaluate_coefficient_list(const FunctionCall& func, EvaluationContext& c
     }
     const auto variable = extract_single_variable(func.args[1]);
     try {
-        return coefficient_list_polynomial(func.args[0], variable, ctx);
+        return coefficient_list_polynomial(
+            evaluate_algebra_expression_operand(func.args[0], ctx),
+            variable,
+            ctx);
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     }
@@ -321,28 +362,36 @@ ExprPtr evaluate_numerator(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Numerator", 1);
     }
-    return numerator_rational_expression(func.args[0], ctx);
+    return numerator_rational_expression(
+        evaluate_algebra_expression_operand(func.args[0], ctx),
+        ctx);
 }
 
 ExprPtr evaluate_denominator(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Denominator", 1);
     }
-    return denominator_rational_expression(func.args[0], ctx);
+    return denominator_rational_expression(
+        evaluate_algebra_expression_operand(func.args[0], ctx),
+        ctx);
 }
 
 ExprPtr evaluate_together(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Together", 1);
     }
-    return together_rational_expression(func.args[0], ctx);
+    return together_rational_expression(
+        evaluate_algebra_expression_operand(func.args[0], ctx),
+        ctx);
 }
 
 ExprPtr evaluate_cancel(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Cancel", 1);
     }
-    return cancel_rational_expression(func.args[0], ctx);
+    return cancel_rational_expression(
+        evaluate_algebra_expression_operand(func.args[0], ctx),
+        ctx);
 }
 
 ExprPtr evaluate_equivalent(const FunctionCall& func, EvaluationContext& ctx) {

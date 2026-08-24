@@ -34,6 +34,20 @@ TEST_CASE("Symbolic CLI support canonicalizes linear factor output", "[tooling][
     REQUIRE(result.output == "x^3 * (x - 1) * (x + 1)");
 }
 
+TEST_CASE("Symbolic CLI support composes polynomial transformations", "[tooling][symbolic-cli]") {
+    const auto expanded_factor =
+        tooling::symbolic_evaluate_expression("Expand[Factor[x^5 - x^3]]");
+
+    REQUIRE(expanded_factor.ok);
+    REQUIRE(expanded_factor.output == "x^5 - x^3");
+
+    const auto factored_expand =
+        tooling::symbolic_evaluate_expression("Factor[Expand[(x + 1) * (x + 2)]]");
+
+    REQUIRE(factored_expand.ok);
+    REQUIRE(factored_expand.output == "(x + 1) * (x + 2)");
+}
+
 TEST_CASE("Symbolic CLI support keeps rational roots in exact linear factors", "[tooling][symbolic-cli]") {
     const auto result =
         tooling::symbolic_evaluate_expression("Factor[2*x^2 - 3*x + 1]");

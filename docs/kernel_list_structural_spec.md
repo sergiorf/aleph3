@@ -23,6 +23,8 @@ implicitly list-aware.
 
 - `Head[expr]` returns the public head name for atoms, lists, rules,
   assignments, function definitions, and function calls.
+- `Length[expr]` returns the number of immediate children for supported
+  compound expressions: lists, function calls, and rules.
 - `Part[expr, index]` returns the one-based child at `index` for supported
   lists, function calls, and rules.
 
@@ -45,6 +47,7 @@ Required diagnostics:
 
 - invalid indexes, including zero and out-of-range indexes
 - non-integer indexes
+- unsupported length extraction from atoms
 - unsupported part extraction from atoms
 - malformed nested part specifications
 

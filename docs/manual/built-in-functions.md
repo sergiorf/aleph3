@@ -89,11 +89,14 @@ StringLength["aleph3"]                  -> 6
 StringReplace["abcabc", "abc" -> "x"] -> "xx"
 StringTake["Hello", {2, 4}]             -> "ell"
 Length[{a, b, c}]                        -> 3
+Length[x + y + z]                        -> 3
 ```
 
 String ranges use the documented one-based convention. Lists are expression
 containers; accepting a list does not make every function automatically
-listable.
+listable. `Length` evaluates its argument and returns the number of immediate
+parts for supported compound expressions such as lists, function calls, and
+rules. Atomic expressions are unsupported.
 
 ## Structural Inspection And Finite List Transforms
 

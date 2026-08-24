@@ -1769,7 +1769,7 @@ TEST_CASE("Evaluator handles lists with symbolic elements", "[evaluator][lists]"
     REQUIRE(f2.head == "Plus");
 }
 
-TEST_CASE("Evaluator handles Length for lists", "[evaluator][lists]") {
+TEST_CASE("Evaluator handles Length for compound expressions", "[evaluator][lists]") {
     EvaluationContext ctx;
     auto expr = parse_expression("Length[{1, 2, 3, 4}]");
     auto result = evaluate(expr, ctx);
@@ -1781,6 +1781,25 @@ TEST_CASE("Evaluator handles Length for lists", "[evaluator][lists]") {
     result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(std::get<Number>(*result).value == 0.0);
+
+    expr = parse_expression("Length[x + y + z]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 3.0);
+
+    expr = parse_expression("Length[f[x, y]]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 2.0);
+
+    expr = parse_expression("Length[x -> y]");
+    result = evaluate(expr, ctx);
+    REQUIRE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::get<Number>(*result).value == 2.0);
+
+    REQUIRE_THROWS_WITH(
+        evaluate(parse_expression("Length[x]"), ctx),
+        "Length expects a compound expression");
 }
 
 struct EvalCase {

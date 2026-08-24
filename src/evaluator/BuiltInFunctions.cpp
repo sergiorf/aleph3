@@ -455,7 +455,13 @@ namespace aleph3 {
                 const auto& list = std::get<List>(*arg);
                 return make_expr<Number>(static_cast<double>(list.elements.size()));
             }
-            throw_invalid_form("Length expects a list argument");
+            if (const auto* call = std::get_if<FunctionCall>(arg.get())) {
+                return make_expr<Number>(static_cast<double>(call->args.size()));
+            }
+            if (const auto* rule = std::get_if<Rule>(arg.get())) {
+                return make_expr<Number>(2.0);
+            }
+            throw_invalid_form("Length expects a compound expression");
             });
 
         registry.register_function(

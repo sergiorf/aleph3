@@ -166,18 +166,22 @@ DerivativeResult derivative_power(const FunctionCall& call, const std::string& v
 
     const auto& base = call.args[0];
     const auto& exponent = call.args[1];
-    if (same_symbol(base, variable) && is_supported_numeric_exponent(exponent)) {
-        auto reduced_exponent = subtract_one(exponent, ctx);
-        auto result = make_fcall("Times", {
-            exponent,
-            make_fcall("Power", {base, reduced_exponent})
-        });
-        return {maybe_reduce(result, ctx, false), false};
-    }
-
     if (!depends_on(make_fcall(call.head, call.args), variable)) {
         return {numeric_zero(), false};
     }
+
+    if (is_supported_numeric_exponent(exponent)) {
+        auto base_derivative = differentiate_expr(base, variable, ctx);
+        auto reduced_exponent = subtract_one(exponent, ctx);
+        auto result = make_fcall("Times", {
+            exponent,
+            make_fcall("Power", {base, reduced_exponent}),
+            base_derivative.expr
+        });
+        const bool held = base_derivative.contains_held_derivative;
+        return {maybe_reduce(result, ctx, held), held};
+    }
+
     return {held_derivative(make_fcall(call.head, call.args), variable), true};
 }
 
@@ -286,14 +290,21 @@ DerivativeRequest require_derivative_request(const ExprPtr& expr) {
         return {require_variable_symbol(expr), 1};
     }
 
-    const auto* list = std::get_if<List>(expr.get());
-    if (list == nullptr || list->elements.size() != 2) {
+    std::vector<ExprPtr> elements;
+    if (const auto* list = std::get_if<List>(expr.get())) {
+        elements = list->elements;
+    } else if (const auto* call = std::get_if<FunctionCall>(expr.get());
+               call != nullptr && call->head == "List") {
+        elements = call->args;
+    }
+
+    if (elements.size() != 2) {
         throw_invalid_form("D expects the second argument to be a symbol or {symbol, nonnegative exact integer}");
     }
 
     return {
-        require_variable_symbol(list->elements[0]),
-        require_derivative_order(list->elements[1])
+        require_variable_symbol(elements[0]),
+        require_derivative_order(elements[1])
     };
 }
 

@@ -23,7 +23,10 @@ semantics.
 - `Plus` differentiates term by term.
 - `Times` uses the finite product rule and treats factors independent of `x`
   as constants.
-- `Power[x, n]` supports exact or approximate numeric exponents.
+- `Power[u, n]` supports exact or approximate numeric exponents when `u`
+  depends on the differentiation variable. The base derivative is computed
+  recursively through the same differentiation contract, so
+  `D[u^n, x] = n*u^(n-1)*D[u, x]` inside this focused subset.
 - The first chain-rule surface covers unary `Sin`, `Cos`, `Exp`, `Log`, and
   `Sqrt`.
 

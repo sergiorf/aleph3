@@ -23,6 +23,12 @@ std::string evaluated_string(std::string_view source) {
     return to_string(evaluate_source(source, ctx));
 }
 
+void require_equivalent(std::string_view actual, std::string_view expected) {
+    EvaluationContext ctx(kernel::default_function_registry());
+    const auto source = "Equivalent[" + std::string(actual) + ", " + std::string(expected) + "]";
+    REQUIRE(to_string(evaluate_source(source, ctx)) == "True");
+}
+
 std::string code_for(std::string_view source) {
     EvaluationContext ctx(kernel::default_function_registry());
     try {
@@ -62,6 +68,17 @@ TEST_CASE("Calculus pack differentiates sums products and powers", "[packs][calc
     REQUIRE(evaluated_string("D[x*y, x]") == "y");
     REQUIRE(evaluated_string("D[x*y*x, x]") == "2 * x * y");
     REQUIRE(evaluated_string("D[x^(3/2), x]") == "3/2 * x^1/2");
+}
+
+TEST_CASE("Calculus pack differentiates composite numeric powers", "[packs][calculus]") {
+    require_equivalent("D[(x + 1)^5, x]", "5*(x + 1)^4");
+    require_equivalent("D[(x^2 + 1)^5, x]", "10*x*(x^2 + 1)^4");
+    require_equivalent("D[(x^3 + 2*x)^4, x]", "4*(x^3 + 2*x)^3*(3*x^2 + 2)");
+    require_equivalent("D[(x*y + 1)^3, x]", "3*y*(x*y + 1)^2");
+    require_equivalent("D[(x*y + 1)^3, y]", "3*x*(x*y + 1)^2");
+
+    REQUIRE(evaluated_string("D[(y^2 + 1)^5, x]") == "0");
+    REQUIRE(evaluated_string("D[(f[x])^3, x]") == "3 * (D[f[x], x]) * (f[x])^2");
 }
 
 TEST_CASE("Calculus pack differentiates focused chain rules", "[packs][calculus]") {

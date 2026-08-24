@@ -59,10 +59,16 @@ D[x*y, x]                                -> y
 D[x*y*x, x]                              -> 2 * x * y
 ```
 
-Numeric powers of the differentiated symbol use the power rule:
+Numeric powers use the power rule. When the base is composite, Aleph3
+recursively differentiates the base through the same focused derivative
+machinery:
 
 $$
 \frac{d}{dx}x^n = n x^{n-1}
+$$
+
+$$
+\frac{d}{dx}u(x)^n = n u(x)^{n-1} u'(x)
 $$
 
 The exponent may be an exact integer or rational number.
@@ -70,6 +76,10 @@ The exponent may be an exact integer or rational number.
 ```text
 D[x^5, x]                                -> 5 * x^4
 D[x^(3/2), x]                            -> 3/2 * x^1/2
+D[(x + 1)^5, x]                          -> 5 * (x + 1)^4
+D[(x^2 + 1)^5, x]                        -> 10 * x * (x^2 + 1)^4
+D[(x*y + 1)^3, x]                        -> 3 * y * (x * y + 1)^2
+D[(y^2 + 1)^5, x]                        -> 0
 ```
 
 The first chain rules are available for `Sin`, `Cos`, `Exp`, `Log`, and
@@ -127,8 +137,9 @@ D[x, {x, n}]                             -> kernel.invalid_form
 The current calculus boundary excludes `Piecewise`, `Sum`, `Product`,
 compact partial-derivative notation, integration, limits, branch-sensitive
 assumption simplification, and broad special functions.
-Composite powers such as `D[(x + 1)^2, x]` are not part of the v1 power-rule
-surface unless they are reached through one of the supported chain-rule heads.
+General symbolic exponent differentiation is also excluded: expressions such
+as `D[u(x)^v(x), x]` and broad logarithmic differentiation remain unsupported
+unless they fit the numeric-exponent power rule above.
 
 The authoritative boundary is the
 [focused differentiation specification](../calculus_differentiation_spec.md).

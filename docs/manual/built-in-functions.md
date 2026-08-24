@@ -12,12 +12,19 @@ does not imply that every possible symbolic identity is implemented.
 4 * 5                    -> 20
 8 / 4                    -> 2
 2^5                      -> 32
+I^2                      -> -1
+(1 + I)^2                -> 2*I
 Sqrt[9]                  -> 3
 Abs[-4]                  -> 4
 ```
 
 `Floor`, `Ceiling`/`Ceil`, and `Round` provide rounding. `Exp`, `Ln`, and `Log`
 provide exponential and logarithmic forms. Domain errors remain explicit.
+Complex arithmetic supports finite complex addition, multiplication, and
+integer powers, including negative integer powers of nonzero complex values.
+Non-integer or complex exponents on complex bases, such as `I^(1/2)` and
+`I^I`, remain symbolic because branch conventions for complex logarithms are
+not part of the supported subset.
 
 ## Trigonometric And Hyperbolic Functions
 

@@ -7,7 +7,9 @@
 #include "expr/ExprUtils.hpp"
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <map>
+#include <optional>
 
 namespace aleph3 {
 
@@ -15,6 +17,71 @@ namespace aleph3 {
 
     bool is_integral(double value) {
         return std::floor(value) == value;
+    }
+
+    std::optional<int64_t> integer_exponent_value(const ExprPtr& expr) {
+        if (const auto* number = std::get_if<Number>(expr.get())) {
+            if (!std::isfinite(number->value) || !is_integral(number->value)) {
+                return std::nullopt;
+            }
+            if (number->value < static_cast<double>(std::numeric_limits<int64_t>::min()) ||
+                number->value > static_cast<double>(std::numeric_limits<int64_t>::max())) {
+                return std::nullopt;
+            }
+            return static_cast<int64_t>(number->value);
+        }
+
+        if (const auto* rational = std::get_if<Rational>(expr.get());
+            rational != nullptr && rational->denominator == 1) {
+            return rational->numerator;
+        }
+
+        return std::nullopt;
+    }
+
+    Complex multiply_complex(const Complex& lhs, const Complex& rhs) {
+        return Complex{
+            lhs.real * rhs.real - lhs.imag * rhs.imag,
+            lhs.real * rhs.imag + lhs.imag * rhs.real};
+    }
+
+    std::optional<Complex> reciprocal_complex(const Complex& value) {
+        const double norm_squared = value.real * value.real + value.imag * value.imag;
+        if (norm_squared == 0.0 || !std::isfinite(norm_squared)) {
+            return std::nullopt;
+        }
+        return Complex{value.real / norm_squared, -value.imag / norm_squared};
+    }
+
+    ExprPtr complex_integer_power(const Complex& base, int64_t exponent) {
+        if (exponent == 0) {
+            return make_expr<Number>(1.0);
+        }
+
+        Complex power_base = base;
+        uint64_t remaining = 0;
+        if (exponent < 0) {
+            auto reciprocal = reciprocal_complex(base);
+            if (!reciprocal.has_value()) {
+                return nullptr;
+            }
+            power_base = *reciprocal;
+            remaining = static_cast<uint64_t>(-(exponent + 1)) + 1;
+        } else {
+            remaining = static_cast<uint64_t>(exponent);
+        }
+
+        Complex result{1.0, 0.0};
+        while (remaining > 0) {
+            if ((remaining & 1U) != 0U) {
+                result = multiply_complex(result, power_base);
+            }
+            remaining >>= 1U;
+            if (remaining > 0) {
+                power_base = multiply_complex(power_base, power_base);
+            }
+        }
+        return make_expr<Complex>(result.real, result.imag);
     }
 
     void flatten_function_args(
@@ -310,6 +377,13 @@ namespace aleph3 {
         if (std::holds_alternative<Number>(*base) && get_number_value(base) == 0.0 &&
             std::holds_alternative<Number>(*exp) && get_number_value(exp) > 0.0) {
             return make_expr<Number>(0.0);
+        }
+        if (std::holds_alternative<Complex>(*base)) {
+            if (auto integer_exponent = integer_exponent_value(exp)) {
+                if (auto result = complex_integer_power(std::get<Complex>(*base), *integer_exponent)) {
+                    return result;
+                }
+            }
         }
         // Add this block for rational exponents:
         if (std::holds_alternative<Number>(*base) && std::holds_alternative<Rational>(*exp)) {

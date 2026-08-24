@@ -3,6 +3,7 @@
 #include "parser/Parser.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
 #include "evaluator/EvaluationContext.hpp"
 #include "Constants.hpp"
 #include <cmath>
@@ -73,6 +74,66 @@ TEST_CASE("Evaluator: Complex number arithmetic", "[evaluator][complex]") {
         const auto& c = std::get<Complex>(*result);
         CHECK(c.real == 13.0);
         CHECK(c.imag == -1.0);
+    }
+
+    SECTION("Evaluate powers of I for non-negative integer exponents") {
+        auto i0 = evaluate(parse_expression("I^0"), ctx);
+        REQUIRE(std::holds_alternative<Number>(*i0));
+        CHECK(get_number_value(i0) == 1.0);
+
+        auto i1 = evaluate(parse_expression("I^1"), ctx);
+        REQUIRE(std::holds_alternative<Complex>(*i1));
+        CHECK(std::get<Complex>(*i1).real == 0.0);
+        CHECK(std::get<Complex>(*i1).imag == 1.0);
+
+        auto i2 = evaluate(parse_expression("I^2"), ctx);
+        REQUIRE(std::holds_alternative<Complex>(*i2));
+        CHECK(std::get<Complex>(*i2).real == -1.0);
+        CHECK(std::get<Complex>(*i2).imag == 0.0);
+
+        auto i3 = evaluate(parse_expression("I^3"), ctx);
+        REQUIRE(std::holds_alternative<Complex>(*i3));
+        CHECK(std::get<Complex>(*i3).real == 0.0);
+        CHECK(std::get<Complex>(*i3).imag == -1.0);
+
+        auto i4 = evaluate(parse_expression("I^4"), ctx);
+        REQUIRE(std::holds_alternative<Complex>(*i4));
+        CHECK(std::get<Complex>(*i4).real == 1.0);
+        CHECK(std::get<Complex>(*i4).imag == 0.0);
+    }
+
+    SECTION("Evaluate powers of finite complex values for integer exponents") {
+        auto binomial = evaluate(parse_expression("(1 + I)^2"), ctx);
+        REQUIRE(std::holds_alternative<Complex>(*binomial));
+        CHECK(std::get<Complex>(*binomial).real == 0.0);
+        CHECK(std::get<Complex>(*binomial).imag == 2.0);
+
+        auto explicit_complex = evaluate(parse_expression("Complex[3, 4]^2"), ctx);
+        REQUIRE(std::holds_alternative<Complex>(*explicit_complex));
+        CHECK(std::get<Complex>(*explicit_complex).real == -7.0);
+        CHECK(std::get<Complex>(*explicit_complex).imag == 24.0);
+    }
+
+    SECTION("Evaluate negative integer powers of nonzero finite complex values") {
+        auto inverse_i = evaluate(parse_expression("I^-1"), ctx);
+        REQUIRE(std::holds_alternative<Complex>(*inverse_i));
+        CHECK(std::get<Complex>(*inverse_i).real == 0.0);
+        CHECK(std::get<Complex>(*inverse_i).imag == -1.0);
+
+        auto inverse_i_squared = evaluate(parse_expression("I^-2"), ctx);
+        REQUIRE(std::holds_alternative<Complex>(*inverse_i_squared));
+        CHECK(std::get<Complex>(*inverse_i_squared).real == -1.0);
+        CHECK(std::get<Complex>(*inverse_i_squared).imag == 0.0);
+    }
+
+    SECTION("Leave unsupported non-integer complex powers symbolic") {
+        auto result = evaluate(parse_expression("I^(1/2)"), ctx);
+        REQUIRE(std::holds_alternative<FunctionCall>(*result));
+        const auto& power = std::get<FunctionCall>(*result);
+        CHECK(power.head == "Power");
+        REQUIRE(power.args.size() == 2);
+        CHECK(std::holds_alternative<Complex>(*power.args[0]));
+        CHECK(std::holds_alternative<Rational>(*power.args[1]));
     }
 
     SECTION("Evaluate Gamma[1 + I]") {

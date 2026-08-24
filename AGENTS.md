@@ -58,6 +58,10 @@ against tests or the executable and check local documentation links. Worktrees,
 subagents, and commits are optional execution tools, not repository
 requirements.
 
+When completing a fix or implementation, include suggested commit text in the
+final response: a concise commit subject and, when useful, a short body that
+summarizes the behavioral change and verification evidence.
+
 ## Windows Build Environment
 
 When building Aleph3 from a Codex-managed PowerShell on Windows, sanitize the

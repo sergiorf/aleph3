@@ -103,6 +103,10 @@ Remaining work:
 - define richer definition categories and their lookup/precedence rules;
 - prove another nontrivial behavior through shared definition state rather
   than evaluator-local branching;
+- specify registry-level per-argument evaluation metadata for builtins and
+  pack functions, so handlers can declare evaluated expression operands,
+  held selectors, held bodies, and future evaluation-control behavior through
+  one kernel contract instead of pack-local scheduling conventions;
 - grow registry lifecycle behavior only when runtime pack loading or unload
   becomes an active slice;
 - keep evaluation-control attributes deliberately bounded until their hooks
@@ -544,6 +548,9 @@ Defer until an active milestone establishes the required contracts:
 - infinite symbolic summation beyond a later bounded, convergence-aware tranche;
 - broad lexical and dynamic scoping beyond the first `With`-style MVP binding
   construct;
+- broad pack-defined argument evaluation control before the registry-level
+  per-argument evaluation metadata contract is specified, tested, and
+  reflected in focused kernel documentation;
 - general functional-programming libraries beyond the finite-list MVP
   operations;
 - lazy sequences and unbounded iteration;

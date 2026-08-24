@@ -39,6 +39,19 @@ Collect[y*x + x^2 + z*x, x]              -> x^2 + x * y + x * z
 Exact rational coefficients remain exact. `Collect` returns a canonical
 expanded expression, not a coefficient map.
 
+Algebra helpers evaluate expression operands through the shared session state,
+but explicit variable selectors remain symbolic. This lets assigned polynomial
+names participate in algebra while selectors are not replaced by their current
+values:
+
+```text
+p = (x + 1)^2                            -> p
+Expand[p]                                -> x^2 + 2 * x + 1
+x = 99                                   -> x
+Collect[x^2 + 1, x]                      -> x^2 + 1
+Collect[p, x]                            -> x^2 + 2 * x + 1
+```
+
 ## Factor
 
 `Factor` supports monomial content and a focused univariate rational-root path:

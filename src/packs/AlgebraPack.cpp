@@ -12,6 +12,7 @@
 #include <functional>
 #include <limits>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
 namespace aleph3::packs {
@@ -193,9 +194,44 @@ std::vector<std::string> infer_variables(const ExprPtr& left, const ExprPtr& rig
     return variables;
 }
 
+class ScopedHeldSymbolValues {
+public:
+    ScopedHeldSymbolValues(EvaluationContext& ctx, const std::vector<std::string>& names)
+        : ctx_(ctx) {
+        for (const auto& name : names) {
+            if (std::find(held_names_.begin(), held_names_.end(), name) != held_names_.end()) {
+                continue;
+            }
+            held_names_.push_back(name);
+            if (const auto* value = ctx_.symbol_values.lookup(name)) {
+                saved_values_.push_back({name, *value});
+                ctx_.symbol_values.erase(name);
+            }
+        }
+    }
+
+    ~ScopedHeldSymbolValues() {
+        for (const auto& name : held_names_) {
+            ctx_.symbol_values.erase(name);
+        }
+        for (const auto& [name, value] : saved_values_) {
+            ctx_.symbol_values.set(name, value);
+        }
+    }
+
+    ScopedHeldSymbolValues(const ScopedHeldSymbolValues&) = delete;
+    ScopedHeldSymbolValues& operator=(const ScopedHeldSymbolValues&) = delete;
+
+private:
+    EvaluationContext& ctx_;
+    std::vector<std::string> held_names_;
+    std::vector<std::pair<std::string, ExprPtr>> saved_values_;
+};
+
 bool is_algebra_expression_head(const std::string& head) {
     return head == "Expand" ||
         head == "Factor" ||
+        head == "Collect" ||
         head == "GCD" ||
         head == "PolynomialRemainder" ||
         head == "PolynomialDegree" ||
@@ -207,35 +243,102 @@ bool is_algebra_expression_head(const std::string& head) {
         head == "Cancel";
 }
 
-ExprPtr evaluate_algebra_expression_operand(const ExprPtr& expr, EvaluationContext& ctx) {
-    const auto* call = std::get_if<FunctionCall>(expr.get());
-    if (call == nullptr || !is_algebra_expression_head(call->head)) {
+ExprPtr reduce_expression_operand(
+    const ExprPtr& expr,
+    EvaluationContext& ctx,
+    const std::vector<std::string>& held_variables,
+    std::unordered_set<std::string>& visited_symbols) {
+    if (!expr) return expr;
+
+    if (const auto* symbol = std::get_if<Symbol>(expr.get())) {
+        if (std::find(held_variables.begin(), held_variables.end(), symbol->name) !=
+            held_variables.end()) {
+            return expr;
+        }
+        if (visited_symbols.contains(symbol->name)) {
+            return expr;
+        }
+        if (const auto* value = ctx.symbol_values.lookup(symbol->name)) {
+            visited_symbols.insert(symbol->name);
+            auto reduced = reduce_expression_operand(
+                *value,
+                ctx,
+                held_variables,
+                visited_symbols);
+            visited_symbols.erase(symbol->name);
+            return reduced;
+        }
         return expr;
     }
-    return evaluate(expr, ctx);
+
+    if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
+        if (is_algebra_expression_head(call->head)) {
+            ScopedHeldSymbolValues held(ctx, held_variables);
+            return evaluate(expr, ctx);
+        }
+
+        std::vector<ExprPtr> reduced_args;
+        reduced_args.reserve(call->args.size());
+        for (const auto& arg : call->args) {
+            reduced_args.push_back(reduce_expression_operand(
+                arg,
+                ctx,
+                held_variables,
+                visited_symbols));
+        }
+        return make_expr<FunctionCall>(call->head, reduced_args);
+    }
+
+    if (const auto* list = std::get_if<List>(expr.get())) {
+        std::vector<ExprPtr> reduced_elements;
+        reduced_elements.reserve(list->elements.size());
+        for (const auto& element : list->elements) {
+            reduced_elements.push_back(reduce_expression_operand(
+                element,
+                ctx,
+                held_variables,
+                visited_symbols));
+        }
+        return make_expr<List>(List{std::move(reduced_elements)});
+    }
+
+    return expr;
+}
+
+ExprPtr evaluate_expression_operand(
+    const ExprPtr& expr,
+    const std::vector<std::string>& held_variables,
+    EvaluationContext& ctx) {
+    std::unordered_set<std::string> visited_symbols;
+    return reduce_expression_operand(expr, ctx, held_variables, visited_symbols);
+}
+
+ExprPtr evaluate_expression_operand(const ExprPtr& expr, EvaluationContext& ctx) {
+    return evaluate_expression_operand(expr, {}, ctx);
 }
 
 ExprPtr evaluate_expand(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Expand", 1);
     }
-    return expand_polynomial(evaluate_algebra_expression_operand(func.args[0], ctx), ctx);
+    return expand_polynomial(evaluate_expression_operand(func.args[0], ctx), ctx);
 }
 
 ExprPtr evaluate_factor(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Factor", 1);
     }
-    return factor_polynomial(evaluate_algebra_expression_operand(func.args[0], ctx), ctx);
+    return factor_polynomial(evaluate_expression_operand(func.args[0], ctx), ctx);
 }
 
 ExprPtr evaluate_collect(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 2) {
         throw_invalid_arity_exact("Collect", 2);
     }
+    const auto variables = extract_variables(func.args[1]);
     return collect_polynomial(
-        evaluate_algebra_expression_operand(func.args[0], ctx),
-        extract_variables(func.args[1]),
+        evaluate_expression_operand(func.args[0], variables, ctx),
+        variables,
         ctx);
 }
 
@@ -243,11 +346,12 @@ ExprPtr evaluate_gcd(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 2 && func.args.size() != 3) {
         throw_invalid_arity_between("GCD", 2, 3);
     }
-    const auto left = evaluate_algebra_expression_operand(func.args[0], ctx);
-    const auto right = evaluate_algebra_expression_operand(func.args[1], ctx);
-    const auto variables = func.args.size() == 3
+    const auto explicit_variables = func.args.size() == 3
         ? extract_variables(func.args[2])
-        : infer_variables(left, right);
+        : std::vector<std::string>{};
+    const auto left = evaluate_expression_operand(func.args[0], explicit_variables, ctx);
+    const auto right = evaluate_expression_operand(func.args[1], explicit_variables, ctx);
+    const auto variables = func.args.size() == 3 ? explicit_variables : infer_variables(left, right);
     if (func.args.size() == 2 && variables.size() > 1) {
         throw_unsupported_construct(
             "gcd: multivariate GCD requires an explicit variable selector");
@@ -263,10 +367,13 @@ ExprPtr evaluate_polynomial_quotient(const FunctionCall& func, EvaluationContext
     if (func.args.size() != 2 && func.args.size() != 3) {
         throw_invalid_arity_between("PolynomialQuotient", 2, 3);
     }
-    const auto dividend = evaluate_algebra_expression_operand(func.args[0], ctx);
-    const auto divisor = evaluate_algebra_expression_operand(func.args[1], ctx);
-    const auto variables = func.args.size() == 3
+    const auto explicit_variables = func.args.size() == 3
         ? extract_variables(func.args[2])
+        : std::vector<std::string>{};
+    const auto dividend = evaluate_expression_operand(func.args[0], explicit_variables, ctx);
+    const auto divisor = evaluate_expression_operand(func.args[1], explicit_variables, ctx);
+    const auto variables = func.args.size() == 3
+        ? explicit_variables
         : infer_variables(dividend, divisor);
     if (func.args.size() == 2 && variables.size() != 1) {
         throw_unsupported_construct(
@@ -286,10 +393,13 @@ ExprPtr evaluate_polynomial_remainder(const FunctionCall& func, EvaluationContex
     if (func.args.size() != 2 && func.args.size() != 3) {
         throw_invalid_arity_between("PolynomialRemainder", 2, 3);
     }
-    const auto dividend = evaluate_algebra_expression_operand(func.args[0], ctx);
-    const auto divisor = evaluate_algebra_expression_operand(func.args[1], ctx);
-    const auto variables = func.args.size() == 3
+    const auto explicit_variables = func.args.size() == 3
         ? extract_variables(func.args[2])
+        : std::vector<std::string>{};
+    const auto dividend = evaluate_expression_operand(func.args[0], explicit_variables, ctx);
+    const auto divisor = evaluate_expression_operand(func.args[1], explicit_variables, ctx);
+    const auto variables = func.args.size() == 3
+        ? explicit_variables
         : infer_variables(dividend, divisor);
     if (func.args.size() == 2 && variables.size() != 1) {
         throw_unsupported_construct(
@@ -308,9 +418,10 @@ ExprPtr evaluate_polynomial_degree(const FunctionCall& func, EvaluationContext& 
     if (func.args.size() != 2) {
         throw_invalid_arity_exact("PolynomialDegree", 2);
     }
+    const auto variable = extract_single_variable(func.args[1]);
     return degree_polynomial(
-        evaluate_algebra_expression_operand(func.args[0], ctx),
-        extract_single_variable(func.args[1]),
+        evaluate_expression_operand(func.args[0], std::vector<std::string>{variable}, ctx),
+        variable,
         ctx);
 }
 
@@ -318,9 +429,10 @@ ExprPtr evaluate_leading_coefficient(const FunctionCall& func, EvaluationContext
     if (func.args.size() != 2) {
         throw_invalid_arity_exact("LeadingCoefficient", 2);
     }
+    const auto variable = extract_single_variable(func.args[1]);
     return leading_coefficient_polynomial(
-        evaluate_algebra_expression_operand(func.args[0], ctx),
-        extract_single_variable(func.args[1]),
+        evaluate_expression_operand(func.args[0], std::vector<std::string>{variable}, ctx),
+        variable,
         ctx);
 }
 
@@ -330,11 +442,11 @@ ExprPtr evaluate_coefficient(const FunctionCall& func, EvaluationContext& ctx) {
     }
     const auto variable = extract_single_variable(func.args[1]);
     const int exponent = func.args.size() == 3
-        ? extract_non_negative_integer_exponent(func.args[2])
+        ? extract_non_negative_integer_exponent(evaluate(func.args[2], ctx))
         : 1;
     try {
         return coefficient_polynomial(
-            evaluate_algebra_expression_operand(func.args[0], ctx),
+            evaluate_expression_operand(func.args[0], std::vector<std::string>{variable}, ctx),
             variable,
             exponent,
             ctx);
@@ -350,7 +462,7 @@ ExprPtr evaluate_coefficient_list(const FunctionCall& func, EvaluationContext& c
     const auto variable = extract_single_variable(func.args[1]);
     try {
         return coefficient_list_polynomial(
-            evaluate_algebra_expression_operand(func.args[0], ctx),
+            evaluate_expression_operand(func.args[0], std::vector<std::string>{variable}, ctx),
             variable,
             ctx);
     } catch (const std::overflow_error& error) {
@@ -362,36 +474,28 @@ ExprPtr evaluate_numerator(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Numerator", 1);
     }
-    return numerator_rational_expression(
-        evaluate_algebra_expression_operand(func.args[0], ctx),
-        ctx);
+    return numerator_rational_expression(evaluate_expression_operand(func.args[0], ctx), ctx);
 }
 
 ExprPtr evaluate_denominator(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Denominator", 1);
     }
-    return denominator_rational_expression(
-        evaluate_algebra_expression_operand(func.args[0], ctx),
-        ctx);
+    return denominator_rational_expression(evaluate_expression_operand(func.args[0], ctx), ctx);
 }
 
 ExprPtr evaluate_together(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Together", 1);
     }
-    return together_rational_expression(
-        evaluate_algebra_expression_operand(func.args[0], ctx),
-        ctx);
+    return together_rational_expression(evaluate_expression_operand(func.args[0], ctx), ctx);
 }
 
 ExprPtr evaluate_cancel(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) {
         throw_invalid_arity_exact("Cancel", 1);
     }
-    return cancel_rational_expression(
-        evaluate_algebra_expression_operand(func.args[0], ctx),
-        ctx);
+    return cancel_rational_expression(evaluate_expression_operand(func.args[0], ctx), ctx);
 }
 
 ExprPtr evaluate_equivalent(const FunctionCall& func, EvaluationContext& ctx) {

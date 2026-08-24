@@ -596,10 +596,30 @@ TEST_CASE("Polynomial helpers compose supported algebra transformations", "[alge
             "(x + 1) * (x + 2)");
     REQUIRE(simplify_string(evaluate_source("Collect[Expand[(x + 1)^2], x]", ctx)) ==
             "x^2 + 2 * x + 1");
+    REQUIRE(simplify_string(evaluate_source(
+        "PolynomialRemainder[Expand[x^2 - 1], x - 1, x]", ctx)) == "0");
+    REQUIRE(to_string(*evaluate_source("Coefficient[Expand[(x + 1)^2], x, 1]", ctx)) ==
+            "2");
 
     ctx.variables["x"] = make_expr<Number>(99.0);
-    REQUIRE(simplify_string(evaluate_source("Expand[Factor[x^3 - x]]", ctx)) ==
-            "x^3 - x");
+    REQUIRE(simplify_string(evaluate_source("Collect[Expand[(x + 1)^2], x]", ctx)) ==
+            "x^2 + 2 * x + 1");
+}
+
+TEST_CASE("Polynomial helpers evaluate expression operands while holding selectors", "[algebra][functions][contract]") {
+    EvaluationContext ctx;
+
+    static_cast<void>(evaluate_source("p = (x + 1)^2", ctx));
+    REQUIRE(simplify_string(evaluate_source("Expand[p]", ctx)) == "x^2 + 2 * x + 1");
+    REQUIRE(simplify_string(evaluate_source("Collect[p, x]", ctx)) == "x^2 + 2 * x + 1");
+
+    ctx.variables["x"] = make_expr<Number>(99.0);
+    REQUIRE(simplify_string(evaluate_source("Collect[x^2 + 1, x]", ctx)) == "x^2 + 1");
+    REQUIRE(simplify_string(evaluate_source("Collect[p, x]", ctx)) == "x^2 + 2 * x + 1");
+    REQUIRE(to_string(*evaluate_source("PolynomialDegree[p, x]", ctx)) == "2");
+
+    ctx.variables["n"] = make_expr<Number>(2.0);
+    REQUIRE(to_string(*evaluate_source("Coefficient[p, x, n]", ctx)) == "1");
 }
 
 TEST_CASE("Polynomial quotient and gcd satisfy documented consistency identities", "[algebra][functions][contract]") {

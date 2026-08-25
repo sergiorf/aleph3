@@ -23,6 +23,10 @@ semantics.
 - `Plus` differentiates term by term.
 - `Times` uses the finite product rule and treats factors independent of `x`
   as constants.
+- `Divide[a, b]` differentiates by first using the calculus-local reciprocal
+  product form `a * b^-1`; `Divide[1, b]` uses `b^-1`. This reuses the same
+  finite product, numeric-power, and chain-rule contracts rather than adding a
+  separate quotient-rule surface.
 - `Power[u, n]` supports exact or approximate numeric exponents when `u`
   depends on the differentiation variable. The base derivative is computed
   recursively through the same differentiation contract, so
@@ -31,7 +35,9 @@ semantics.
   `Sqrt`.
 
 Results are normalized through the existing kernel arithmetic and exactness
-contracts where no held unsupported derivative remains.
+contracts where no held unsupported derivative remains. The focused
+differentiation contract does not require later algebraic recombination of
+reciprocal-product terms into a single quotient.
 
 ## Diagnostics And Budgets
 

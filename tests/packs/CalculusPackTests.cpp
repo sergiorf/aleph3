@@ -89,6 +89,52 @@ TEST_CASE("Calculus pack differentiates focused chain rules", "[packs][calculus]
     REQUIRE(evaluated_string("D[Sqrt[x], x]") == "1/2 * x^-1/2");
 }
 
+TEST_CASE("Calculus pack differentiates division through reciprocal products", "[packs][calculus]") {
+    REQUIRE(evaluated_string("D[1/x, x]") == "-(x^-2)");
+    require_equivalent("D[7/(x^2 + 3), x]", "-14*x*(x^2 + 3)^-2");
+    require_equivalent(
+        "D[(x^2 + 1)/(x^3 - 2), x]",
+        "2*x*(x^3 - 2)^-1 - 3*x^2*(x^2 + 1)*(x^3 - 2)^-2");
+    REQUIRE(
+        evaluated_string("D[(3*x + 2)/(5*x - 4), x]") ==
+        "-5 * (3 * x + 2) * (5 * x - 4)^-2 + 3 * (5 * x - 4)^-1");
+    REQUIRE(
+        evaluated_string("D[x^2/Exp[x], x]") ==
+        "-1 * x^2 * (Exp[x]) * (Exp[x])^-2 + 2 * x * (Exp[x])^-1");
+    REQUIRE(evaluated_string("D[x/(x + 1), x]") == "-1 * x * (x + 1)^-2 + (x + 1)^-1");
+    REQUIRE(evaluated_string("D[(x^2 + 1)/(x + 3), z]") == "0");
+}
+
+TEST_CASE("Calculus pack differentiates nested division through chain rules", "[packs][calculus]") {
+    REQUIRE(
+        evaluated_string("D[1/(Sin[x] + 2), x]") ==
+        "-1 * (Cos[x]) * ((Sin[x]) + 2)^-2");
+    REQUIRE(
+        evaluated_string("D[Sin[x/(x + 1)], x]") ==
+        "(-1 * x * (x + 1)^-2 + (x + 1)^-1) * (Cos[x / (x + 1)])");
+    REQUIRE(
+        evaluated_string("D[((x + 1)/(x - 1))^3, x]") ==
+        "3 * ((x - 1)^-1 - 1 * (x - 1)^-2 * (x + 1)) * ((x + 1) / (x - 1))^2");
+}
+
+TEST_CASE("Calculus pack differentiates rational expressions generically", "[packs][calculus]") {
+    require_equivalent(
+        "D[(x^2 + y)/(x + y^2), x]",
+        "2*x*(x + y^2)^-1 - (x^2 + y)*(x + y^2)^-2");
+    require_equivalent(
+        "D[(x^2 + y)/(x + y^2), y]",
+        "(x + y^2)^-1 - 2*y*(x^2 + y)*(x + y^2)^-2");
+    require_equivalent("D[(5*t^2 - 3)/(2*t + 7), t]", "10*t*(2*t + 7)^-1 - 2*(5*t^2 - 3)*(2*t + 7)^-2");
+    require_equivalent("D[(a^2 + 4)/(3*a - 5), a]", "2*a*(3*a - 5)^-1 - 3*(a^2 + 4)*(3*a - 5)^-2");
+}
+
+TEST_CASE("Calculus pack keeps explicit quotient and reciprocal-product paths equivalent", "[packs][calculus]") {
+    require_equivalent(
+        "D[(x^2 + 1)/(x^3 - 2), x]",
+        "D[(x^2 + 1)*(x^3 - 2)^-1, x]");
+    require_equivalent("D[1/x, {x, 2}]", "2*x^-3");
+}
+
 TEST_CASE("Calculus pack supports higher-order derivatives", "[packs][calculus]") {
     REQUIRE(evaluated_string("D[x^3, {x, 0}]") == "x^3");
     REQUIRE(evaluated_string("D[x^3, {x, 1}]") == "3 * x^2");

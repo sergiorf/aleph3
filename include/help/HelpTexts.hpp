@@ -597,14 +597,14 @@ namespace aleph3 {
             // Calculus pack
             {"D", "Differentiate an expression with respect to a symbol in the focused calculus subset.", "Calculus",
                 {"D[expr, x]", "D[expr, {x, n}]"},
-                {"D[x^2 + 3*x, x] -> 2 * x + 3", "D[(x^2 + 1)^5, x] -> 10 * x * (x^2 + 1)^4", "D[x^3, {x, 2}] -> 6 * x"},
-                "Exact polynomial-style results stay exact.",
+                {"D[x^2 + 3*x, x] -> 2 * x + 3", "D[1/x, x] -> -(x^-2)", "D[x^3, {x, 2}] -> 6 * x"},
+                "Exact polynomial-style results stay exact; division is differentiated through reciprocal-product form.",
                 "Symbolic exponent differentiation, compact partial-derivative syntax, integration, limits, and general calculus workflows are outside this slice.",
                 "core-calculus", "manual/packs-calculus.md#differentiation"},
             {"Differentiate", "Long-form alias for D.", "Calculus",
                 {"Differentiate[expr, x]", "Differentiate[expr, {x, n}]"},
-                {"Differentiate[x^2, x] -> 2 * x", "Differentiate[(x + 1)^5, x] -> 5 * (x + 1)^4", "Differentiate[x^3, {x, 2}] -> 6 * x"},
-                "Exact polynomial-style results stay exact.",
+                {"Differentiate[x^2, x] -> 2 * x", "Differentiate[1/x, x] -> -(x^-2)", "Differentiate[x^3, {x, 2}] -> 6 * x"},
+                "Exact polynomial-style results stay exact; division is differentiated through reciprocal-product form.",
                 "Symbolic exponent differentiation, compact partial-derivative syntax, integration, limits, and general calculus workflows are outside this slice.",
                 "core-calculus", "manual/packs-calculus.md#differentiation"},
 

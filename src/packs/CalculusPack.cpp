@@ -101,6 +101,78 @@ ExprPtr held_derivative(const ExprPtr& expr, const std::string& variable) {
     return make_fcall("D", {expr, make_expr<Symbol>(variable)});
 }
 
+bool is_calculus_one(const ExprPtr& expr) {
+    if (const auto* number = std::get_if<Number>(expr.get())) {
+        return number->value == 1.0;
+    }
+    if (const auto* rational = std::get_if<Rational>(expr.get())) {
+        return rational->numerator == rational->denominator;
+    }
+    return false;
+}
+
+ExprPtr lower_division_for_differentiation(const ExprPtr& expr) {
+    if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
+        std::vector<ExprPtr> lowered_args;
+        lowered_args.reserve(call->args.size());
+        for (const auto& arg : call->args) {
+            lowered_args.push_back(lower_division_for_differentiation(arg));
+        }
+
+        if (call->head == "Divide" && lowered_args.size() == 2) {
+            auto reciprocal = make_fcall(
+                "Power",
+                {lowered_args[1], make_expr<Number>(-1.0)});
+            if (is_calculus_one(lowered_args[0])) {
+                return reciprocal;
+            }
+            return make_fcall("Times", {lowered_args[0], reciprocal});
+        }
+
+        return make_fcall(call->head, lowered_args);
+    }
+
+    if (const auto* list = std::get_if<List>(expr.get())) {
+        std::vector<ExprPtr> lowered_elements;
+        lowered_elements.reserve(list->elements.size());
+        for (const auto& element : list->elements) {
+            lowered_elements.push_back(lower_division_for_differentiation(element));
+        }
+        return make_expr<List>(List{std::move(lowered_elements)});
+    }
+
+    if (const auto* rule = std::get_if<Rule>(expr.get())) {
+        return make_expr<Rule>(
+            lower_division_for_differentiation(rule->lhs),
+            lower_division_for_differentiation(rule->rhs));
+    }
+
+    if (const auto* assignment = std::get_if<Assignment>(expr.get())) {
+        return make_expr<Assignment>(
+            assignment->name,
+            lower_division_for_differentiation(assignment->value));
+    }
+
+    if (const auto* definition = std::get_if<FunctionDefinition>(expr.get())) {
+        std::vector<Parameter> params;
+        params.reserve(definition->params.size());
+        for (const auto& param : definition->params) {
+            params.emplace_back(
+                param.name,
+                param.default_value
+                    ? lower_division_for_differentiation(param.default_value)
+                    : nullptr);
+        }
+        return make_expr<FunctionDefinition>(
+            definition->name,
+            std::move(params),
+            lower_division_for_differentiation(definition->body),
+            definition->delayed);
+    }
+
+    return expr;
+}
+
 ExprPtr maybe_reduce(const ExprPtr& expr, EvaluationContext& ctx, bool contains_held_derivative) {
     auto normalized = normalize_expr(expr);
     if (contains_held_derivative) {
@@ -238,6 +310,12 @@ DerivativeResult differentiate_expr(const ExprPtr& expr, const std::string& vari
         }
         if (call->head == "Times") {
             return derivative_product(*call, variable, ctx);
+        }
+        if (call->head == "Divide") {
+            return differentiate_expr(
+                lower_division_for_differentiation(expr),
+                variable,
+                ctx);
         }
         if (call->head == "Power") {
             return derivative_power(*call, variable, ctx);

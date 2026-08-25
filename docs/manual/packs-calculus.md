@@ -59,6 +59,22 @@ D[x*y, x]                                -> y
 D[x*y*x, x]                              -> 2 * x * y
 ```
 
+Division is differentiated by the same machinery. The calculus pack treats
+`a / b` as `a * b^-1` and `1 / b` as `b^-1` for differentiation, then reuses
+the product rule, power rule, and chain rule:
+
+```text
+D[1/x, x]                                -> -(x^-2)
+D[x/(x + 1), x]                          -> -1 * x * (x + 1)^-2 + (x + 1)^-1
+D[7/(x^2 + 3), x]                        -> -14 * x * (x^2 + 3)^-2
+D[1/(Sin[x] + 2), x]                     -> -1 * (Cos[x]) * ((Sin[x]) + 2)^-2
+D[Sin[x/(x + 1)], x]                     -> (-1 * x * (x + 1)^-2 + (x + 1)^-1) * (Cos[x / (x + 1)])
+```
+
+Aleph3 does not currently promise quotient-form simplification for these
+results. For example, the derivative of `x/(x + 1)` is returned in
+reciprocal-product form rather than recombined as `1/(x + 1)^2`.
+
 Numeric powers use the power rule. When the base is composite, Aleph3
 recursively differentiates the base through the same focused derivative
 machinery:

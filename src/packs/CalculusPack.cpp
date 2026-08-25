@@ -3,6 +3,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
+#include "kernel/VariableAnalysis.hpp"
 #include "normalizer/Normalizer.hpp"
 
 #include <cmath>
@@ -36,57 +37,6 @@ bool is_exact_or_inexact_constant_atom(const ExprPtr& expr) {
            std::holds_alternative<Infinity>(*expr) ||
            std::holds_alternative<ComplexInfinity>(*expr) ||
            std::holds_alternative<Indeterminate>(*expr);
-}
-
-bool same_symbol(const ExprPtr& expr, const std::string& variable) {
-    const auto* symbol = std::get_if<Symbol>(expr.get());
-    return symbol != nullptr && symbol->name == variable;
-}
-
-bool depends_on(const ExprPtr& expr, const std::string& variable) {
-    if (same_symbol(expr, variable)) {
-        return true;
-    }
-    if (is_exact_or_inexact_constant_atom(expr) || std::holds_alternative<Symbol>(*expr)) {
-        return false;
-    }
-    if (const auto* list = std::get_if<List>(expr.get())) {
-        for (const auto& element : list->elements) {
-            if (depends_on(element, variable)) {
-                return true;
-            }
-        }
-        return false;
-    }
-    if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
-        for (const auto& arg : call->args) {
-            if (depends_on(arg, variable)) {
-                return true;
-            }
-        }
-        return false;
-    }
-    if (const auto* rule = std::get_if<Rule>(expr.get())) {
-        return depends_on(rule->lhs, variable) || depends_on(rule->rhs, variable);
-    }
-    if (const auto* assignment = std::get_if<Assignment>(expr.get())) {
-        return assignment->name == variable || depends_on(assignment->value, variable);
-    }
-    if (const auto* definition = std::get_if<FunctionDefinition>(expr.get())) {
-        if (definition->name == variable) {
-            return true;
-        }
-        for (const auto& param : definition->params) {
-            if (param.name == variable) {
-                return true;
-            }
-            if (param.default_value && depends_on(param.default_value, variable)) {
-                return true;
-            }
-        }
-        return depends_on(definition->body, variable);
-    }
-    return false;
 }
 
 ExprPtr numeric_zero() {
@@ -181,6 +131,14 @@ ExprPtr maybe_reduce(const ExprPtr& expr, EvaluationContext& ctx, bool contains_
     return evaluate(normalized, ctx);
 }
 
+bool is_supported_formal_power_part(const ExprPtr& expr) {
+    return std::holds_alternative<Number>(*expr) ||
+           std::holds_alternative<Rational>(*expr) ||
+           std::holds_alternative<Complex>(*expr) ||
+           std::holds_alternative<Symbol>(*expr) ||
+           std::holds_alternative<FunctionCall>(*expr);
+}
+
 DerivativeResult differentiate_expr(const ExprPtr& expr, const std::string& variable, EvaluationContext& ctx);
 
 DerivativeResult derivative_sum(const FunctionCall& call, const std::string& variable, EvaluationContext& ctx) {
@@ -200,7 +158,7 @@ DerivativeResult derivative_product(const FunctionCall& call, const std::string&
     bool held = false;
 
     for (std::size_t i = 0; i < call.args.size(); ++i) {
-        if (!depends_on(call.args[i], variable)) {
+        if (!kernel::depends_on(call.args[i], variable)) {
             continue;
         }
         auto differentiated_factor = differentiate_expr(call.args[i], variable, ctx);
@@ -220,13 +178,6 @@ DerivativeResult derivative_product(const FunctionCall& call, const std::string&
     return {maybe_reduce(make_fcall("Plus", product_terms), ctx, held), held};
 }
 
-bool is_supported_numeric_exponent(const ExprPtr& expr) {
-    if (const auto* number = std::get_if<Number>(expr.get())) {
-        return std::isfinite(number->value);
-    }
-    return std::holds_alternative<Rational>(*expr);
-}
-
 ExprPtr subtract_one(const ExprPtr& expr, EvaluationContext& ctx) {
     return evaluate(make_fcall("Plus", {expr, make_expr<Number>(-1.0)}), ctx);
 }
@@ -238,11 +189,14 @@ DerivativeResult derivative_power(const FunctionCall& call, const std::string& v
 
     const auto& base = call.args[0];
     const auto& exponent = call.args[1];
-    if (!depends_on(make_fcall(call.head, call.args), variable)) {
+    const bool base_depends = kernel::depends_on(base, variable);
+    const bool exponent_depends = kernel::depends_on(exponent, variable);
+
+    if (!base_depends && !exponent_depends) {
         return {numeric_zero(), false};
     }
 
-    if (is_supported_numeric_exponent(exponent)) {
+    if (base_depends && !exponent_depends && is_supported_formal_power_part(exponent)) {
         auto base_derivative = differentiate_expr(base, variable, ctx);
         auto reduced_exponent = subtract_one(exponent, ctx);
         auto result = make_fcall("Times", {
@@ -254,7 +208,41 @@ DerivativeResult derivative_power(const FunctionCall& call, const std::string& v
         return {maybe_reduce(result, ctx, held), held};
     }
 
-    return {held_derivative(make_fcall(call.head, call.args), variable), true};
+    auto exponent_derivative = differentiate_expr(exponent, variable, ctx);
+    if (!base_depends && is_supported_formal_power_part(base)) {
+        auto result = make_fcall("Times", {
+            make_fcall("Power", {base, exponent}),
+            make_fcall("Log", {base}),
+            exponent_derivative.expr
+        });
+        const bool held = exponent_derivative.contains_held_derivative;
+        return {maybe_reduce(result, ctx, held), held};
+    }
+
+    if (!base_depends || !is_supported_formal_power_part(exponent)) {
+        return {held_derivative(make_fcall(call.head, call.args), variable), true};
+    }
+
+    auto base_derivative = differentiate_expr(base, variable, ctx);
+    auto logarithmic_factor = make_fcall("Plus", {
+        make_fcall("Times", {
+            exponent_derivative.expr,
+            make_fcall("Log", {base})
+        }),
+        make_fcall("Times", {
+            exponent,
+            base_derivative.expr,
+            make_fcall("Power", {base, make_expr<Number>(-1.0)})
+        })
+    });
+    auto result = make_fcall("Times", {
+        make_fcall("Power", {base, exponent}),
+        logarithmic_factor
+    });
+    const bool held =
+        base_derivative.contains_held_derivative ||
+        exponent_derivative.contains_held_derivative;
+    return {maybe_reduce(result, ctx, held), held};
 }
 
 DerivativeResult derivative_chain(
@@ -302,7 +290,7 @@ DerivativeResult differentiate_expr(const ExprPtr& expr, const std::string& vari
     }
 
     if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
-        if (!depends_on(expr, variable)) {
+        if (!kernel::depends_on(expr, variable)) {
             return {numeric_zero(), false};
         }
         if (call->head == "Plus") {
@@ -323,7 +311,7 @@ DerivativeResult differentiate_expr(const ExprPtr& expr, const std::string& vari
         return derivative_chain(*call, variable, ctx);
     }
 
-    if (!depends_on(expr, variable)) {
+    if (!kernel::depends_on(expr, variable)) {
         return {numeric_zero(), false};
     }
     return {held_derivative(expr, variable), true};

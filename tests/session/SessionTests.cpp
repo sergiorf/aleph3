@@ -204,10 +204,16 @@ TEST_CASE("Session completes registry and session symbols deterministically", "[
     REQUIRE(factor.completions.front().documentation == "Factor a supported exact polynomial expression.");
 
     const auto packs = session.execute({"Pol", SessionOperation::complete});
-    REQUIRE(packs.completions.size() == 1);
-    REQUIRE(packs.completions.front().name == "PolynomialQuotient");
-    REQUIRE(packs.completions.front().category == "pack");
-    REQUIRE(packs.completions.front().owning_package == "core-algebra");
+    REQUIRE(packs.completions.size() == 3);
+    REQUIRE(packs.completions[0].name == "PolynomialDegree");
+    REQUIRE(packs.completions[0].category == "pack");
+    REQUIRE(packs.completions[0].owning_package == "core-algebra");
+    REQUIRE(packs.completions[1].name == "PolynomialQuotient");
+    REQUIRE(packs.completions[1].category == "pack");
+    REQUIRE(packs.completions[1].owning_package == "core-algebra");
+    REQUIRE(packs.completions[2].name == "PolynomialRemainder");
+    REQUIRE(packs.completions[2].category == "pack");
+    REQUIRE(packs.completions[2].owning_package == "core-algebra");
 
     const auto derivative = session.execute({"Dif", SessionOperation::complete});
     REQUIRE(derivative.completions.size() == 1);

@@ -27,10 +27,17 @@ semantics.
   product form `a * b^-1`; `Divide[1, b]` uses `b^-1`. This reuses the same
   finite product, numeric-power, and chain-rule contracts rather than adding a
   separate quotient-rule surface.
-- `Power[u, n]` supports exact or approximate numeric exponents when `u`
-  depends on the differentiation variable. The base derivative is computed
-  recursively through the same differentiation contract, so
-  `D[u^n, x] = n*u^(n-1)*D[u, x]` inside this focused subset.
+- `Power[u, n]` supports exponents independent of the differentiation
+  variable. The base derivative is computed recursively through the same
+  differentiation contract, so `D[u^n, x] = n*u^(n-1)*D[u, x]` inside this
+  focused subset. Numeric constant exponents keep the compact existing power
+  rule shape where simplification can preserve it.
+- `Power[a, g]` where the base is independent of the differentiation variable
+  and the exponent depends on it uses the formal constant-base rule
+  `D[a^g, x] = a^g*Log[a]*D[g, x]`.
+- `Power[u, g]` where both base and exponent depend on the differentiation
+  variable uses formal logarithmic differentiation:
+  `D[u^g, x] = u^g*(D[g, x]*Log[u] + g*D[u, x]*u^-1)`.
 - The first chain-rule surface covers unary `Sin`, `Cos`, `Exp`, `Log`, and
   `Sqrt`.
 
@@ -48,15 +55,20 @@ symbolic orders, and orders above the supported limit report
 evaluation-step budget and reports `runtime.step_budget_exhausted` when
 exhausted.
 
-Unsupported dependent calls remain unevaluated as `D[expr, x]`. This is a
-deliberate preservation contract, not a claim that the derivative is zero.
+Unsupported dependent calls remain unevaluated as `D[expr, x]`, including when
+they occur inside the base or exponent derivative of a supported power form.
+This is a deliberate preservation contract, not a claim that the derivative is
+zero.
 
 ## Unsupported Boundaries
 
 This slice excludes `Piecewise`, `Sum`, `Product`, compact partial-derivative
 notation, assumptions-driven branch simplification, integration, limits, broad
 special functions, and broad symbolic simplification beyond the already
-supported arithmetic surface.
+supported arithmetic surface. General powers are differentiated as formal
+symbolic expressions; Aleph3 does not attach branch conditions for `Log[u]`,
+prove positivity or nonzero assumptions for `u`, or emit excluded-domain
+metadata for the introduced `u^-1` factor in this slice.
 
 ## Planned Differentiation Follow-Ups
 

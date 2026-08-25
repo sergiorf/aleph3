@@ -75,7 +75,9 @@ Aleph3 does not currently promise quotient-form simplification for these
 results. For example, the derivative of `x/(x + 1)` is returned in
 reciprocal-product form rather than recombined as `1/(x + 1)^2`.
 
-Numeric powers use the power rule. When the base is composite, Aleph3
+Powers are differentiated according to which parts depend on the
+differentiation variable. When the exponent is independent of the variable,
+Aleph3 uses the compact power rule. When the base is composite, Aleph3
 recursively differentiates the base through the same focused derivative
 machinery:
 
@@ -87,16 +89,49 @@ $$
 \frac{d}{dx}u(x)^n = n u(x)^{n-1} u'(x)
 $$
 
-The exponent may be an exact integer or rational number.
+The exponent may be numeric or symbolic as long as it is independent of the
+differentiation variable.
 
 ```text
 D[x^5, x]                                -> 5 * x^4
 D[x^(3/2), x]                            -> 3/2 * x^1/2
+D[x^a, x]                                -> a * x^(-1 + a)
 D[(x + 1)^5, x]                          -> 5 * (x + 1)^4
 D[(x^2 + 1)^5, x]                        -> 10 * x * (x^2 + 1)^4
 D[(x*y + 1)^3, x]                        -> 3 * y * (x * y + 1)^2
 D[(y^2 + 1)^5, x]                        -> 0
 ```
+
+When the exponent depends on the differentiation variable, Aleph3 applies the
+formal logarithmic differentiation rule:
+
+$$
+\frac{d}{dx}u(x)^{v(x)}
+= u(x)^{v(x)}
+\left(v'(x)\log(u(x)) + v(x)u'(x)u(x)^{-1}\right)
+$$
+
+If only the exponent depends on the variable, this simplifies to the
+constant-base form:
+
+$$
+\frac{d}{dx}a^{v(x)} = a^{v(x)}\log(a)v'(x)
+$$
+
+```text
+D[2^x, x]                                -> 2^x * (Log[2])
+D[3^(x^2), x]                            -> 2 * x * 3^(x^2) * (Log[3])
+D[x^x, x]                                -> x^x * (1 + Log[x])
+D[x^Sin[x], x]                           -> x^Sin[x] * (x^-1 * (Sin[x]) + (Cos[x]) * (Log[x]))
+D[(Sin[x])^Cos[x], x]                    -> ((Cos[x]) * (Cos[x]) * (Sin[x])^-1 - 1 * (Log[Sin[x]]) * (Sin[x])) * (Sin[x])^(Cos[x])
+```
+
+These are formal symbolic derivatives. Aleph3 does not currently attach
+branch conditions for `Log`, prove that the base is positive or nonzero, or
+emit excluded-domain metadata for the introduced reciprocal of the base.
+Results may stay in reciprocal-product form, preserve explicit factors such
+as `Cos[x] * Cos[x]`, or keep a leading `-1` factor rather than a more compact
+textbook layout.
 
 The first chain rules are available for `Sin`, `Cos`, `Exp`, `Log`, and
 `Sqrt`. For a supported one-argument function $f$, Aleph3 uses
@@ -153,9 +188,6 @@ D[x, {x, n}]                             -> kernel.invalid_form
 The current calculus boundary excludes `Piecewise`, `Sum`, `Product`,
 compact partial-derivative notation, integration, limits, branch-sensitive
 assumption simplification, and broad special functions.
-General symbolic exponent differentiation is also excluded: expressions such
-as `D[u(x)^v(x), x]` and broad logarithmic differentiation remain unsupported
-unless they fit the numeric-exponent power rule above.
 
 The authoritative boundary is the
 [focused differentiation specification](../calculus_differentiation_spec.md).

@@ -597,15 +597,15 @@ namespace aleph3 {
             // Calculus pack
             {"D", "Differentiate an expression with respect to a symbol in the focused calculus subset.", "Calculus",
                 {"D[expr, x]", "D[expr, {x, n}]"},
-                {"D[x^2 + 3*x, x] -> 2 * x + 3", "D[1/x, x] -> -(x^-2)", "D[x^3, {x, 2}] -> 6 * x"},
-                "Exact polynomial-style results stay exact; division is differentiated through reciprocal-product form.",
-                "Symbolic exponent differentiation, compact partial-derivative syntax, integration, limits, and general calculus workflows are outside this slice.",
+                {"D[x^2 + 3*x, x] -> 2 * x + 3", "D[2^x, x] -> 2^x * (Log[2])", "D[x^3, {x, 2}] -> 6 * x"},
+                "Exact polynomial-style results stay exact; division uses reciprocal-product form, and general powers use formal logarithmic differentiation.",
+                "Branch conditions for Log, compact partial-derivative syntax, integration, limits, and general calculus workflows are outside this slice.",
                 "core-calculus", "manual/packs-calculus.md#differentiation"},
             {"Differentiate", "Long-form alias for D.", "Calculus",
                 {"Differentiate[expr, x]", "Differentiate[expr, {x, n}]"},
-                {"Differentiate[x^2, x] -> 2 * x", "Differentiate[1/x, x] -> -(x^-2)", "Differentiate[x^3, {x, 2}] -> 6 * x"},
-                "Exact polynomial-style results stay exact; division is differentiated through reciprocal-product form.",
-                "Symbolic exponent differentiation, compact partial-derivative syntax, integration, limits, and general calculus workflows are outside this slice.",
+                {"Differentiate[x^2, x] -> 2 * x", "Differentiate[2^x, x] -> 2^x * (Log[2])", "Differentiate[x^3, {x, 2}] -> 6 * x"},
+                "Exact polynomial-style results stay exact; division uses reciprocal-product form, and general powers use formal logarithmic differentiation.",
+                "Branch conditions for Log, compact partial-derivative syntax, integration, limits, and general calculus workflows are outside this slice.",
                 "core-calculus", "manual/packs-calculus.md#differentiation"},
 
             // Constants

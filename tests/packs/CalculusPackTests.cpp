@@ -81,6 +81,54 @@ TEST_CASE("Calculus pack differentiates composite numeric powers", "[packs][calc
     REQUIRE(evaluated_string("D[(f[x])^3, x]") == "3 * (D[f[x], x]) * (f[x])^2");
 }
 
+TEST_CASE("Calculus pack differentiates symbolic constant exponents", "[packs][calculus]") {
+    require_equivalent("D[x^a, x]", "a*x^(a - 1)");
+    require_equivalent("D[(Sin[x])^a, x]", "a*Cos[x]*Sin[x]^(a - 1)");
+    require_equivalent("D[(x + 1)^(a + 2), x]", "(a + 2)*(x + 1)^(a + 1)");
+}
+
+TEST_CASE("Calculus pack differentiates constant-base dependent exponents", "[packs][calculus]") {
+    require_equivalent("D[2^x, x]", "Log[2]*2^x");
+    require_equivalent("D[3^(x^2), x]", "2*x*Log[3]*3^(x^2)");
+    require_equivalent("D[5^(Sin[x]), x]", "Cos[x]*Log[5]*5^Sin[x]");
+    require_equivalent("D[a^x, x]", "a^x*Log[a]");
+}
+
+TEST_CASE("Calculus pack differentiates dependent base and exponent powers", "[packs][calculus]") {
+    require_equivalent("D[x^x, x]", "x^x*(Log[x] + 1)");
+    require_equivalent("D[t^t, t]", "t^t*(Log[t] + 1)");
+    require_equivalent("D[x^(Sin[x]), x]", "x^Sin[x]*(Cos[x]*Log[x] + Sin[x]*x^-1)");
+    require_equivalent(
+        "D[(x^2 + 1)^(x + 2), x]",
+        "(x^2 + 1)^(x + 2)*(Log[x^2 + 1] + (x + 2)*2*x*(x^2 + 1)^-1)");
+    REQUIRE(
+        evaluated_string("D[(Sin[x])^(Cos[x]), x]") ==
+        "((Cos[x]) * (Cos[x]) * (Sin[x])^-1 - 1 * (Log[Sin[x]]) * (Sin[x])) * (Sin[x])^(Cos[x])");
+    require_equivalent(
+        "D[(x^3 + 2)^(x^2 - 1), x]",
+        "(x^3 + 2)^(x^2 - 1)*(2*x*Log[x^3 + 2] + (x^2 - 1)*3*x^2*(x^3 + 2)^-1)");
+}
+
+TEST_CASE("Calculus pack differentiates power dependencies by variable", "[packs][calculus]") {
+    require_equivalent("D[x^y, x]", "y*x^(y - 1)");
+    require_equivalent("D[x^y, y]", "x^y*Log[x]");
+    require_equivalent(
+        "D[(x + y)^(x - y), x]",
+        "(x + y)^(x - y)*(Log[x + y] + (x - y)*(x + y)^-1)");
+    require_equivalent(
+        "D[(x + y)^(x - y), y]",
+        "(x + y)^(x - y)*(-Log[x + y] + (x - y)*(x + y)^-1)");
+
+    REQUIRE(evaluated_string("D[x^x, z]") == "0");
+}
+
+TEST_CASE("Calculus pack preserves numeric power regressions", "[packs][calculus]") {
+    require_equivalent("D[(x^2 + 1)^5, x]", "10*x*(x^2 + 1)^4");
+    require_equivalent("D[x^-7, x]", "-7*x^-8");
+    require_equivalent("D[(x + 1)^-3, x]", "-3*(x + 1)^-4");
+    require_equivalent("D[2^x, {x, 2}]", "Log[2]^2*2^x");
+}
+
 TEST_CASE("Calculus pack differentiates focused chain rules", "[packs][calculus]") {
     REQUIRE(evaluated_string("D[Sin[x], x]") == "Cos[x]");
     REQUIRE(evaluated_string("D[Cos[x], x]") == "-(Sin[x])");

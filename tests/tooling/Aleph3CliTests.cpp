@@ -172,7 +172,8 @@ TEST_CASE("REPL meta commands use colon prefixes", "[tooling][cli]") {
 TEST_CASE("REPL help exposes focused symbolic and command entries", "[tooling][cli][session][help]") {
     const auto result = run_shell_command(make_repl_command(
         {":help Factor", ":help Clear", ":help :reset", ":help core-algebra", ":help Log",
-         ":help ArcTan", ":help Length", ":help FullForm", ":help Assuming", ":help MatrixAdd", ":help Cancel", ":help Equivalent", ":help D", ":quit"}));
+         ":help ArcTan", ":help Length", ":help FullForm", ":help Simplify", ":help Assuming",
+         ":help MatrixAdd", ":help Cancel", ":help Equivalent", ":help D", ":quit"}));
 
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output.find("Factor [pack] (core-algebra)") != std::string::npos);

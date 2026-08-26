@@ -989,7 +989,7 @@ TEST_CASE("Kernel rewrite symbolic coefficient contract supports power bases", "
     REQUIRE(to_string(*rewritten) == "3 * x^2");
 }
 
-TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of multivariate products", "[architecture][rewrite]") {
+TEST_CASE("Kernel rewrite symbolic coefficient contract combines multivariate monomial products", "[architecture][rewrite]") {
     kernel::EvaluationContext ctx;
     const auto normalized = normalize_expr(parse_expression("x*y + 2*x*y"));
     REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
@@ -998,7 +998,8 @@ TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of multivariat
         std::get<FunctionCall>(*normalized),
         ctx);
 
-    REQUIRE_FALSE(rewritten.has_value());
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "3 * x * y");
 }
 
 TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of grouped symbolic bases", "[architecture][rewrite]") {

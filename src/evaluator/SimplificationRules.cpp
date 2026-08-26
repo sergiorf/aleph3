@@ -421,6 +421,9 @@ namespace aleph3 {
             if (b == 0.0 && e == 0.0) {
                 return make_fcall("Power", {base, exp});
             }
+            if (b == 0.0 && e < 0.0) {
+                return make_fcall("Power", {base, exp});
+            }
             return make_expr<Number>(std::pow(b, e));
         }
         return make_fcall("Power", {base, exp});

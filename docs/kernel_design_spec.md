@@ -265,22 +265,23 @@ Current implementation status of that layering:
 - steps 1 through 3 now exist in initial form
 - the n-ary arithmetic layer currently covers neutral elimination, scalar
   annihilator handling for `Times`, and scalar numeric/rational bucket folding
-- it still does not cover like-term collection, division
-  cancellation, or container-aware arithmetic
+- it still does not cover division cancellation or container-aware arithmetic
 - a first coefficient-aware symbolic layer now exists for small monomial-shaped
   terms in normalized `Plus` forms
-- a first algebra-aware layer now exists for same-symbol exponent accumulation
-  in normalized `Times` and nested numeric `Power` forms
+- a first algebra-aware layer now exists for exact-integer exponent
+  accumulation on structurally identical bases in normalized `Times` and
+  nested numeric `Power` forms
 
 Current product-contract boundaries for those two upper layers are:
 
 - symbolic coefficient layer:
-  supported basis class is `x`, `x^n`, `c*x`, and `c*x^n`, with single-symbol
-  bases only and `c` restricted to `Number` or `Rational`
+  supported basis class is structural monomials such as `x`, `x^n`, `c*x`,
+  `c*x^n`, `x*y`, and `c*x^m*y^n`, with `c` restricted to `Number` or
+  `Rational`
 - algebra-aware layer:
-  supported exponent class is same-symbol numeric exponent accumulation in
-  normalized `Times` plus nested `Power[Power[x, a], b]` collapse for numeric
-  `a` and `b`
+  supported exponent class is exact-integer exponent accumulation on
+  structurally identical non-list bases in normalized `Times` plus nested
+  `Power[Power[x, a], b]` collapse for numeric `a` and `b`
 - both layers preserve unsupported structures rather than partially
   reinterpreting them
 

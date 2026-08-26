@@ -401,15 +401,34 @@ bool extract_supported_symbolic_basis(const ExprPtr& expr, ExprPtr& basis) {
     }
 
     const auto* power = std::get_if<FunctionCall>(expr.get());
-    if (power == nullptr || power->head != "Power" || power->args.size() != 2) {
-        return false;
+    if (power != nullptr && power->head == "Power" && power->args.size() == 2) {
+        if (!std::holds_alternative<Symbol>(*power->args[0]) ||
+            !std::holds_alternative<Number>(*power->args[1])) {
+            return false;
+        }
+
+        basis = expr;
+        return true;
     }
-    if (!std::holds_alternative<Symbol>(*power->args[0]) ||
-        !std::holds_alternative<Number>(*power->args[1])) {
+
+    const auto* times = std::get_if<FunctionCall>(expr.get());
+    if (times == nullptr || times->head != "Times" || times->args.empty()) {
         return false;
     }
 
-    basis = expr;
+    std::vector<ExprPtr> basis_factors;
+    basis_factors.reserve(times->args.size());
+    for (const auto& arg : times->args) {
+        ExprPtr factor_basis;
+        if (!extract_supported_symbolic_basis(arg, factor_basis)) {
+            return false;
+        }
+        basis_factors.push_back(std::move(factor_basis));
+    }
+
+    basis = basis_factors.size() == 1
+        ? basis_factors.front()
+        : normalize_expr(make_fcall("Times", basis_factors));
     return true;
 }
 
@@ -425,29 +444,36 @@ bool extract_supported_monomial_term(
     }
 
     const auto* times = std::get_if<FunctionCall>(expr.get());
-    if (times == nullptr || times->head != "Times" || times->args.size() != 2) {
+    if (times == nullptr || times->head != "Times" || times->args.size() < 2) {
         return false;
     }
 
     const ExprPtr* coefficient_expr = nullptr;
-    const ExprPtr* basis_expr = nullptr;
-    if (std::holds_alternative<Number>(*times->args[0]) ||
-        std::holds_alternative<Rational>(*times->args[0])) {
-        coefficient_expr = &times->args[0];
-        basis_expr = &times->args[1];
-    } else if (std::holds_alternative<Number>(*times->args[1]) ||
-               std::holds_alternative<Rational>(*times->args[1])) {
-        coefficient_expr = &times->args[1];
-        basis_expr = &times->args[0];
-    } else {
+    std::vector<ExprPtr> basis_factors;
+    basis_factors.reserve(times->args.size());
+    for (const auto& arg : times->args) {
+        if (std::holds_alternative<Number>(*arg) || std::holds_alternative<Rational>(*arg)) {
+            if (coefficient_expr != nullptr) {
+                return false;
+            }
+            coefficient_expr = &arg;
+            continue;
+        }
+
+        ExprPtr factor_basis;
+        if (!extract_supported_symbolic_basis(arg, factor_basis)) {
+            return false;
+        }
+        basis_factors.push_back(std::move(factor_basis));
+    }
+
+    if (coefficient_expr == nullptr || basis_factors.empty()) {
         return false;
     }
 
-    if (!extract_supported_symbolic_basis(*basis_expr, basis)) {
-        return false;
-    }
-
-    term.basis = basis;
+    term.basis = basis_factors.size() == 1
+        ? basis_factors.front()
+        : normalize_expr(make_fcall("Times", basis_factors));
     if (std::holds_alternative<Number>(**coefficient_expr)) {
         term.coefficient.add_number(std::get<Number>(**coefficient_expr).value);
     } else {

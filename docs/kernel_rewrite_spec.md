@@ -365,7 +365,6 @@ The first evaluator-owned simplifications chosen for migration were:
 
 The following should not be migrated in the next rewrite slice:
 
-- like-term combination such as `2*x + 3*x -> 5*x`
 - division simplifications such as `x/x -> 1` or `0/x -> 0`
 - power-domain-sensitive behavior beyond the current fixed identities
 - list broadcasting and elementwise arithmetic
@@ -413,10 +412,11 @@ surface already implied by evaluator behavior, such as:
 - `c * x` where `c` is numeric or exact rational
 - `x^n`
 - `c * x^n`
+- supported monomial products such as `x*y`
+- `c * x*y` and `c * x^m*y^n`
 
 It should not initially require:
 
-- multivariate polynomial normalization
 - symbolic coefficient domains
 - distributive expansion across arbitrary products
 - pack-level algebra metadata
@@ -427,6 +427,8 @@ The currently implemented surface now covers:
 - `x^n` for numeric exponents already preserved by current supported semantics
 - `c * x`
 - `c * x^n`
+- products of supported symbolic basis factors, such as `x*y` and `x^m*y^n`
+- scalar multiples of those products
 
 Where `c` may be:
 
@@ -464,6 +466,7 @@ It currently supports:
 
 - combining `x + 2*x + 1/3*x` into `10/3 * x`
 - combining `x^2 + 2*x^2` into `3 * x^2`
+- combining `x*y + 2*x*y` into `3 * x * y`
 - cancelling `x + (-1 * x)` into `0`
 
 ### Supported Basis Class For The Coefficient Layer
@@ -477,27 +480,27 @@ of these basis shapes:
 - `x^n`
 - `c * x`
 - `c * x^n`
+- `x*y`
+- `c * x*y`
+- `c * x^m*y^n`
 
 Where:
 
-- `x` is a single symbol basis
+- each basis factor is a symbol or a supported numeric power of a symbol
 - `c` is `Number` or `Rational`
 - `n` is a supported numeric exponent
 
 This means the current coefficient layer promises stable behavior only for
-single-symbol and single-power monomial terms with numeric or exact-rational
-scalar coefficients.
+structural monomial terms built from supported symbolic basis factors with
+numeric or exact-rational scalar coefficients.
 
 The following are outside the supported basis class and must remain preserved
 rather than partially collected:
 
-- `x*y + 2*x*y`
-- `x*y^2 + 3*x*y^2`
 - `(x + y) + 2 * (x + y)`
 - `f[x] + 2 * f[x]`
 - symbolic coefficient domains
-- basis extraction beyond single-symbol or single-power terms
-- coefficient extraction from terms with more than one symbolic basis factor
+- basis extraction from grouped expressions or opaque function calls
 
 If a normalized `Plus` contains both supported and unsupported basis shapes,
 the supported slice may still collect, but unsupported terms must pass through
@@ -556,20 +559,21 @@ The algebra-aware layer also has a product contract.
 
 Its supported exponent class is:
 
-- same-symbol exponent accumulation inside normalized `Times`
+- same-base exponent accumulation inside normalized `Times`, where the base is
+  a symbol or another structurally identical non-list expression
 - nested `Power[Power[x, a], b]` collapse when both `a` and `b` are numeric
 
 In contract terms, the current supported surface is:
 
-- one single-symbol basis reused across the multiplicative chain
-- numeric exponent accumulation on that basis
+- one structurally identical non-list basis reused across the multiplicative
+  chain
+- exact-integer exponent accumulation on that basis
 - numeric nested-power exponent multiplication
 
 Current constraints:
 
 - only normalized `Times` and `Power` forms participate
-- basis matching is limited to the same single symbol basis already supported
-  by current evaluator semantics
+- basis matching uses normalized structural identity for non-list bases
 - nested power collapse only runs when both exponents are numeric
 - division cancellation is explicitly out of scope
 - power-domain-sensitive transformations are explicitly out of scope
@@ -578,8 +582,6 @@ Current constraints:
 The following are outside the supported exponent class and must remain
 preserved rather than partially normalized:
 
-- base mixing such as `x * y`
-- multibase products such as `x*y * x*y`
 - division-driven identities such as `x^a / x^b`
 - branch- or assumption-sensitive power laws
 - list-aware or container-aware multiplicative behavior
@@ -640,10 +642,11 @@ rewrite engine's semantics:
 
 ## Next Steps
 
-- keep the symbolic coefficient contract limited to single-symbol and
-  single-power bases until stronger exact algebra exists
-- keep the algebra-aware layer limited to same-symbol exponent accumulation and
-  numeric nested-power collapse until stronger exact algebra exists
+- keep the symbolic coefficient contract limited to structural monomial bases
+  until stronger exact algebra exists
+- keep the algebra-aware layer limited to exact-integer exponent accumulation
+  on structurally identical bases and numeric nested-power collapse until
+  stronger exact algebra exists
 - keep division cancellation, power-domain-sensitive behavior, list-aware
   arithmetic, and special-function shortcuts explicitly evaluator-owned until
   stronger kernel contracts exist

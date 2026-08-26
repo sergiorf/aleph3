@@ -208,6 +208,12 @@ namespace aleph3 {
     // Simplify trivial cases
     ExprPtr simplify(const ExprPtr& expr) {
         if (auto f = std::get_if<FunctionCall>(expr.get())) {
+            if (f->head == "Minus" && f->args.size() == 2) {
+                return simplify(make_fcall(
+                    "Plus",
+                    {f->args[0], make_fcall("Times", {make_expr<Number>(-1.0), f->args[1]})}));
+            }
+
             if (f->head == "Times") {
                 std::vector<ExprPtr> simplified_args;
                 simplified_args.reserve(f->args.size());
@@ -243,6 +249,9 @@ namespace aleph3 {
                         if (base_num->value == 0.0 && exp_num->value == 0.0) {
                             return make_expr<FunctionCall>("Power", std::vector<ExprPtr>{base, exponent});
                         }
+                        if (base_num->value == 0.0 && exp_num->value < 0.0) {
+                            return make_expr<FunctionCall>("Power", std::vector<ExprPtr>{base, exponent});
+                        }
                         return make_number(std::pow(base_num->value, exp_num->value));
                     }
                 }
@@ -261,7 +270,10 @@ namespace aleph3 {
                     }
                 }
 
-                return make_expr<FunctionCall>("Power", std::vector<ExprPtr>{base, exponent});
+                EvaluationContext ctx;
+                return apply_normalized_head_rewrites(
+                    normalize_expr(make_fcall("Power", {base, exponent})),
+                    ctx);
             }
 
             if (f->head == "Plus") {
@@ -378,7 +390,15 @@ namespace aleph3 {
                 if (non_numeric_terms.size() == 1) {
                     return non_numeric_terms[0];
                 }
-                return make_expr<FunctionCall>("Plus", non_numeric_terms);
+                auto normalized_plus = normalize_expr(make_expr<FunctionCall>("Plus", non_numeric_terms));
+                if (const auto* normalized_call = std::get_if<FunctionCall>(normalized_plus.get())) {
+                    EvaluationContext ctx;
+                    if (auto rewritten =
+                            kernel::rewrite_normalized_symbolic_coefficient_head(*normalized_call, ctx)) {
+                        return *rewritten;
+                    }
+                }
+                return normalized_plus;
             }
 
             if (f->head == "Equal" || f->head == "NotEqual" || f->head == "Less" ||

@@ -368,17 +368,21 @@ Supported basis shapes for like-term collection are:
 - `x^n`
 - `c * x`
 - `c * x^n`
+- `x*y`
+- `c * x*y`
+- `c * x^m*y^n`
 
 Where:
 
-- `x` is a single symbol
+- each basis factor is a symbol or a supported numeric power of a symbol
 - `c` is `Number` or `Rational`
 - `n` is a supported numeric exponent
 
-This layer is intentionally not a general monomial collector. The following are
-outside the supported subset:
+This layer is intentionally not a general polynomial collector. It combines
+matching structural monomial bases but does not distribute products, factor
+sums, or reinterpret opaque function calls. The following are outside the
+supported subset:
 
-- multivariate bases such as `x*y`
 - grouped symbolic bases such as `(x + y)`
 - call-shaped bases such as `f[x]`
 - symbolic coefficients
@@ -390,12 +394,13 @@ collection.
 
 Supported exponent behavior is limited to:
 
-- same-symbol exponent accumulation in normalized multiplicative forms
+- exact-integer exponent accumulation on structurally identical bases in
+  normalized multiplicative forms
+- structurally identical non-list bases such as `Sin[x] * Sin[x]`
 - nested numeric power collapse such as `(x^2)^3 -> x^6`
 
 The following remain outside the supported subset:
 
-- base-sensitive transforms across different symbols
 - division cancellation
 - branch- or domain-sensitive power laws
 - list-aware arithmetic

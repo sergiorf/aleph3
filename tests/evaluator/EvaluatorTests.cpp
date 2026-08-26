@@ -298,15 +298,14 @@ TEST_CASE("Symbolic coefficient contract combines supported like terms", "[evalu
     REQUIRE(get_number_value(cancelled) == 0.0);
 }
 
-TEST_CASE("Symbolic coefficient contract stays out of unsupported multivariate terms", "[evaluator][simplification][coefficients]") {
+TEST_CASE("Symbolic coefficient contract combines supported multivariate monomial terms", "[evaluator][simplification][coefficients]") {
     EvaluationContext ctx;
 
     const auto result = evaluate(parse_expression("x*y + 2*x*y"), ctx);
     REQUIRE(std::holds_alternative<FunctionCall>(*result));
-    const auto& plus = std::get<FunctionCall>(*result);
-    REQUIRE(plus.head == "Plus");
-    REQUIRE(plus.args.size() == 2);
-    REQUIRE(to_string(result) != "3 * x * y");
+    const auto& times = std::get<FunctionCall>(*result);
+    REQUIRE(times.head == "Times");
+    REQUIRE(to_string(result) == "3 * x * y");
 }
 
 TEST_CASE("Symbolic coefficient contract preserves unsupported grouped and call-shaped bases", "[evaluator][simplification][coefficients]") {

@@ -182,12 +182,6 @@ inline bool canonical_times_factor_less(const ExprPtr& left, const ExprPtr& righ
         }
     }
 
-    const int left_degree = normalized_term_degree(left);
-    const int right_degree = normalized_term_degree(right);
-    if (left_degree != right_degree) {
-        return left_degree > right_degree;
-    }
-
     return canonical_symbolic_key(left) < canonical_symbolic_key(right);
 }
 

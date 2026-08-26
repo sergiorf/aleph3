@@ -122,6 +122,7 @@ $$
 D[2^x, x]                                -> 2^x * (Log[2])
 D[3^(x^2), x]                            -> 2 * x * 3^(x^2) * (Log[3])
 D[x^x, x]                                -> (x * x^-1 + (Log[x])) * x^x
+Assuming[x != 0, D[x^x, x]]              -> ((Log[x]) + 1) * x^x
 D[x^Sin[x], x]                           -> x^Sin[x] * (x^-1 * (Sin[x]) + (Cos[x]) * (Log[x]))
 D[(Sin[x])^Cos[x], x]                    -> ((Cos[x])^2 * (Sin[x])^-1 - (Log[Sin[x]]) * (Sin[x])) * (Sin[x])^(Cos[x])
 ```

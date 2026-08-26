@@ -77,7 +77,7 @@ TEST_CASE("Polynomial functions expand and collect to stable polynomial forms", 
     REQUIRE(simplify_string(expanded_power) == "x^3 + 3 * x^2 + 3 * x + 1");
 
     const auto multivariate_expanded = evaluate_source("Expand[(x + y) * (x - y)]", ctx);
-    REQUIRE(simplify_string(multivariate_expanded) == "-(y^2) + x^2");
+    REQUIRE(simplify_string(multivariate_expanded) == "x^2 - y^2");
 
     ctx.variables["x"] = make_expr<Number>(99.0);
     const auto collected = evaluate_source("Collect[x^2 + 2*x + 1, x]", ctx);
@@ -702,7 +702,7 @@ TEST_CASE("Polynomial helpers keep multivariate support boundaries explicit", "[
     REQUIRE(simplify_string(parts[0]) == "x + y");
     REQUIRE(simplify_string(parts[1]) == "y");
     REQUIRE(simplify_string(evaluate_source(
-        "Expand[x*y*(x+y)+y]", ctx)) == "x^2 * y + y^2 * x + y");
+        "Expand[x*y*(x+y)+y]", ctx)) == "x * y^2 + x^2 * y + y");
     REQUIRE(simplify_string(evaluate_source(
         "PolynomialRemainder[x^2*y + x*y^2 + y, x*y, {x, y}]", ctx)) == "y");
 

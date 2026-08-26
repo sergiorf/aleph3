@@ -198,6 +198,9 @@ const std::unordered_map<std::string, std::function<bool(double, double)>>& bina
             return true;
         }},
         {"Power", [](double base, double exponent) {
+            if (base == 0.0 && exponent < 0.0) {
+                return false;
+            }
             if (base >= 0.0) {
                 return true;
             }

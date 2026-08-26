@@ -126,7 +126,7 @@ rewrite system.
 
 The narrow kernel-owned symbolic coefficient rewrite contract remains separate
 from full exact polynomial algebra. Like-term collection for the documented
-single-symbol basis shapes may proceed without requiring this full exact
+structural monomial basis shapes may proceed without requiring this full exact
 polynomial layer. Algebra-heavy transformations such as polynomial division,
 GCD, rational-expression cancellation, and future solving/equivalence helpers
 must use explicit exact-algebra contracts instead of broad rewrite heuristics.

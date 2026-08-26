@@ -69,8 +69,18 @@ TEST_CASE("Normalizer canonicalizes commutative sums", "[normalizer]") {
 }
 
 TEST_CASE("Normalizer canonicalizes commutative products", "[normalizer]") {
+    expect_normalizes_to("1 * x", "x");
+    expect_normalizes_to("x * 1", "x");
+    expect_normalizes_to("1 * x * y", "x * y");
     expect_normalizes_to("z * x * 2 * y", "2 * x * y * z");
     expect_normalizes_to("x * (z * y) * 2", "2 * x * y * z");
+
+    auto left = normalize_expr(parse_expression("x * y"));
+    auto right = normalize_expr(parse_expression("y * x"));
+    REQUIRE(to_string_raw(left) == to_string_raw(right));
+
+    auto ordered = normalize_expr(parse_expression("3 * z * x * y"));
+    REQUIRE(to_string(ordered) == "3 * x * y * z");
 }
 
 TEST_CASE("Normalizer uses semantics-declared Flat and Orderless only for supported heads", "[normalizer][semantics]") {

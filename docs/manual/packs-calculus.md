@@ -65,10 +65,10 @@ the product rule, power rule, and chain rule:
 
 ```text
 D[1/x, x]                                -> -(x^-2)
-D[x/(x + 1), x]                          -> -1 * x * (x + 1)^-2 + (x + 1)^-1
+D[x/(x + 1), x]                          -> -(x * (x + 1)^-2) + (x + 1)^-1
 D[7/(x^2 + 3), x]                        -> -14 * x * (x^2 + 3)^-2
-D[1/(Sin[x] + 2), x]                     -> -1 * (Cos[x]) * ((Sin[x]) + 2)^-2
-D[Sin[x/(x + 1)], x]                     -> (-1 * x * (x + 1)^-2 + (x + 1)^-1) * (Cos[x / (x + 1)])
+D[1/(Sin[x] + 2), x]                     -> -((Cos[x]) * ((Sin[x]) + 2)^-2)
+D[Sin[x/(x + 1)], x]                     -> ((x + 1)^-1 - x * (x + 1)^-2) * (Cos[x / (x + 1)])
 ```
 
 Aleph3 does not currently promise quotient-form simplification for these
@@ -121,17 +121,21 @@ $$
 ```text
 D[2^x, x]                                -> 2^x * (Log[2])
 D[3^(x^2), x]                            -> 2 * x * 3^(x^2) * (Log[3])
-D[x^x, x]                                -> x^x * (1 + Log[x])
+D[x^x, x]                                -> (x * x^-1 + (Log[x])) * x^x
 D[x^Sin[x], x]                           -> x^Sin[x] * (x^-1 * (Sin[x]) + (Cos[x]) * (Log[x]))
-D[(Sin[x])^Cos[x], x]                    -> ((Cos[x]) * (Cos[x]) * (Sin[x])^-1 - 1 * (Log[Sin[x]]) * (Sin[x])) * (Sin[x])^(Cos[x])
+D[(Sin[x])^Cos[x], x]                    -> ((Cos[x])^2 * (Sin[x])^-1 - (Log[Sin[x]]) * (Sin[x])) * (Sin[x])^(Cos[x])
 ```
 
 These are formal symbolic derivatives. Aleph3 does not currently attach
 branch conditions for `Log`, prove that the base is positive or nonzero, or
-emit excluded-domain metadata for the introduced reciprocal of the base.
-Results may stay in reciprocal-product form, preserve explicit factors such
-as `Cos[x] * Cos[x]`, or keep a leading `-1` factor rather than a more compact
-textbook layout.
+emit excluded-domain metadata for the introduced reciprocal of the base. For
+that reason, products such as `x * x^-1` may remain visible until a shared
+assumption such as `x != 0` is available.
+Results may stay in reciprocal-product form and are not automatically
+recombined into quotient form or transformed with trigonometric identities.
+Generic multiplication canonicalization still removes identity factors,
+collects numeric coefficients, combines repeated factors such as
+`Cos[x] * Cos[x]`, and avoids unnecessary leading `-1 *` text.
 
 The first chain rules are available for `Sin`, `Cos`, `Exp`, `Log`, and
 `Sqrt`. For a supported one-argument function $f$, Aleph3 uses

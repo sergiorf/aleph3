@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <optional>
 #include <unordered_map>
 #include <type_traits>
 #include <utility>
@@ -23,6 +24,46 @@ constexpr std::string_view BUILTIN_REWRITE_PROVIDER = "kernel-rewrite";
 
 bool is_integral(double value) {
     return std::floor(value) == value;
+}
+
+std::optional<int64_t> exact_integer_value(const ExprPtr& expr) {
+    if (const auto* number = std::get_if<Number>(expr.get())) {
+        if (!std::isfinite(number->value) || !is_integral(number->value)) {
+            return std::nullopt;
+        }
+        if (number->value < static_cast<double>(std::numeric_limits<int64_t>::min()) ||
+            number->value > static_cast<double>(std::numeric_limits<int64_t>::max())) {
+            return std::nullopt;
+        }
+        return static_cast<int64_t>(number->value);
+    }
+
+    if (const auto* rational = std::get_if<Rational>(expr.get());
+        rational != nullptr && rational->denominator == 1) {
+        return rational->numerator;
+    }
+
+    return std::nullopt;
+}
+
+bool contains_list_expr(const ExprPtr& expr) {
+    if (expr == nullptr) {
+        return false;
+    }
+    if (std::holds_alternative<List>(*expr)) {
+        return true;
+    }
+    if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
+        if (call->head == "List") {
+            return true;
+        }
+        for (const auto& arg : call->args) {
+            if (contains_list_expr(arg)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 ExprPtr clone_expr(const ExprPtr& expr) {
@@ -372,27 +413,6 @@ bool extract_supported_symbolic_basis(const ExprPtr& expr, ExprPtr& basis) {
     return true;
 }
 
-bool extract_symbol_power_term(const ExprPtr& expr, std::string& symbol_name, double& exponent) {
-    if (const auto* symbol = std::get_if<Symbol>(expr.get())) {
-        symbol_name = symbol->name;
-        exponent = 1.0;
-        return true;
-    }
-
-    const auto* power = std::get_if<FunctionCall>(expr.get());
-    if (power == nullptr || power->head != "Power" || power->args.size() != 2) {
-        return false;
-    }
-
-    if (std::holds_alternative<Symbol>(*power->args[0]) && std::holds_alternative<Number>(*power->args[1])) {
-        symbol_name = std::get<Symbol>(*power->args[0]).name;
-        exponent = get_number_value(power->args[1]);
-        return true;
-    }
-
-    return false;
-}
-
 bool extract_supported_monomial_term(
     const ExprPtr& expr,
     SupportedMonomialTerm& term) {
@@ -449,6 +469,34 @@ ExprPtr rebuild_supported_monomial_term(const SupportedMonomialTerm& term) {
 
 bool is_pattern_symbol_name(const std::string& name) {
     return name == "_" || name.find('_') != std::string::npos;
+}
+
+struct TimesPowerFactor {
+    ExprPtr base;
+    int64_t exponent = 1;
+};
+
+bool extract_exact_integer_power_factor(const ExprPtr& expr, TimesPowerFactor& factor) {
+    if (std::holds_alternative<Number>(*expr) ||
+        std::holds_alternative<Rational>(*expr) ||
+        contains_list_expr(expr)) {
+        return false;
+    }
+
+    const auto* power = std::get_if<FunctionCall>(expr.get());
+    if (power != nullptr && power->head == "Power" && power->args.size() == 2) {
+        auto exponent = exact_integer_value(power->args[1]);
+        if (!exponent.has_value() || contains_list_expr(power->args[0])) {
+            return false;
+        }
+        factor.base = normalize_expr(power->args[0]);
+        factor.exponent = *exponent;
+        return true;
+    }
+
+    factor.base = expr;
+    factor.exponent = 1;
+    return true;
 }
 
 std::string pattern_binding_name(const std::string& name) {
@@ -1198,48 +1246,72 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
     }
 
     if (func.head == "Times") {
-        std::map<std::string, double> symbol_powers;
-        std::map<std::string, std::size_t> symbol_term_counts;
+        struct PowerBucket {
+            ExprPtr base;
+            int64_t exponent = 0;
+            std::size_t term_count = 0;
+            std::vector<ExprPtr> original_terms;
+        };
+
+        std::map<std::string, PowerBucket> power_buckets;
         std::vector<ExprPtr> opaque_terms;
         bool changed = false;
 
         for (const auto& arg : func.args) {
-            std::string symbol_name;
-            double exponent = 0.0;
-            if (extract_symbol_power_term(arg, symbol_name, exponent)) {
-                symbol_powers[symbol_name] += exponent;
-                symbol_term_counts[symbol_name] += 1;
-                if (!(std::holds_alternative<Symbol>(*arg) && exponent == 1.0)) {
-                    changed = true;
-                }
+            TimesPowerFactor factor;
+            if (!extract_exact_integer_power_factor(arg, factor)) {
+                opaque_terms.push_back(arg);
                 continue;
             }
-            opaque_terms.push_back(arg);
-        }
 
-        std::size_t repeated_symbol_families = 0;
-        for (const auto& [symbol_name, count] : symbol_term_counts) {
-            (void)symbol_name;
-            if (count > 1) {
-                repeated_symbol_families += 1;
-            }
-        }
-        if (repeated_symbol_families > 1) {
-            return std::nullopt;
+            const auto key = to_string_raw(normalize_expr(factor.base));
+            auto [it, inserted] = power_buckets.emplace(
+                key,
+                PowerBucket{normalize_expr(factor.base), 0, 0, {}});
+            it->second.exponent += factor.exponent;
+            it->second.term_count += 1;
+            it->second.original_terms.push_back(arg);
         }
 
         std::vector<ExprPtr> rebuilt_terms;
-        rebuilt_terms.reserve(symbol_powers.size() + opaque_terms.size());
-        for (const auto& [symbol_name, exponent] : symbol_powers) {
-            if (exponent == 0.0) {
-                changed = true;
+        rebuilt_terms.reserve(power_buckets.size() + opaque_terms.size());
+        for (const auto& [key, bucket] : power_buckets) {
+            (void)key;
+            if (bucket.exponent == 0) {
+                const auto nonzero = ctx.assumptions.evaluate_predicate("NonZeroQ", bucket.base);
+                if (nonzero.has_value() && *nonzero) {
+                    changed = true;
+                    continue;
+                }
+                rebuilt_terms.insert(
+                    rebuilt_terms.end(),
+                    bucket.original_terms.begin(),
+                    bucket.original_terms.end());
                 continue;
             }
-            if (exponent == 1.0) {
-                rebuilt_terms.push_back(make_expr<Symbol>(symbol_name));
+
+            if (bucket.term_count == 1 &&
+                bucket.exponent == 1 &&
+                structurally_equal(bucket.original_terms.front(), bucket.base)) {
+                rebuilt_terms.push_back(bucket.original_terms.front());
+                continue;
+            }
+
+            if (bucket.exponent == 1) {
+                rebuilt_terms.push_back(bucket.base);
+                if (bucket.term_count > 1 ||
+                    !structurally_equal(bucket.original_terms.front(), bucket.base)) {
+                    changed = true;
+                }
             } else {
-                rebuilt_terms.push_back(
-                    make_fcall("Power", {make_expr<Symbol>(symbol_name), make_expr<Number>(exponent)}));
+                auto rebuilt_power = make_fcall(
+                    "Power",
+                    {bucket.base, make_expr<Number>(static_cast<double>(bucket.exponent))});
+                if (bucket.term_count > 1 ||
+                    !structurally_equal(bucket.original_terms.front(), rebuilt_power)) {
+                    changed = true;
+                }
+                rebuilt_terms.push_back(std::move(rebuilt_power));
             }
         }
         rebuilt_terms.insert(rebuilt_terms.end(), opaque_terms.begin(), opaque_terms.end());

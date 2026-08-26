@@ -29,6 +29,11 @@ void require_equivalent(std::string_view actual, std::string_view expected) {
     REQUIRE(to_string(evaluate_source(source, ctx)) == "True");
 }
 
+void require_output_excludes(std::string_view source, std::string_view unwanted) {
+    const auto output = evaluated_string(source);
+    REQUIRE(output.find(unwanted) == std::string::npos);
+}
+
 std::string code_for(std::string_view source) {
     EvaluationContext ctx(kernel::default_function_registry());
     try {
@@ -95,15 +100,17 @@ TEST_CASE("Calculus pack differentiates constant-base dependent exponents", "[pa
 }
 
 TEST_CASE("Calculus pack differentiates dependent base and exponent powers", "[packs][calculus]") {
-    require_equivalent("D[x^x, x]", "x^x*(Log[x] + 1)");
-    require_equivalent("D[t^t, t]", "t^t*(Log[t] + 1)");
+    REQUIRE(evaluated_string("D[x^x, x]") == "(x * x^-1 + (Log[x])) * x^x");
+    REQUIRE(evaluated_string("D[t^t, t]") == "(t * t^-1 + (Log[t])) * t^t");
     require_equivalent("D[x^(Sin[x]), x]", "x^Sin[x]*(Cos[x]*Log[x] + Sin[x]*x^-1)");
     require_equivalent(
         "D[(x^2 + 1)^(x + 2), x]",
         "(x^2 + 1)^(x + 2)*(Log[x^2 + 1] + (x + 2)*2*x*(x^2 + 1)^-1)");
     REQUIRE(
         evaluated_string("D[(Sin[x])^(Cos[x]), x]") ==
-        "((Cos[x]) * (Cos[x]) * (Sin[x])^-1 - 1 * (Log[Sin[x]]) * (Sin[x])) * (Sin[x])^(Cos[x])");
+        "((Cos[x])^2 * (Sin[x])^-1 - (Log[Sin[x]]) * (Sin[x])) * (Sin[x])^(Cos[x])");
+    require_output_excludes("D[(Sin[x])^(Cos[x]), x]", "Cos[x] * Cos[x]");
+    require_output_excludes("D[(Sin[x])^(Cos[x]), x]", "-1 *");
     require_equivalent(
         "D[(x^3 + 2)^(x^2 - 1), x]",
         "(x^3 + 2)^(x^2 - 1)*(2*x*Log[x^3 + 2] + (x^2 - 1)*3*x^2*(x^3 + 2)^-1)");
@@ -146,23 +153,44 @@ TEST_CASE("Calculus pack differentiates division through reciprocal products", "
     REQUIRE(
         evaluated_string("D[(3*x + 2)/(5*x - 4), x]") ==
         "-5 * (3 * x + 2) * (5 * x - 4)^-2 + 3 * (5 * x - 4)^-1");
-    REQUIRE(
-        evaluated_string("D[x^2/Exp[x], x]") ==
-        "-1 * x^2 * (Exp[x]) * (Exp[x])^-2 + 2 * x * (Exp[x])^-1");
-    REQUIRE(evaluated_string("D[x/(x + 1), x]") == "-1 * x * (x + 1)^-2 + (x + 1)^-1");
+    REQUIRE(evaluated_string("D[x^2/Exp[x], x]") == "-(x^2 * (Exp[x])^-1) + 2 * x * (Exp[x])^-1");
+    require_output_excludes("D[x^2/Exp[x], x]", "-1 *");
+    require_equivalent("D[x/(x + 1), x]", "-x*(x + 1)^-2 + (x + 1)^-1");
+    require_output_excludes("D[x/(x + 1), x]", "-1 *");
     REQUIRE(evaluated_string("D[(x^2 + 1)/(x + 3), z]") == "0");
 }
 
 TEST_CASE("Calculus pack differentiates nested division through chain rules", "[packs][calculus]") {
+    require_equivalent(
+        "D[1/(Sin[x] + 2), x]",
+        "-Cos[x]*(Sin[x] + 2)^-2");
+    require_output_excludes("D[1/(Sin[x] + 2), x]", "-1 *");
+    require_equivalent(
+        "D[Sin[x/(x + 1)], x]",
+        "((x + 1)^-1 - x*(x + 1)^-2)*Cos[x/(x + 1)]");
+    require_output_excludes("D[Sin[x/(x + 1)], x]", "-1 *");
+    require_equivalent(
+        "D[((x + 1)/(x - 1))^3, x]",
+        "3*((x - 1)^-1 - (x - 1)^-2*(x + 1))*((x + 1)/(x - 1))^2");
+    require_output_excludes("D[((x + 1)/(x - 1))^3, x]", "-1 *");
+}
+
+TEST_CASE("Calculus pack benefits from canonical Times simplification regressions", "[packs][calculus][times]") {
     REQUIRE(
-        evaluated_string("D[1/(Sin[x] + 2), x]") ==
-        "-1 * (Cos[x]) * ((Sin[x]) + 2)^-2");
+        evaluated_string("D[1/(Sin[x] + 1), x]") ==
+        "-((Cos[x]) * ((Sin[x]) + 1)^-2)");
+    require_output_excludes("D[1/(Sin[x] + 1), x]", "-1 *");
+
     REQUIRE(
-        evaluated_string("D[Sin[x/(x + 1)], x]") ==
-        "(-1 * x * (x + 1)^-2 + (x + 1)^-1) * (Cos[x / (x + 1)])");
-    REQUIRE(
-        evaluated_string("D[((x + 1)/(x - 1))^3, x]") ==
-        "3 * ((x - 1)^-1 - 1 * (x - 1)^-2 * (x + 1)) * ((x + 1) / (x - 1))^2");
+        evaluated_string("D[Sin[x] * Cos[x] * Exp[x], x]") ==
+        "(Cos[x]) * (Exp[x]) * (Sin[x]) + (Cos[x])^2 * (Exp[x]) - (Exp[x]) * (Sin[x])^2");
+    require_output_excludes("D[Sin[x]*Cos[x]*Exp[x], x]", "Cos[x] * Cos[x]");
+    require_output_excludes("D[Sin[x]*Cos[x]*Exp[x], x]", "Sin[x] * Sin[x]");
+    require_output_excludes("D[Sin[x]*Cos[x]*Exp[x], x]", "-1 *");
+
+    require_equivalent(
+        "D[x^3*y^4*z^5, z]",
+        "5*x^3*y^4*z^4");
 }
 
 TEST_CASE("Calculus pack differentiates rational expressions generically", "[packs][calculus]") {

@@ -172,16 +172,20 @@ simplification pass:
 ```text
 Simplify[x + x + 2*x]                  -> 4 * x
 Simplify[0 + (1 * x)]                  -> x
-Simplify[(x/2) + (x/3)]                -> x * 5/6
+Simplify[(x/2) + (x/3)]                -> 5/6 * x
+Simplify[Sin[x] * Sin[x]]              -> Sin[x]^2
+Simplify[x^2 * x^3]                    -> x^5
 Simplify[1/2 + 1/3]                    -> 5/6
 Simplify[Sin[0]]                       -> 0
 ```
 
 This is the same simplification path used by the session simplify operation.
 It covers the documented arithmetic cleanup, exact rational arithmetic, and
-narrow symbolic coefficient collection for supported single-symbol terms. It
-does not imply broad CAS simplification, arbitrary factor cancellation, or
-collection of unsupported symbolic bases such as `x*y + 2*x*y`.
+canonical multiplication cleanup such as identity removal, numeric coefficient
+collection, deterministic factor ordering, repeated-factor powers, and exact
+integer power merging. It does not imply broad CAS simplification,
+trigonometric identities, product expansion, factoring sums, symbolic exponent
+algebra such as `a^m*a^n`, or arbitrary domain-sensitive cancellation.
 
 ## Symbolic Predicates
 

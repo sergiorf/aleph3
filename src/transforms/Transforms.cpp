@@ -1,6 +1,9 @@
 ﻿#include "transforms/Transforms.hpp"
+#include "evaluator/EvaluationContext.hpp"
 #include "expr/Expr.hpp"
 #include "expr/ExprUtils.hpp"
+#include "kernel/Rewrite.hpp"
+#include "normalizer/Normalizer.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -11,14 +14,6 @@ namespace aleph3 {
 
     namespace {
 
-    bool is_numeric_zero(const ExprPtr& expr) {
-        return std::holds_alternative<Number>(*expr) && get_number_value(expr) == 0.0;
-    }
-
-    bool is_numeric_one(const ExprPtr& expr) {
-        return std::holds_alternative<Number>(*expr) && get_number_value(expr) == 1.0;
-    }
-
     bool try_get_exact_integer(const ExprPtr& expr, int& value) {
         if (const auto* number = std::get_if<Number>(expr.get())) {
             if (std::floor(number->value) != number->value) {
@@ -28,6 +23,31 @@ namespace aleph3 {
             return true;
         }
         return false;
+    }
+
+    ExprPtr apply_normalized_head_rewrites(
+        const ExprPtr& normalized,
+        EvaluationContext& ctx,
+        std::size_t max_passes = 4) {
+        ExprPtr current = normalized;
+        for (std::size_t pass = 0; pass < max_passes; ++pass) {
+            const auto* func = std::get_if<FunctionCall>(current.get());
+            if (func == nullptr) {
+                return current;
+            }
+
+            auto rewritten = kernel::rewrite_normalized_head(*func, ctx);
+            if (!rewritten.has_value()) {
+                return current;
+            }
+
+            auto next = normalize_expr(*rewritten);
+            if (kernel::structurally_equal(current, next)) {
+                return current;
+            }
+            current = std::move(next);
+        }
+        return current;
     }
 
     struct LinearCoefficient {
@@ -135,7 +155,7 @@ namespace aleph3 {
             return make_expr<Symbol>(symbol);
         }
         if (coefficient.denominator != 1) {
-            return make_times(make_expr<Symbol>(symbol), coefficient.to_expr());
+            return make_times(coefficient.to_expr(), make_expr<Symbol>(symbol));
         }
         return make_times(coefficient.to_expr(), make_expr<Symbol>(symbol));
     }
@@ -189,73 +209,16 @@ namespace aleph3 {
     ExprPtr simplify(const ExprPtr& expr) {
         if (auto f = std::get_if<FunctionCall>(expr.get())) {
             if (f->head == "Times") {
-                std::map<std::string, int> symbol_counts;
-                double coefficient = 1.0;
-                std::vector<ExprPtr> others;
-
+                std::vector<ExprPtr> simplified_args;
+                simplified_args.reserve(f->args.size());
                 for (const auto& arg : f->args) {
-                    auto simplified_arg = simplify(arg); // recursively simplify
-                    if (auto num = std::get_if<Number>(simplified_arg.get())) {
-                        coefficient *= num->value;
-                        if (coefficient == 0.0) {
-                            return make_number(0);
-                        }
-                    }
-                    else if (auto sym = std::get_if<Symbol>(simplified_arg.get())) {
-                        symbol_counts[sym->name] += 1;
-                    }
-                    else if (auto pow = std::get_if<FunctionCall>(simplified_arg.get())) {
-                        if (pow->head == "Power") {
-                            if (auto base = std::get_if<Symbol>(pow->args[0].get())) {
-                                if (auto exp = std::get_if<Number>(pow->args[1].get())) {
-                                    symbol_counts[base->name] += static_cast<int>(exp->value);
-                                    continue;
-                                }
-                            }
-                        }
-                        others.push_back(simplified_arg);
-                    }
-                    else {
-                        if (is_numeric_zero(simplified_arg)) {
-                            return make_number(0);
-                        }
-                        others.push_back(simplified_arg);
-                    }
+                    simplified_args.push_back(simplify(arg));
                 }
 
-                std::vector<ExprPtr> result;
-                if (coefficient == 0.0) {
-                    return make_number(0);
-                }
-                if (coefficient != 1.0 || (symbol_counts.empty() && others.empty())) {
-                    result.push_back(make_number(coefficient));
-                }
-
-                // Reconstruct Power terms
-                std::vector<std::string> ordered_symbols;
-                for (const auto& [name, _] : symbol_counts) {
-                    ordered_symbols.push_back(name);
-                }
-                std::sort(ordered_symbols.begin(), ordered_symbols.end());
-
-                for (const auto& name : ordered_symbols) {
-                    int count = symbol_counts[name];
-                    ExprPtr sym = make_expr<Symbol>(name);
-                    if (count == 1) {
-                        result.push_back(sym);
-                    }
-                    else {
-                        result.push_back(make_pow(sym, count));
-                    }
-                }
-
-                result.insert(result.end(), others.begin(), others.end());
-
-                if (result.empty()) {
-                    return make_number(1);
-                }
-                if (result.size() == 1) return result[0];
-                return make_expr<FunctionCall>("Times", result);
+                EvaluationContext ctx;
+                return apply_normalized_head_rewrites(
+                    normalize_expr(make_fcall("Times", simplified_args)),
+                    ctx);
             }
 
             if (f->head == "Power") {

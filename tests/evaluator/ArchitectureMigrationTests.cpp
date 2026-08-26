@@ -1038,6 +1038,69 @@ TEST_CASE("Kernel rewrite algebra-aware layer merges supported Times exponents",
     REQUIRE(to_string(*rewritten) == "x^3 * y");
 }
 
+TEST_CASE("Kernel rewrite algebra-aware layer merges repeated arbitrary Times bases", "[architecture][rewrite]") {
+    struct Case {
+        const char* source;
+        const char* expected;
+    };
+
+    const std::vector<Case> cases = {
+        {"x * x", "x^2"},
+        {"x * x * x", "x^3"},
+        {"Sin[x] * Sin[x]", "(Sin[x])^2"},
+        {"(x + 1) * (x + 1)", "(x + 1)^2"},
+        {"x^2 * x^3", "x^5"},
+        {"x^-1 * x^3", "x^2"},
+        {"x * x^4", "x^5"},
+        {"Sin[x]^2 * Sin[x]", "(Sin[x])^3"}
+    };
+
+    for (const auto& c : cases) {
+        DYNAMIC_SECTION(c.source) {
+            kernel::EvaluationContext ctx;
+            const auto normalized = normalize_expr(parse_expression(c.source));
+            REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+            const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+                std::get<FunctionCall>(*normalized),
+                ctx);
+
+            REQUIRE(rewritten.has_value());
+            REQUIRE(to_string(*rewritten) == c.expected);
+        }
+    }
+}
+
+TEST_CASE("Kernel rewrite algebra-aware layer keeps factor cancellation assumption guarded", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto symbol_normalized = normalize_expr(parse_expression("x * x^-1"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*symbol_normalized));
+
+    const auto symbol_rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*symbol_normalized),
+        ctx);
+
+    REQUIRE_FALSE(symbol_rewritten.has_value());
+
+    const auto opaque_normalized = normalize_expr(parse_expression("Sin[x] * Sin[x]^-1"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*opaque_normalized));
+
+    const auto opaque_rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*opaque_normalized),
+        ctx);
+
+    REQUIRE_FALSE(opaque_rewritten.has_value());
+
+    kernel::EvaluationContext nonzero_ctx;
+    nonzero_ctx.assumptions.assume(parse_expression("x != 0"));
+    const auto guarded_rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*symbol_normalized),
+        nonzero_ctx);
+
+    REQUIRE(guarded_rewritten.has_value());
+    REQUIRE(to_string(*guarded_rewritten) == "1");
+}
+
 TEST_CASE("Kernel rewrite algebra-aware layer collapses nested Power exponents", "[architecture][rewrite]") {
     kernel::EvaluationContext ctx;
     const auto normalized = normalize_expr(parse_expression("(x^2)^3"));
@@ -1096,7 +1159,7 @@ TEST_CASE("Kernel Power identity entrypoint stays out of list-aware and non-iden
     REQUIRE_FALSE(domain_rewritten.has_value());
 }
 
-TEST_CASE("Kernel rewrite algebra-aware layer stays out of mixed symbolic bases", "[architecture][rewrite]") {
+TEST_CASE("Kernel rewrite algebra-aware layer merges multiple symbolic factor families", "[architecture][rewrite]") {
     kernel::EvaluationContext ctx;
     const auto normalized = normalize_expr(parse_expression("x * y * x*y"));
     REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
@@ -1105,7 +1168,8 @@ TEST_CASE("Kernel rewrite algebra-aware layer stays out of mixed symbolic bases"
         std::get<FunctionCall>(*normalized),
         ctx);
 
-    REQUIRE_FALSE(rewritten.has_value());
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "x^2 * y^2");
 }
 
 TEST_CASE("Kernel rewrite algebra-aware layer stays out of symbolic nested Power exponents", "[architecture][rewrite]") {

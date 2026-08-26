@@ -306,6 +306,14 @@ inline ExprPtr normalize_times_args(const std::vector<ExprPtr>& args) {
 
     std::vector<ExprPtr> factors;
     for (const auto& arg : flat_args) {
+        if (const auto* number = std::get_if<Number>(arg.get());
+            number != nullptr && number->value == 1.0) {
+            continue;
+        }
+        if (const auto* rational = std::get_if<Rational>(arg.get());
+            rational != nullptr && rational->numerator == rational->denominator) {
+            continue;
+        }
         factors.push_back(arg);
     }
 

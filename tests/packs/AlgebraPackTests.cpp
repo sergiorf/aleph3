@@ -45,10 +45,10 @@ TEST_CASE("Algebra pack exact-capable helpers preserve exact multivariate output
     EvaluationContext ctx(registry);
 
     const auto expanded = evaluate_source("Expand[(1/2) * (x + y)]", ctx);
-    REQUIRE(simplify_string(expanded) == "x * 1/2 + y * 1/2");
+    REQUIRE(simplify_string(expanded) == "1/2 * x + 1/2 * y");
 
     const auto collected = evaluate_source("Collect[(1/2) * x * y + (3/2) * y, y]", ctx);
-    REQUIRE(simplify_string(collected) == "x * y * 1/2 + y * 3/2");
+    REQUIRE(simplify_string(collected) == "1/2 * x * y + 3/2 * y");
 
     const auto* expand_spec = registry.find_symbolic_function_spec("Expand");
     const auto* collect_spec = registry.find_symbolic_function_spec("Collect");

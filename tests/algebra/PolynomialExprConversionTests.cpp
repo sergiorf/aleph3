@@ -102,7 +102,7 @@ TEST_CASE("exact polynomial conversion round-trips to a stable canonical form", 
     const auto expr = parse_expression("1/3 + 2/3*x*y + x^2");
     const auto poly = expr_to_exact_polynomial(expr, {"x", "y"});
     const auto round_trip = exact_polynomial_to_expr(poly);
-    REQUIRE(simplify_string(round_trip) == "x^2 + x * y * 2/3 + 1/3");
+    REQUIRE(simplify_string(round_trip) == "x^2 + 2/3 * x * y + 1/3");
 }
 
 TEST_CASE("polynomial_to_expr emits higher-degree terms before lower-degree ones", "[algebra][conversion]") {
@@ -122,7 +122,7 @@ TEST_CASE("exact polynomial_to_expr emits a shared canonical order", "[algebra][
         {Monomial{{"x", 2}}, coeff(1)}
     });
 
-    REQUIRE(simplify_string(exact_polynomial_to_expr(ordered)) == "x^2 + x * y * 3/2 - 1/2");
+    REQUIRE(simplify_string(exact_polynomial_to_expr(ordered)) == "x^2 + 3/2 * x * y - 1/2");
 }
 
 TEST_CASE("exact monomial ordering policies honor explicit variable precedence", "[algebra][ordering][exact]") {
@@ -206,7 +206,7 @@ TEST_CASE("low-level exact polynomial gcd supports monomial-bounded multivariate
 
     REQUIRE(simplify_string(exact_polynomial_to_expr(gcd(left, right, {"x", "y"}))) == "x");
     const auto [quotient, remainder] = divide(left, right, {"x", "y"});
-    REQUIRE(simplify_string(exact_polynomial_to_expr(quotient)) == "y * 1/2");
+    REQUIRE(simplify_string(exact_polynomial_to_expr(quotient)) == "1/2 * y");
     REQUIRE(simplify_string(exact_polynomial_to_expr(remainder)) == "0");
 }
 

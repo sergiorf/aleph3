@@ -80,10 +80,14 @@ namespace aleph3 {
         std::vector<ExprPtr> positive_args = call->args;
         if (const auto* first_num = std::get_if<Number>(positive_args.front().get()); first_num && first_num->value < 0) {
             positive_args.front() = make_expr<Number>(-first_num->value);
-            if (positive_args.size() == 2 &&
-                std::holds_alternative<Number>(*positive_args.front()) &&
+            if (std::holds_alternative<Number>(*positive_args.front()) &&
                 std::get<Number>(*positive_args.front()).value == 1.0) {
-                formatted = to_string_with_parens(positive_args[1], get_precedence("Plus"));
+                positive_args.erase(positive_args.begin());
+                if (positive_args.size() == 1) {
+                    formatted = to_string_with_parens(positive_args.front(), get_precedence("Plus"));
+                } else {
+                    formatted = to_string_with_parens(make_expr<FunctionCall>("Times", positive_args), get_precedence("Plus"));
+                }
             } else {
                 formatted = to_string_with_parens(make_expr<FunctionCall>("Times", positive_args), get_precedence("Plus"));
             }
@@ -93,7 +97,18 @@ namespace aleph3 {
         if (const auto* first_rational = std::get_if<Rational>(positive_args.front().get());
             first_rational && first_rational->numerator < 0) {
             positive_args.front() = make_expr<Rational>(-first_rational->numerator, first_rational->denominator);
-            formatted = to_string_with_parens(make_expr<FunctionCall>("Times", positive_args), get_precedence("Plus"));
+            if (std::holds_alternative<Rational>(*positive_args.front()) &&
+                std::get<Rational>(*positive_args.front()).numerator ==
+                    std::get<Rational>(*positive_args.front()).denominator) {
+                positive_args.erase(positive_args.begin());
+                if (positive_args.size() == 1) {
+                    formatted = to_string_with_parens(positive_args.front(), get_precedence("Plus"));
+                } else {
+                    formatted = to_string_with_parens(make_expr<FunctionCall>("Times", positive_args), get_precedence("Plus"));
+                }
+            } else {
+                formatted = to_string_with_parens(make_expr<FunctionCall>("Times", positive_args), get_precedence("Plus"));
+            }
             return true;
         }
 
@@ -149,13 +164,25 @@ namespace aleph3 {
                     return result;
                 }
                 if (f.head == "Times") {
-                    // Special case: Times[-1, x] => -x
-                    if (args.size() == 2) {
+                    if (!args.empty()) {
                         if (auto num = std::get_if<Number>(args[0].get()); num && num->value == -1) {
-                            return "-" + to_string_with_parens(args[1], get_precedence("Negate"));
+                            if (args.size() == 2) {
+                                return "-" + to_string_with_parens(args[1], get_precedence("Negate"));
+                            }
+                            std::vector<ExprPtr> positive_args(args.begin() + 1, args.end());
+                            return "-" + to_string_with_parens(
+                                make_expr<FunctionCall>("Times", positive_args),
+                                get_precedence("Negate"));
                         }
-                        if (auto num = std::get_if<Number>(args[1].get()); num && num->value == -1) {
-                            return "-" + to_string_with_parens(args[0], get_precedence("Negate"));
+                        if (auto rational = std::get_if<Rational>(args[0].get());
+                            rational && rational->numerator == -rational->denominator) {
+                            if (args.size() == 2) {
+                                return "-" + to_string_with_parens(args[1], get_precedence("Negate"));
+                            }
+                            std::vector<ExprPtr> positive_args(args.begin() + 1, args.end());
+                            return "-" + to_string_with_parens(
+                                make_expr<FunctionCall>("Times", positive_args),
+                                get_precedence("Negate"));
                         }
                     }
                     std::string result;

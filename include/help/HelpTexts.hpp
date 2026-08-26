@@ -54,7 +54,7 @@ namespace aleph3 {
                 "Branch-sensitive power laws and broad symbolic exponent reasoning are unsupported.",
                 "builtin", "manual/built-in-functions.md#arithmetic-and-elementary-functions"},
             {"Negate", "Unary numeric negation used by parsed prefix minus.", "Arithmetic",
-                {"Negate[x]", "-x"}, {"-4 -> -4", "-x -> -1 * x"},
+                {"Negate[x]", "-x"}, {"-4 -> -4", "-x -> -x"},
                 "Exact integer-like inputs and symbolic negation follow the shared arithmetic path.",
                 "This is an implementation-facing head; broad user-facing unary operator help remains through syntax examples.",
                 "builtin", "manual/built-in-functions.md#arithmetic-and-elementary-functions"},

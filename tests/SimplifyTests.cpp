@@ -60,8 +60,19 @@ TEST_CASE("Simplify removes additive and multiplicative neutral elements", "[sim
     expect_simplifies_to("0 + x", "x");
     expect_simplifies_to("x * 1", "x");
     expect_simplifies_to("1 * x", "x");
+    expect_simplifies_to("1 * x * y", "x * y");
     expect_simplifies_to("x * 0", "0");
     expect_simplifies_to("0 * x", "0");
+}
+
+TEST_CASE("Simplify prints negative identity products without explicit unit factors", "[simplify][times]") {
+    auto symbol = to_string(simplify(parse_expression("-1 * x")));
+    auto call = to_string(simplify(parse_expression("-1 * Sin[x]")));
+    auto product = to_string(simplify(parse_expression("-1 * x * y")));
+
+    REQUIRE(symbol.find("-1 *") == std::string::npos);
+    REQUIRE(call.find("-1 *") == std::string::npos);
+    REQUIRE(product.find("-1 *") == std::string::npos);
 }
 
 TEST_CASE("Simplify collapses basic power identities and numeric powers", "[simplify]") {
@@ -74,8 +85,23 @@ TEST_CASE("Simplify collapses basic power identities and numeric powers", "[simp
 TEST_CASE("Simplify combines constants and like terms", "[simplify]") {
     expect_simplifies_to("2 + 3 + 4", "9");
     expect_simplifies_to("2 * 3 * 0", "0");
+    expect_simplifies_to("2 * x * 3", "6 * x");
+    expect_simplifies_to("2 * x * 3 * y", "6 * x * y");
+    expect_simplifies_to("-2 * x * 3", "-6 * x");
+    expect_simplifies_to("(1/2) * 4 * x", "2 * x");
     expect_simplifies_to("2*x + 3*x", "5 * x");
-    expect_simplifies_to("x/2 + x/3", "x * 5/6");
+    expect_simplifies_to("x/2 + x/3", "5/6 * x");
+}
+
+TEST_CASE("Simplify combines repeated Times factors and integer powers", "[simplify][times]") {
+    expect_simplifies_to("x * x", "x^2");
+    expect_simplifies_to("x * x * x", "x^3");
+    expect_simplifies_to("Sin[x] * Sin[x]", "(Sin[x])^2");
+    expect_simplifies_to("(x + 1) * (x + 1)", "(x + 1)^2");
+    expect_simplifies_to("x^2 * x^3", "x^5");
+    expect_simplifies_to("x^-1 * x^3", "x^2");
+    expect_simplifies_to("x * x^4", "x^5");
+    expect_simplifies_to("Sin[x]^2 * Sin[x]", "(Sin[x])^3");
 }
 
 TEST_CASE("Simplify preserves symbolic structure when no numeric reduction applies", "[simplify]") {

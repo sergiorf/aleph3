@@ -90,6 +90,8 @@ Normalization gives equivalent structures a deterministic shape:
 0 + x                    -> x
 x + y + x                -> y + 2 * x
 x*x^2                    -> x^3
+Sin[x]*Sin[x]            -> Sin[x]^2
+1*x*y                    -> x*y
 ```
 
 Canonical does not mean “the form every mathematician prefers.” It means a

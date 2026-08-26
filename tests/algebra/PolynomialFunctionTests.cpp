@@ -250,7 +250,7 @@ TEST_CASE("Polynomial factor supports supported content and linear-root factoriz
     REQUIRE(simplify_string(factor_result) == "(x + 1) * (x + 2)");
 
     const auto repeated_factor_result = evaluate_source("Factor[x^2 - 2*x + 1]", ctx);
-    REQUIRE(simplify_string(repeated_factor_result) == "(x - 1) * (x - 1)");
+    REQUIRE(simplify_string(repeated_factor_result) == "(x - 1)^2");
 
     const auto multivariate_factor_result = evaluate_source("Factor[x^2*y + 2*x*y]", ctx);
     REQUIRE(simplify_string(multivariate_factor_result) == "x * y * (x + 2)");
@@ -279,7 +279,7 @@ TEST_CASE("Polynomial factor handles zero constant and sparse high degree inputs
     REQUIRE(simplify_string(mixed_multivariate_content_result) == "y * (x + z)");
 
     const auto rational_root_result = evaluate_source("Factor[2*x^2 - 3*x + 1]", ctx);
-    REQUIRE(simplify_string(rational_root_result) == "(x - 1) * (2 * x - 1)");
+    REQUIRE(simplify_string(rational_root_result) == "(2 * x - 1) * (x - 1)");
 }
 
 TEST_CASE("Polynomial factor rejects unsupported non integer univariate coefficients", "[algebra][functions]") {
@@ -381,6 +381,16 @@ TEST_CASE("Equivalent proves only the bounded exact algebra subset", "[algebra][
     EvaluationContext ctx;
 
     REQUIRE(simplify_string(evaluate_source("Equivalent[x + 1, 1 + x]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[1*x, x]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[x*1, x]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[1*x*y, x*y]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[-1*x, -x]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[x*x, x^2]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[Sin[x]*Sin[x], Sin[x]^2]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[x^2*x^3, x^5]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[x*y, y*x]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[x^2*y^3, y^3*x^2]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source("Equivalent[3*z*x*y, 3*x*y*z]", ctx)) == "True");
     REQUIRE(simplify_string(evaluate_source(
         "Equivalent[x^2 + 2*x + 1, x^2 + x + x + 1]", ctx)) == "True");
     REQUIRE(simplify_string(evaluate_source("Equivalent[x + 1, x + 2]", ctx)) == "False");
@@ -502,7 +512,7 @@ TEST_CASE("Polynomial factor supports exact rational univariate coefficients", "
     REQUIRE(to_string(*evaluate_source("Factor[(3/4) * x^2 + (3/2) * x + 3/4]", ctx))
             == "3/4 * (x + 1) * (x + 1)");
     REQUIRE(simplify_string(evaluate_source("Factor[(2/3) * x^3 - (2/3) * x]", ctx))
-            == "x * 2/3 * (x - 1) * (x + 1)");
+        == "2/3 * x * (x - 1) * (x + 1)");
 
     try {
         static_cast<void>(evaluate_source("Factor[(1/2) * x * y + 1]", ctx));
@@ -658,11 +668,11 @@ TEST_CASE("Polynomial helpers keep multivariate support boundaries explicit", "[
     REQUIRE(simplify_string(evaluate_source("Expand[(x + y) * (x + z)]", ctx)) ==
             "x^2 + x * y + x * z + y * z");
     REQUIRE(simplify_string(evaluate_source("Expand[(1/2) * (y + x)]", ctx)) ==
-            "x * 1/2 + y * 1/2");
+        "1/2 * x + 1/2 * y");
     REQUIRE(simplify_string(evaluate_source("Collect[x*y + y*z, y]", ctx)) ==
             "x * y + y * z");
     REQUIRE(simplify_string(evaluate_source("Collect[(3/2) * y + (1/2) * x * y, y]", ctx)) ==
-            "x * y * 1/2 + y * 3/2");
+        "1/2 * x * y + 3/2 * y");
     REQUIRE(simplify_string(evaluate_source("Factor[x*y + y*z]", ctx)) ==
             "y * (x + z)");
 
@@ -692,7 +702,7 @@ TEST_CASE("Polynomial helpers keep multivariate support boundaries explicit", "[
     REQUIRE(simplify_string(parts[0]) == "x + y");
     REQUIRE(simplify_string(parts[1]) == "y");
     REQUIRE(simplify_string(evaluate_source(
-        "Expand[x*y*(x+y)+y]", ctx)) == "x^2 * y + x * y^2 + y");
+        "Expand[x*y*(x+y)+y]", ctx)) == "x^2 * y + y^2 * x + y");
     REQUIRE(simplify_string(evaluate_source(
         "PolynomialRemainder[x^2*y + x*y^2 + y, x*y, {x, y}]", ctx)) == "y");
 

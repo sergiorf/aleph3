@@ -335,7 +335,7 @@ TEST_CASE("Algebra-aware layer merges supported exponent structure only", "[eval
     REQUIRE(get_number_value(divide_identity) == 1.0);
 }
 
-TEST_CASE("Algebra-aware layer preserves unsupported exponent structure", "[evaluator][simplification][algebra-aware]") {
+TEST_CASE("Algebra-aware layer preserves unsupported exponent structure and combines compatible factors", "[evaluator][simplification][algebra-aware]") {
     EvaluationContext ctx;
 
     const auto symbolic_nested_power = evaluate(parse_expression("(x^a)^b"), ctx);
@@ -344,7 +344,11 @@ TEST_CASE("Algebra-aware layer preserves unsupported exponent structure", "[eval
 
     const auto mixed_basis = evaluate(parse_expression("x * y * x*y"), ctx);
     REQUIRE(std::holds_alternative<FunctionCall>(*mixed_basis));
-    REQUIRE(to_string(mixed_basis) != "x^2 * y^2");
+    REQUIRE(to_string(mixed_basis) == "x^2 * y^2");
+
+    const auto unsafe_inverse_product = evaluate(parse_expression("x * x^-1"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*unsafe_inverse_product));
+    REQUIRE(to_string(unsafe_inverse_product) == "x * x^-1");
 }
 
 TEST_CASE("Evaluator retains ownership of domain-sensitive power semantics", "[evaluator][simplification][algebra-aware]") {
@@ -1419,7 +1423,7 @@ TEST_CASE("Simplify builtin evaluates then applies symbolic simplification", "[e
     EvaluationContext ctx;
 
     REQUIRE(to_string(evaluate(parse_expression("Simplify[x + x + 2*x]"), ctx)) == "4 * x");
-    REQUIRE(to_string(evaluate(parse_expression("Simplify[(x/2) + (x/3)]"), ctx)) == "x * 5/6");
+    REQUIRE(to_string(evaluate(parse_expression("Simplify[(x/2) + (x/3)]"), ctx)) == "5/6 * x");
     REQUIRE(to_string(evaluate(parse_expression("Simplify[Sin[0]]"), ctx)) == "0");
     REQUIRE(to_string(evaluate(parse_expression("Simplify[1/2 + 1/3]"), ctx)) == "5/6");
 }

@@ -203,6 +203,15 @@ TEST_CASE("Calculus pack benefits from canonical Times simplification regression
         "5*x^3*y^4*z^4");
 }
 
+TEST_CASE("Calculus pack benefits from canonical Plus collection", "[packs][calculus][plus]") {
+    REQUIRE(evaluated_string("D[x^2 + x^2, x]") == "4 * x");
+    REQUIRE(evaluated_string("D[x^3 + 2*x^3, x]") == "9 * x^2");
+    REQUIRE(evaluated_string("D[Sin[x] + Sin[x], x]") == "2 * (Cos[x])");
+    REQUIRE(evaluated_string("D[x^2*y + x^2*y, x]") == "4 * x * y");
+    REQUIRE(evaluated_string("D[x^2*y + x*y^2, x]") == "y^2 + 2 * x * y");
+    REQUIRE(evaluated_string("D[x^2*y + x*y^2, y]") == "x^2 + 2 * x * y");
+}
+
 TEST_CASE("Calculus pack differentiates rational expressions generically", "[packs][calculus]") {
     require_equivalent(
         "D[(x^2 + y)/(x + y^2), x]",

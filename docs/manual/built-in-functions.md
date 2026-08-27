@@ -172,6 +172,8 @@ simplification pass:
 ```text
 Simplify[x + x + 2*x]                  -> 4 * x
 Simplify[x*y + 2*x*y]                  -> 3 * x * y
+Simplify[Sin[x] + Sin[x]]              -> 2 * (Sin[x])
+Simplify[(x + 1)^2 + (x + 1)^2]        -> 2 * (x + 1)^2
 Simplify[0 + (1 * x)]                  -> x
 Simplify[(x/2) + (x/3)]                -> 5/6 * x
 Simplify[Sin[x] * Sin[x]]              -> (Sin[x])^2
@@ -188,13 +190,16 @@ Simplify[0^-1]                         -> 0^-1
 This is the same simplification path used by the session simplify operation.
 It covers the documented arithmetic cleanup, exact rational arithmetic, and
 canonical multiplication cleanup such as identity removal, numeric coefficient
-collection, structural monomial like-term collection, deterministic factor
-ordering, repeated-factor powers, and exact integer power merging. Exact
+collection, structural like-term collection for identical symbolic bodies,
+deterministic factor ordering, repeated-factor powers, and exact integer power
+merging. Like-term collection extracts only numeric or exact-rational factors
+from products; it does not treat symbolic factors as coefficients, so
+`a*x + b*x` is not rewritten to `(a + b)*x`. Exact
 integer powers of identical symbolic bases cancel generically in products, so
 `x*x^-1` becomes `1`. Explicit invalid numeric power forms such as `0^-1` and
 `0^0` remain symbolic instead of being made valid by simplification. This does
-not imply broad CAS simplification,
-trigonometric identities, product expansion, factoring sums, symbolic exponent
+not imply broad CAS simplification, trigonometric identities, product
+expansion, factoring sums such as `x*y + x*z -> x*(y + z)`, symbolic exponent
 algebra such as `a^m*a^n`, or arbitrary domain-sensitive cancellation.
 Standalone unknown-base zero powers such as `x^0 -> 1` still require a
 supported nonzero fact.

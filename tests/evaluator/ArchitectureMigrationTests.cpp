@@ -1048,7 +1048,7 @@ TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of grouped sym
     REQUIRE_FALSE(rewritten.has_value());
 }
 
-TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of call-shaped bases", "[architecture][rewrite]") {
+TEST_CASE("Kernel rewrite symbolic coefficient contract combines call-shaped bases", "[architecture][rewrite]") {
     kernel::EvaluationContext ctx;
     const auto normalized = normalize_expr(parse_expression("f[x] + 2*f[x]"));
     REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
@@ -1057,7 +1057,8 @@ TEST_CASE("Kernel rewrite symbolic coefficient contract stays out of call-shaped
         std::get<FunctionCall>(*normalized),
         ctx);
 
-    REQUIRE_FALSE(rewritten.has_value());
+    REQUIRE(rewritten.has_value());
+    REQUIRE(to_string(*rewritten) == "3 * (f[x])");
 }
 
 TEST_CASE("Kernel rewrite algebra-aware layer merges supported Times exponents", "[architecture][rewrite]") {

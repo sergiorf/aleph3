@@ -471,40 +471,40 @@ It currently supports:
 - combining `x + 2*x + 1/3*x` into `10/3 * x`
 - combining `x^2 + 2*x^2` into `3 * x^2`
 - combining `x*y + 2*x*y` into `3 * x * y`
+- combining structurally identical function terms such as
+  `Sin[x] + Sin[x]` into `2 * Sin[x]`
+- combining structurally identical compound terms such as
+  `(x + 1)^2 + (x + 1)^2` into `2 * (x + 1)^2`
 - cancelling `x + (-1 * x)` into `0`
 
 ### Supported Basis Class For The Coefficient Layer
 
-The supported basis class is intentionally narrow.
+The supported basis class is structural rather than polynomial-specific.
 
 Collection may run only for normalized `Plus` terms whose addends reduce to one
-of these basis shapes:
+of these coefficient/body shapes:
 
-- `x`
-- `x^n`
-- `c * x`
-- `c * x^n`
-- `x*y`
-- `c * x*y`
-- `c * x^m*y^n`
+- `body`
+- `c * body`
 
 Where:
 
-- each basis factor is a symbol or a supported numeric power of a symbol
+- `body` is a normalized symbol or non-list function expression
 - `c` is `Number` or `Rational`
-- `n` is a supported numeric exponent
+- product bodies use the existing canonical `Times` normalization before they
+  are used as structural keys
 
-This means the current coefficient layer promises stable behavior only for
-structural monomial terms built from supported symbolic basis factors with
-numeric or exact-rational scalar coefficients.
+This means the current coefficient layer promises stable behavior for
+structurally identical symbolic bodies with numeric or exact-rational scalar
+coefficients. It is not a general polynomial factorer or symbolic coefficient
+domain.
 
 The following are outside the supported basis class and must remain preserved
 rather than partially collected:
 
-- `(x + y) + 2 * (x + y)`
-- `f[x] + 2 * f[x]`
 - symbolic coefficient domains
-- basis extraction from grouped expressions or opaque function calls
+- list-aware arithmetic
+- non-identical terms that merely share a factor, such as `x*y + x*z`
 
 If a normalized `Plus` contains both supported and unsupported basis shapes,
 the supported slice may still collect, but unsupported terms must pass through

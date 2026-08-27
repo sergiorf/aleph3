@@ -185,6 +185,33 @@ struct ScalarCoefficient {
         add_number(other.approximate);
     }
 
+    void multiply_number(double value) {
+        if (exact && is_integral(value)) {
+            auto [nn, dd] = normalize_rational(
+                numerator * static_cast<int64_t>(value),
+                denominator);
+            numerator = nn;
+            denominator = dd;
+            return;
+        }
+
+        if (exact) {
+            approximate = static_cast<double>(numerator) / denominator;
+            exact = false;
+        }
+        approximate *= value;
+    }
+
+    void multiply_rational(int64_t num, int64_t den) {
+        if (exact) {
+            auto [nn, dd] = normalize_rational(numerator * num, denominator * den);
+            numerator = nn;
+            denominator = dd;
+            return;
+        }
+        approximate *= static_cast<double>(num) / den;
+    }
+
     [[nodiscard]] bool is_zero() const {
         return exact ? numerator == 0 : approximate == 0.0;
     }
@@ -207,7 +234,7 @@ struct ScalarCoefficient {
     }
 };
 
-struct SupportedMonomialTerm {
+struct SupportedCoefficientTerm {
     ExprPtr basis;
     ScalarCoefficient coefficient;
 };
@@ -394,96 +421,82 @@ ExprPtr build_times_bucket_expr(
     return normalize_expr(make_fcall("Times", rebuilt_terms));
 }
 
-bool extract_supported_symbolic_basis(const ExprPtr& expr, ExprPtr& basis) {
-    if (std::holds_alternative<Symbol>(*expr)) {
-        basis = expr;
-        return true;
-    }
-
-    const auto* power = std::get_if<FunctionCall>(expr.get());
-    if (power != nullptr && power->head == "Power" && power->args.size() == 2) {
-        if (!std::holds_alternative<Symbol>(*power->args[0]) ||
-            !std::holds_alternative<Number>(*power->args[1])) {
-            return false;
-        }
-
-        basis = expr;
-        return true;
-    }
-
-    const auto* times = std::get_if<FunctionCall>(expr.get());
-    if (times == nullptr || times->head != "Times" || times->args.empty()) {
+bool is_collectable_symbolic_body(const ExprPtr& expr) {
+    if (contains_list_expr(expr)) {
         return false;
     }
 
-    std::vector<ExprPtr> basis_factors;
-    basis_factors.reserve(times->args.size());
-    for (const auto& arg : times->args) {
-        ExprPtr factor_basis;
-        if (!extract_supported_symbolic_basis(arg, factor_basis)) {
-            return false;
-        }
-        basis_factors.push_back(std::move(factor_basis));
+    if (std::holds_alternative<Symbol>(*expr)) {
+        return true;
     }
 
-    basis = basis_factors.size() == 1
-        ? basis_factors.front()
-        : normalize_expr(make_fcall("Times", basis_factors));
-    return true;
+    const auto* call = std::get_if<FunctionCall>(expr.get());
+    return call != nullptr && call->head != "List";
 }
 
-bool extract_supported_monomial_term(
-    const ExprPtr& expr,
-    SupportedMonomialTerm& term) {
-    ExprPtr basis;
-    if (extract_supported_symbolic_basis(expr, basis)) {
-        term.basis = basis;
-        term.coefficient.numerator = 1;
-        term.coefficient.denominator = 1;
+bool multiply_numeric_factor_into_coefficient(const ExprPtr& expr, ScalarCoefficient& coefficient) {
+    if (std::holds_alternative<Number>(*expr)) {
+        coefficient.multiply_number(std::get<Number>(*expr).value);
         return true;
     }
+    if (std::holds_alternative<Rational>(*expr)) {
+        const auto& rational = std::get<Rational>(*expr);
+        coefficient.multiply_rational(rational.numerator, rational.denominator);
+        return true;
+    }
+    return false;
+}
 
-    const auto* times = std::get_if<FunctionCall>(expr.get());
-    if (times == nullptr || times->head != "Times" || times->args.size() < 2) {
+bool extract_supported_coefficient_term(
+    const ExprPtr& expr,
+    SupportedCoefficientTerm& term) {
+    if (std::holds_alternative<Number>(*expr) || std::holds_alternative<Rational>(*expr)) {
         return false;
     }
 
-    const ExprPtr* coefficient_expr = nullptr;
+    const auto* times = std::get_if<FunctionCall>(expr.get());
+    if (times == nullptr || times->head != "Times") {
+        if (is_collectable_symbolic_body(expr)) {
+            term.basis = normalize_expr(expr);
+            term.coefficient.numerator = 1;
+            term.coefficient.denominator = 1;
+            return true;
+        }
+        return false;
+    }
+
+    if (times->args.empty()) {
+        return false;
+    }
+
+    ScalarCoefficient coefficient;
+    coefficient.numerator = 1;
+    coefficient.denominator = 1;
     std::vector<ExprPtr> basis_factors;
     basis_factors.reserve(times->args.size());
     for (const auto& arg : times->args) {
-        if (std::holds_alternative<Number>(*arg) || std::holds_alternative<Rational>(*arg)) {
-            if (coefficient_expr != nullptr) {
-                return false;
-            }
-            coefficient_expr = &arg;
+        if (multiply_numeric_factor_into_coefficient(arg, coefficient)) {
             continue;
         }
 
-        ExprPtr factor_basis;
-        if (!extract_supported_symbolic_basis(arg, factor_basis)) {
+        if (!is_collectable_symbolic_body(arg)) {
             return false;
         }
-        basis_factors.push_back(std::move(factor_basis));
+        basis_factors.push_back(arg);
     }
 
-    if (coefficient_expr == nullptr || basis_factors.empty()) {
+    if (basis_factors.empty()) {
         return false;
     }
 
     term.basis = basis_factors.size() == 1
         ? basis_factors.front()
         : normalize_expr(make_fcall("Times", basis_factors));
-    if (std::holds_alternative<Number>(**coefficient_expr)) {
-        term.coefficient.add_number(std::get<Number>(**coefficient_expr).value);
-    } else {
-        const auto& rational = std::get<Rational>(**coefficient_expr);
-        term.coefficient.add_rational(rational.numerator, rational.denominator);
-    }
+    term.coefficient = coefficient;
     return true;
 }
 
-ExprPtr rebuild_supported_monomial_term(const SupportedMonomialTerm& term) {
+ExprPtr rebuild_supported_coefficient_term(const SupportedCoefficientTerm& term) {
     if (term.coefficient.is_zero()) {
         return nullptr;
     }
@@ -1225,8 +1238,8 @@ std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
     bool changed = false;
 
     for (const auto& arg : func.args) {
-        SupportedMonomialTerm term;
-        if (!extract_supported_monomial_term(arg, term)) {
+        SupportedCoefficientTerm term;
+        if (!extract_supported_coefficient_term(arg, term)) {
             opaque_terms.push_back(arg);
             continue;
         }
@@ -1247,8 +1260,8 @@ std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
     rebuilt_terms.insert(rebuilt_terms.end(), opaque_terms.begin(), opaque_terms.end());
 
     for (const auto& bucket : buckets) {
-        auto rebuilt = rebuild_supported_monomial_term(
-            SupportedMonomialTerm{bucket.basis, bucket.coefficient});
+        auto rebuilt = rebuild_supported_coefficient_term(
+            SupportedCoefficientTerm{bucket.basis, bucket.coefficient});
         if (rebuilt == nullptr) {
             changed = true;
             continue;

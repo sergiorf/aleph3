@@ -321,6 +321,135 @@ TEST_CASE("Simplify combines supported multivariate like terms", "[simplify][plu
     expect_simplifies_to("x^2 + x^2", "2 * x^2");
 }
 
+TEST_CASE("Simplify combines generic structural Plus terms", "[simplify][plus]") {
+    expect_simplifies_to("x + x + x", "3 * x");
+    expect_simplifies_to("a + a", "2 * a");
+    expect_simplifies_to("u + u + u", "3 * u");
+    expect_simplifies_to("x + 2*x", "3 * x");
+    expect_simplifies_to("5*x - 2*x", "3 * x");
+    expect_simplifies_to("2*x - 3*x", "-x");
+    expect_simplifies_to("3*x - 3*x", "0");
+
+    expect_simplifies_to("x*y + y*x", "2 * x * y");
+    expect_simplifies_to("2*x*y + 3*y*x", "5 * x * y");
+    expect_simplifies_to("x*y + 3*y*x - 2*x*y", "2 * x * y");
+    expect_simplifies_to("a*b + b*a", "2 * a * b");
+    expect_simplifies_to("2*p*q + 3*q*p", "5 * p * q");
+
+    expect_simplifies_to("3*x^2 + 4*x^2", "7 * x^2");
+    expect_simplifies_to("x^3 - x^3", "0");
+    expect_simplifies_to("2*x^5 - 5*x^5", "-3 * x^5");
+
+    expect_simplifies_to("Sin[x] + Sin[x]", "2 * (Sin[x])");
+    expect_simplifies_to("3*Cos[x] + 4*Cos[x]", "7 * (Cos[x])");
+    expect_simplifies_to("Exp[x] - Exp[x]", "0");
+    expect_simplifies_to("2*Log[x] + Log[x]", "3 * (Log[x])");
+
+    expect_simplifies_to("(x + 1)^2 + (x + 1)^2", "2 * (x + 1)^2");
+    expect_simplifies_to(
+        "3*(x^2 + 1)^4 + 2*(x^2 + 1)^4",
+        "5 * (x^2 + 1)^4");
+    expect_simplifies_to("Sin[x]^2 + Sin[x]^2", "2 * (Sin[x])^2");
+}
+
+TEST_CASE("Simplify combines mixed Plus constants and structural bodies", "[simplify][plus]") {
+    expect_simplifies_to("2*x + 3 + 4*x + 5", "6 * x + 8");
+    expect_simplifies_to("x + 1 + x + 2", "2 * x + 3");
+    expect_simplifies_to("2*x^2 + 3*x + 5*x^2 - x + 7", "7 * x^2 + 2 * x + 7");
+    expect_simplifies_to("x*y + 2*x*y", "3 * x * y");
+    expect_simplifies_to("x^2*y + 3*x^2*y", "4 * x^2 * y");
+    expect_simplifies_to("2*x*y^2 + 5*y^2*x", "7 * x * y^2");
+    expect_simplifies_to("2*x^2*y + 3*y*x^2 - x^2*y", "4 * x^2 * y");
+    expect_simplifies_to("x + 2*x + 3*x + 4*x + 5*x", "15 * x");
+    expect_simplifies_to("x*y + 2*y*x + 3*x*y + 4*y*x", "10 * x * y");
+    expect_simplifies_to("a^2 + 2*a^2 + 3*a^2 + 4*a^2", "10 * a^2");
+    expect_simplifies_to("1 + x + 2 + x + 3 + x + 4", "3 * x + 10");
+}
+
+TEST_CASE("Simplify keeps unlike Plus terms distinct", "[simplify][plus][contract]") {
+    expect_simplifies_to("x + y", "x + y");
+    expect_simplifies_to("x + x^2", "x^2 + x");
+    expect_simplifies_to("x*y + x*z", "x * y + x * z");
+    expect_simplifies_to("Sin[x] + Sin[y]", "(Sin[x]) + (Sin[y])");
+    expect_simplifies_to("Sin[x] + Cos[x]", "(Cos[x]) + (Sin[x])");
+    expect_simplifies_to("x^2 + y^2", "x^2 + y^2");
+    expect_simplifies_to("a*x + b*x", "a * x + b * x");
+    expect_simplifies_to("x*(y + z) + x*(y + z)", "2 * x * (y + z)");
+}
+
+TEST_CASE("Simplify normalizes Plus permutations structurally", "[simplify][plus][canonical]") {
+    for (const auto* source : {
+             "2*x + 3*y + 4*x",
+             "4*x + 2*x + 3*y",
+             "3*y + 4*x + 2*x"}) {
+        DYNAMIC_SECTION(source) {
+            expect_same_simplified_structure(source, "6*x + 3*y");
+        }
+    }
+
+    for (const auto* source : {
+             "x*y + 2*y*x + 3*z",
+             "3*z + 2*x*y + y*x",
+             "2*y*x + 3*z + x*y"}) {
+        DYNAMIC_SECTION(source) {
+            expect_same_simplified_structure(source, "3*x*y + 3*z");
+        }
+    }
+
+    for (const auto* source : {
+             "x^2 + 3*x + 5 + 2*x^2",
+             "5 + 2*x^2 + x^2 + 3*x",
+             "3*x + x^2 + 5 + 2*x^2"}) {
+        DYNAMIC_SECTION(source) {
+            expect_same_simplified_structure(source, "3*x^2 + 3*x + 5");
+        }
+    }
+
+    expect_same_simplified_structure("(x + y) + z", "x + (y + z)");
+    expect_same_simplified_structure("(x + (y + (z + w)))", "((w + z) + (y + x))");
+}
+
+TEST_CASE("Simplify is idempotent for canonical Plus collection", "[simplify][plus][property]") {
+    for (const auto* source : {
+             "2*x + 3*x + y",
+             "x + x + x + 2",
+             "2*x*y + 3*y*x - x*y",
+             "3*x^2 + 4*x^2 - 2*x^2",
+             "Sin[x] + Sin[x] - Sin[x]",
+             "2*(x + 1)^3 + 3*(x + 1)^3"}) {
+        DYNAMIC_SECTION(source) {
+            const auto once = simplify(parse_expression(source));
+            const auto twice = simplify(once);
+            REQUIRE(kernel::structurally_equal(once, twice));
+        }
+    }
+}
+
+TEST_CASE("Simplify coefficient collection is numeric and structural", "[simplify][plus][property]") {
+    const std::vector<int> coefficients = {-5, -3, -1, 0, 1, 2, 4, 7};
+    const std::vector<std::string> bodies = {
+        "x",
+        "x^2",
+        "x*y",
+        "Sin[x]",
+        "(x + 1)^3"
+    };
+
+    for (const auto& body : bodies) {
+        for (const int left : coefficients) {
+            for (const int right : coefficients) {
+                const auto source =
+                    std::to_string(left) + "*(" + body + ") + " +
+                    std::to_string(right) + "*(" + body + ")";
+                const auto expected = std::to_string(left + right) + "*(" + body + ")";
+                DYNAMIC_SECTION(source << " -> " << expected) {
+                    expect_same_simplified_structure(source, expected);
+                }
+            }
+        }
+    }
+}
+
 TEST_CASE("Simplify normalizes commutative Plus permutations", "[simplify][plus][canonical]") {
     const auto first = to_string(simplify(parse_expression("x + y + z")));
     REQUIRE(to_string(simplify(parse_expression("z + x + y"))) == first);
@@ -354,11 +483,8 @@ TEST_CASE("Simplify keeps opaque arguments structurally intact", "[simplify][con
 
 TEST_CASE("Simplify preserves unsupported grouped coefficient and exponent contract shapes", "[simplify][contract][rewrite]") {
     expect_direct_simplify_to("(x + y) + 2 * (x + y)", "x + y + 2 * (x + y)");
-
-    auto call_shaped = simplify(parse_expression("f[x] + 2 * f[x]"));
-    REQUIRE(std::holds_alternative<FunctionCall>(*call_shaped));
-    REQUIRE(to_string(call_shaped) != "3 * f[x]");
-    REQUIRE(to_string(simplify(call_shaped)) == to_string(call_shaped));
+    expect_direct_simplify_to("f[x] + 2 * f[x]", "3 * (f[x])");
+    expect_direct_simplify_to("a*x + b*x", "a * x + b * x");
 
     auto symbolic_power = simplify(parse_expression("(x^a)^b"));
     REQUIRE(std::holds_alternative<FunctionCall>(*symbolic_power));

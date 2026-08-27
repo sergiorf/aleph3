@@ -88,7 +88,9 @@ Normalization gives equivalent structures a deterministic shape:
 
 ```text
 0 + x                    -> x
-x + y + x                -> y + 2 * x
+x + y + x                -> 2 * x + y
+x*y + y*x                -> 2 * x * y
+Sin[x] + Sin[x]          -> 2 * (Sin[x])
 x*x^2                    -> x^3
 Sin[x]*Sin[x]            -> (Sin[x])^2
 1*x*y                    -> x*y

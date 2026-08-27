@@ -125,11 +125,13 @@ constructing results, but they do not replace the kernel's general evaluator or
 rewrite system.
 
 The narrow kernel-owned symbolic coefficient rewrite contract remains separate
-from full exact polynomial algebra. Like-term collection for the documented
-structural monomial basis shapes may proceed without requiring this full exact
-polynomial layer. Algebra-heavy transformations such as polynomial division,
-GCD, rational-expression cancellation, and future solving/equivalence helpers
-must use explicit exact-algebra contracts instead of broad rewrite heuristics.
+from full exact polynomial algebra. Like-term collection for structurally
+identical symbolic bodies with numeric or exact-rational scalar coefficients
+may proceed without requiring this full exact polynomial layer. Algebra-heavy
+transformations such as polynomial division, GCD, factoring, rational-expression
+cancellation, symbolic coefficient collection, and future solving/equivalence
+helpers must use explicit exact-algebra contracts instead of broad rewrite
+heuristics.
 
 ## Dispatch Contract
 

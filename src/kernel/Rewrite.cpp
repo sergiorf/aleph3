@@ -525,6 +525,19 @@ bool extract_exact_integer_power_factor(const ExprPtr& expr, TimesPowerFactor& f
     return true;
 }
 
+bool is_explicit_numeric_zero(const ExprPtr& expr) {
+    if (const auto* number = std::get_if<Number>(expr.get())) {
+        return number->value == 0.0;
+    }
+    if (const auto* rational = std::get_if<Rational>(expr.get())) {
+        return rational->numerator == 0;
+    }
+    if (const auto* complex = std::get_if<Complex>(expr.get())) {
+        return complex->real == 0.0 && complex->imag == 0.0;
+    }
+    return false;
+}
+
 std::string pattern_binding_name(const std::string& name) {
     const auto separator = name.find('_');
     if (separator == 0 || separator == std::string::npos) {
@@ -1304,8 +1317,7 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
         for (const auto& [key, bucket] : power_buckets) {
             (void)key;
             if (bucket.exponent == 0) {
-                const auto nonzero = ctx.assumptions.evaluate_predicate("NonZeroQ", bucket.base);
-                if (nonzero.has_value() && *nonzero) {
+                if (!is_explicit_numeric_zero(bucket.base)) {
                     changed = true;
                     continue;
                 }

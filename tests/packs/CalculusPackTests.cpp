@@ -78,6 +78,7 @@ TEST_CASE("Calculus pack differentiates sums products and powers", "[packs][calc
 TEST_CASE("Calculus pack differentiates composite numeric powers", "[packs][calculus]") {
     require_equivalent("D[(x + 1)^5, x]", "5*(x + 1)^4");
     require_equivalent("D[(x^2 + 1)^5, x]", "10*x*(x^2 + 1)^4");
+    REQUIRE(evaluated_string("D[(x^2 + y^2)^5, x]") == "10 * x * (x^2 + y^2)^4");
     require_equivalent("D[(x^3 + 2*x)^4, x]", "4*(x^3 + 2*x)^3*(3*x^2 + 2)");
     require_equivalent("D[(x*y + 1)^3, x]", "3*y*(x*y + 1)^2");
     require_equivalent("D[(x*y + 1)^3, y]", "3*x*(x*y + 1)^2");
@@ -100,8 +101,8 @@ TEST_CASE("Calculus pack differentiates constant-base dependent exponents", "[pa
 }
 
 TEST_CASE("Calculus pack differentiates dependent base and exponent powers", "[packs][calculus]") {
-    REQUIRE(evaluated_string("D[x^x, x]") == "(x * x^-1 + (Log[x])) * x^x");
-    REQUIRE(evaluated_string("D[t^t, t]") == "(t * t^-1 + (Log[t])) * t^t");
+    REQUIRE(evaluated_string("D[x^x, x]") == "((Log[x]) + 1) * x^x");
+    REQUIRE(evaluated_string("D[t^t, t]") == "((Log[t]) + 1) * t^t");
     REQUIRE(evaluated_string("Assuming[x != 0, D[x^x, x]]") == "((Log[x]) + 1) * x^x");
     require_equivalent("D[x^(Sin[x]), x]", "x^Sin[x]*(Cos[x]*Log[x] + Sin[x]*x^-1)");
     require_equivalent(
@@ -221,6 +222,8 @@ TEST_CASE("Calculus pack keeps explicit quotient and reciprocal-product paths eq
 }
 
 TEST_CASE("Calculus pack supports higher-order derivatives", "[packs][calculus]") {
+    REQUIRE(evaluated_string("D[x^8, {x, 8}]") == "40320");
+    REQUIRE(evaluated_string("D[x^8, {x, 9}]") == "0");
     REQUIRE(evaluated_string("D[x^3, {x, 0}]") == "x^3");
     REQUIRE(evaluated_string("D[x^3, {x, 1}]") == "3 * x^2");
     REQUIRE(evaluated_string("D[x^3, {x, 2}]") == "6 * x");

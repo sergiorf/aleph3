@@ -345,9 +345,9 @@ TEST_CASE("Algebra-aware layer preserves unsupported exponent structure and comb
     REQUIRE(std::holds_alternative<FunctionCall>(*mixed_basis));
     REQUIRE(to_string(mixed_basis) == "x^2 * y^2");
 
-    const auto unsafe_inverse_product = evaluate(parse_expression("x * x^-1"), ctx);
-    REQUIRE(std::holds_alternative<FunctionCall>(*unsafe_inverse_product));
-    REQUIRE(to_string(unsafe_inverse_product) == "x * x^-1");
+    const auto inverse_product = evaluate(parse_expression("x * x^-1"), ctx);
+    REQUIRE(std::holds_alternative<Number>(*inverse_product));
+    REQUIRE(get_number_value(inverse_product) == 1.0);
 }
 
 TEST_CASE("Evaluator retains ownership of domain-sensitive power semantics", "[evaluator][simplification][algebra-aware]") {

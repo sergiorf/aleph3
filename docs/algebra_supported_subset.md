@@ -397,6 +397,8 @@ Supported exponent behavior is limited to:
 - exact-integer exponent accumulation on structurally identical bases in
   normalized multiplicative forms
 - structurally identical non-list bases such as `Sin[x] * Sin[x]`
+- generic-symbol cancellation when exact-integer exponent accumulation reaches
+  zero in a product, such as `x*x^-1 -> 1`
 - nested numeric power collapse such as `(x^2)^3 -> x^6`
 
 The following remain outside the supported subset:
@@ -406,7 +408,9 @@ The following remain outside the supported subset:
 - list-aware arithmetic
 
 Outside those shapes, the product contract is preservation, not heuristic power
-simplification.
+simplification. Standalone unknown-base zero powers such as `x^0` remain
+assumption-guarded, and explicit invalid numeric power forms such as `0^-1`
+and `0^0` are not made valid by product aggregation.
 
 ## Factorization Contract
 

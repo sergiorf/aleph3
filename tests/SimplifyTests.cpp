@@ -135,21 +135,53 @@ TEST_CASE("Simplify combines repeated Times factors and integer powers", "[simpl
     expect_simplifies_to("(x^2 + 1) * (x^2 + 1)", "(x^2 + 1)^2");
 }
 
-TEST_CASE("Simplify keeps reciprocal cancellation assumption guarded", "[simplify][times][contract]") {
-    expect_simplifies_to("x * x^-1", "x * x^-1");
-    expect_simplifies_to("x^-1 * x", "x * x^-1");
-    expect_simplifies_to("x^5 * x^-5", "x^-5 * x^5");
+TEST_CASE("Simplify cancels exact-integer Times powers to one", "[simplify][times][contract]") {
+    expect_simplifies_to("x * x^-1", "1");
+    expect_simplifies_to("x^-1 * x", "1");
+    expect_simplifies_to("x^2 * x^-2", "1");
+    expect_simplifies_to("x^-2 * x^2", "1");
+    expect_simplifies_to("x^5 * x^-5", "1");
+    expect_simplifies_to("x^-5 * x^5", "1");
     expect_evaluates_to("Assuming[x != 0, Simplify[x * x^-1]]", "1");
     expect_evaluates_to("Assuming[x != 0, Simplify[x^5 * x^-5]]", "1");
 }
 
 TEST_CASE("Simplify combines mixed multiplicative monomials", "[simplify][times]") {
     expect_simplifies_to("2 * x * x", "2 * x^2");
+    expect_simplifies_to("2 * x * x^-1", "2");
+    expect_simplifies_to("x * x^-1 * y", "y");
+    expect_simplifies_to("x * y * x^-1", "y");
+    expect_simplifies_to("2 * x^3 * x^-3 * y", "2 * y");
     expect_simplifies_to("2 * x^2 * x^-1", "2 * x");
     expect_simplifies_to("3 * x^-2 * x^5", "3 * x^3");
     expect_simplifies_to("2*x*y * 3*x*z", "6 * x^2 * y * z");
     expect_simplifies_to("x*y*x", "x^2 * y");
     expect_simplifies_to("x^2*y*x^3*y^2", "x^5 * y^3");
+}
+
+TEST_CASE("Simplify partially cancels exact-integer Times powers", "[simplify][times]") {
+    expect_simplifies_to("x^2 * x^-1", "x");
+    expect_simplifies_to("x^-1 * x^2", "x");
+    expect_simplifies_to("x^3 * x^-2", "x");
+    expect_simplifies_to("x^-2 * x^5", "x^3");
+    expect_simplifies_to("x^5 * x^-2", "x^3");
+}
+
+TEST_CASE("Simplify aggregates negative exact-integer Times powers", "[simplify][times]") {
+    expect_simplifies_to("x^-1 * x^-1", "x^-2");
+    expect_simplifies_to("x^-2 * x^-3", "x^-5");
+}
+
+TEST_CASE("Simplify preserves numeric coefficients through exact power cancellation", "[simplify][times]") {
+    expect_simplifies_to("2 * x * x^-1", "2");
+    expect_simplifies_to("2 * x^2 * 3 * x^-2", "6");
+    expect_simplifies_to("-1 * x * x^-1", "-1");
+}
+
+TEST_CASE("Simplify cancels compound structurally identical exact-integer bases", "[simplify][times]") {
+    expect_simplifies_to("Sin[x] * Sin[x]^-1", "1");
+    expect_simplifies_to("Exp[x] * Exp[x]^-1", "1");
+    expect_simplifies_to("(x + 1) * (x + 1)^-1", "1");
 }
 
 TEST_CASE("Simplify canonicalizes symbolic factor ordering", "[simplify][times][canonical]") {
@@ -176,10 +208,25 @@ TEST_CASE("Simplify is idempotent on nested symbolic expressions", "[simplify]")
     expect_simplifies_to("(x * 0) + 1", "1");
     expect_simplifies_to("(x * 1) + (2*x + 0)", "3 * x");
     expect_simplifies_to("2*x*x*x^-1", "2 * x");
-    expect_simplifies_to("x*x^-1", "x * x^-1");
+    expect_simplifies_to("x*x^-1", "1");
+    expect_simplifies_to("2*x^3*x^-3*y", "2 * y");
+    expect_simplifies_to("x^-2*x^5", "x^3");
+    expect_simplifies_to("x*x*x^-2", "1");
     expect_simplifies_to("2*x + 3*x", "5 * x");
     expect_simplifies_to("x*y*x*z", "x^2 * y * z");
     expect_simplifies_to("(x^2)^3", "x^6");
+}
+
+TEST_CASE("Simplify builtin is idempotent after exact power cancellation", "[simplify][times]") {
+    for (const auto* source : {
+             "x*x^-1",
+             "2*x^3*x^-3*y",
+             "x^-2*x^5",
+             "x*x*x^-2"}) {
+        CAPTURE(source);
+        REQUIRE(evaluated_string("Simplify[Simplify[" + std::string(source) + "]]") ==
+                evaluated_string("Simplify[" + std::string(source) + "]"));
+    }
 }
 
 TEST_CASE("Simplify combines supported multivariate like terms", "[simplify][plus]") {
@@ -243,6 +290,8 @@ TEST_CASE("Simplify terminates on power and sign regressions", "[simplify][regre
     expect_simplifies_to("x^-10", "x^-10");
     expect_simplifies_to("x^100", "x^100");
     expect_simplifies_to("0*x^-1", "0");
-    expect_simplifies_to("x*x^-1", "x * x^-1");
+    expect_simplifies_to("x*x^-1", "1");
+    expect_evaluates_to("Simplify[0^0]", "0^0");
+    expect_evaluates_to("Simplify[0^-1]", "0^-1");
     expect_simplifies_to("(-1)*(-1)*x", "x");
 }

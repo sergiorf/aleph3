@@ -273,6 +273,10 @@ The first rewrite-owned simplification slice is now intentionally narrow:
   requires an exact nonzero base or a shared `NonZeroQ[a]` assumption
 - unknown `a^0` and `0^0` remain symbolic; the rewrite does not invent a
   domain convention
+- exact-integer exponent aggregation in normalized `Times` cancels
+  structurally identical generic symbolic bases when the accumulated exponent
+  reaches zero, such as `x*x^-1 -> 1`, while preserving explicit invalid
+  numeric zero-power forms
 
 For this slice, the scheduling contract is:
 

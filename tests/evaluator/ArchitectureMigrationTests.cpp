@@ -1072,7 +1072,7 @@ TEST_CASE("Kernel rewrite algebra-aware layer merges repeated arbitrary Times ba
     }
 }
 
-TEST_CASE("Kernel rewrite algebra-aware layer keeps factor cancellation assumption guarded", "[architecture][rewrite]") {
+TEST_CASE("Kernel rewrite algebra-aware layer cancels exact-integer factors to one", "[architecture][rewrite]") {
     kernel::EvaluationContext ctx;
     const auto symbol_normalized = normalize_expr(parse_expression("x * x^-1"));
     REQUIRE(std::holds_alternative<FunctionCall>(*symbol_normalized));
@@ -1081,7 +1081,8 @@ TEST_CASE("Kernel rewrite algebra-aware layer keeps factor cancellation assumpti
         std::get<FunctionCall>(*symbol_normalized),
         ctx);
 
-    REQUIRE_FALSE(symbol_rewritten.has_value());
+    REQUIRE(symbol_rewritten.has_value());
+    REQUIRE(to_string(*symbol_rewritten) == "1");
 
     const auto opaque_normalized = normalize_expr(parse_expression("Sin[x] * Sin[x]^-1"));
     REQUIRE(std::holds_alternative<FunctionCall>(*opaque_normalized));
@@ -1090,7 +1091,18 @@ TEST_CASE("Kernel rewrite algebra-aware layer keeps factor cancellation assumpti
         std::get<FunctionCall>(*opaque_normalized),
         ctx);
 
-    REQUIRE_FALSE(opaque_rewritten.has_value());
+    REQUIRE(opaque_rewritten.has_value());
+    REQUIRE(to_string(*opaque_rewritten) == "1");
+
+    const auto compound_normalized = normalize_expr(parse_expression("(x + 1) * (x + 1)^-1"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*compound_normalized));
+
+    const auto compound_rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*compound_normalized),
+        ctx);
+
+    REQUIRE(compound_rewritten.has_value());
+    REQUIRE(to_string(*compound_rewritten) == "1");
 
     kernel::EvaluationContext nonzero_ctx;
     nonzero_ctx.assumptions.assume(parse_expression("x != 0"));
@@ -1100,6 +1112,17 @@ TEST_CASE("Kernel rewrite algebra-aware layer keeps factor cancellation assumpti
 
     REQUIRE(guarded_rewritten.has_value());
     REQUIRE(to_string(*guarded_rewritten) == "1");
+}
+
+TEST_CASE("Kernel rewrite algebra-aware layer preserves explicit invalid zero-power forms", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+
+    const auto zero_power = normalize_expr(parse_expression("0^2 * 0^-2"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*zero_power));
+    const auto zero_power_rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*zero_power),
+        ctx);
+    REQUIRE_FALSE(zero_power_rewritten.has_value());
 }
 
 TEST_CASE("Kernel rewrite algebra-aware layer collapses nested Power exponents", "[architecture][rewrite]") {

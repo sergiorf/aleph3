@@ -3,7 +3,11 @@
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "expr/ExprUtils.hpp"
+#include "kernel/Rewrite.hpp"
 #include <catch2/catch_test_macros.hpp>
+
+#include <string>
+#include <vector>
 
 using namespace aleph3;
 
@@ -30,6 +34,22 @@ std::string evaluated_string(const std::string& source) {
 
 void expect_evaluates_to(const std::string& source, const std::string& expected) {
     REQUIRE(evaluated_string(source) == expected);
+}
+
+void expect_same_simplified_structure(const std::string& left, const std::string& right) {
+    auto left_simplified = simplify(parse_expression(left));
+    auto right_simplified = simplify(parse_expression(right));
+    REQUIRE(kernel::structurally_equal(left_simplified, right_simplified));
+}
+
+std::string integer_power_source(const std::string& base, int exponent) {
+    if (exponent == 0) {
+        return "1";
+    }
+    if (exponent == 1) {
+        return base;
+    }
+    return "(" + base + ")^" + std::to_string(exponent);
 }
 
 }  // namespace
@@ -135,6 +155,36 @@ TEST_CASE("Simplify combines repeated Times factors and integer powers", "[simpl
     expect_simplifies_to("(x^2 + 1) * (x^2 + 1)", "(x^2 + 1)^2");
 }
 
+TEST_CASE("Simplify combines exact-integer Times exponent matrix", "[simplify][times][property]") {
+    const std::vector<int> exponents = {-5, -3, -1, 0, 1, 2, 4, 7};
+
+    for (const int left : exponents) {
+        for (const int right : exponents) {
+            const auto source =
+                integer_power_source("x", left) + " * " + integer_power_source("x", right);
+            const auto expected = integer_power_source("x", left + right);
+            DYNAMIC_SECTION(source << " -> " << expected) {
+                expect_same_simplified_structure(source, expected);
+            }
+        }
+    }
+}
+
+TEST_CASE("Simplify combines exact-integer powers for compound bases", "[simplify][times][property]") {
+    const std::vector<int> exponents = {-3, -1, 0, 1, 2, 4};
+
+    for (const int left : exponents) {
+        for (const int right : exponents) {
+            const auto source =
+                integer_power_source("Sin[x]", left) + " * " + integer_power_source("Sin[x]", right);
+            const auto expected = integer_power_source("Sin[x]", left + right);
+            DYNAMIC_SECTION(source << " -> " << expected) {
+                expect_same_simplified_structure(source, expected);
+            }
+        }
+    }
+}
+
 TEST_CASE("Simplify cancels exact-integer Times powers to one", "[simplify][times][contract]") {
     expect_simplifies_to("x * x^-1", "1");
     expect_simplifies_to("x^-1 * x", "1");
@@ -157,6 +207,12 @@ TEST_CASE("Simplify combines mixed multiplicative monomials", "[simplify][times]
     expect_simplifies_to("2*x*y * 3*x*z", "6 * x^2 * y * z");
     expect_simplifies_to("x*y*x", "x^2 * y");
     expect_simplifies_to("x^2*y*x^3*y^2", "x^5 * y^3");
+    expect_simplifies_to("u * u^-1", "1");
+    expect_simplifies_to("a^3 * a^-2", "a");
+    expect_simplifies_to("p * q * p", "p^2 * q");
+    expect_simplifies_to("r * s^2 * r^4 * s^-1", "r^5 * s");
+    expect_simplifies_to("a * b * a^-1 * c", "b * c");
+    expect_simplifies_to("a^2 * b^3 * a^-1 * b^-2", "a * b");
 }
 
 TEST_CASE("Simplify partially cancels exact-integer Times powers", "[simplify][times]") {
@@ -180,8 +236,12 @@ TEST_CASE("Simplify preserves numeric coefficients through exact power cancellat
 
 TEST_CASE("Simplify cancels compound structurally identical exact-integer bases", "[simplify][times]") {
     expect_simplifies_to("Sin[x] * Sin[x]^-1", "1");
+    expect_simplifies_to("Sin[x]^2 * Sin[x]^-1", "Sin[x]");
     expect_simplifies_to("Exp[x] * Exp[x]^-1", "1");
+    expect_simplifies_to("Exp[x]^3 * Exp[x]^-2", "Exp[x]");
     expect_simplifies_to("(x + 1) * (x + 1)^-1", "1");
+    expect_simplifies_to("(x + 1)^2 * (x + 1)^3", "(x + 1)^5");
+    expect_simplifies_to("(x^2 + 1)^4 * (x^2 + 1)^-3", "x^2 + 1");
 }
 
 TEST_CASE("Simplify canonicalizes symbolic factor ordering", "[simplify][times][canonical]") {
@@ -192,6 +252,23 @@ TEST_CASE("Simplify canonicalizes symbolic factor ordering", "[simplify][times][
     const auto first = to_string(simplify(parse_expression("x*y*z")));
     REQUIRE(to_string(simplify(parse_expression("z*y*x"))) == first);
     REQUIRE(to_string(simplify(parse_expression("y*x*z"))) == first);
+}
+
+TEST_CASE("Simplify normalizes Times permutations structurally", "[simplify][times][canonical]") {
+    for (const auto& source : {
+             "x^-1 * y * 3 * x * 2",
+             "y * x^-1 * 2 * 3 * x",
+             "3 * y * x * 2 * x^-1"}) {
+        DYNAMIC_SECTION(source) {
+            expect_same_simplified_structure(source, "6 * y");
+        }
+    }
+
+    for (const auto& source : {"x * y * x", "y * x * x", "x * x * y"}) {
+        DYNAMIC_SECTION(source) {
+            expect_same_simplified_structure(source, "x^2 * y");
+        }
+    }
 }
 
 TEST_CASE("Simplify preserves symbolic structure when no numeric reduction applies", "[simplify]") {
@@ -222,7 +299,11 @@ TEST_CASE("Simplify builtin is idempotent after exact power cancellation", "[sim
              "x*x^-1",
              "2*x^3*x^-3*y",
              "x^-2*x^5",
-             "x*x*x^-2"}) {
+             "x*x*x^-2",
+             "2*x*3*x^-1*y",
+             "x^2*x^-1*x^4*x^-5",
+             "Sin[x]^3*Sin[x]^-2",
+             "a*b*a^-1*c*b^-1"}) {
         CAPTURE(source);
         REQUIRE(evaluated_string("Simplify[Simplify[" + std::string(source) + "]]") ==
                 evaluated_string("Simplify[" + std::string(source) + "]"));
@@ -294,4 +375,9 @@ TEST_CASE("Simplify terminates on power and sign regressions", "[simplify][regre
     expect_evaluates_to("Simplify[0^0]", "0^0");
     expect_evaluates_to("Simplify[0^-1]", "0^-1");
     expect_simplifies_to("(-1)*(-1)*x", "x");
+    expect_simplifies_to("x*x*x*x*x*x*x*x*x*x", "x^10");
+    expect_simplifies_to("x^1*x^2*x^3*x^4*x^5", "x^15");
+    expect_simplifies_to("x^-5*x^2*x^7*x^-3", "x");
+    expect_simplifies_to("2*x*y*3*z*x^-1*5*y^-1", "30 * z");
+    expect_simplifies_to("a^10*a^-3*a^-7", "1");
 }

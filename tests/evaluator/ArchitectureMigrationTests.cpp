@@ -19,7 +19,41 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <string>
+#include <vector>
+
 using namespace aleph3;
+
+namespace {
+
+std::string architecture_integer_power_source(const std::string& base, int exponent) {
+    return "(" + base + ")^" + std::to_string(exponent);
+}
+
+std::string architecture_expected_power_source(const std::string& base, int exponent) {
+    if (exponent == 0) {
+        return "1";
+    }
+    if (exponent == 1) {
+        return base;
+    }
+    return "(" + base + ")^" + std::to_string(exponent);
+}
+
+void require_algebraic_rewrite_to_structure(const std::string& source, const std::string& expected) {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression(source));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE(rewritten.has_value());
+    REQUIRE(kernel::structurally_equal(normalize_expr(*rewritten), normalize_expr(parse_expression(expected))));
+}
+
+}  // namespace
 
 TEST_CASE("EvaluationContext exposes symbol tables through compatibility aliases", "[architecture][symbols]") {
     EvaluationContext ctx;
@@ -1194,6 +1228,50 @@ TEST_CASE("Kernel rewrite algebra-aware layer merges multiple symbolic factor fa
 
     REQUIRE(rewritten.has_value());
     REQUIRE(to_string(*rewritten) == "x^2 * y^2");
+}
+
+TEST_CASE("Kernel rewrite algebra-aware layer covers exact-integer exponent pairs", "[architecture][rewrite][property]") {
+    const std::vector<int> exponents = {-5, -3, -1, 0, 1, 2, 4, 7};
+
+    for (const int left : exponents) {
+        for (const int right : exponents) {
+            const auto source =
+                architecture_integer_power_source("x", left) + " * " +
+                architecture_integer_power_source("x", right);
+            const auto expected = architecture_expected_power_source("x", left + right);
+            DYNAMIC_SECTION(source << " -> " << expected) {
+                require_algebraic_rewrite_to_structure(source, expected);
+            }
+        }
+    }
+}
+
+TEST_CASE("Kernel rewrite algebra-aware layer covers compound-base exponent pairs", "[architecture][rewrite][property]") {
+    const std::vector<int> exponents = {-3, -1, 0, 1, 2, 4};
+
+    for (const int left : exponents) {
+        for (const int right : exponents) {
+            const auto source =
+                architecture_integer_power_source("Sin[x]", left) + " * " +
+                architecture_integer_power_source("Sin[x]", right);
+            const auto expected = architecture_expected_power_source("Sin[x]", left + right);
+            DYNAMIC_SECTION(source << " -> " << expected) {
+                require_algebraic_rewrite_to_structure(source, expected);
+            }
+        }
+    }
+}
+
+TEST_CASE("Kernel rewrite algebra-aware layer preserves symbolic exponent products", "[architecture][rewrite]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("x^a * x^b"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
 }
 
 TEST_CASE("Kernel rewrite algebra-aware layer stays out of symbolic nested Power exponents", "[architecture][rewrite]") {

@@ -174,9 +174,11 @@ Simplify[x + x + 2*x]                  -> 4 * x
 Simplify[x*y + 2*x*y]                  -> 3 * x * y
 Simplify[0 + (1 * x)]                  -> x
 Simplify[(x/2) + (x/3)]                -> 5/6 * x
-Simplify[Sin[x] * Sin[x]]              -> Sin[x]^2
+Simplify[Sin[x] * Sin[x]]              -> (Sin[x])^2
 Simplify[x^2 * x^3]                    -> x^5
 Simplify[x*x^-1]                       -> 1
+Simplify[Sin[x] * Sin[x]^-1]           -> 1
+Simplify[(x + 1)^2 * (x + 1)^3]        -> (x + 1)^5
 Simplify[y^4 * z^4 * x^3]              -> x^3 * y^4 * z^4
 Simplify[1/2 + 1/3]                    -> 5/6
 Simplify[Sin[0]]                       -> 0

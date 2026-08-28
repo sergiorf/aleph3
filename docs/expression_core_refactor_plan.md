@@ -255,6 +255,8 @@ Each slice should compile and pass its relevant tests independently.
 
 ### Slice 1: Characterization Tests
 
+Status: Done.
+
 Add focused tests for current structural identity behavior without changing
 implementation.
 
@@ -279,6 +281,8 @@ aleph3_symbolic_tests
 ```
 
 ### Slice 2: Immutable Expression Ownership
+
+Status: Done.
 
 Change the pointer contract toward:
 
@@ -307,6 +311,8 @@ ctest --test-dir build -C Release --output-on-failure
 On Windows, use the sanitized MSBuild environment from `AGENTS.md`.
 
 ### Slice 3: Expression-Owned Structural Equality
+
+Status: Done.
 
 Move the recursive structural equality implementation into `expr`.
 

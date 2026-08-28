@@ -1,4 +1,5 @@
 #include "expr/Expr.hpp"
+#include "expr/ExprStructural.hpp"
 #include "kernel/Rewrite.hpp"
 #include "normalizer/Normalizer.hpp"
 #include "parser/Parser.hpp"
@@ -26,13 +27,13 @@ ExprPtr call(std::string head, std::initializer_list<ExprPtr> args) {
 }
 
 void require_structurally_equal(const ExprPtr& left, const ExprPtr& right) {
-    REQUIRE(kernel::structurally_equal(left, right));
-    REQUIRE(kernel::structurally_equal(right, left));
+    REQUIRE(structural_equal(left, right));
+    REQUIRE(structural_equal(right, left));
 }
 
 void require_structurally_unequal(const ExprPtr& left, const ExprPtr& right) {
-    REQUIRE_FALSE(kernel::structurally_equal(left, right));
-    REQUIRE_FALSE(kernel::structurally_equal(right, left));
+    REQUIRE_FALSE(structural_equal(left, right));
+    REQUIRE_FALSE(structural_equal(right, left));
 }
 
 void require_normalization_idempotent(std::string source) {
@@ -73,6 +74,15 @@ TEST_CASE("Structural equality handles null expression pointers explicitly", "[e
 
     require_structurally_equal(empty, nullptr);
     require_structurally_unequal(empty, symbol("x"));
+}
+
+TEST_CASE("Kernel structural equality delegates to expression-owned structural equality", "[expr][structural][rewrite]") {
+    const auto left = call("f", {symbol("x"), number(1.0)});
+    const auto same = call("f", {symbol("x"), number(1.0)});
+    const auto different = call("f", {symbol("x"), number(2.0)});
+
+    REQUIRE(kernel::structurally_equal(left, same));
+    REQUIRE_FALSE(kernel::structurally_equal(left, different));
 }
 
 TEST_CASE("Structural equality compares function heads, arity, and ordered arguments", "[expr][structural]") {

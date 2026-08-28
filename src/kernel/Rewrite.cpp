@@ -3,6 +3,7 @@
 #include "kernel/EvaluationContext.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "evaluator/Evaluator.hpp"
+#include "expr/ExprStructural.hpp"
 #include "expr/ExprUtils.hpp"
 #include "normalizer/Normalizer.hpp"
 
@@ -585,85 +586,6 @@ bool matches_pattern_type(const std::string& type, const ExprPtr& expr) {
     throw_unsupported_construct("Unknown pattern type constraint: " + type);
 }
 
-bool structurally_equal_list(
-    const std::vector<ExprPtr>& left,
-    const std::vector<ExprPtr>& right);
-
-bool structurally_equal_impl(const Expr& left, const Expr& right) {
-    if (left.index() != right.index()) {
-        return false;
-    }
-
-    return std::visit(
-        [&](const auto& lhs) -> bool {
-            using T = std::decay_t<decltype(lhs)>;
-            const auto& rhs = std::get<T>(right);
-
-            if constexpr (std::is_same_v<T, Symbol>) {
-                return lhs.name == rhs.name;
-            } else if constexpr (std::is_same_v<T, Number>) {
-                return lhs.value == rhs.value;
-            } else if constexpr (std::is_same_v<T, Complex>) {
-                return lhs.real == rhs.real && lhs.imag == rhs.imag;
-            } else if constexpr (std::is_same_v<T, Rational>) {
-                return lhs.numerator == rhs.numerator &&
-                       lhs.denominator == rhs.denominator;
-            } else if constexpr (std::is_same_v<T, Boolean>) {
-                return lhs.value == rhs.value;
-            } else if constexpr (std::is_same_v<T, String>) {
-                return lhs.value == rhs.value;
-            } else if constexpr (std::is_same_v<T, FunctionCall>) {
-                return lhs.head == rhs.head &&
-                       structurally_equal_list(lhs.args, rhs.args);
-            } else if constexpr (std::is_same_v<T, FunctionDefinition>) {
-                if (lhs.name != rhs.name ||
-                    lhs.delayed != rhs.delayed ||
-                    lhs.params.size() != rhs.params.size()) {
-                    return false;
-                }
-                for (std::size_t index = 0; index < lhs.params.size(); ++index) {
-                    if (lhs.params[index].name != rhs.params[index].name) {
-                        return false;
-                    }
-                    if (!structurally_equal(lhs.params[index].default_value,
-                                            rhs.params[index].default_value)) {
-                        return false;
-                    }
-                }
-                return structurally_equal(lhs.body, rhs.body);
-            } else if constexpr (std::is_same_v<T, Assignment>) {
-                return lhs.name == rhs.name &&
-                       structurally_equal(lhs.value, rhs.value);
-            } else if constexpr (std::is_same_v<T, Rule>) {
-                return structurally_equal(lhs.lhs, rhs.lhs) &&
-                       structurally_equal(lhs.rhs, rhs.rhs);
-            } else if constexpr (std::is_same_v<T, List>) {
-                return structurally_equal_list(lhs.elements, rhs.elements);
-            } else if constexpr (std::is_same_v<T, Infinity> ||
-                                 std::is_same_v<T, ComplexInfinity> ||
-                                 std::is_same_v<T, Indeterminate>) {
-                return true;
-            } else {
-                return false;
-            }
-        },
-        left);
-}
-
-bool structurally_equal_list(
-    const std::vector<ExprPtr>& left,
-    const std::vector<ExprPtr>& right) {
-    if (left.size() != right.size()) {
-        return false;
-    }
-    for (std::size_t index = 0; index < left.size(); ++index) {
-        if (!structurally_equal(left[index], right[index])) {
-            return false;
-        }
-    }
-    return true;
-}
-
 bool match_list(
     const std::vector<ExprPtr>& pattern,
     const std::vector<ExprPtr>& expr,
@@ -1017,13 +939,7 @@ RewriteResult rewrite_once_impl(
 }  // namespace
 
 bool structurally_equal(const ExprPtr& left, const ExprPtr& right) {
-    if (left == right) {
-        return true;
-    }
-    if (left == nullptr || right == nullptr) {
-        return left == nullptr && right == nullptr;
-    }
-    return structurally_equal_impl(*left, *right);
+    return ::aleph3::structural_equal(left, right);
 }
 
 bool matches_pattern(const ExprPtr& pattern, const ExprPtr& expr) {

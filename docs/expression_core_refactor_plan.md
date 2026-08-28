@@ -328,6 +328,8 @@ aleph3_sdk_tests
 
 ### Slice 4: Structural Hashing
 
+Status: Done.
+
 Add structural hash APIs and tests.
 
 Tests must prove:

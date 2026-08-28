@@ -6,7 +6,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <unordered_set>
 #include <type_traits>
+#include <utility>
 
 using namespace aleph3;
 
@@ -29,6 +31,8 @@ ExprPtr call(std::string head, std::initializer_list<ExprPtr> args) {
 void require_structurally_equal(const ExprPtr& left, const ExprPtr& right) {
     REQUIRE(structural_equal(left, right));
     REQUIRE(structural_equal(right, left));
+    REQUIRE(structural_hash(left) == structural_hash(right));
+    REQUIRE(ExprHash{}(left) == ExprHash{}(right));
 }
 
 void require_structurally_unequal(const ExprPtr& left, const ExprPtr& right) {
@@ -74,6 +78,26 @@ TEST_CASE("Structural equality handles null expression pointers explicitly", "[e
 
     require_structurally_equal(empty, nullptr);
     require_structurally_unequal(empty, symbol("x"));
+    REQUIRE(structural_hash(empty) != structural_hash(symbol("x")));
+}
+
+TEST_CASE("Structural hashes distinguish representative unequal expressions", "[expr][structural]") {
+    REQUIRE(structural_hash(symbol("x")) != structural_hash(symbol("y")));
+    REQUIRE(structural_hash(number(1.0)) != structural_hash(number(2.0)));
+    REQUIRE(structural_hash(make_expr<Rational>(1, 2)) != structural_hash(make_expr<Rational>(2, 3)));
+    REQUIRE(structural_hash(call("f", {symbol("x")})) != structural_hash(call("g", {symbol("x")})));
+    REQUIRE(structural_hash(call("f", {symbol("x")})) != structural_hash(call("f", {symbol("x"), symbol("y")})));
+    REQUIRE(structural_hash(call("Plus", {symbol("x"), symbol("y")})) !=
+            structural_hash(call("Plus", {symbol("y"), symbol("x")})));
+}
+
+TEST_CASE("Structural hashes support unordered expression sets", "[expr][structural]") {
+    std::unordered_set<ExprPtr, ExprHash, ExprEqual> expressions;
+    const auto inserted = expressions.insert(call("f", {symbol("x"), number(1.0)}));
+
+    REQUIRE(inserted.second);
+    REQUIRE_FALSE(expressions.insert(call("f", {symbol("x"), number(1.0)})).second);
+    REQUIRE(expressions.insert(call("f", {symbol("x"), number(2.0)})).second);
 }
 
 TEST_CASE("Kernel structural equality delegates to expression-owned structural equality", "[expr][structural][rewrite]") {
@@ -122,6 +146,17 @@ TEST_CASE("Structural equality is not algebraic equivalence", "[expr][structural
     require_structurally_unequal(
         call("Plus", {symbol("x"), symbol("x")}),
         call("Times", {number(2.0), symbol("x")}));
+}
+
+TEST_CASE("Shared and independently constructed equal trees hash equally", "[expr][structural]") {
+    const auto shared_arg = call("Plus", {symbol("x"), number(1.0)});
+    const auto shared_tree = call("f", {shared_arg, shared_arg});
+    const auto independent_tree = call("f", {
+        call("Plus", {symbol("x"), number(1.0)}),
+        call("Plus", {symbol("x"), number(1.0)})
+    });
+
+    require_structurally_equal(shared_tree, independent_tree);
 }
 
 TEST_CASE("Structural equality compares nested expressions and lists", "[expr][structural]") {
@@ -205,6 +240,19 @@ TEST_CASE("Normalization remains structurally idempotent for representative expr
              "x * x^2 * y"}) {
         DYNAMIC_SECTION(source) {
             require_normalization_idempotent(source);
+        }
+    }
+}
+
+TEST_CASE("Normalized permutations have equal structural hashes", "[expr][structural][normalizer]") {
+    for (const auto& [left, right] : {
+             std::pair{"y + x + 2", "2 + x + y"},
+             std::pair{"z * x * 2 * y", "y * 2 * z * x"},
+             std::pair{"{y + x, z * x * 2}", "{x + y, 2 * x * z}"}}) {
+        DYNAMIC_SECTION(left << " == " << right) {
+            require_structurally_equal(
+                normalize_expr(parse_expression(left)),
+                normalize_expr(parse_expression(right)));
         }
     }
 }

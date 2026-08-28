@@ -22,9 +22,12 @@ the SDK, packs, and the notebook/workbench direction. The same sources can be
 6. [Web MVP Operations](web_mvp_operations.md) — local service, port,
    Docker Compose, Traefik, and smoke-test procedures for the current web
    slice.
-7. [IP and Repository Strategy](ip_and_repo_strategy.md) — practical
+7. [Expression Core Refactor Plan](expression_core_refactor_plan.md) —
+   staged plan for immutable expressions, structural identity, hashing, and
+   ordering.
+8. [IP and Repository Strategy](ip_and_repo_strategy.md) — practical
    public/private transition guidance.
-8. [Unified Plan](aleph3_unified_plan.md) — the sole active implementation roadmap.
+9. [Unified Plan](aleph3_unified_plan.md) — the sole active implementation roadmap.
 
 ## Normative References
 

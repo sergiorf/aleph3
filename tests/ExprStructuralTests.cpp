@@ -5,9 +5,13 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <type_traits>
+
 using namespace aleph3;
 
 namespace {
+
+static_assert(std::is_const_v<ExprPtr::element_type>);
 
 ExprPtr symbol(std::string name) {
     return make_expr<Symbol>(std::move(name));

@@ -43,8 +43,8 @@ struct Indeterminate;
 // Core Expression type: variant of all expression types
 using Expr = std::variant < Symbol, Number, Complex, Rational, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List, Infinity, ComplexInfinity, Indeterminate > ;
 
-// Smart pointer to expressions
-using ExprPtr = std::shared_ptr<Expr>;
+// Smart pointer to immutable expressions
+using ExprPtr = std::shared_ptr<const Expr>;
 
 // Factory function to make an ExprPtr
 template <typename T, typename... Args>

@@ -343,6 +343,8 @@ Do not require unique hashes for all unequal expressions.
 
 ### Slice 5: Deterministic Structural Ordering
 
+Status: Done.
+
 Add `ExprStructuralLess` and migrate normalizer tie-breaks away from rendered
 strings.
 

@@ -6,6 +6,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <set>
 #include <unordered_set>
 #include <type_traits>
 #include <utility>
@@ -38,6 +39,13 @@ void require_structurally_equal(const ExprPtr& left, const ExprPtr& right) {
 void require_structurally_unequal(const ExprPtr& left, const ExprPtr& right) {
     REQUIRE_FALSE(structural_equal(left, right));
     REQUIRE_FALSE(structural_equal(right, left));
+}
+
+void require_structural_order(const ExprPtr& left, const ExprPtr& right) {
+    REQUIRE(structural_less(left, right));
+    REQUIRE_FALSE(structural_less(right, left));
+    REQUIRE(ExprStructuralLess{}(left, right));
+    REQUIRE_FALSE(ExprStructuralLess{}(right, left));
 }
 
 void require_normalization_idempotent(std::string source) {
@@ -98,6 +106,63 @@ TEST_CASE("Structural hashes support unordered expression sets", "[expr][structu
     REQUIRE(inserted.second);
     REQUIRE_FALSE(expressions.insert(call("f", {symbol("x"), number(1.0)})).second);
     REQUIRE(expressions.insert(call("f", {symbol("x"), number(2.0)})).second);
+}
+
+TEST_CASE("Structural ordering compares representative expression values deterministically", "[expr][structural]") {
+    ExprPtr empty;
+
+    require_structural_order(empty, symbol("x"));
+    require_structural_order(symbol("a"), symbol("b"));
+    require_structural_order(number(1.0), number(2.0));
+    require_structural_order(make_expr<Rational>(1, 2), make_expr<Rational>(2, 3));
+    require_structural_order(make_expr<Boolean>(false), make_expr<Boolean>(true));
+    require_structural_order(make_expr<String>("a"), make_expr<String>("b"));
+    require_structural_order(make_expr<Complex>(1.0, 2.0), make_expr<Complex>(2.0, 1.0));
+    require_structural_order(make_expr<Infinity>(), make_expr<ComplexInfinity>());
+}
+
+TEST_CASE("Structural ordering compares compound expression fields recursively", "[expr][structural]") {
+    require_structural_order(
+        call("f", {symbol("x")}),
+        call("g", {symbol("x")}));
+    require_structural_order(
+        call("f", {symbol("x")}),
+        call("f", {symbol("x"), symbol("y")}));
+    require_structural_order(
+        call("f", {symbol("x"), symbol("a")}),
+        call("f", {symbol("x"), symbol("b")}));
+
+    require_structural_order(
+        make_expr<List>(std::vector<ExprPtr>{symbol("a")}),
+        make_expr<List>(std::vector<ExprPtr>{symbol("a"), symbol("b")}));
+    require_structural_order(
+        make_expr<Rule>(symbol("x"), number(1.0)),
+        make_expr<Rule>(symbol("x"), number(2.0)));
+    require_structural_order(
+        make_expr<Assignment>("a", number(1.0)),
+        make_expr<Assignment>("b", number(1.0)));
+
+    require_structural_order(
+        make_expr<FunctionDefinition>(
+            "f",
+            std::vector<Parameter>{Parameter("x", number(1.0))},
+            symbol("x"),
+            false),
+        make_expr<FunctionDefinition>(
+            "f",
+            std::vector<Parameter>{Parameter("x", number(2.0))},
+            symbol("x"),
+            false));
+}
+
+TEST_CASE("Structural ordering supports ordered expression sets", "[expr][structural]") {
+    std::set<ExprPtr, ExprStructuralLess> expressions;
+
+    REQUIRE(expressions.insert(call("f", {symbol("x"), number(1.0)})).second);
+    REQUIRE_FALSE(expressions.insert(call("f", {symbol("x"), number(1.0)})).second);
+    REQUIRE(expressions.insert(call("f", {symbol("x"), number(2.0)})).second);
+    REQUIRE(expressions.insert(call("f", {symbol("y"), number(1.0)})).second);
+    REQUIRE(expressions.size() == 3);
 }
 
 TEST_CASE("Kernel structural equality delegates to expression-owned structural equality", "[expr][structural][rewrite]") {

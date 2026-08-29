@@ -388,6 +388,8 @@ Legitimate presentation uses remain:
 
 ### Slice 7: Remove Unnecessary Cloning
 
+Status: Done.
+
 Review `clone_expr` helpers and `std::make_shared<Expr>(*expr)` use.
 
 When immutability makes sharing correct, return existing `ExprPtr` values

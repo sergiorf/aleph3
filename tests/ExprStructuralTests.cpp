@@ -2,6 +2,7 @@
 #include "expr/ExprStructural.hpp"
 #include "kernel/DomainRestrictions.hpp"
 #include "kernel/Rewrite.hpp"
+#include "kernel/VariableAnalysis.hpp"
 #include "normalizer/Normalizer.hpp"
 #include "parser/Parser.hpp"
 
@@ -337,4 +338,70 @@ TEST_CASE("Domain restriction metadata deduplicates and orders by expression str
     REQUIRE(structural_equal(
         restrictions.excluded_zero_expressions[1],
         normalize_expr(parse_expression("(x + y) * z"))));
+}
+
+TEST_CASE("Rewrite shares immutable expressions when no rewrite occurs", "[expr][structural][sharing][rewrite]") {
+    const auto expr = call("f", {symbol("x")});
+    const Rule rule{symbol("y"), symbol("z")};
+
+    const auto result = kernel::rewrite_once(expr, rule);
+
+    REQUIRE_FALSE(result.changed);
+    REQUIRE(result.expr == expr);
+}
+
+TEST_CASE("Rewrite pattern substitution shares bound immutable expressions", "[expr][structural][sharing][rewrite]") {
+    const auto shared_arg = call("Plus", {symbol("x"), number(1.0)});
+    const auto expr = call("f", {shared_arg});
+    const Rule rule{call("f", {symbol("a_")}), symbol("a")};
+
+    const auto result = kernel::rewrite_once(expr, rule);
+
+    REQUIRE(result.changed);
+    REQUIRE(result.expr == shared_arg);
+}
+
+TEST_CASE("Rewrite parent rebuild preserves unchanged child pointers", "[expr][structural][sharing][rewrite]") {
+    const auto shared_arg = call("Plus", {symbol("x"), number(1.0)});
+    const auto expr = call("f", {shared_arg, symbol("y")});
+    const Rule rule{symbol("y"), symbol("z")};
+
+    const auto result = kernel::rewrite_once(expr, rule);
+
+    REQUIRE(result.changed);
+    const auto* rewritten = std::get_if<FunctionCall>(result.expr.get());
+    REQUIRE(rewritten != nullptr);
+    REQUIRE(rewritten->args.size() == 2);
+    REQUIRE(rewritten->args[0] == shared_arg);
+    REQUIRE(structural_equal(rewritten->args[1], symbol("z")));
+}
+
+TEST_CASE("Capture-safe substitution shares immutable replacements", "[expr][structural][sharing][variables]") {
+    const auto replacement = call("Plus", {symbol("x"), number(1.0)});
+    kernel::SymbolSubstitutionMap substitutions;
+    substitutions.emplace("y", replacement);
+
+    const auto substituted = kernel::substitute_symbols_capture_safe(
+        symbol("y"),
+        substitutions);
+
+    REQUIRE(substituted == replacement);
+}
+
+TEST_CASE("Capture-safe substitution shares unchanged captured symbols", "[expr][structural][sharing][variables]") {
+    const auto expr = make_expr<FunctionDefinition>(
+        "f",
+        std::vector<Parameter>{Parameter("x")},
+        symbol("y"),
+        true);
+    kernel::SymbolSubstitutionMap substitutions;
+    substitutions.emplace("y", symbol("x"));
+
+    const auto substituted = kernel::substitute_symbols_capture_safe(expr, substitutions);
+
+    const auto* original = std::get_if<FunctionDefinition>(expr.get());
+    const auto* rewritten = std::get_if<FunctionDefinition>(substituted.get());
+    REQUIRE(original != nullptr);
+    REQUIRE(rewritten != nullptr);
+    REQUIRE(rewritten->body == original->body);
 }

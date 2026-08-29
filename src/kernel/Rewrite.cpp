@@ -67,10 +67,6 @@ bool contains_list_expr(const ExprPtr& expr) {
     return false;
 }
 
-ExprPtr clone_expr(const ExprPtr& expr) {
-    return expr == nullptr ? nullptr : std::make_shared<Expr>(*expr);
-}
-
 void ensure_symbol_metadata(
     EvaluationContext& ctx,
     const std::string& name,
@@ -502,7 +498,7 @@ ExprPtr rebuild_supported_coefficient_term(const SupportedCoefficientTerm& term)
         return nullptr;
     }
     if (term.coefficient.is_one()) {
-        return clone_expr(term.basis);
+        return term.basis;
     }
     return normalize_expr(make_fcall("Times", {term.coefficient.to_expr(), term.basis}));
 }
@@ -732,7 +728,7 @@ ExprPtr substitute_pattern_bindings(const ExprPtr& expr, const PatternBindings& 
 
             if constexpr (std::is_same_v<T, Symbol>) {
                 auto it = bindings.find(node.name);
-                return it == bindings.end() ? clone_expr(expr) : clone_expr(it->second);
+                return it == bindings.end() ? expr : it->second;
             } else if constexpr (std::is_same_v<T, FunctionCall>) {
                 std::vector<ExprPtr> args;
                 args.reserve(node.args.size());
@@ -766,7 +762,7 @@ ExprPtr substitute_pattern_bindings(const ExprPtr& expr, const PatternBindings& 
                     substitute_pattern_bindings(node.body, bindings),
                     node.delayed);
             } else {
-                return clone_expr(expr);
+                return expr;
             }
         },
         *expr);

@@ -23,8 +23,8 @@ the SDK, packs, and the notebook/workbench direction. The same sources can be
    Docker Compose, Traefik, and smoke-test procedures for the current web
    slice.
 7. [Expression Core Refactor Plan](expression_core_refactor_plan.md) —
-   staged plan for immutable expressions, structural identity, hashing, and
-   ordering.
+   completed staged refactor record for immutable expressions, structural
+   identity, hashing, and ordering.
 8. [IP and Repository Strategy](ip_and_repo_strategy.md) — practical
    public/private transition guidance.
 9. [Unified Plan](aleph3_unified_plan.md) — the sole active implementation roadmap.

@@ -401,6 +401,8 @@ transforming a parent expression.
 
 ### Slice 8: Documentation And Sanity Checks
 
+Status: Done.
+
 Update architecture documentation after implementation proves the final shape.
 
 At minimum update:

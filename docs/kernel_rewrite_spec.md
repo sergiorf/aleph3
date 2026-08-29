@@ -72,8 +72,9 @@ Practical examples:
 - `0 + x -> x`
 - `1 * x -> x`
 - `f[a_] -> g[a]`
-- later, a future calculus pack could express rules such as
-  `D[x^2, x] -> 2*x`
+- pack-owned transformations such as the current `core-calculus`
+  differentiation surface can reuse the same expression and registration
+  model without becoming evaluator-local syntax
 
 Practical user-facing workflows now exposed on top of this kernel surface:
 

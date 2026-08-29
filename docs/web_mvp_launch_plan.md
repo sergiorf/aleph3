@@ -471,17 +471,19 @@ tests, and documentation ship.
 
 ## Delivery Phases
 
-Current active delivery starts at the BFF migration phases. Existing C++ API
-core and notebook core behavior remains useful repository evidence and
-migration source while the public web product converges on the BFF-owned API,
-persistence, anonymous identity, and examples.
+Current active delivery starts at BFF-owned notebook persistence. The first
+BFF-to-engine evaluation loop is implemented and documented in
+[Web MVP Operations](web_mvp_operations.md). Existing C++ API core and
+notebook core behavior remains useful repository evidence and migration source
+while the public web product converges on BFF-owned persistence, anonymous
+identity, examples, and the complete notebook workflow.
 
 ## BFF Migration Plan
 
-The BFF starts Phase 6, before the React UI is complete. Phase 6a creates the
-BFF process, public `/api/*` boundary, internal engine call path, and Compose
-service graph before notebook persistence or the full editor is built. From
-that point forward, browser-facing work targets the BFF API first.
+The BFF migration continues from the implemented first evaluation loop. The
+BFF process, public `/api/*` boundary for health/session/evaluate, internal
+engine call path, React/Vite evaluator surface, and Compose service graph now
+exist. From this point forward, browser-facing work targets the BFF API first.
 
 The existing C++ `aleph3_web_api` code should be handled as a migration source
 with three possible outcomes for each responsibility:
@@ -519,50 +521,17 @@ The old C++ public API endpoints are not removed in the same slice merely to
 make the diff clean. They should be narrowed only after replacement coverage
 exists:
 
-1. Phase 6a proves BFF -> engine evaluation and keeps existing
-   `aleph3_web_api_tests` as engine/session regression coverage.
-2. Phase 6b adds BFF notebook CRUD and ownership tests, then marks C++
+1. Phase 6b adds BFF notebook CRUD and ownership tests, then marks C++
    notebook-store tests as legacy migration coverage.
-3. Phase 6c adds BFF run-cell and run-all tests, then stops treating C++
+2. Phase 6c adds BFF run-cell and run-all tests, then stops treating C++
    persisted `run-all` as the launch path.
-4. Phase 6d adds BFF completion/help/examples tests and browser smoke tests,
+3. Phase 6d adds BFF completion/help/examples tests and browser smoke tests,
    then narrows remaining C++ web API documentation to internal or legacy
    status.
 
 Completion of Phase 6 requires one authoritative public API owner: the BFF.
 Any remaining C++ web API target must be documented as internal, transitional,
 or test-only.
-
-### Phase 6a: BFF Boundary And First Evaluation Loop
-
-Deliver:
-
-- ASP.NET Core BFF skeleton;
-- minimal internal C++ HTTP listener over shared session behavior;
-- BFF public API envelope and client-facing error mapping;
-- migration of public evaluate traffic from the old C++ API-core route shape
-  to the BFF route shape;
-- React/Vite skeleton opened directly into a minimal notebook-like surface;
-- Traefik-ready routing labels or local routing notes;
-- Docker Compose services for `traefik`, `frontend`, `bff`, `engine`, and
-  `postgres`;
-- internal engine health endpoint;
-- public BFF health endpoint;
-- public browser-facing evaluate endpoint;
-- one browser input flow that evaluates through BFF -> engine.
-
-Exit criteria:
-
-- browser traffic reaches only the BFF through `/api/*`;
-- the engine service is reachable only on the internal Docker network in the
-  production-like Compose profile;
-- entering `1/2 + 1/3` in the browser shows `5/6`;
-- BFF and engine health checks pass;
-- no symbolic parser, evaluator, simplifier, or completion catalog is
-  duplicated in the BFF or frontend;
-- existing C++ API-core evaluate tests remain as engine/session regression
-  evidence or are replaced by equivalent internal engine tests;
-- Docker Compose can start the local service graph.
 
 ### Phase 6b: BFF-Owned Notebook Persistence
 

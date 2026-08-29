@@ -8,23 +8,27 @@ repeating its background.
 
 For the complete user journey, start with the
 [Aleph3 Manual](manual/README.md). It covers expressions, built-ins, rewriting,
-the SDK, packs, and the notebook/workbench direction. The same sources can be
-[built as a PDF book](manual/README.md#build-the-pdf-book).
+the SDK, packs, sessions, the CLI, and the notebook/web direction. The same
+sources can be [built as a PDF book](manual/README.md#build-the-pdf-book).
 
-1. [Project README](../README.md) — build, run, and product orientation.
-2. [Architecture](architecture.md) — system shape and ownership boundaries.
-3. [SDK Guide](sdk/README.md) — embedding surface and SDK-specific references.
-4. [Notebook MVP Design](notebook_mvp_design.md) — product scope, planned cells,
-   evaluation, persistence, display, and acceptance contract.
-5. [Web MVP Launch Plan](web_mvp_launch_plan.md) — launch scope,
+1. [Project README](../README.md) - build, run, and product orientation.
+2. [Architecture](architecture.md) - system shape and ownership boundaries,
+   including the current kernel, pack, session, notebook-core, SDK, and web
+   service architecture.
+3. [SDK Guide](sdk/README.md) - embedding surface and SDK-specific references.
+4. [Notebook MVP Design](notebook_mvp_design.md) - product scope, shipped
+   headless notebook-core slices, planned GUI behavior, evaluation,
+   persistence, display, and acceptance contract.
+5. [Web MVP Launch Plan](web_mvp_launch_plan.md) - launch scope,
    anonymous-user strategy, API shape, deployment phases, and acceptance gates
    for the first web notebook.
-6. [Web MVP Operations](web_mvp_operations.md) — local service, port,
+6. [Web MVP Operations](web_mvp_operations.md) - local service, port,
    Docker Compose, Traefik, and smoke-test procedures for the current web
    slice.
-7. [IP and Repository Strategy](ip_and_repo_strategy.md) — practical
+7. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
    public/private transition guidance.
-8. [Unified Plan](aleph3_unified_plan.md) — the sole active implementation roadmap.
+8. [Unified Plan](aleph3_unified_plan.md) - the longer-term implementation
+   roadmap.
 
 ## Normative References
 
@@ -34,7 +38,7 @@ architecture.
 | Area | Canonical documents |
 | --- | --- |
 | SDK language | [Trusted subset](trusted_subset_v1.md), [stable interfaces](sdk/stable_interfaces.md) |
-| Kernel structure | [Kernel design](kernel_design_spec.md), [execution bridge](kernel_execution_bridge_spec.md) |
+| Kernel and engine structure | [Architecture](architecture.md), [Kernel design](kernel_design_spec.md), [execution bridge](kernel_execution_bridge_spec.md) |
 | Symbols | [Symbol model](kernel_symbol_model_spec.md), [definition precedence](kernel_symbol_definition_precedence.md), [attributes](kernel_attribute_spec.md), [variable analysis](kernel_variable_analysis_spec.md), [list and structural operations](kernel_list_structural_spec.md) |
 | Rewriting | [Rewrite specification](kernel_rewrite_spec.md) |
 | Exact mathematics | [Exact algebra](kernel_exact_algebra_spec.md), [supported algebra subset](algebra_supported_subset.md), [algebra equivalence](algebra_equivalence_spec.md), [dense matrices](algebra_dense_matrix_spec.md), [focused differentiation](calculus_differentiation_spec.md) |
@@ -51,7 +55,7 @@ architecture.
 
 A specification should link to architecture terminology rather than reproduce
 it. A plan may point at a specification, but does not override it. When code,
-a specification, and a plan disagree, treat that as a defect to resolve—not a
+a specification, and a plan disagree, treat that as a defect to resolve - not a
 reason to add a fourth explanation.
 
 ## Maintenance Rule

@@ -122,10 +122,11 @@ only the documented supported subset. The first gallery should demonstrate:
 - assignments and session state;
 - rewriting and assumptions;
 - polynomial expansion, factorization, and exact division;
+- focused differentiation;
 - diagnostics for one deliberately unsupported or invalid expression.
 
-Calculus, trigonometric identity simplification, code generation, and paid-pack
-examples wait until their shared contracts are implemented and tested.
+Trigonometric identity simplification, code generation, and paid-pack examples
+wait until their shared contracts are implemented and tested.
 
 ## Explicit Non-Goals
 

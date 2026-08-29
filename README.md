@@ -62,6 +62,7 @@ Current implemented surfaces include:
 - a C++ SDK path for validating and executing application formulas through the
   shared kernel;
 - algebra pack functionality including focused polynomial operations;
+- calculus pack functionality including focused symbolic differentiation;
 - a headless notebook core for document structure, JSON persistence, and clean
   `Run All` lifecycle behavior;
 - an internal C++ engine service and transitional web API core over shared
@@ -196,7 +197,8 @@ live in the [Web MVP Launch Plan](docs/web_mvp_launch_plan.md).
 - `aleph3_kernel` owns expressions, evaluation, rewriting, exact arithmetic,
   assumptions, diagnostics, resource budgets, and registration.
 - Math packs add domain functions through kernel registration; `core-algebra`
-  currently owns the focused polynomial surface.
+  currently owns the focused polynomial surface and `core-calculus` owns
+  focused differentiation.
 - `aleph3_sdk` adds schemas, policies, host-facing values, and the trusted
   embedding boundary over the kernel.
 - The reusable session layer owns interactive state and exposes evaluation,
@@ -217,13 +219,14 @@ For the full ownership model, see [Architecture](docs/architecture.md).
 
 Aleph3 is an open-source personal engineering project in active development.
 The strongest current surfaces are the kernel, CLI, SDK, sessions, focused
-algebra support, notebook core, and the first web evaluation path.
+algebra and calculus support, notebook core, and the first web evaluation
+path.
 
 The near-term product work is the Web MVP: a usable browser notebook backed by
-the shared semantic engine. Broader CAS features, richer notebook UX, wider
-calculus, solving, plotting, arbitrary-precision expansion, DSP packs, and
-large compatibility claims remain future work unless documented as supported
-in the manual and specifications.
+the shared semantic engine. Broader CAS features, richer notebook UX, calculus
+beyond the focused derivative subset, solving, plotting, arbitrary-precision
+expansion, DSP packs, and large compatibility claims remain future work unless
+documented as supported in the manual and specifications.
 
 GitHub Actions runs the `CI` workflow for pushes and pull requests targeting
 `main`. The workflow builds and runs the CTest suite on Ubuntu and Windows,

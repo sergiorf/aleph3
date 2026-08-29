@@ -159,6 +159,17 @@ POST /api/sessions/{sessionId}/reset
 GET  /api/sessions/{sessionId}/complete?prefix={prefix}
 GET  /api/sessions/{sessionId}/help?query={nameOrPrefix}
 DELETE /api/sessions/{sessionId}
+
+POST /api/notebooks
+GET  /api/notebooks
+GET  /api/notebooks/{notebookId}
+PUT  /api/notebooks/{notebookId}
+DELETE /api/notebooks/{notebookId}
+POST /api/notebooks/{notebookId}/run-all
+POST /api/notebooks/{notebookId}/clear-results
+
+GET  /api/examples
+POST /api/examples/{exampleId}/copy
 ```
 
 Focused web API verification:

@@ -132,11 +132,11 @@ journals, and migrations are not implemented.
 ## Web API Foundation
 
 The current build also includes an experimental `aleph3_web_api` library. It
-is a transport-independent API core for the planned web notebook MVP. It is
-now transitional contract evidence rather than the public browser backend. The
-Phase 6a web slice adds an internal C++ engine HTTP service, an ASP.NET Core
-BFF that owns public `/api/*` browser routes, a React/Vite evaluator surface,
-and a Docker Compose graph through Traefik.
+is a transport-independent API core that predates the current Web MVP BFF
+boundary. It is now transitional contract evidence rather than the public
+browser backend. The current web slice includes an internal C++ engine HTTP
+service, an ASP.NET Core BFF that owns public `/api/*` browser routes, a
+React/Vite evaluator surface, and a Docker Compose graph through Traefik.
 
 The API core still has a notebook store boundary; ordinary tests use an
 in-memory store, and cloud-oriented builds can enable the Postgres store. The

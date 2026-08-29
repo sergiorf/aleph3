@@ -5,6 +5,7 @@
 #include "kernel/Rewrite.hpp"
 #include "normalizer/Normalizer.hpp"
 #include "expr/ExprUtils.hpp"
+#include "expr/ExprStructural.hpp"
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -440,7 +441,7 @@ namespace aleph3 {
                 !(std::holds_alternative<Number>(*denom) && get_number_value(denom) == 0.0)) {
                 return make_expr<Number>(0.0);
             }
-            if (to_string_raw(num) == to_string_raw(denom)) {
+            if (structural_equal(normalize_expr(num), normalize_expr(denom))) {
                 return make_expr<Number>(1.0);
             }
             // Rational / Rational

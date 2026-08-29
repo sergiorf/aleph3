@@ -16,6 +16,7 @@
 #include <unordered_set>
 
 #include "expr/Expr.hpp"
+#include "expr/ExprStructural.hpp"
 
 namespace aleph3::kernel {
 
@@ -54,7 +55,7 @@ private:
     void assume_sign_fact(std::string symbol_name, const std::string& head);
 
     std::unordered_map<std::string, SymbolAssumptionFacts> symbol_facts_;
-    std::unordered_set<std::string> exact_true_forms_;
+    std::unordered_set<ExprPtr, ExprHash, ExprEqual> exact_true_forms_;
 };
 
 ExprPtr refine_expr_with_assumptions(const ExprPtr& expr, const AssumptionStore& assumptions);

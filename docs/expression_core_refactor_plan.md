@@ -362,6 +362,8 @@ with emphasis on normalizer, simplify, rewrite, algebra, and calculus tests.
 
 ### Slice 6: Remove Semantic Rendering Keys
 
+Status: Done.
+
 Classify every `to_string` and `to_string_raw` use as presentation/debug or
 semantic identity.
 

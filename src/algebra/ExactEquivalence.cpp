@@ -4,6 +4,7 @@
 #include "algebra/ExactRationalExpression.hpp"
 #include "algebra/PolynomialOps.hpp"
 #include "expr/Expr.hpp"
+#include "expr/ExprStructural.hpp"
 
 #include <algorithm>
 #include <stdexcept>
@@ -28,7 +29,17 @@ std::vector<std::string> merged_variables(const ExprPtr& left, const ExprPtr& ri
 bool same_restrictions(
     const kernel::DomainRestrictions& left,
     const kernel::DomainRestrictions& right) {
-    return left.excluded_zero_strings() == right.excluded_zero_strings();
+    if (left.excluded_zero_expressions.size() != right.excluded_zero_expressions.size()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < left.excluded_zero_expressions.size(); ++index) {
+        if (!structural_equal(
+                left.excluded_zero_expressions[index],
+                right.excluded_zero_expressions[index])) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool same_rational_expression(
@@ -44,7 +55,7 @@ bool same_rational_expression(
 ExactEquivalenceKind prove_exact_equivalence(
     const ExprPtr& left,
     const ExprPtr& right) {
-    if (to_string(left) == to_string(right)) {
+    if (structural_equal(left, right)) {
         return ExactEquivalenceKind::equivalent;
     }
 

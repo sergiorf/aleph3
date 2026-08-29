@@ -409,6 +409,8 @@ TEST_CASE("Equivalent preserves rational-expression domain boundaries", "[algebr
         "Equivalent[Cancel[(x*y)/x], y]", ctx)) == "True");
     REQUIRE(simplify_string(evaluate_source(
         "Equivalent[1/x, 1/x]", ctx)) == "True");
+    REQUIRE(simplify_string(evaluate_source(
+        "Equivalent[1/(x + y*z), 1/((x + y)*z)]", ctx)) == "False");
 
     require_runtime_diagnostic(
         [&] { static_cast<void>(evaluate_source("Equivalent[x/0, x]", ctx)); },

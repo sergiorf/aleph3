@@ -1,5 +1,6 @@
 #include "expr/Expr.hpp"
 #include "expr/ExprStructural.hpp"
+#include "kernel/DomainRestrictions.hpp"
 #include "kernel/Rewrite.hpp"
 #include "normalizer/Normalizer.hpp"
 #include "parser/Parser.hpp"
@@ -320,4 +321,20 @@ TEST_CASE("Normalized permutations have equal structural hashes", "[expr][struct
                 normalize_expr(parse_expression(right)));
         }
     }
+}
+
+TEST_CASE("Domain restriction metadata deduplicates and orders by expression structure", "[expr][structural][domain]") {
+    kernel::DomainRestrictions restrictions;
+
+    restrictions.add_excluded_zero(normalize_expr(parse_expression("x + y*z")));
+    restrictions.add_excluded_zero(normalize_expr(parse_expression("(x + y) * z")));
+    restrictions.add_excluded_zero(normalize_expr(parse_expression("y*z + x")));
+
+    REQUIRE(restrictions.excluded_zero_expressions.size() == 2);
+    REQUIRE(structural_equal(
+        restrictions.excluded_zero_expressions[0],
+        normalize_expr(parse_expression("x + y*z"))));
+    REQUIRE(structural_equal(
+        restrictions.excluded_zero_expressions[1],
+        normalize_expr(parse_expression("(x + y) * z"))));
 }

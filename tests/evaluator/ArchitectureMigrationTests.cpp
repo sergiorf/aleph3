@@ -1061,6 +1061,18 @@ TEST_CASE("Kernel rewrite symbolic coefficient contract combines call-shaped bas
     REQUIRE(to_string(*rewritten) == "3 * (f[x])");
 }
 
+TEST_CASE("Kernel rewrite coefficient buckets use structural identity instead of raw rendering", "[architecture][rewrite][structural]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("x + y*z + 2*(x + y)*z"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_symbolic_coefficient_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
+}
+
 TEST_CASE("Kernel rewrite algebra-aware layer merges supported Times exponents", "[architecture][rewrite]") {
     kernel::EvaluationContext ctx;
     const auto normalized = normalize_expr(parse_expression("x * x^2 * y"));
@@ -1072,6 +1084,18 @@ TEST_CASE("Kernel rewrite algebra-aware layer merges supported Times exponents",
 
     REQUIRE(rewritten.has_value());
     REQUIRE(to_string(*rewritten) == "x^3 * y");
+}
+
+TEST_CASE("Kernel rewrite power buckets use structural identity instead of raw rendering", "[architecture][rewrite][structural]") {
+    kernel::EvaluationContext ctx;
+    const auto normalized = normalize_expr(parse_expression("(x + y*z) * ((x + y) * z)"));
+    REQUIRE(std::holds_alternative<FunctionCall>(*normalized));
+
+    const auto rewritten = kernel::rewrite_normalized_algebraic_head(
+        std::get<FunctionCall>(*normalized),
+        ctx);
+
+    REQUIRE_FALSE(rewritten.has_value());
 }
 
 TEST_CASE("Kernel rewrite algebra-aware layer merges repeated arbitrary Times bases", "[architecture][rewrite]") {

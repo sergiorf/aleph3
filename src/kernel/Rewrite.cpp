@@ -1148,7 +1148,7 @@ std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
         ScalarCoefficient coefficient;
     };
 
-    std::unordered_map<std::string, std::size_t> bucket_index;
+    std::unordered_map<ExprPtr, std::size_t, ExprHash, ExprEqual> bucket_index;
     std::vector<MonomialBucket> buckets;
     std::vector<ExprPtr> opaque_terms;
     bool changed = false;
@@ -1160,10 +1160,10 @@ std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
             continue;
         }
 
-        const auto key = to_string_raw(normalize_expr(term.basis));
+        auto key = normalize_expr(term.basis);
         const auto [it, inserted] = bucket_index.emplace(key, buckets.size());
         if (inserted) {
-            buckets.push_back(MonomialBucket{normalize_expr(term.basis), term.coefficient});
+            buckets.push_back(MonomialBucket{std::move(key), term.coefficient});
             continue;
         }
 
@@ -1221,7 +1221,7 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
             std::vector<ExprPtr> original_terms;
         };
 
-        std::map<std::string, PowerBucket> power_buckets;
+        std::map<ExprPtr, PowerBucket, ExprStructuralLess> power_buckets;
         std::vector<ExprPtr> opaque_terms;
         bool changed = false;
 
@@ -1232,10 +1232,10 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
                 continue;
             }
 
-            const auto key = to_string_raw(normalize_expr(factor.base));
+            auto key = normalize_expr(factor.base);
             auto [it, inserted] = power_buckets.emplace(
                 key,
-                PowerBucket{normalize_expr(factor.base), 0, 0, {}});
+                PowerBucket{key, 0, 0, {}});
             it->second.exponent += factor.exponent;
             it->second.term_count += 1;
             it->second.original_terms.push_back(arg);

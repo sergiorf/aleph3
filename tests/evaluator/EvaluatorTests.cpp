@@ -1070,6 +1070,18 @@ TEST_CASE("Evaluator exposes rule-driven symbolic transforms", "[evaluator][rewr
     REQUIRE_FALSE(std::get<Boolean>(*result).value);
 }
 
+TEST_CASE("Divide self-cancellation uses structural identity, not raw rendering", "[evaluator][structural]") {
+    EvaluationContext ctx;
+
+    const auto result = evaluate(parse_expression("(x + y*z) / ((x + y) * z)"), ctx);
+
+    REQUIRE_FALSE(std::holds_alternative<Number>(*result));
+    REQUIRE(std::holds_alternative<FunctionCall>(*result));
+    const auto& divide = std::get<FunctionCall>(*result);
+    REQUIRE(divide.head == "Divide");
+    REQUIRE(divide.args.size() == 2);
+}
+
 TEST_CASE("Evaluator exposes ReplaceAll as whole-expression replacement", "[evaluator][rewrite]") {
     EvaluationContext ctx;
 

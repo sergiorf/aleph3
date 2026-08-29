@@ -1,5 +1,6 @@
 #pragma once
 #include "expr/Expr.hpp"
+#include "expr/ExprStructural.hpp"
 #include "expr/ExprUtils.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
 #include "util/Overloaded.hpp"
@@ -88,13 +89,13 @@ inline int normalized_term_degree(const ExprPtr& expr) {
     return -1;
 }
 
-inline std::string canonical_symbolic_key(const ExprPtr& expr) {
+inline ExprPtr canonical_symbolic_basis(const ExprPtr& expr) {
     if (std::holds_alternative<Symbol>(*expr)) {
-        return std::get<Symbol>(*expr).name;
+        return expr;
     }
     if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
         if (call->head == "Power" && call->args.size() == 2) {
-            return to_string_raw(expr);
+            return expr;
         }
         if (call->head == "Times") {
             std::vector<ExprPtr> non_numeric_factors;
@@ -104,11 +105,124 @@ inline std::string canonical_symbolic_key(const ExprPtr& expr) {
                 }
             }
             if (!non_numeric_factors.empty()) {
-                return to_string_raw(make_fcall("Times", non_numeric_factors));
+                if (non_numeric_factors.size() == 1) {
+                    return non_numeric_factors.front();
+                }
+                return make_fcall("Times", non_numeric_factors);
             }
         }
     }
-    return to_string_raw(expr);
+    return expr;
+}
+
+inline bool canonical_numeric_constant_less(const ExprPtr& left, const ExprPtr& right) {
+    const bool left_rational = std::holds_alternative<Rational>(*left);
+    const bool right_rational = std::holds_alternative<Rational>(*right);
+    if (left_rational != right_rational) {
+        return left_rational;
+    }
+
+    const auto numeric_value = [](const ExprPtr& expr) {
+        if (const auto* number = std::get_if<Number>(expr.get())) {
+            return number->value;
+        }
+        const auto& rational = std::get<Rational>(*expr);
+        return static_cast<double>(rational.numerator) /
+               static_cast<double>(rational.denominator);
+    };
+    const double left_value = numeric_value(left);
+    const double right_value = numeric_value(right);
+    if (left_value < 0.0 && right_value < 0.0 && left_value != right_value) {
+        return left_value > right_value;
+    }
+    return ExprStructuralLess{}(left, right);
+}
+
+inline bool canonical_symbolic_less(const ExprPtr& left, const ExprPtr& right);
+
+inline bool canonical_list_less(
+    const std::vector<ExprPtr>& left,
+    const std::vector<ExprPtr>& right) {
+    const auto count = std::min(left.size(), right.size());
+    for (std::size_t index = 0; index < count; ++index) {
+        if (canonical_symbolic_less(left[index], right[index])) {
+            return true;
+        }
+        if (canonical_symbolic_less(right[index], left[index])) {
+            return false;
+        }
+    }
+    return left.size() < right.size();
+}
+
+inline bool canonical_power_like_less(const FunctionCall& left, const ExprPtr& right) {
+    if (left.head != "Power" || left.args.size() != 2) {
+        return false;
+    }
+
+    const auto right_call = std::get_if<FunctionCall>(right.get());
+    if (right_call != nullptr && right_call->head == "Power" && right_call->args.size() == 2) {
+        if (canonical_symbolic_less(left.args[0], right_call->args[0])) {
+            return true;
+        }
+        if (canonical_symbolic_less(right_call->args[0], left.args[0])) {
+            return false;
+        }
+        return canonical_symbolic_less(left.args[1], right_call->args[1]);
+    }
+
+    if (canonical_symbolic_less(left.args[0], right)) {
+        return true;
+    }
+    if (canonical_symbolic_less(right, left.args[0])) {
+        return false;
+    }
+    return false;
+}
+
+inline bool canonical_symbolic_less(const ExprPtr& left, const ExprPtr& right) {
+    const auto left_basis = canonical_symbolic_basis(left);
+    const auto right_basis = canonical_symbolic_basis(right);
+    if (is_numeric_constant(left_basis) && is_numeric_constant(right_basis)) {
+        return canonical_numeric_constant_less(left_basis, right_basis);
+    }
+
+    const auto* left_basis_call = std::get_if<FunctionCall>(left_basis.get());
+    if (left_basis_call != nullptr &&
+        canonical_power_like_less(*left_basis_call, right_basis)) {
+        return true;
+    }
+    const auto* right_basis_call = std::get_if<FunctionCall>(right_basis.get());
+    if (right_basis_call != nullptr &&
+        canonical_power_like_less(*right_basis_call, left_basis)) {
+        return false;
+    }
+    if (left_basis_call != nullptr && right_basis_call != nullptr) {
+        if (left_basis_call->head != right_basis_call->head) {
+            return left_basis_call->head < right_basis_call->head;
+        }
+        if (canonical_list_less(left_basis_call->args, right_basis_call->args)) {
+            return true;
+        }
+        if (canonical_list_less(right_basis_call->args, left_basis_call->args)) {
+            return false;
+        }
+    }
+
+    const ExprStructuralLess structural_less;
+    if (structural_less(left_basis, right_basis)) {
+        return true;
+    }
+    if (structural_less(right_basis, left_basis)) {
+        return false;
+    }
+    if (left_basis != left && structural_equal(left_basis, right)) {
+        return true;
+    }
+    if (right_basis != right && structural_equal(right_basis, left)) {
+        return false;
+    }
+    return structural_less(left, right);
 }
 
 inline int canonical_plus_algebraic_shape_rank(const ExprPtr& expr) {
@@ -126,6 +240,21 @@ inline int canonical_plus_algebraic_shape_rank(const ExprPtr& expr) {
         }
     }
     return 2;
+}
+
+inline bool has_non_unit_negative_numeric_coefficient(const ExprPtr& expr) {
+    if (const auto* number = std::get_if<Number>(expr.get())) {
+        return number->value < 0.0 && number->value != -1.0;
+    }
+    if (const auto* rational = std::get_if<Rational>(expr.get())) {
+        return rational->numerator < 0 &&
+               !(rational->numerator == -1 && rational->denominator == 1);
+    }
+    if (const auto* call = std::get_if<FunctionCall>(expr.get());
+        call != nullptr && call->head == "Times" && !call->args.empty()) {
+        return has_non_unit_negative_numeric_coefficient(call->args.front());
+    }
+    return false;
 }
 
 inline bool canonical_plus_term_less(const ExprPtr& left, const ExprPtr& right) {
@@ -161,7 +290,13 @@ inline bool canonical_plus_term_less(const ExprPtr& left, const ExprPtr& right) 
         }
     }
 
-    return canonical_symbolic_key(left) < canonical_symbolic_key(right);
+    const bool left_negative = has_non_unit_negative_numeric_coefficient(left);
+    const bool right_negative = has_non_unit_negative_numeric_coefficient(right);
+    if (left_negative != right_negative) {
+        return left_negative;
+    }
+
+    return canonical_symbolic_less(left, right);
 }
 
 inline bool canonical_times_factor_less(const ExprPtr& left, const ExprPtr& right) {
@@ -182,7 +317,21 @@ inline bool canonical_times_factor_less(const ExprPtr& left, const ExprPtr& righ
         }
     }
 
-    return canonical_symbolic_key(left) < canonical_symbolic_key(right);
+    if (left_class == NormalizedSortClass::opaque &&
+        right_class == NormalizedSortClass::opaque) {
+        const auto* left_call = std::get_if<FunctionCall>(left.get());
+        const auto* right_call = std::get_if<FunctionCall>(right.get());
+        if (left_call != nullptr && right_call != nullptr) {
+            if (left_call->head == "Plus" && right_call->head == "Power") {
+                return true;
+            }
+            if (right_call->head == "Plus" && left_call->head == "Power") {
+                return false;
+            }
+        }
+    }
+
+    return canonical_symbolic_less(left, right);
 }
 
 inline void flatten_function_args(

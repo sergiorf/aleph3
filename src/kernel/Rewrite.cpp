@@ -3,6 +3,7 @@
 #include "kernel/EvaluationContext.hpp"
 #include "kernel/FunctionRegistry.hpp"
 #include "evaluator/Evaluator.hpp"
+#include "expr/ExprStructural.hpp"
 #include "expr/ExprUtils.hpp"
 #include "normalizer/Normalizer.hpp"
 
@@ -64,10 +65,6 @@ bool contains_list_expr(const ExprPtr& expr) {
         }
     }
     return false;
-}
-
-ExprPtr clone_expr(const ExprPtr& expr) {
-    return expr == nullptr ? nullptr : std::make_shared<Expr>(*expr);
 }
 
 void ensure_symbol_metadata(
@@ -501,7 +498,7 @@ ExprPtr rebuild_supported_coefficient_term(const SupportedCoefficientTerm& term)
         return nullptr;
     }
     if (term.coefficient.is_one()) {
-        return clone_expr(term.basis);
+        return term.basis;
     }
     return normalize_expr(make_fcall("Times", {term.coefficient.to_expr(), term.basis}));
 }
@@ -583,85 +580,6 @@ bool matches_pattern_type(const std::string& type, const ExprPtr& expr) {
     if (type == "Boolean") return std::holds_alternative<Boolean>(*expr);
     if (type == "Function") return std::holds_alternative<FunctionCall>(*expr);
     throw_unsupported_construct("Unknown pattern type constraint: " + type);
-}
-
-bool structurally_equal_list(
-    const std::vector<ExprPtr>& left,
-    const std::vector<ExprPtr>& right);
-
-bool structurally_equal_impl(const Expr& left, const Expr& right) {
-    if (left.index() != right.index()) {
-        return false;
-    }
-
-    return std::visit(
-        [&](const auto& lhs) -> bool {
-            using T = std::decay_t<decltype(lhs)>;
-            const auto& rhs = std::get<T>(right);
-
-            if constexpr (std::is_same_v<T, Symbol>) {
-                return lhs.name == rhs.name;
-            } else if constexpr (std::is_same_v<T, Number>) {
-                return lhs.value == rhs.value;
-            } else if constexpr (std::is_same_v<T, Complex>) {
-                return lhs.real == rhs.real && lhs.imag == rhs.imag;
-            } else if constexpr (std::is_same_v<T, Rational>) {
-                return lhs.numerator == rhs.numerator &&
-                       lhs.denominator == rhs.denominator;
-            } else if constexpr (std::is_same_v<T, Boolean>) {
-                return lhs.value == rhs.value;
-            } else if constexpr (std::is_same_v<T, String>) {
-                return lhs.value == rhs.value;
-            } else if constexpr (std::is_same_v<T, FunctionCall>) {
-                return lhs.head == rhs.head &&
-                       structurally_equal_list(lhs.args, rhs.args);
-            } else if constexpr (std::is_same_v<T, FunctionDefinition>) {
-                if (lhs.name != rhs.name ||
-                    lhs.delayed != rhs.delayed ||
-                    lhs.params.size() != rhs.params.size()) {
-                    return false;
-                }
-                for (std::size_t index = 0; index < lhs.params.size(); ++index) {
-                    if (lhs.params[index].name != rhs.params[index].name) {
-                        return false;
-                    }
-                    if (!structurally_equal(lhs.params[index].default_value,
-                                            rhs.params[index].default_value)) {
-                        return false;
-                    }
-                }
-                return structurally_equal(lhs.body, rhs.body);
-            } else if constexpr (std::is_same_v<T, Assignment>) {
-                return lhs.name == rhs.name &&
-                       structurally_equal(lhs.value, rhs.value);
-            } else if constexpr (std::is_same_v<T, Rule>) {
-                return structurally_equal(lhs.lhs, rhs.lhs) &&
-                       structurally_equal(lhs.rhs, rhs.rhs);
-            } else if constexpr (std::is_same_v<T, List>) {
-                return structurally_equal_list(lhs.elements, rhs.elements);
-            } else if constexpr (std::is_same_v<T, Infinity> ||
-                                 std::is_same_v<T, ComplexInfinity> ||
-                                 std::is_same_v<T, Indeterminate>) {
-                return true;
-            } else {
-                return false;
-            }
-        },
-        left);
-}
-
-bool structurally_equal_list(
-    const std::vector<ExprPtr>& left,
-    const std::vector<ExprPtr>& right) {
-    if (left.size() != right.size()) {
-        return false;
-    }
-    for (std::size_t index = 0; index < left.size(); ++index) {
-        if (!structurally_equal(left[index], right[index])) {
-            return false;
-        }
-    }
-    return true;
 }
 
 bool match_list(
@@ -810,7 +728,7 @@ ExprPtr substitute_pattern_bindings(const ExprPtr& expr, const PatternBindings& 
 
             if constexpr (std::is_same_v<T, Symbol>) {
                 auto it = bindings.find(node.name);
-                return it == bindings.end() ? clone_expr(expr) : clone_expr(it->second);
+                return it == bindings.end() ? expr : it->second;
             } else if constexpr (std::is_same_v<T, FunctionCall>) {
                 std::vector<ExprPtr> args;
                 args.reserve(node.args.size());
@@ -844,7 +762,7 @@ ExprPtr substitute_pattern_bindings(const ExprPtr& expr, const PatternBindings& 
                     substitute_pattern_bindings(node.body, bindings),
                     node.delayed);
             } else {
-                return clone_expr(expr);
+                return expr;
             }
         },
         *expr);
@@ -1017,13 +935,7 @@ RewriteResult rewrite_once_impl(
 }  // namespace
 
 bool structurally_equal(const ExprPtr& left, const ExprPtr& right) {
-    if (left == right) {
-        return true;
-    }
-    if (left == nullptr || right == nullptr) {
-        return left == nullptr && right == nullptr;
-    }
-    return structurally_equal_impl(*left, *right);
+    return ::aleph3::structural_equal(left, right);
 }
 
 bool matches_pattern(const ExprPtr& pattern, const ExprPtr& expr) {
@@ -1232,7 +1144,7 @@ std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
         ScalarCoefficient coefficient;
     };
 
-    std::unordered_map<std::string, std::size_t> bucket_index;
+    std::unordered_map<ExprPtr, std::size_t, ExprHash, ExprEqual> bucket_index;
     std::vector<MonomialBucket> buckets;
     std::vector<ExprPtr> opaque_terms;
     bool changed = false;
@@ -1244,10 +1156,10 @@ std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
             continue;
         }
 
-        const auto key = to_string_raw(normalize_expr(term.basis));
+        auto key = normalize_expr(term.basis);
         const auto [it, inserted] = bucket_index.emplace(key, buckets.size());
         if (inserted) {
-            buckets.push_back(MonomialBucket{normalize_expr(term.basis), term.coefficient});
+            buckets.push_back(MonomialBucket{std::move(key), term.coefficient});
             continue;
         }
 
@@ -1305,7 +1217,7 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
             std::vector<ExprPtr> original_terms;
         };
 
-        std::map<std::string, PowerBucket> power_buckets;
+        std::map<ExprPtr, PowerBucket, ExprStructuralLess> power_buckets;
         std::vector<ExprPtr> opaque_terms;
         bool changed = false;
 
@@ -1316,10 +1228,10 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
                 continue;
             }
 
-            const auto key = to_string_raw(normalize_expr(factor.base));
+            auto key = normalize_expr(factor.base);
             auto [it, inserted] = power_buckets.emplace(
                 key,
-                PowerBucket{normalize_expr(factor.base), 0, 0, {}});
+                PowerBucket{key, 0, 0, {}});
             it->second.exponent += factor.exponent;
             it->second.term_count += 1;
             it->second.original_terms.push_back(arg);

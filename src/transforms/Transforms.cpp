@@ -381,7 +381,7 @@ namespace aleph3 {
                     int db = degree(b);
                     if (da != db) return da > db;
 
-                    return to_string(a) < to_string(b); // tie-breaker: lex order
+                    return detail::canonical_plus_term_less(a, b);
                 });
 
                 if (non_numeric_terms.empty()) {

@@ -1,5 +1,7 @@
 #include "kernel/DomainRestrictions.hpp"
 
+#include "expr/ExprStructural.hpp"
+
 #include <algorithm>
 #include <utility>
 
@@ -7,8 +9,8 @@ namespace aleph3::kernel {
 
 namespace {
 
-bool same_expression_text(const ExprPtr& left, const ExprPtr& right) {
-    return to_string(left) == to_string(right);
+bool same_expression(const ExprPtr& left, const ExprPtr& right) {
+    return structural_equal(left, right);
 }
 
 }  // namespace
@@ -19,7 +21,7 @@ void DomainRestrictions::add_excluded_zero(ExprPtr expr) {
         excluded_zero_expressions.begin(),
         excluded_zero_expressions.end(),
         [&](const ExprPtr& existing) {
-            return same_expression_text(existing, expr);
+            return same_expression(existing, expr);
         });
     if (duplicate != excluded_zero_expressions.end()) return;
 
@@ -28,7 +30,7 @@ void DomainRestrictions::add_excluded_zero(ExprPtr expr) {
         excluded_zero_expressions.begin(),
         excluded_zero_expressions.end(),
         [](const ExprPtr& left, const ExprPtr& right) {
-            return to_string(left) < to_string(right);
+            return ExprStructuralLess{}(left, right);
         });
 }
 

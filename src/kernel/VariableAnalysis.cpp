@@ -10,10 +10,6 @@ namespace aleph3::kernel {
 
 namespace {
 
-ExprPtr clone_expr(const ExprPtr& expr) {
-    return expr == nullptr ? nullptr : std::make_shared<Expr>(*expr);
-}
-
 bool is_pattern_symbol_name(const std::string& name) {
     return name == "_" || name.find('_') != std::string::npos;
 }
@@ -219,14 +215,14 @@ ExprPtr substitute_impl(
         overloaded{
             [&](const Symbol& symbol) -> ExprPtr {
                 if (bound_scope.contains(symbol.name) || is_pattern_symbol_name(symbol.name)) {
-                    return clone_expr(expr);
+                    return expr;
                 }
                 const auto found = substitutions.find(symbol.name);
                 if (found == substitutions.end() ||
                     replacement_would_capture(found->second, bound_scope)) {
-                    return clone_expr(expr);
+                    return expr;
                 }
-                return clone_expr(found->second);
+                return found->second;
             },
             [&](const FunctionCall& call) -> ExprPtr {
                 std::vector<ExprPtr> args;
@@ -274,7 +270,7 @@ ExprPtr substitute_impl(
                     def.delayed);
             },
             [&](const auto&) -> ExprPtr {
-                return clone_expr(expr);
+                return expr;
             }},
         *expr);
 }

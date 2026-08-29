@@ -73,11 +73,30 @@ Owns:
 - expression node representation
 - literal/value representation visible to kernel semantics
 - structural helpers
+- constructed-expression immutability through `ExprPtr`
+- structural equality, hashing, and deterministic structural ordering
 
 Must not own:
 
 - evaluator policy
 - host deployment concerns
+
+Current expression contract:
+
+- `Expr` is the kernel semantic value representation.
+- `ExprPtr` points to `const Expr`; callers must build replacement expressions
+  instead of mutating existing nodes.
+- `structural_equal` compares stored expression structure and values, including
+  function heads and ordered arguments, lists, rules, assignments, and function
+  definitions. It is distinct from mathematical equivalence.
+- `structural_hash` is expression-owned and must satisfy
+  `structural_equal(a, b) => structural_hash(a) == structural_hash(b)`.
+- `structural_less`/`ExprStructuralLess` provide deterministic structural
+  ordering for canonicalization and containers. The ordering is independent of
+  `to_string`/`to_string_raw` and is not mathematical comparison.
+- rendering functions are presentation helpers, not semantic keys.
+- future hash-consing, cached hashes, or DAG sharing may build on this
+  contract, but there is no global expression intern table today.
 
 ### `eval`
 

@@ -3,6 +3,7 @@
 
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
+#include "expr/ExprStructural.hpp"
 #include "normalizer/Normalizer.hpp"
 
 #include <array>
@@ -589,7 +590,7 @@ void AssumptionStore::assume_comparison(const FunctionCall& comparison) {
         throw_invalid_form("Assumptions only support binary comparisons.");
     }
 
-    exact_true_forms_.insert(to_string(make_expr<FunctionCall>(comparison.head, comparison.args)));
+    exact_true_forms_.insert(make_expr<FunctionCall>(comparison.head, comparison.args));
 
     const auto* symbol = std::get_if<Symbol>(&*comparison.args[0]);
     if (symbol == nullptr || !is_zero_literal(comparison.args[1])) {
@@ -763,7 +764,7 @@ std::optional<bool> AssumptionStore::evaluate_comparison(
         return std::nullopt;
     }
 
-    if (exact_true_forms_.contains(to_string(make_expr<FunctionCall>(head, std::vector<ExprPtr>{left, right})))) {
+    if (exact_true_forms_.contains(make_expr<FunctionCall>(head, std::vector<ExprPtr>{left, right}))) {
         return true;
     }
 

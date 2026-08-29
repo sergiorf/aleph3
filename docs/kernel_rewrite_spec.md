@@ -140,7 +140,11 @@ Still intentionally unsupported:
 
 ### Equality Model
 
-`kernel::structurally_equal(...)` compares expressions structurally across:
+Rewrite uses the expression-owned structural identity APIs. The compatibility
+entrypoint `kernel::structurally_equal(...)` delegates to `aleph3::structural_equal(...)`;
+there must not be a second recursive equality implementation in rewrite.
+
+Structural equality compares expressions structurally across:
 
 - atoms
 - function calls
@@ -150,7 +154,10 @@ Still intentionally unsupported:
 - lists
 
 This is the equality contract used by structural matching and by repeated
-named-pattern consistency checks.
+named-pattern consistency checks. It is not mathematical equivalence, and it
+does not rely on rendered expression text. Rewrite buckets and deterministic
+ordering should use `ExprHash`, `ExprEqual`, or `ExprStructuralLess` when they
+need structural identity, hashing, or ordering.
 
 ### Traversal Semantics
 

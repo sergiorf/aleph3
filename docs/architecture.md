@@ -77,6 +77,42 @@ a source span. Lowering produces the kernel shape `Plus[x, Times[-1, 2]]`.
 The source span helps the SDK report errors; the normalized heads tell the
 kernel what the expression means.
 
+## Expression Identity
+
+Kernel expressions are persistent immutable values. `ExprPtr` is a shared
+pointer to a const `Expr`, and transformations inspect existing trees before
+constructing new expression nodes. Reusing an unchanged child pointer is
+therefore a value-sharing optimization, not an opportunity to mutate shared
+state.
+
+Structural identity is owned by the expression layer. `structural_equal`
+compares expression shape and stored values; it is not mathematical
+equivalence. For example, `x + x` and `2*x` are structurally different unless
+normalization or simplification has already produced the same representation.
+
+`structural_hash` follows the same tree shape and value contract as structural
+equality. The required invariant is:
+
+```text
+structural_equal(a, b) => structural_hash(a) == structural_hash(b)
+```
+
+The hash is not a uniqueness guarantee, and callers must still use structural
+equality when collisions matter. `structural_less` and `ExprStructuralLess`
+provide deterministic structure-based ordering for canonicalization and
+ordered containers. This ordering is independent of rendering and is not
+mathematical `<`.
+
+Printing is presentation. `to_string` and `to_string_raw` may be used for
+display, diagnostics, logs, and explicit serialization surfaces, but semantic
+identity, deduplication, canonical ordering, and equality decisions must use
+the expression-owned structural APIs instead.
+
+The immutable expression contract is compatible with future hash-consing,
+interning, cached hashes, and DAG sharing, but Aleph3 does not currently
+maintain a global expression intern table or require pointer identity for
+semantic equality.
+
 ## Layer Responsibilities
 
 ### Kernel

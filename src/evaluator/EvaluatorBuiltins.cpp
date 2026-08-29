@@ -8,8 +8,11 @@
 #include "evaluator/EvaluatorSemantics.hpp"
 #include "evaluator/SimplificationRules.hpp"
 #include "expr/ExprUtils.hpp"
+#include "expr/ExprStructural.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "kernel/FunctionRegistry.hpp"
+#include "normalizer/Normalizer.hpp"
+#include "parser/Parser.hpp"
 #include "util/Logging.hpp"
 
 #include <algorithm>
@@ -18,8 +21,10 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <utility>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace aleph3 {
 
@@ -105,71 +110,93 @@ const std::unordered_map<std::string, std::function<bool(double, double)>>& comp
     return value;
 }
 
-const std::unordered_map<std::string, std::unordered_map<std::string, ExprPtr>>& known_symbolic_unary() {
-    static const std::unordered_map<std::string, std::unordered_map<std::string, ExprPtr>> value = {
+using KnownUnaryValues = std::unordered_map<std::string, std::vector<std::pair<ExprPtr, ExprPtr>>>;
+
+ExprPtr known_unary_key(std::string_view source) {
+    return normalize_expr(parse_expression(std::string(source)));
+}
+
+const KnownUnaryValues& known_symbolic_unary() {
+    static const KnownUnaryValues value = {
         {"Sin", {
-            {"0", make_expr<Number>(0.0)},
-            {"Pi", make_expr<Number>(0.0)},
-            {"2*Pi", make_expr<Number>(0.0)},
-            {"-1*Pi", make_expr<Number>(0.0)},
-            {"Pi/2", make_expr<Number>(1.0)},
-            {"-1*Pi/2", make_expr<Number>(-1.0)},
-            {"Pi/4", make_expr<Number>(std::sqrt(2.0) / 2.0)},
-            {"-1*Pi/4", make_expr<Number>(-std::sqrt(2.0) / 2.0)},
-            {"3*Pi/2", make_expr<Number>(-1.0)},
-            {"-1*3*Pi/2", make_expr<Number>(1.0)}
+            {known_unary_key("0"), make_expr<Number>(0.0)},
+            {known_unary_key("Pi"), make_expr<Number>(0.0)},
+            {known_unary_key("2*Pi"), make_expr<Number>(0.0)},
+            {known_unary_key("-1*Pi"), make_expr<Number>(0.0)},
+            {known_unary_key("Pi/2"), make_expr<Number>(1.0)},
+            {known_unary_key("-1*Pi/2"), make_expr<Number>(-1.0)},
+            {known_unary_key("Pi/4"), make_expr<Number>(std::sqrt(2.0) / 2.0)},
+            {known_unary_key("-1*Pi/4"), make_expr<Number>(-std::sqrt(2.0) / 2.0)},
+            {known_unary_key("3*Pi/2"), make_expr<Number>(-1.0)},
+            {known_unary_key("-1*3*Pi/2"), make_expr<Number>(1.0)}
         }},
         {"Cos", {
-            {"0", make_expr<Number>(1.0)},
-            {"Pi", make_expr<Number>(-1.0)},
-            {"2*Pi", make_expr<Number>(1.0)},
-            {"-1*Pi", make_expr<Number>(-1.0)},
-            {"Pi/2", make_expr<Number>(0.0)},
-            {"-1*Pi/2", make_expr<Number>(0.0)},
-            {"Pi/4", make_expr<Number>(std::sqrt(2.0) / 2.0)},
-            {"-1*Pi/4", make_expr<Number>(std::sqrt(2.0) / 2.0)},
-            {"3*Pi/2", make_expr<Number>(0.0)},
-            {"-1*3*Pi/2", make_expr<Number>(0.0)}
+            {known_unary_key("0"), make_expr<Number>(1.0)},
+            {known_unary_key("Pi"), make_expr<Number>(-1.0)},
+            {known_unary_key("2*Pi"), make_expr<Number>(1.0)},
+            {known_unary_key("-1*Pi"), make_expr<Number>(-1.0)},
+            {known_unary_key("Pi/2"), make_expr<Number>(0.0)},
+            {known_unary_key("-1*Pi/2"), make_expr<Number>(0.0)},
+            {known_unary_key("Pi/4"), make_expr<Number>(std::sqrt(2.0) / 2.0)},
+            {known_unary_key("-1*Pi/4"), make_expr<Number>(std::sqrt(2.0) / 2.0)},
+            {known_unary_key("3*Pi/2"), make_expr<Number>(0.0)},
+            {known_unary_key("-1*3*Pi/2"), make_expr<Number>(0.0)}
         }},
         {"Tan", {
-            {"0", make_expr<Number>(0.0)},
-            {"Pi", make_expr<Number>(0.0)},
-            {"2*Pi", make_expr<Number>(0.0)},
-            {"-1*Pi", make_expr<Number>(0.0)},
-            {"Pi/4", make_expr<Number>(1.0)},
-            {"-1*Pi/4", make_expr<Number>(-1.0)},
-            {"Pi/6", make_expr<Number>(std::tan(PI / 6))},
-            {"-1*Pi/6", make_expr<Number>(std::tan(-PI / 6))},
-            {"Pi/3", make_expr<Number>(std::tan(PI / 3))},
-            {"-1*Pi/3", make_expr<Number>(std::tan(-PI / 3))}
+            {known_unary_key("0"), make_expr<Number>(0.0)},
+            {known_unary_key("Pi"), make_expr<Number>(0.0)},
+            {known_unary_key("2*Pi"), make_expr<Number>(0.0)},
+            {known_unary_key("-1*Pi"), make_expr<Number>(0.0)},
+            {known_unary_key("Pi/4"), make_expr<Number>(1.0)},
+            {known_unary_key("-1*Pi/4"), make_expr<Number>(-1.0)},
+            {known_unary_key("Pi/6"), make_expr<Number>(std::tan(PI / 6))},
+            {known_unary_key("-1*Pi/6"), make_expr<Number>(std::tan(-PI / 6))},
+            {known_unary_key("Pi/3"), make_expr<Number>(std::tan(PI / 3))},
+            {known_unary_key("-1*Pi/3"), make_expr<Number>(std::tan(-PI / 3))}
         }},
         {"Sinc", {
-            {"0", make_expr<Number>(1.0)},
-            {"Pi", make_expr<Number>(std::sin(PI) / PI)},
-            {"-1*Pi", make_expr<Number>(std::sin(-PI) / -PI)},
-            {"2*Pi", make_expr<Number>(std::sin(2 * PI) / (2 * PI))},
-            {"-1*2*Pi", make_expr<Number>(std::sin(-2 * PI) / (-2 * PI))}
+            {known_unary_key("0"), make_expr<Number>(1.0)},
+            {known_unary_key("Pi"), make_expr<Number>(std::sin(PI) / PI)},
+            {known_unary_key("-1*Pi"), make_expr<Number>(std::sin(-PI) / -PI)},
+            {known_unary_key("2*Pi"), make_expr<Number>(std::sin(2 * PI) / (2 * PI))},
+            {known_unary_key("-1*2*Pi"), make_expr<Number>(std::sin(-2 * PI) / (-2 * PI))}
         }},
         {"Cot", {
-            {"0", make_expr<Infinity>()},
-            {"Pi/4", make_expr<Number>(1.0)},
-            {"-1*Pi/4", make_expr<Number>(-1.0)},
-            {"Pi/2", make_expr<Number>(0.0)},
-            {"-1*Pi/2", make_expr<Number>(0.0)},
-            {"Pi", make_expr<Infinity>()},
-            {"-1*Pi", make_expr<Infinity>()}
+            {known_unary_key("0"), make_expr<Infinity>()},
+            {known_unary_key("Pi/4"), make_expr<Number>(1.0)},
+            {known_unary_key("-1*Pi/4"), make_expr<Number>(-1.0)},
+            {known_unary_key("Pi/2"), make_expr<Number>(0.0)},
+            {known_unary_key("-1*Pi/2"), make_expr<Number>(0.0)},
+            {known_unary_key("Pi"), make_expr<Infinity>()},
+            {known_unary_key("-1*Pi"), make_expr<Infinity>()}
         }},
         {"Csc", {
-            {"0", make_expr<Infinity>()},
-            {"Pi/2", make_expr<Number>(1.0)},
-            {"-1*Pi/2", make_expr<Number>(-1.0)},
-            {"Pi", make_expr<Infinity>()},
-            {"-1*Pi", make_expr<Infinity>()},
-            {"Pi/6", make_expr<Number>(2.0)},
-            {"-1*Pi/6", make_expr<Number>(-2.0)}
+            {known_unary_key("0"), make_expr<Infinity>()},
+            {known_unary_key("Pi/2"), make_expr<Number>(1.0)},
+            {known_unary_key("-1*Pi/2"), make_expr<Number>(-1.0)},
+            {known_unary_key("Pi"), make_expr<Infinity>()},
+            {known_unary_key("-1*Pi"), make_expr<Infinity>()},
+            {known_unary_key("Pi/6"), make_expr<Number>(2.0)},
+            {known_unary_key("-1*Pi/6"), make_expr<Number>(-2.0)}
         }}
     };
     return value;
+}
+
+ExprPtr find_known_symbolic_unary_value(const std::string& head, const ExprPtr& arg) {
+    const auto& known_values = known_symbolic_unary();
+    const auto known_func = known_values.find(head);
+    if (known_func == known_values.end()) {
+        return nullptr;
+    }
+
+    const auto normalized_arg = normalize_expr(arg);
+    for (const auto& [known_arg, value] : known_func->second) {
+        if (structural_equal(known_arg, normalized_arg)) {
+            return value;
+        }
+    }
+    return nullptr;
 }
 
 const std::unordered_map<std::string, std::function<bool(double)>>& unary_real_domains() {
@@ -279,14 +306,8 @@ ExprPtr evaluate_builtin_unary(const FunctionCall& func, EvaluationContext& ctx)
         }
     }
 
-    const auto& known_values = known_symbolic_unary();
-    auto known_func = known_values.find(func.head);
-    if (known_func != known_values.end()) {
-        std::string key = expr_to_key(arg_eval);
-        auto val_it = known_func->second.find(key);
-        if (val_it != known_func->second.end()) {
-            return val_it->second;
-        }
+    if (auto known_value = find_known_symbolic_unary_value(func.head, arg_eval)) {
+        return known_value;
     }
 
     if (std::holds_alternative<Symbol>(*arg_eval)) {

@@ -219,6 +219,7 @@ if(BUILD_TESTING)
     if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
         file(GLOB KERNEL_TEST_ROOT CONFIGURE_DEPENDS
             "tests/ExpandTests.cpp"
+            "tests/ExprStructuralTests.cpp"
             "tests/ExprPrettyPrintTests.cpp"
             "tests/FullFormTests.cpp"
             "tests/GlobalTestSetup.cpp"

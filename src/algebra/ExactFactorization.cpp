@@ -4,6 +4,7 @@
 #include "algebra/ExactPolynomialOps.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
+#include "expr/ExprStructural.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -365,7 +366,7 @@ std::vector<ExprPtr> factor_univariate_exact_polynomial(
             const long double right_value =
                 static_cast<long double>(right.first.numerator) / right.first.denominator;
             if (left_value != right_value) return left_value > right_value;
-            return to_string(*left.second) < to_string(*right.second);
+            return structural_less(left.second, right.second);
         });
 
     for (const auto& [_, factor] : linear_factors) factors.push_back(factor);

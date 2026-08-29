@@ -588,11 +588,4 @@ ExprPtr evaluate(const ExprPtr& expr, EvaluationContext& ctx) {
     return evaluate_impl(norm, ctx, visited);
 }
 
-std::string expr_to_key(const ExprPtr& expr) {
-    auto norm = normalize_expr(expr);
-    std::string s = to_string_raw(norm);
-    s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
-    return s;
-}
-
 }  // namespace aleph3

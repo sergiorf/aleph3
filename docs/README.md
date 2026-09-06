@@ -45,7 +45,7 @@ architecture.
 | Assumptions | [Assumptions specification](kernel_assumptions_spec.md) |
 | Registration | [Registration lifecycle](kernel_registration_lifecycle_spec.md) |
 | Quality | [Feature development workflow](feature_development_workflow.md), [contract test matrix](contract_test_matrix.md), [header documentation guideline](header_documentation_guideline.md) |
-| Build and tests | [Build and targets](sdk/build_and_targets.md), [testing strategy](sdk/testing_strategy.md) |
+| Build and tests | [Build and targets](sdk/build_and_targets.md), [testing strategy](sdk/testing_strategy.md), [Windows Codex build environment](agents/windows-codex-build.md) |
 
 ## Document Types
 

@@ -258,8 +258,8 @@ the cache from a fresh session.
 ## BFF And Internal Engine Service
 
 The **BFF** is the ASP.NET Core backend-for-frontend that owns public browser
-routes under `/api/*` in the Web MVP path. It validates public request shape
-and delegates computation to the internal C++ engine service.
+routes under `/api/*` in the paused Web MVP path. It validates public request
+shape and delegates computation to the internal C++ engine service.
 
 The **internal engine service** owns symbolic sessions over `/internal/*`.
 It uses `session::Session`, the kernel, and registered packs. It does not own

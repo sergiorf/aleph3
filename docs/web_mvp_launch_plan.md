@@ -1,5 +1,17 @@
 # Aleph3 Web MVP Launch Plan
 
+## Status
+
+This plan is paused as the active short-term launch path. The near-term product
+focus is now the Windows-first local notebook MVP tracked in
+[Aleph3 Unified Plan](aleph3_unified_plan.md) and specified by
+[Notebook MVP Design](notebook_mvp_design.md).
+
+The web work remains current repository context for the existing React/Vite
+frontend, ASP.NET Core BFF, internal C++ engine service, Docker Compose graph,
+and transitional web API coverage. Resume this plan only after an explicit web
+roadmap decision.
+
 ## Purpose
 
 This plan defines the first web-accessible Aleph3 MVP. It is limited to

@@ -23,12 +23,13 @@ core. The SDK is the stable host-embedding boundary, the CLI is the permanent
 scripting and diagnostic surface, the session is shared interactive
 infrastructure, and math grows through registered packs.
 
-The first usable product is the local symbolic notebook: a small, coherent
-environment for exact symbolic work, bounded numerical approximation, session
-state, examples, and deterministic diagnostics. The first DSP pack follows
-that notebook foundation and uses shared kernel contracts rather than moving
-DSP-specific semantics into the kernel. Broader symbolic mathematics,
-accelerated DSP, and advanced transform work remain later tranches.
+The first usable product is the Windows-first local symbolic notebook: a
+small, coherent environment for exact symbolic work, bounded numerical
+approximation, session state, examples, and deterministic diagnostics. The
+first DSP pack follows that notebook foundation and uses shared kernel
+contracts rather than moving DSP-specific semantics into the kernel. Broader
+symbolic mathematics, accelerated DSP, advanced transform work, and hosted web
+product work remain later tranches.
 
 The near-term product claim must remain narrower than a general-purpose CAS:
 today's strongest surfaces are the SDK, CLI, session, and a bounded symbolic
@@ -38,6 +39,11 @@ remain planned work.
 The current Wolfram-like syntax is a frontend rather than the product identity.
 Parser and printer work must keep syntax separate from kernel semantics so a
 future Aleph3-native frontend remains possible.
+
+The earlier Web MVP work is paused as the active short-term launch path. Its
+BFF, React/Vite frontend, internal engine service, and Compose documentation
+remain useful transitional assets, but near-term product planning targets the
+local notebook MVP.
 
 Commercial and repository decisions are governed by
 [IP and Repository Strategy](ip_and_repo_strategy.md). The free or
@@ -70,8 +76,9 @@ services receive substantial investment.
 3. Fill bounded numerical and finite-list gaps that make the notebook useful
    for sampled data and exact-or-approximate exploration without weakening the
    exact symbolic default.
-4. Choose a desktop toolkit from measured spikes and deliver the first visible
-   notebook create/edit/evaluate/display/save/reopen/`Run All` loop.
+4. Choose a Windows-first desktop toolkit from measured spikes and deliver the
+   first visible notebook create/edit/evaluate/display/save/reopen/`Run All`
+   loop.
 5. Add notebook cancellation, restart or reset, definition clearing flows,
    discoverability, example gallery, packaging, and interactive budget
    enforcement around that loop.
@@ -205,14 +212,15 @@ assumption, domain, and unsupported-behavior contracts that make the smaller
 system reliable.
 
 This roadmap records the remaining engine gaps identified against the desired
-CAS checklist. It is not part of the Web MVP launch scope, and it must not
-cause the browser, BFF, CLI, session, SDK, or packs to invent private symbolic
-semantics. Current foundations are documented in the focused specifications,
-architecture guide, and user manual rather than repeated here as roadmap
-items. Each item below needs a focused specification before implementation
-unless an existing specification already owns the contract.
+CAS checklist. It is not part of the local notebook MVP launch scope, and it
+must not cause the notebook GUI, browser, BFF, CLI, session, SDK, or packs to
+invent private symbolic semantics. Current foundations are documented in the
+focused specifications, architecture guide, and user manual rather than
+repeated here as roadmap items. Each item below needs a focused specification
+before implementation unless an existing specification already owns the
+contract.
 
-Near-term engine gaps after the Web MVP:
+Near-term engine gaps after the local notebook MVP:
 
 - extend the internal domain-restriction carrier beyond the first
   rational-expression denominator metadata slice to other transformations that
@@ -524,9 +532,9 @@ Use this order unless a regression or dependency changes it:
 6. Continue exact algebra hardening required by calculus, bounded solving,
    finite summation, future DSP work, and the CAS engine roadmap gap-closure
    tranche.
-7. After the Web MVP is stable, continue the CAS engine gap-closure sequence
-   with broader domain-restriction consumers before broad solving, integration,
-   or validation.
+7. After the local notebook MVP is stable, continue the CAS engine gap-closure
+   sequence with broader domain-restriction consumers before broad solving,
+   integration, or validation.
 8. Specify the focused DSP kernel prerequisite slice, including piecewise,
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.

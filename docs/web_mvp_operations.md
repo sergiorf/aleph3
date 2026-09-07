@@ -1,8 +1,10 @@
 # Web MVP Operations
 
 This page collects local development, service, port, Docker Compose, Traefik,
-and smoke-test details for the current Web MVP slice. Product scope and
-sequencing live in the [Web MVP Launch Plan](web_mvp_launch_plan.md).
+and smoke-test details for the existing Web MVP slice. That web path is paused
+as the active short-term product focus; current product sequencing lives in
+the [Aleph3 Unified Plan](aleph3_unified_plan.md), and web scope remains in
+the [Web MVP Launch Plan](web_mvp_launch_plan.md).
 
 ## Service Path
 

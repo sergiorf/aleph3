@@ -29,7 +29,7 @@ Related documents:
 | `aleph3_web_api` | library | Experimental transport-independent web API core over anonymous clients and shared sessions |
 | `aleph3_web_api_server` | executable | Minimal smoke-check executable for the web API core; not a network listener |
 | `aleph3_engine_api` | library | Internal engine API core for `/internal/*` session creation, evaluation, and reset |
-| `aleph3_engine_service` | executable | Internal HTTP engine listener used by the BFF in the Web MVP service graph |
+| `aleph3_engine_service` | executable | Internal HTTP engine listener used by the BFF in the paused Web MVP service graph |
 | `aleph3_sdk` | library | Public SDK facade over kernel-backed execution |
 | `aleph3_cli` | executable | Thin SDK tooling CLI for manual parser/validator/runtime checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |

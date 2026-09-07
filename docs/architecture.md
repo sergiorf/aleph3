@@ -7,10 +7,12 @@ shape, ownership boundaries, execution paths, and dependency rules. Detailed
 behavior belongs in the focused kernel and SDK specifications linked from the
 [documentation index](README.md).
 
-Aleph3 is a symbolic engine moving toward a lightweight, local-first notebook
-product. The shared kernel is the product-critical semantic asset. The CLI,
-SDK, stateful session layer, headless notebook core, internal engine service,
-and first web evaluator slice are current consumers of that same kernel.
+Aleph3 is a symbolic engine moving toward a lightweight, Windows-first local
+notebook product. The shared kernel is the product-critical semantic asset.
+The CLI, SDK, stateful session layer, headless notebook core, internal engine
+service, and first web evaluator slice are current consumers of that same
+kernel. The web product path is paused while near-term product work targets
+the local notebook MVP.
 
 ## System At A Glance
 
@@ -191,12 +193,12 @@ internal web engine service, and the transitional web API core. Notebook and
 IDE consumers build on this boundary rather than owning evaluator state
 themselves.
 
-The Web MVP public backend is the ASP.NET Core BFF. Browser traffic reaches
-only `/api/*` on the BFF, which validates product-facing requests and delegates
-computation to the internal C++ engine service. The engine service owns
-session lifecycle and symbolic evaluation over `/internal/*`; it does not own
-browser cookies, notebook ownership, Postgres product persistence, examples,
-or future account policy.
+The paused Web MVP public backend is the ASP.NET Core BFF. Browser traffic
+reaches only `/api/*` on the BFF, which validates product-facing requests and
+delegates computation to the internal C++ engine service. The engine service
+owns session lifecycle and symbolic evaluation over `/internal/*`; it does not
+own browser cookies, notebook ownership, Postgres product persistence,
+examples, or future account policy.
 
 ```mermaid
 sequenceDiagram
@@ -426,8 +428,8 @@ flowchart TD
 ```
 
 For current implementation sequencing, see the
-[Web MVP Launch Plan](web_mvp_launch_plan.md) and the longer-term
 [Unified Plan](aleph3_unified_plan.md). For vocabulary and worked examples,
 see [Concepts and Terminology](manual/concepts-and-terminology.md). The
 notebook product contract and shipped headless slices are in the
-[Notebook MVP Design](notebook_mvp_design.md).
+[Notebook MVP Design](notebook_mvp_design.md). The paused web path remains
+documented in [Web MVP Launch Plan](web_mvp_launch_plan.md).

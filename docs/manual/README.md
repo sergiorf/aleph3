@@ -43,8 +43,9 @@ in the symbolic CLI REPL started with `aleph3_cli repl`. Output shown after
 Aleph3 already provides exact arithmetic, symbolic fallback, persistent
 session definitions, bounded rewriting, assumptions, polynomial algebra,
 focused differentiation, a headless notebook core, and the first web
-evaluation path. It is not yet a broad general-purpose CAS. Unsupported forms
-are preserved or rejected according to documented contracts rather than
+evaluation path. The near-term product focus is the Windows-first local
+notebook. Aleph3 is not yet a broad general-purpose CAS. Unsupported forms are
+preserved or rejected according to documented contracts rather than
 approximated silently.
 
 The repository also contains a headless notebook core with versioned JSON

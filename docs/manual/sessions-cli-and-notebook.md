@@ -129,14 +129,15 @@ old file using the supported platform API. A failed validation, write, or
 replacement leaves the previous valid destination intact. Autosave, recovery
 journals, and migrations are not implemented.
 
-## Web API Foundation
+## Paused Web API Foundation
 
 The current build also includes an experimental `aleph3_web_api` library. It
-is a transport-independent API core that predates the current Web MVP BFF
-boundary. It is now transitional contract evidence rather than the public
-browser backend. The current web slice includes an internal C++ engine HTTP
-service, an ASP.NET Core BFF that owns public `/api/*` browser routes, a
-React/Vite evaluator surface, and a Docker Compose graph through Traefik.
+is a transport-independent API core that predates the Web MVP BFF boundary.
+It is now transitional contract evidence rather than the active product path
+or public browser backend. The existing web slice includes an internal C++
+engine HTTP service, an ASP.NET Core BFF that owns public `/api/*` browser
+routes, a React/Vite evaluator surface, and a Docker Compose graph through
+Traefik.
 
 The API core still has a notebook store boundary; ordinary tests use an
 in-memory store, and cloud-oriented builds can enable the Postgres store. The
@@ -228,7 +229,7 @@ client, expire after the configured idle TTL, and enforce a per-client
 active-session limit. Notebook documents are persisted through the web
 notebook store boundary. Production web persistence is Postgres-backed when the
 backend is built with Postgres support and configured with
-`ALEPH3_DATABASE_URL`. In the Web MVP architecture, BFF-owned Postgres
+`ALEPH3_DATABASE_URL`. In the paused Web MVP architecture, BFF-owned Postgres
 persistence replaces this C++ product-store path in a later slice.
 
 Notebook endpoints persist versioned notebook JSON and validate it through the
@@ -311,9 +312,10 @@ the supported subset covered by existing tests: exact arithmetic, assignments,
 algebra, assumptions, rewriting, focused differentiation, exact matrices, and
 one deliberate parse diagnostic.
 
-## Phase 6a Web Evaluation Loop
+## Paused Phase 6a Web Evaluation Loop
 
-The current browser-facing web slice is deliberately narrow:
+The existing browser-facing web slice is deliberately narrow and is paused as
+the active near-term product path:
 
 ```text
 browser -> BFF /api/* -> internal engine /internal/* -> session::Session
@@ -368,8 +370,9 @@ No full graphical notebook application is included in the current build. The
 Phase 6a browser surface is a single evaluator loop, while the delivered
 headless core and JSON format remain product foundations rather than a claim
 that notebook persistence, examples, completion/help UI, or `Run All` have
-shipped in the browser. Until the full web notebook loop ships, `aleph3_cli
-repl` remains the runnable local interactive fallback.
+shipped in the browser. The near-term product path is now the Windows-first
+local graphical notebook; until that ships, `aleph3_cli repl` remains the
+runnable local interactive fallback.
 
 The planned application remains a thin consumer: the GUI owns cells,
 presentation, and file interaction; the session owns interactive state; the

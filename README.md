@@ -67,10 +67,12 @@ Current implemented surfaces include:
   `Run All` lifecycle behavior;
 - an internal C++ engine service and transitional web API core over shared
   sessions;
-- an ASP.NET Core BFF skeleton and React/Vite frontend slice for the Web MVP.
+- an ASP.NET Core BFF skeleton and React/Vite frontend slice for the paused
+  Web MVP.
 
-The CLI is currently the fastest way to try the engine locally. The web layer
-is being assembled around this path:
+The CLI is currently the fastest way to try the engine locally. The near-term
+product path is the Windows-first local notebook over the existing notebook
+core and session layer. The paused web layer is assembled around this path:
 
 ```text
 React/Vite frontend -> ASP.NET Core BFF /api/* -> internal C++ engine /internal/* -> session::Session -> kernel + packs
@@ -160,12 +162,12 @@ The SDK still uses the kernel in this configuration. The option disables the
 broader symbolic product surface and its tests; it does not introduce a
 separate runtime.
 
-## Web MVP Slice
+## Paused Web MVP Slice
 
-The current web implementation uses ASP.NET Core for the BFF and React/Vite
-for the browser frontend. The C++ engine service owns symbolic sessions and
-delegates computation to the same session, kernel, and pack code used by the
-CLI.
+The existing web implementation uses ASP.NET Core for the BFF and React/Vite
+for the browser frontend. It is paused as the active short-term product path.
+The C++ engine service owns symbolic sessions and delegates computation to the
+same session, kernel, and pack code used by the CLI.
 
 Build and smoke-test the internal engine service:
 
@@ -189,8 +191,8 @@ npm run dev
 
 Detailed service endpoints, ports, Docker Compose topology, Traefik routing,
 and smoke-test procedures live in
-[Web MVP Operations](docs/web_mvp_operations.md). Launch scope and sequencing
-live in the [Web MVP Launch Plan](docs/web_mvp_launch_plan.md).
+[Web MVP Operations](docs/web_mvp_operations.md). Paused web scope lives in
+the [Web MVP Launch Plan](docs/web_mvp_launch_plan.md).
 
 ## Architecture At A Glance
 
@@ -206,9 +208,9 @@ live in the [Web MVP Launch Plan](docs/web_mvp_launch_plan.md).
 - `aleph3_cli` is the local interactive and scripting workbench.
 - `aleph3_notebook_core` owns the current headless document model,
   persistence, and clean `Run All` lifecycle.
-- The web product path uses React/Vite, an ASP.NET Core BFF, and an internal
-  C++ engine service; browser and BFF code must not add private symbolic
-  semantics.
+- The paused web product path uses React/Vite, an ASP.NET Core BFF, and an
+  internal C++ engine service; browser and BFF code must not add private
+  symbolic semantics.
 
 `aleph3_symbolic` remains a compatibility target name during migration; it is
 not a second semantic engine.
@@ -222,11 +224,12 @@ The strongest current surfaces are the kernel, CLI, SDK, sessions, focused
 algebra and calculus support, notebook core, and the first web evaluation
 path.
 
-The near-term product work is the Web MVP: a usable browser notebook backed by
-the shared semantic engine. Broader CAS features, richer notebook UX, calculus
-beyond the focused derivative subset, solving, plotting, arbitrary-precision
-expansion, DSP packs, and large compatibility claims remain future work unless
-documented as supported in the manual and specifications.
+The near-term product work is the Windows-first local notebook MVP: a usable
+graphical notebook backed by the shared semantic engine and existing notebook
+core. Broader CAS features, richer notebook UX, calculus beyond the focused
+derivative subset, solving, plotting, arbitrary-precision expansion, DSP
+packs, hosted web product work, and large compatibility claims remain future
+work unless documented as supported in the manual and specifications.
 
 GitHub Actions runs the `CI` workflow for pushes and pull requests targeting
 `main`. The workflow builds and runs the CTest suite on Ubuntu and Windows,
@@ -239,7 +242,9 @@ and checks changed C++ source/header formatting with `clang-format` on Ubuntu.
 - [Architecture](docs/architecture.md) - system shape and ownership
   boundaries.
 - [SDK Guide](docs/sdk/README.md) - embedding surface and SDK references.
-- [Web MVP Launch Plan](docs/web_mvp_launch_plan.md) - current web product
+- [Notebook MVP Design](docs/notebook_mvp_design.md) - local notebook product
+  contract and shipped headless slices.
+- [Web MVP Launch Plan](docs/web_mvp_launch_plan.md) - paused web product
   scope and sequencing.
 - [Unified Plan](docs/aleph3_unified_plan.md) - longer-term implementation
   roadmap.

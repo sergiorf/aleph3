@@ -19,13 +19,15 @@ headless document, `Run All`, JSON persistence, and cached-result clearing
 slices described below are implemented; the GUI and remaining behavior are
 planned rather than shipped.
 
-The MVP succeeds when a user can launch a local application, create and edit a
-document, evaluate supported symbolic input through one session, understand
-results or failures, save the document, reopen it, and run bundled examples.
+The MVP succeeds when a user can launch a Windows-first local application,
+create and edit a document, evaluate supported symbolic input through one
+session, understand results or failures, save the document, reopen it, and run
+bundled examples.
 
 The product name and GUI toolkit remain open. The first packaged distribution
 target is Windows-first unless the toolkit decision records a different
-measured result. The physical v1 encoding is bounded UTF-8 JSON.
+measured result. The physical v1 encoding is bounded UTF-8 JSON. The web
+notebook path is paused; this document owns the near-term product contract.
 
 ## Ownership
 

@@ -152,7 +152,9 @@ contracts rather than a floating-point-centered legacy path.
 Remaining work:
 
 - introduce or finish exact coefficient-ring abstractions and a documented
-  large-integer/overflow strategy;
+  large-integer/overflow strategy; use the
+  [integer limited-precision remediation plan](integer_limited_precision_plan.md)
+  as the current implementation plan for that work;
 - remove growth-facing dependence on `double` polynomial internals;
 - deepen exact multivariate division, GCD, and factorization only in that
   order, with explicit monomial ordering and canonical-form invariants;
@@ -568,8 +570,8 @@ Defer until an active milestone establishes the required contracts:
   linear/quadratic subset;
 - broad local-series, asymptotic-series, branch-analysis, analytic-continuation,
   and special-function expansion;
-- arbitrary-precision integer, rational, and big-float arithmetic beyond the
-  current checked exact coefficient strategy;
+- arbitrary-precision big-float arithmetic and broad numerical precision
+  semantics beyond the bounded exact integer/rational remediation plan;
 - broad numerical analysis, interval arithmetic, and arbitrary-precision
   transcendental evaluation;
 - plotting beyond a separately specified bounded data/display contract;

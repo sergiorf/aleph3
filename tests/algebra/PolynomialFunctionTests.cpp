@@ -453,6 +453,13 @@ TEST_CASE("Rational expression transformations reject unsupported and invalid in
     }
 
     try {
+        static_cast<void>(evaluate_source("Numerator[1.5*x]", ctx));
+        FAIL("Expected Numerator to reject decimal coefficients in the exact rational-expression path");
+    } catch (const EvaluatorError& ex) {
+        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+    }
+
+    try {
         static_cast<void>(evaluate_source("Cancel[(x*y + x)/(x + 1)]", ctx));
         FAIL("Expected Cancel to reject unsupported multivariate cancellation");
     } catch (const EvaluatorError& ex) {

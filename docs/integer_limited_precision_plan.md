@@ -146,6 +146,25 @@ slice 1 and record any unrelated failures.
 
 ### Slice 1: Precision Audit And Guard Rails
 
+Status: complete.
+
+Completion notes:
+
+- audited the current exact rational/equation paths that performed raw
+  `int64_t` arithmetic in parser lowering, evaluator arithmetic,
+  simplification, normalized-head rewrite helpers, transform helpers, exact
+  polynomial conversion, and expression rendering;
+- centralized bounded rational guard rails in the existing expression utility
+  layer for checked `int64_t` add/subtract/multiply/negation, safe
+  normalization across `INT64_MIN`, strict bounded integer conversion from
+  `Number`, exact rational arithmetic, and exact rational comparison;
+- updated exact polynomial coefficients to reuse the shared checked rational
+  guard rails while preserving the current `int64_t` representation;
+- added regression coverage for near-bound rational arithmetic overflow,
+  minimum-integer rational normalization, exact-only inexact coefficient
+  rejection, and session-level `runtime.exact_overflow` projection;
+- arbitrary-precision integers and rationals remain planned for later slices.
+
 Behavior delivered:
 
 - identify every current exact-integer and exact-rational path that casts

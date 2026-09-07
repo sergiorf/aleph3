@@ -56,7 +56,7 @@ namespace aleph3 {
 
         void add(int64_t n, int64_t d) {
             const auto [scaled_n, scaled_d] =
-                normalize_rational(numerator * d + n * denominator, denominator * d);
+                checked_rational_add(numerator, denominator, n, d);
             numerator = scaled_n;
             denominator = scaled_d;
         }
@@ -83,10 +83,11 @@ namespace aleph3 {
             return true;
         }
         if (const auto* number = std::get_if<Number>(expr.get())) {
-            if (std::floor(number->value) != number->value) {
+            auto integer = exact_int64_from_number(number->value);
+            if (!integer.has_value()) {
                 return false;
             }
-            numerator = static_cast<int64_t>(number->value);
+            numerator = *integer;
             denominator = 1;
             return true;
         }

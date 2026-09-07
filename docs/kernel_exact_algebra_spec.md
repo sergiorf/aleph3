@@ -53,6 +53,12 @@ least common multiple cannot fit in `int64_t`, the operation fails explicitly.
 No exact algebra operation may silently demote to `Number` or a `double`
 polynomial path to avoid overflow.
 
+Current guard rails centralize checked bounded rational arithmetic for the
+shared expression, simplification, rewrite, transform, and exact-polynomial
+paths. Normalization handles `INT64_MIN` boundaries without unchecked
+negation; values whose normalized positive denominator cannot fit in `int64_t`
+fail with exact overflow.
+
 ## Coefficient Abstractions
 
 `ExactCoefficient` is the only current exact polynomial coefficient

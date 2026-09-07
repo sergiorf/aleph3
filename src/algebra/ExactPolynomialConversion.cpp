@@ -4,7 +4,6 @@
 #include "expr/ExprUtils.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <functional>
 #include <limits>
 #include <map>
@@ -12,16 +11,6 @@
 namespace aleph3 {
 
 namespace {
-
-constexpr double EPSILON = 1e-10;
-
-bool is_near_integer(double value) {
-    return std::abs(value - std::round(value)) < EPSILON;
-}
-
-int64_t rounded_integer(double value) {
-    return static_cast<int64_t>(std::llround(value));
-}
 
 bool contains_variable(
     const std::vector<std::string>& variables,
@@ -71,11 +60,12 @@ ExactPolynomial expr_to_exact_polynomial_impl(
     std::function<ExactPolynomial(const ExprPtr&)> recur =
         [&](const ExprPtr& current) -> ExactPolynomial {
         if (const auto* number = std::get_if<Number>(&(*current))) {
-            if (!is_near_integer(number->value)) {
+            auto integer = exact_int64_from_number(number->value);
+            if (!integer.has_value()) {
                 throw_unsupported_construct(
                     "Exact polynomial conversion does not accept inexact numeric coefficients");
             }
-            return ExactPolynomial(ExactCoefficient(rounded_integer(number->value), 1));
+            return ExactPolynomial(ExactCoefficient(*integer, 1));
         }
         if (const auto* rational = std::get_if<Rational>(&(*current))) {
             return ExactPolynomial(
@@ -116,10 +106,10 @@ ExactPolynomial expr_to_exact_polynomial_impl(
             const auto& base = power->args[0];
             const auto& exponent = power->args[1];
             if (const auto* number_exponent = std::get_if<Number>(&(*exponent))) {
-                if (!is_near_integer(number_exponent->value) ||
-                    number_exponent->value < 0.0 ||
-                    number_exponent->value >
-                        static_cast<double>(std::numeric_limits<int>::max())) {
+                auto integer_exponent = exact_int64_from_number(number_exponent->value);
+                if (!integer_exponent.has_value() ||
+                    *integer_exponent < 0 ||
+                    *integer_exponent > std::numeric_limits<int>::max()) {
                     throw_invalid_form(
                         "expr_to_polynomial: Polynomial powers require non-negative "
                         "integer exponents");
@@ -132,7 +122,7 @@ ExactPolynomial expr_to_exact_polynomial_impl(
                             "` is not in the selected polynomial variable set");
                     }
                     std::map<std::string, int> exponents;
-                    exponents[symbol->name] = static_cast<int>(number_exponent->value);
+                    exponents[symbol->name] = static_cast<int>(*integer_exponent);
                     return ExactPolynomial({
                         {make_monomial(exponents), ExactCoefficient::one()}
                     });
@@ -140,7 +130,7 @@ ExactPolynomial expr_to_exact_polynomial_impl(
 
                 ExactPolynomial result(ExactCoefficient::one());
                 const ExactPolynomial base_polynomial = recur(base);
-                for (int i = 0; i < static_cast<int>(number_exponent->value); ++i) {
+                for (int i = 0; i < static_cast<int>(*integer_exponent); ++i) {
                     result = result * base_polynomial;
                 }
                 return result;
@@ -156,7 +146,9 @@ ExactPolynomial expr_to_exact_polynomial_impl(
 
 bool is_exact_polynomial_candidate(const ExprPtr& expr) {
     if (!expr) return false;
-    if (const auto* number = std::get_if<Number>(&(*expr))) return is_near_integer(number->value);
+    if (const auto* number = std::get_if<Number>(&(*expr))) {
+        return exact_int64_from_number(number->value).has_value();
+    }
     if (std::holds_alternative<Rational>(*expr)) return true;
     if (const auto* call = std::get_if<FunctionCall>(&(*expr))) {
         for (const auto& arg : call->args) {

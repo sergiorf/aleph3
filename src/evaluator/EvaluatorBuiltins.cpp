@@ -435,33 +435,32 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
         const auto& a = std::get<Rational>(*left);
         const auto& b = std::get<Rational>(*right);
         if (func.head == "Plus") {
-            auto [n, d] = normalize_rational(
-                a.numerator * b.denominator + b.numerator * a.denominator,
-                a.denominator * b.denominator);
+            auto [n, d] = checked_rational_add(
+                a.numerator, a.denominator, b.numerator, b.denominator);
             return make_expr<Rational>(n, d);
         }
         if (func.head == "Minus") {
-            auto [n, d] = normalize_rational(
-                a.numerator * b.denominator - b.numerator * a.denominator,
-                a.denominator * b.denominator);
+            auto [n, d] = checked_rational_subtract(
+                a.numerator, a.denominator, b.numerator, b.denominator);
             return make_expr<Rational>(n, d);
         }
         if (func.head == "Times") {
-            auto [n, d] = normalize_rational(a.numerator * b.numerator, a.denominator * b.denominator);
+            auto [n, d] = checked_rational_multiply(
+                a.numerator, a.denominator, b.numerator, b.denominator);
             return make_expr<Rational>(n, d);
         }
         if (func.head == "Divide") {
             if (b.numerator == 0) throw_domain_violation("Division by zero");
-            auto [n, d] = normalize_rational(a.numerator * b.denominator, a.denominator * b.numerator);
+            auto [n, d] = checked_rational_divide(
+                a.numerator, a.denominator, b.numerator, b.denominator);
             return make_expr<Rational>(n, d);
         }
     }
     if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Number>(*right)) {
         const auto& a = std::get<Rational>(*left);
         double b = std::get<Number>(*right).value;
-        if (std::floor(b) == b) {
-            auto b_rat = Rational(static_cast<int64_t>(b), 1);
-            return evaluate(make_fcall(func.head, {left, make_expr<Rational>(b_rat.numerator, b_rat.denominator)}), ctx);
+        if (auto integer = exact_int64_from_number(b)) {
+            return evaluate(make_fcall(func.head, {left, make_expr<Rational>(*integer, 1)}), ctx);
         }
         double a_val = static_cast<double>(a.numerator) / a.denominator;
         return make_expr<Number>(it->second(a_val, b));
@@ -469,9 +468,8 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
     if (std::holds_alternative<Number>(*left) && std::holds_alternative<Rational>(*right)) {
         double a = std::get<Number>(*left).value;
         const auto& b = std::get<Rational>(*right);
-        if (std::floor(a) == a) {
-            auto a_rat = Rational(static_cast<int64_t>(a), 1);
-            return evaluate(make_fcall(func.head, {make_expr<Rational>(a_rat.numerator, a_rat.denominator), right}), ctx);
+        if (auto integer = exact_int64_from_number(a)) {
+            return evaluate(make_fcall(func.head, {make_expr<Rational>(*integer, 1), right}), ctx);
         }
         double b_val = static_cast<double>(b.numerator) / b.denominator;
         return make_expr<Number>(it->second(a, b_val));
@@ -573,14 +571,16 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
             return make_expr<Boolean>(a.numerator == b.numerator && a.denominator == b.denominator);
         if (func.head == "NotEqual")
             return make_expr<Boolean>(a.numerator != b.numerator || a.denominator != b.denominator);
+        const int comparison = checked_rational_compare(
+            a.numerator, a.denominator, b.numerator, b.denominator);
         if (func.head == "Less")
-            return make_expr<Boolean>(a.numerator * b.denominator < b.numerator * a.denominator);
+            return make_expr<Boolean>(comparison < 0);
         if (func.head == "Greater")
-            return make_expr<Boolean>(a.numerator * b.denominator > b.numerator * a.denominator);
+            return make_expr<Boolean>(comparison > 0);
         if (func.head == "LessEqual")
-            return make_expr<Boolean>(a.numerator * b.denominator <= b.numerator * a.denominator);
+            return make_expr<Boolean>(comparison <= 0);
         if (func.head == "GreaterEqual")
-            return make_expr<Boolean>(a.numerator * b.denominator >= b.numerator * a.denominator);
+            return make_expr<Boolean>(comparison >= 0);
     }
     if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Number>(*right)) {
         const auto& a = std::get<Rational>(*left);

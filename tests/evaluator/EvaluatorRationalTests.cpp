@@ -3,6 +3,10 @@
 #include "parser/Parser.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
+
+#include <limits>
+#include <stdexcept>
 
 using namespace aleph3;
 
@@ -113,6 +117,30 @@ TEST_CASE("Evaluator: Rational edge cases", "[evaluator][rational][edge]") {
         CHECK(r.numerator == 2);
         CHECK(r.denominator == 5);
     }
+}
+
+TEST_CASE("Evaluator: Rational arithmetic reports overflow before wrapping", "[evaluator][rational][overflow]") {
+    EvaluationContext ctx;
+
+    REQUIRE_THROWS_AS(
+        evaluate(parse_expression("1/3037000500 + 1/3037000501"), ctx),
+        std::overflow_error);
+    REQUIRE_THROWS_AS(
+        evaluate(parse_expression("4611686018427387904/1 * 3/1"), ctx),
+        std::overflow_error);
+    REQUIRE_THROWS_AS(
+        evaluate(parse_expression("4611686018427387904/1 < 1/3"), ctx),
+        std::overflow_error);
+}
+
+TEST_CASE("Rational normalization handles int64 minimum boundaries", "[evaluator][rational][overflow]") {
+    const auto min = std::numeric_limits<int64_t>::min();
+    const auto normalized = normalize_rational(min, min);
+    REQUIRE(normalized.first == 1);
+    REQUIRE(normalized.second == 1);
+
+    REQUIRE_THROWS_AS(normalize_rational(1, min), std::overflow_error);
+    REQUIRE_THROWS_AS(normalize_rational(min, -1), std::overflow_error);
 }
 
 TEST_CASE("Evaluator: Rational reduction to lowest terms", "[evaluator][rational][reduction]") {

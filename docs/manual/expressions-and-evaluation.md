@@ -108,7 +108,10 @@ stable representation for equality, matching, and algorithms.
 ```
 
 Exact coefficients use checked 64-bit integer storage. Overflow is reported;
-arbitrary-precision integers are future work.
+arbitrary-precision integers are future work. Exact rational arithmetic is
+normalized with checked intermediate arithmetic, so oversized integer/rational
+intermediates fail with `kernel.exact_overflow` or its runtime projection
+rather than wrapping or being rounded through a machine real.
 
 Use decimals only when approximation is intended:
 

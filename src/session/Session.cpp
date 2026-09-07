@@ -14,6 +14,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 
 namespace aleph3::session {
 
@@ -299,6 +300,8 @@ SessionResult Session::execute(const SessionRequest& request) {
         result.diagnostics.push_back({failure.error().code, failure.what()});
     } catch (const EvaluatorError& error) {
         result.diagnostics.push_back({std::string(error.code_string()), error.what()});
+    } catch (const std::overflow_error& error) {
+        result.diagnostics.push_back({"runtime.exact_overflow", error.what()});
     } catch (const std::exception& error) {
         result.diagnostics.push_back({"session.parse_error", error.what()});
     }

@@ -25,15 +25,16 @@ Diagnostic make_error(std::string code, std::string message, SourceSpan span = {
 
 bool is_integer_number(const ExprPtr& expr, int64_t& out) {
     if (const auto* number = std::get_if<Number>(expr.get())) {
-        if (std::floor(number->value) == number->value) {
-            out = static_cast<int64_t>(number->value);
+        auto integer = exact_int64_from_number(number->value);
+        if (integer.has_value()) {
+            out = *integer;
             return true;
         }
     }
     if (const auto* call = std::get_if<FunctionCall>(expr.get());
         call != nullptr && call->head == "Negate" && call->args.size() == 1) {
         if (is_integer_number(call->args[0], out)) {
-            out = -out;
+            out = checked_int64_negate(out);
             return true;
         }
     }
@@ -45,8 +46,8 @@ ExprPtr make_exact_rational(int64_t numerator, int64_t denominator) {
         return numerator == 0 ? make_expr<Indeterminate>() : make_expr<Infinity>();
     }
     if (numerator < 0 && denominator < 0) {
-        numerator = -numerator;
-        denominator = -denominator;
+        numerator = checked_int64_negate(numerator);
+        denominator = checked_int64_negate(denominator);
     }
     return make_expr<Rational>(numerator, denominator);
 }

@@ -29,14 +29,11 @@ bool is_integral(double value) {
 
 std::optional<int64_t> exact_integer_value(const ExprPtr& expr) {
     if (const auto* number = std::get_if<Number>(expr.get())) {
-        if (!std::isfinite(number->value) || !is_integral(number->value)) {
+        auto integer = exact_int64_from_number(number->value);
+        if (!integer.has_value()) {
             return std::nullopt;
         }
-        if (number->value < static_cast<double>(std::numeric_limits<int64_t>::min()) ||
-            number->value > static_cast<double>(std::numeric_limits<int64_t>::max())) {
-            return std::nullopt;
-        }
-        return static_cast<int64_t>(number->value);
+        return *integer;
     }
 
     if (const auto* rational = std::get_if<Rational>(expr.get());
@@ -146,13 +143,14 @@ struct ScalarCoefficient {
     double approximate = 0.0;
 
     void add_number(double value) {
-        if (exact && is_integral(value)) {
-            auto [nn, dd] = normalize_rational(
-                numerator + static_cast<int64_t>(value) * denominator,
-                denominator);
-            numerator = nn;
-            denominator = dd;
-            return;
+        if (exact) {
+            auto integer = exact_int64_from_number(value);
+            if (integer.has_value()) {
+                auto [nn, dd] = checked_rational_add(numerator, denominator, *integer, 1);
+                numerator = nn;
+                denominator = dd;
+                return;
+            }
         }
 
         if (exact) {
@@ -164,9 +162,7 @@ struct ScalarCoefficient {
 
     void add_rational(int64_t num, int64_t den) {
         if (exact) {
-            auto [nn, dd] = normalize_rational(
-                numerator * den + num * denominator,
-                denominator * den);
+            auto [nn, dd] = checked_rational_add(numerator, denominator, num, den);
             numerator = nn;
             denominator = dd;
             return;
@@ -183,13 +179,14 @@ struct ScalarCoefficient {
     }
 
     void multiply_number(double value) {
-        if (exact && is_integral(value)) {
-            auto [nn, dd] = normalize_rational(
-                numerator * static_cast<int64_t>(value),
-                denominator);
-            numerator = nn;
-            denominator = dd;
-            return;
+        if (exact) {
+            auto integer = exact_int64_from_number(value);
+            if (integer.has_value()) {
+                auto [nn, dd] = checked_rational_multiply(numerator, denominator, *integer, 1);
+                numerator = nn;
+                denominator = dd;
+                return;
+            }
         }
 
         if (exact) {
@@ -201,7 +198,7 @@ struct ScalarCoefficient {
 
     void multiply_rational(int64_t num, int64_t den) {
         if (exact) {
-            auto [nn, dd] = normalize_rational(numerator * num, denominator * den);
+            auto [nn, dd] = checked_rational_multiply(numerator, denominator, num, den);
             numerator = nn;
             denominator = dd;
             return;
@@ -275,9 +272,11 @@ ExprPtr build_plus_bucket_expr(
                 rational_den = rational.denominator;
                 has_rational_result = true;
             } else {
-                auto [nn, dd] = normalize_rational(
-                    rational_num * rational.denominator + rational.numerator * rational_den,
-                    rational_den * rational.denominator);
+                auto [nn, dd] = checked_rational_add(
+                    rational_num,
+                    rational_den,
+                    rational.numerator,
+                    rational.denominator);
                 rational_num = nn;
                 rational_den = dd;
             }
@@ -291,10 +290,8 @@ ExprPtr build_plus_bucket_expr(
     rebuilt_terms.insert(rebuilt_terms.end(), symbolic_terms.begin(), symbolic_terms.end());
 
     if (has_rational_result) {
-        if (is_integral(numeric_result)) {
-            auto [nn, dd] = normalize_rational(
-                rational_num + static_cast<int64_t>(numeric_result) * rational_den,
-                rational_den);
+        if (auto integer = exact_int64_from_number(numeric_result)) {
+            auto [nn, dd] = checked_rational_add(rational_num, rational_den, *integer, 1);
             if (nn != 0) {
                 rebuilt_terms.push_back(
                     dd == 1 ? make_expr<Number>(static_cast<double>(nn))
@@ -360,9 +357,11 @@ ExprPtr build_times_bucket_expr(
                 rational_den = rational.denominator;
                 has_rational_result = true;
             } else {
-                auto [nn, dd] = normalize_rational(
-                    rational_num * rational.numerator,
-                    rational_den * rational.denominator);
+                auto [nn, dd] = checked_rational_multiply(
+                    rational_num,
+                    rational_den,
+                    rational.numerator,
+                    rational.denominator);
                 rational_num = nn;
                 rational_den = dd;
             }
@@ -378,10 +377,9 @@ ExprPtr build_times_bucket_expr(
     rebuilt_terms.reserve(symbolic_terms.size() + 1);
 
     if (has_rational_result) {
-        if (is_integral(numeric_result)) {
-            auto [nn, dd] = normalize_rational(
-                rational_num * static_cast<int64_t>(numeric_result),
-                rational_den);
+        if (auto integer = exact_int64_from_number(numeric_result)) {
+            auto [nn, dd] = checked_rational_multiply(
+                rational_num, rational_den, *integer, 1);
             if (!(nn == 1 && dd == 1)) {
                 rebuilt_terms.push_back(
                     dd == 1 ? make_expr<Number>(static_cast<double>(nn))
@@ -1232,7 +1230,7 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
             auto [it, inserted] = power_buckets.emplace(
                 key,
                 PowerBucket{key, 0, 0, {}});
-            it->second.exponent += factor.exponent;
+            it->second.exponent = checked_int64_add(it->second.exponent, factor.exponent);
             it->second.term_count += 1;
             it->second.original_terms.push_back(arg);
         }

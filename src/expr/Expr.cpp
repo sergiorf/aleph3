@@ -1,4 +1,5 @@
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
 
 #include <sstream>
 #include <iomanip>
@@ -175,7 +176,10 @@ namespace aleph3 {
                                 get_precedence("Negate"));
                         }
                         if (auto rational = std::get_if<Rational>(args[0].get());
-                            rational && rational->numerator == -rational->denominator) {
+                            rational && rational->numerator < 0 &&
+                            rational->denominator > 0 &&
+                            unsigned_abs_int64(rational->numerator) ==
+                                static_cast<uint64_t>(rational->denominator)) {
                             if (args.size() == 2) {
                                 return "-" + to_string_with_parens(args[1], get_precedence("Negate"));
                             }

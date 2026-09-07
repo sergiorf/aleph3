@@ -22,10 +22,12 @@ LeadingCoefficient[(1/2)*x^2 + x, x]    -> 1/2
 
 If an exact coefficient intermediate overflows the checked representation,
 Aleph3 reports an exact-overflow diagnostic. It does not wrap and does not
-fall back to approximate arithmetic. Decimal inputs are inexact; they only use
-the documented transitional inexact polynomial paths and are rejected by
-exact-only helpers such as rational-expression transformations and exact
-multivariate division.
+fall back to approximate arithmetic. Exact-only algebra paths accept current
+integer-valued `Number` expressions as bounded integer coefficients only when
+the value is exactly integral and fits in `int64_t`; other decimal inputs are
+inexact. Decimal inputs only use the documented transitional inexact
+polynomial paths and are rejected by exact-only helpers such as
+rational-expression transformations and exact multivariate division.
 
 ## Expand And Collect
 

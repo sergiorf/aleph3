@@ -368,6 +368,14 @@ TEST_CASE("Session reports polynomial division by zero with a stable diagnostic"
     REQUIRE(result.diagnostics.front().code == "runtime.division_by_zero");
 }
 
+TEST_CASE("Session reports exact rational overflow with a stable diagnostic", "[session][diagnostics][rational][overflow]") {
+    Session session;
+    const auto result = session.execute({"1/3037000500 + 1/3037000501"});
+    REQUIRE_FALSE(result.ok);
+    REQUIRE(result.diagnostics.size() == 1);
+    REQUIRE(result.diagnostics.front().code == "runtime.exact_overflow");
+}
+
 TEST_CASE("Session exposes bounded multivariate GCD values and diagnostics", "[session][algebra][gcd]") {
     Session session;
     REQUIRE(session.execute({"GCD[x*y + x, x, {x, y}]"}).output == "x");

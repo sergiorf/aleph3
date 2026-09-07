@@ -1,21 +1,185 @@
 #pragma once
 
 #include "expr/Expr.hpp"
+#include <cmath>
+#include <limits>
 #include <numeric>
+#include <optional>
+#include <stdexcept>
 
 namespace aleph3 {
 
+    inline uint64_t unsigned_abs_int64(int64_t value) noexcept {
+        return value < 0
+            ? static_cast<uint64_t>(-(value + 1)) + 1
+            : static_cast<uint64_t>(value);
+    }
+
+    inline int64_t checked_int64_negate(int64_t value) {
+        if (value == std::numeric_limits<int64_t>::min()) {
+            throw std::overflow_error("Exact coefficient overflow");
+        }
+        return -value;
+    }
+
+    inline int64_t checked_int64_add(int64_t left, int64_t right) {
+        if ((right > 0 && left > std::numeric_limits<int64_t>::max() - right) ||
+            (right < 0 && left < std::numeric_limits<int64_t>::min() - right)) {
+            throw std::overflow_error("Exact coefficient overflow");
+        }
+        return left + right;
+    }
+
+    inline int64_t checked_int64_subtract(int64_t left, int64_t right) {
+        if (right == std::numeric_limits<int64_t>::min()) {
+            if (left >= 0) {
+                throw std::overflow_error("Exact coefficient overflow");
+            }
+            return left - right;
+        }
+        return checked_int64_add(left, -right);
+    }
+
+    inline int64_t checked_int64_multiply(int64_t left, int64_t right) {
+        if (left == 0 || right == 0) {
+            return 0;
+        }
+        if ((left == -1 && right == std::numeric_limits<int64_t>::min()) ||
+            (right == -1 && left == std::numeric_limits<int64_t>::min())) {
+            throw std::overflow_error("Exact coefficient overflow");
+        }
+        if (left > 0) {
+            if ((right > 0 && left > std::numeric_limits<int64_t>::max() / right) ||
+                (right < 0 && right < std::numeric_limits<int64_t>::min() / left)) {
+                throw std::overflow_error("Exact coefficient overflow");
+            }
+        } else if ((right > 0 && left < std::numeric_limits<int64_t>::min() / right) ||
+                   (right < 0 && left < std::numeric_limits<int64_t>::max() / right)) {
+            throw std::overflow_error("Exact coefficient overflow");
+        }
+        return left * right;
+    }
+
+    inline int64_t divide_int64_by_unsigned(int64_t value, uint64_t divisor) {
+        if (divisor == 0) {
+            throw std::runtime_error("Denominator cannot be zero");
+        }
+        const uint64_t quotient_abs = unsigned_abs_int64(value) / divisor;
+        if (value < 0) {
+            if (quotient_abs == (uint64_t{1} << 63)) {
+                return std::numeric_limits<int64_t>::min();
+            }
+            return -static_cast<int64_t>(quotient_abs);
+        }
+        if (quotient_abs > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+            throw std::overflow_error("Exact coefficient overflow");
+        }
+        return static_cast<int64_t>(quotient_abs);
+    }
+
     inline std::pair<int64_t, int64_t> normalize_rational(int64_t num, int64_t den) {
         if (den == 0) throw std::runtime_error("Denominator cannot be zero");
-        int64_t g = std::gcd(num, den);
-        num /= g;
-        den /= g;
+        const uint64_t g = std::gcd(unsigned_abs_int64(num), unsigned_abs_int64(den));
+        num = divide_int64_by_unsigned(num, g);
+        den = divide_int64_by_unsigned(den, g);
         // Move sign to numerator, denominator always positive
         if (den < 0) {
-            num = -num;
-            den = -den;
+            num = checked_int64_negate(num);
+            den = checked_int64_negate(den);
         }
         return {num, den};
+    }
+
+    inline std::optional<int64_t> exact_int64_from_number(double value) {
+        if (!std::isfinite(value) || std::floor(value) != value) {
+            return std::nullopt;
+        }
+        constexpr double min_int64_as_double = -9223372036854775808.0;
+        constexpr double past_max_int64_as_double = 9223372036854775808.0;
+        if (value < min_int64_as_double || value >= past_max_int64_as_double) {
+            return std::nullopt;
+        }
+        return static_cast<int64_t>(value);
+    }
+
+    inline std::pair<int64_t, int64_t> checked_rational_add(
+        int64_t left_num,
+        int64_t left_den,
+        int64_t right_num,
+        int64_t right_den) {
+        const uint64_t common = std::gcd(unsigned_abs_int64(left_den), unsigned_abs_int64(right_den));
+        const int64_t left_scale = divide_int64_by_unsigned(right_den, common);
+        const int64_t right_scale = divide_int64_by_unsigned(left_den, common);
+        return normalize_rational(
+            checked_int64_add(
+                checked_int64_multiply(left_num, left_scale),
+                checked_int64_multiply(right_num, right_scale)),
+            checked_int64_multiply(left_den, left_scale));
+    }
+
+    inline std::pair<int64_t, int64_t> checked_rational_subtract(
+        int64_t left_num,
+        int64_t left_den,
+        int64_t right_num,
+        int64_t right_den) {
+        const uint64_t common = std::gcd(unsigned_abs_int64(left_den), unsigned_abs_int64(right_den));
+        const int64_t left_scale = divide_int64_by_unsigned(right_den, common);
+        const int64_t right_scale = divide_int64_by_unsigned(left_den, common);
+        return normalize_rational(
+            checked_int64_subtract(
+                checked_int64_multiply(left_num, left_scale),
+                checked_int64_multiply(right_num, right_scale)),
+            checked_int64_multiply(left_den, left_scale));
+    }
+
+    inline std::pair<int64_t, int64_t> checked_rational_multiply(
+        int64_t left_num,
+        int64_t left_den,
+        int64_t right_num,
+        int64_t right_den) {
+        const uint64_t left_cancel = std::gcd(unsigned_abs_int64(left_num), unsigned_abs_int64(right_den));
+        const uint64_t right_cancel = std::gcd(unsigned_abs_int64(right_num), unsigned_abs_int64(left_den));
+        return normalize_rational(
+            checked_int64_multiply(
+                divide_int64_by_unsigned(left_num, left_cancel),
+                divide_int64_by_unsigned(right_num, right_cancel)),
+            checked_int64_multiply(
+                divide_int64_by_unsigned(left_den, right_cancel),
+                divide_int64_by_unsigned(right_den, left_cancel)));
+    }
+
+    inline std::pair<int64_t, int64_t> checked_rational_divide(
+        int64_t left_num,
+        int64_t left_den,
+        int64_t right_num,
+        int64_t right_den) {
+        if (right_num == 0) {
+            throw std::runtime_error("Denominator cannot be zero");
+        }
+        const uint64_t numerator_cancel = std::gcd(unsigned_abs_int64(left_num), unsigned_abs_int64(right_num));
+        const uint64_t denominator_cancel = std::gcd(unsigned_abs_int64(left_den), unsigned_abs_int64(right_den));
+        return normalize_rational(
+            checked_int64_multiply(
+                divide_int64_by_unsigned(left_num, numerator_cancel),
+                divide_int64_by_unsigned(right_den, denominator_cancel)),
+            checked_int64_multiply(
+                divide_int64_by_unsigned(left_den, denominator_cancel),
+                divide_int64_by_unsigned(right_num, numerator_cancel)));
+    }
+
+    inline int checked_rational_compare(
+        int64_t left_num,
+        int64_t left_den,
+        int64_t right_num,
+        int64_t right_den) {
+        const uint64_t common = std::gcd(unsigned_abs_int64(left_den), unsigned_abs_int64(right_den));
+        const int64_t left_scale = divide_int64_by_unsigned(right_den, common);
+        const int64_t right_scale = divide_int64_by_unsigned(left_den, common);
+        const int64_t left_scaled = checked_int64_multiply(left_num, left_scale);
+        const int64_t right_scaled = checked_int64_multiply(right_num, right_scale);
+        if (left_scaled < right_scaled) return -1;
+        if (left_scaled > right_scaled) return 1;
+        return 0;
     }
 
     inline double get_number_value(const ExprPtr& expr) {

@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.20)
 set(PROJECT_NAME aleph3)
 project(${PROJECT_NAME} VERSION 0.1.0 LANGUAGES CXX)
 
+include(FetchContent)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
@@ -83,6 +85,38 @@ if(ALEPH3_BUILD_KERNEL)
         find_package(PostgreSQL REQUIRED)
     endif()
 
+    find_package(Boost 1.86 CONFIG QUIET)
+    if(Boost_FOUND)
+        add_library(aleph3_boost_headers INTERFACE)
+        if(TARGET Boost::headers)
+            target_link_libraries(aleph3_boost_headers INTERFACE Boost::headers)
+        else()
+            target_include_directories(aleph3_boost_headers INTERFACE ${Boost_INCLUDE_DIRS})
+        endif()
+    else()
+        FetchContent_Declare(
+            aleph3_boost_config
+            GIT_REPOSITORY https://github.com/boostorg/config.git
+            GIT_TAG boost-1.86.0
+            GIT_SHALLOW TRUE
+            GIT_CONFIG http.sslBackend=openssl
+        )
+        FetchContent_Declare(
+            aleph3_boost_multiprecision
+            GIT_REPOSITORY https://github.com/boostorg/multiprecision.git
+            GIT_TAG boost-1.86.0
+            GIT_SHALLOW TRUE
+            GIT_CONFIG http.sslBackend=openssl
+        )
+        FetchContent_MakeAvailable(aleph3_boost_config aleph3_boost_multiprecision)
+
+        add_library(aleph3_boost_headers INTERFACE)
+        target_include_directories(aleph3_boost_headers INTERFACE
+            ${aleph3_boost_config_SOURCE_DIR}/include
+            ${aleph3_boost_multiprecision_SOURCE_DIR}/include)
+        target_compile_definitions(aleph3_boost_headers INTERFACE BOOST_MP_STANDALONE=1)
+    endif()
+
     file(GLOB SYMBOLIC_ROOT_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
     file(GLOB SYMBOLIC_COMPONENT_SOURCES CONFIGURE_DEPENDS
         "src/evaluator/*.cpp"
@@ -116,7 +150,7 @@ if(ALEPH3_BUILD_KERNEL)
     add_library(aleph3_symbolic ALIAS aleph3_kernel)
     add_library(${PROJECT_NAME}_lib ALIAS aleph3_kernel)
     target_include_directories(aleph3_kernel PUBLIC include PRIVATE third_party/utf8cpp)
-    target_link_libraries(aleph3_kernel PUBLIC aleph3_syntax)
+    target_link_libraries(aleph3_kernel PUBLIC aleph3_syntax aleph3_boost_headers)
 
     add_library(aleph3_pack_core_math INTERFACE)
     target_link_libraries(aleph3_pack_core_math INTERFACE aleph3_kernel)
@@ -206,7 +240,6 @@ endif()
 include(CTest)
 
 if(BUILD_TESTING)
-    include(FetchContent)
     FetchContent_Declare(
         Catch2
         GIT_REPOSITORY https://github.com/catchorg/Catch2.git

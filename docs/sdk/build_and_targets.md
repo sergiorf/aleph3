@@ -53,6 +53,15 @@ Current interpretation:
 - `ALEPH3_BUILD_SYMBOLIC_ENGINE=OFF` no longer means "no kernel at all" if the
   SDK is enabled
 
+## Dependencies
+
+- The symbolic kernel uses Boost.Multiprecision for internal exact scalar
+  infrastructure. CMake first tries `find_package(Boost 1.86 CONFIG QUIET)`;
+  when no system Boost config package is available, it fetches the modular
+  Boost.Config and Boost.Multiprecision header repositories at `boost-1.86.0`
+  and uses Boost.Multiprecision standalone mode.
+- Catch2 is fetched by CMake when `BUILD_TESTING=ON`.
+
 ## Target Dependency Diagram
 
 ```mermaid

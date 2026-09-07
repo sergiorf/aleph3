@@ -8,11 +8,14 @@ Current implementation contract referenced by the
 ## Purpose
 
 This document defines the current exact arithmetic and algebra-facing
-foundations required for stronger symbolic math. It is intentionally narrower
-than arbitrary-precision or general coefficient-ring algebra.
+foundations required for stronger symbolic math. The kernel now owns an
+internal arbitrary-precision scalar module, but public expressions and algebra
+coefficients still use the checked bounded representation until their focused
+migration slices land.
 
 The current exact algebra layer provides:
 
+- internal arbitrary-precision integer and rational scalar infrastructure;
 - checked integer and rational coefficient storage;
 - exact polynomial conversion and helper operations for the algebra pack;
 - explicit overflow and unsupported-case behavior;
@@ -34,6 +37,17 @@ abstractions, arbitrary precision, algebraic-number coefficients, and
 approximate polynomial algorithms are outside this contract.
 
 ## Exact Scalar Model
+
+`kernel::ExactInteger` and `kernel::ExactRational` are the kernel-owned
+internal scalar values for arbitrary-precision exact arithmetic. They are
+backed by Boost.Multiprecision `cpp_int`, normalize rational signs and common
+factors, provide stable decimal rendering, and expose checked adapters to the
+current bounded `int64_t` representation.
+
+These internal scalar types are not yet public expression alternatives.
+`Expr::Number` remains the current machine-real storage, and `Expr::Rational`
+still stores checked `int64_t` numerator and denominator values until the
+expression-model migration slice replaces that storage.
 
 `ExactCoefficient` is the current algebra coefficient value. It stores a
 normalized rational number as checked `int64_t` numerator and denominator.

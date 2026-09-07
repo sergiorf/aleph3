@@ -207,6 +207,20 @@ Verification:
 
 ### Slice 2: Kernel Exact-Scalar Abstraction
 
+Status: complete.
+
+Completion notes:
+
+- added `kernel::ExactInteger` and `kernel::ExactRational` as a kernel-owned
+  exact scalar module backed by Boost.Multiprecision `cpp_int`;
+- added normalization, sign, zero/one checks, comparison, decimal rendering,
+  decimal integer parsing, arithmetic, and checked adapters to the current
+  bounded `int64_t` representation;
+- kept the public expression model unchanged: `Expr::Rational` still uses the
+  bounded storage until the expression-model migration slice;
+- made Boost.Multiprecision an explicit build dependency through system Boost
+  when available or modular CMake `FetchContent` fallback otherwise.
+
 Behavior delivered:
 
 - add a kernel-owned exact scalar module with `ExactInteger` and

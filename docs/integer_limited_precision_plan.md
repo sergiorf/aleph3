@@ -322,51 +322,332 @@ Verification:
 
 ### Slice 4: Expression Model For Arbitrary-Precision Exact Scalars
 
+Status: planned. This slice needs explicit implementation approval because it
+changes the kernel expression representation and public numeric taxonomy.
+
 Behavior delivered:
 
 - make exact integers and rationals first-class expression values using the
   approved representation;
-- settle the architecture-visible numeric taxonomy: exact `Integer`, exact
-  `Rational`, machine `Real`, and the relationship between semantic names and
-  C++ implementation names;
+- settle the architecture-visible numeric taxonomy as exact `Integer`, exact
+  `Rational`, and machine `Real`;
+- keep the C++ machine-real struct named `Number` in this slice unless a
+  separate mechanical rename is approved. Documentation should describe the
+  semantic head as `Real` and call out `Number` only as a transitional C++
+  implementation name where needed;
 - update constructors, structural equality, canonical rendering, `FullForm`,
   `Head`, `IntegerQ`, `RationalQ`, `NumberQ`, serialization where present, and
   pattern matching for `_Integer` and `_Rational`;
 - preserve machine-real `Number` for decimals and approximate results.
 
+Recommended slice-local design:
+
+- add a first-class `Integer` expression alternative backed by
+  `kernel::ExactInteger`;
+- replace `Rational` fields with `kernel::ExactRational`, preserving a
+  compatibility constructor from bounded `int64_t` values for existing call
+  sites;
+- canonical expression construction returns `Integer` for denominator-one exact
+  rational values at expression boundaries, except where a caller is
+  intentionally constructing a `Rational` expression to test rational storage;
+- exact integer literals lower directly to `Integer` from preserved decimal
+  text, including unary minus, without `double` conversion or bounded
+  `int64_t` rejection;
+- exact rational literals lower through `ExactRational` normalization, and
+  denominator-one forms such as `6/3` render and behave as `Integer`;
+- decimal literals with a decimal point continue to lower to machine-real
+  `Number` and report public head `Real`;
+- the SDK trusted subset keeps its current bounded public host-number model in
+  this slice. It may continue rejecting decimal integer tokens that cannot be
+  represented exactly as the SDK's public `Value::number`. First-class SDK
+  exact-scalar transport is left to slice 8.
+
+Non-goals for this slice:
+
+- migrating all arithmetic, simplification, polynomial coefficients, dense
+  matrices, or transport formats to arbitrary precision; slices 5 through 8
+  own those migrations;
+- introducing arbitrary-precision floating-point numbers or precision tracking;
+- changing decimal syntax, approximate elementary functions, complex storage,
+  SDK `Value` variants, notebook file format, CLI JSON output, or web API
+  numeric envelopes except where they already carry canonical text;
+- deleting all checked-`int64_t` helpers. They remain required adapters for
+  bounded consumers until later slices remove or narrow them.
+
+Repository evidence to verify before implementation:
+
+- `include/expr/Expr.hpp` currently defines `Expr` as a variant containing
+  `Number` and bounded `Rational`, with no `Integer` alternative.
+- `src/syntax/SymbolicLowering.cpp` preserves integer token text, then rejects
+  standalone integers outside current expression bounds and builds exact
+  rationals from bounded `int64_t` numerators and denominators.
+- `src/expr/Expr.cpp` and `include/expr/FullForm.hpp` render bounded rationals
+  and integral machine reals as if they were exact integers in several places.
+- `src/evaluator/BuiltInFunctions.cpp` reports `Head[3] -> Integer` by
+  inspecting whether a `Number(double)` is integral; this should become an
+  actual `Integer` expression case.
+- `src/kernel/Assumptions.cpp`, `src/kernel/Rewrite.cpp`, and pattern helpers
+  classify numeric literals by looking at `Number` and bounded `Rational`.
+- `include/kernel/ExactScalar.hpp` and `src/kernel/ExactScalar.cpp` already
+  provide arbitrary-precision `ExactInteger` and `ExactRational`, including
+  normalization, comparison, rendering, and bounded adapters.
+
 Likely locations:
 
 - `include/expr/Expr.hpp`;
+- `include/expr/ExprUtils.hpp`;
+- `include/expr/ExprStructural.hpp`;
 - `src/expr/Expr.cpp`;
+- expression structural implementation under `src/expr/`;
 - `include/expr/FullForm.hpp`;
+- `src/syntax/SymbolicLowering.cpp`;
+- `include/parser/Parser.hpp` only if the legacy compatibility parser still
+  bypasses shared symbolic lowering for integer construction;
+- `src/evaluator/BuiltInFunctions.cpp`;
+- `src/evaluator/EvaluatorBuiltins.cpp` only for preserving bounded current
+  arithmetic behavior around new `Integer` atoms;
 - `src/session/Session.cpp`;
 - `src/kernel/Assumptions.cpp`;
 - `src/kernel/Rewrite.cpp`;
-- pattern and predicate code under evaluator/kernel.
+- pattern and predicate code under evaluator/kernel;
+- `include/help/HelpTexts.hpp`;
+- tests under `tests/frontend/`, `tests/evaluator/`, `tests/session/`,
+  `tests/tooling/`, and `tests/expr/` if structural tests are split there.
+
+Task 1: expression representation and construction.
+
+Deliver:
+
+- introduce `struct Integer { kernel::ExactInteger value; }` and add it to
+  `Expr`;
+- update `Rational` to hold `kernel::ExactRational`, with accessors or helper
+  functions for numerator and denominator rather than exposing bounded fields
+  as the durable API;
+- add helper constructors such as `make_integer`, `make_rational`, and
+  `make_exact_scalar_expr`, where the last one canonicalizes denominator-one
+  rationals to `Integer`;
+- keep existing bounded constructors or adapters only as compatibility shims,
+  and make new expression code prefer the exact helpers.
 
 Tests:
 
-- `Head[3] -> Integer`, `IntegerQ[large] -> True`, and
-  `NumberQ[large]` follows the documented predicate contract;
-- large exact integers render canonically and round-trip through session/CLI;
-- exact rational signs and denominator-one values render deterministically;
-- `_Integer` and `_Rational` pattern constraints match the new values.
+- direct construction of small and large `Integer` values preserves decimal
+  text through `to_string`;
+- `make_exact_scalar_expr(ExactRational(6, 3))` returns an integer expression;
+- zero and sign-normalized rationals render as `0`, `-1/2`, and `2/3`
+  according to the public contract;
+- existing small-number tests still compile through compatibility constructors.
 
 Documentation:
 
-- update [Architecture](architecture.md) with the new `Expr` numeric
-  alternatives and ownership rules for `Integer`, `Rational`, and machine
-  `Real`;
-- update manual concepts, built-ins, expressions/evaluation, help entries, and
-  focused specs that currently say exact coefficients use `int64_t`;
-- keep SDK behavior explicit where host APIs still expose bounded numeric
-  values.
+- add the expression taxonomy decision to
+  [Architecture](architecture.md) and
+  [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md).
+
+Verification:
+
+- focused expression tests;
+- `ctest --test-dir build -C Release -R "(FullForm|Normalizer|Evaluator)" --output-on-failure`.
+
+Task 2: symbolic lowering and legacy parser compatibility.
+
+Deliver:
+
+- lower `IntegerLiteralNode` directly to `Integer` using
+  `ExactInteger::from_decimal_string`;
+- lower unary-minus integer literals by constructing a negative
+  `ExactInteger`, including values below `INT64_MIN`;
+- lower exact fraction literals through `ExactRational` and canonicalize
+  denominator-one results to `Integer`;
+- preserve decimal literals such as `1.0` as machine-real `Number`;
+- keep trusted-subset lowering behavior unchanged unless it explicitly enters
+  symbolic `Expr` construction after SDK validation.
+
+Tests:
+
+- `123456789012345678901234567890` parses, lowers, evaluates, and renders as
+  the same integer;
+- `-9223372036854775809` lowers and renders exactly;
+- `9007199254740993` is no longer rejected by symbolic lowering;
+- `9007199254740993/3` lowers without precision loss and renders as
+  `3002399751580331`;
+- `1.0` remains machine-real and `Head[1.0] -> Real`;
+- SDK trusted parser tests still report the documented
+  `frontend.parser.integer_out_of_range` boundary for oversized host numbers.
+
+Documentation:
+
+- update [Expressions And Evaluation](manual/expressions-and-evaluation.md)
+  to remove the pre-slice symbolic lowering limitation while keeping the SDK
+  boundary explicit;
+- update [Trusted Subset](trusted_subset_v1.md) only to clarify that the SDK
+  public host-number range remains bounded in this slice.
+
+Verification:
+
+- parser and symbolic lowering tests;
+- `aleph3_sdk_tests` if trusted lowering or parser compatibility changes.
+
+Task 3: rendering, full form, heads, and predicates.
+
+Deliver:
+
+- render `Integer` with exact decimal text and `Rational` as normalized
+  `numerator/denominator`;
+- update unary-minus and subtraction formatting so negative exact integers and
+  rationals do not require bounded negation;
+- update `FullForm` so `Integer` emits the integer decimal text and `Rational`
+  emits `Rational[n, d]`;
+- update `Head` to dispatch on `Integer` directly, while `Number` always
+  reports `Real`;
+- decide and document `NumberQ`: recommended contract is true for exact
+  integers, exact rationals, machine reals, and complex numeric atoms if
+  `NumberQ` exists in the implemented surface; otherwise do not add it in this
+  slice;
+- update `IntegerQ`, `RationalQ`, `RealQ`, sign predicates, and zero tests so
+  exact integers and rationals are answered without `double` conversion.
+
+Tests:
+
+- `Head[3] -> Integer`, `Head[1.5] -> Real`,
+  `Head[123456789012345678901234567890] -> Integer`;
+- `IntegerQ[large] -> True`, `RationalQ[large] -> True`, and
+  `RealQ[large] -> True`;
+- `IntegerQ[3/2] -> False`, `RationalQ[3/2] -> True`,
+  `RationalQ[0.5]` keeps the documented existing behavior or is updated with
+  matching docs in the same task;
+- `Positive`, `Negative`, `ZeroQ`, and `NonZeroQ` work for large exact
+  integers and rationals;
+- `FullForm[large]` and `FullForm[1/2]` match documented output.
+
+Documentation:
+
+- update [Built-in Functions](manual/built-in-functions.md),
+  [Concepts And Terminology](manual/concepts-and-terminology.md), and help
+  entries for `Head`, predicates, `N`, and numeric exactness notes.
+
+Verification:
+
+- evaluator predicate and head tests;
+- session help tests if help text changes.
+
+Task 4: structural identity, ordering, hashing, and pattern matching.
+
+Deliver:
+
+- update `structural_equal`, `structural_hash`, and `structural_less` to cover
+  `Integer` and arbitrary-precision `Rational` values without string-based
+  comparison in the hot path unless no better scalar comparator exists;
+- define deterministic type ordering among numeric atoms. Recommended order:
+  `Integer`, `Rational`, `Number`/machine `Real`, `Complex`, then existing
+  nonnumeric alternatives in the current relative order;
+- update pattern matching so `_Integer` matches only the new `Integer`
+  alternative, `_Rational` matches exact rationals and not integers unless the
+  current documented contract explicitly treats integers as rationals, and
+  named patterns preserve bindings by structural equality;
+- update rewrite traversal and substitution helpers only where variant
+  visitation requires a new case.
+
+Tests:
+
+- structurally equal large integers hash equally;
+- unequal large integers and rationals sort deterministically;
+- `MatchQ[large, _Integer] -> True`;
+- `MatchQ[large/2, _Rational] -> True`;
+- `MatchQ[large, _Rational]` follows the documented chosen contract;
+- repeated named-pattern constraints such as
+  `MatchQ[f[large, large], f[n_Integer, n_Integer]] -> True` and a one-digit
+  difference returns `False`;
+- `Replace[f[large], f[n_Integer] -> g[n]]` preserves the exact value.
+
+Documentation:
+
+- update pattern and structural matching sections in the manual only for
+  user-visible predicate and pattern behavior.
+
+Verification:
+
+- rewrite and evaluator pattern tests;
+- `ctest --test-dir build -C Release -R "(Rewrite|Evaluator)" --output-on-failure`.
+
+Task 5: bounded adapters and current behavior preservation.
+
+Deliver:
+
+- add exact-to-bounded helper functions for call sites that still require
+  `int`, `int64_t`, `std::size_t`, or `double`, and make those helpers return
+  deterministic diagnostics or `std::optional` rather than silently narrowing;
+- update existing bounded consumers such as `Part` indexes, rewrite levels,
+  string ranges, calculus derivative orders, matrix dimensions, and algebra
+  conversion gates to call the adapters explicitly;
+- preserve slice-4 arithmetic scope: existing arithmetic may continue to use
+  bounded paths where not yet migrated, but it must not turn a large exact
+  integer into a rounded machine real merely because it is now representable;
+- ensure `N[large exact]` is the only explicit path in this slice that may
+  approximate a large exact integer or rational to machine real, subject to the
+  existing non-finite result diagnostics.
+
+Tests:
+
+- `Part[{a}, large]` reports the existing invalid-index diagnostic rather than
+  narrowing;
+- derivative/order and rewrite-level controls reject oversized exact integers
+  with stable invalid-form diagnostics;
+- evaluating a large standalone exact integer returns the same exact integer;
+- unsupported arithmetic with large exact values remains symbolic or reports
+  the documented current diagnostic until slice 5 migrates arithmetic;
+- `N[large]` produces a machine-real result or a documented runtime diagnostic
+  when finite conversion is impossible.
+
+Documentation:
+
+- document the temporary boundary that arbitrary-precision expression storage
+  precedes full arithmetic/algebra migration, and point to later slices for the
+  remaining work.
+
+Verification:
+
+- affected evaluator, calculus, rewrite, and pack tests;
+- targeted CLI smoke tests for representative diagnostics.
+
+Task 6: session, CLI, help, and documentation consistency.
+
+Deliver:
+
+- verify session canonical text and diagnostics carry large exact integers and
+  rationals without precision loss;
+- update CLI symbolic evaluation and inspection paths that rely on
+  `to_string`, `to_string_raw`, `FullForm`, or `Head`;
+- update help metadata for integer/rational exactness and any predicate
+  examples;
+- search changed docs and help for stale claims that exact coefficients or
+  public expressions are limited to checked 64-bit integers;
+- leave SDK, notebook, CLI JSON, and web transport expansion to slice 8 unless
+  a current text-only path already works automatically through canonical text.
+
+Tests:
+
+- session execute of a large integer returns exact canonical text;
+- CLI symbolic evaluation smoke covers a large integer and a large normalized
+  rational;
+- help tests still find manual-backed examples and exactness notes;
+- notebook cached-output behavior is unchanged unless canonical text tests
+  already cover it.
+
+Documentation:
+
+- update manual examples and local links for the new expression model;
+- update `docs/aleph3_unified_plan.md` only if this slice changes roadmap
+  state after implementation, not while merely planning.
 
 Verification:
 
 - `aleph3_symbolic_tests`;
-- focused parser, evaluator, assumptions, rewrite, and session tests;
-- `aleph3_sdk_tests` if shared syntax or predicates affect SDK lowering.
+- `aleph3_sdk_tests` when SDK parser or bridge tests are touched;
+- `aleph3_notebook_tests` only if cached canonical text changes;
+- `git diff --check`;
+- final diff review for duplicate numeric semantics and stale
+  checked-`int64_t` claims.
 
 ### Slice 5: Exact Arithmetic And Simplification Migration
 
@@ -586,19 +867,24 @@ The complete remediation is done only when:
   persistence, and CLI output agree with the implementation;
 - focused positive/negative tests and affected broader suites pass.
 
-## Open Decisions Before Slice 4
+## Open Decisions Before Slice 4 Implementation
 
-- Confirm whether the expression model should add a first-class `Integer`
-  alternative or represent integers as denominator-one rationals.
-- Confirm whether the C++ `Number` type is renamed to `Real` in the same slice
-  or kept as an implementation name with `Real` as the documented semantic
-  type.
-- Choose the exact scalar dependency: `boost::multiprecision::cpp_int`,
-  vendored header-only code, or another approved internal type.
-- Set initial scalar-size budgets and decide whether they are global kernel
-  budgets or operation-local guards.
-- Decide SDK exact-scalar transport: reject oversized exact values at the SDK
-  boundary, expose tagged decimal strings, or add first-class SDK exact scalar
-  host types.
-- Decide JSON transport for CLI, notebook caches, and web/engine APIs before
-  changing persisted formats.
+The detailed slice 4 plan recommends the following decisions, but
+implementation still requires explicit approval because the expression model is
+a public kernel contract:
+
+- add a first-class `Integer` expression alternative backed by
+  `kernel::ExactInteger`;
+- migrate `Rational` expression storage to `kernel::ExactRational`;
+- keep the C++ machine-real struct named `Number` during slice 4 while
+  documenting the public expression head as `Real`;
+- keep SDK exact-scalar host transport, JSON transport, notebook persisted
+  format changes, and full exact arithmetic migration for later slices.
+
+Before implementation, confirm the recommended contracts for:
+
+- whether `_Rational` and `RationalQ` should treat exact integers as rational
+  values or reserve `Rational` strictly for non-integer exact fractions;
+- whether this slice should introduce scalar-size budgets for expression
+  construction itself, or defer size budgets until arithmetic growth in
+  slice 5.

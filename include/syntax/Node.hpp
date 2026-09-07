@@ -12,6 +12,7 @@
 namespace aleph3::syntax {
 
 enum class NodeKind {
+    integer_literal,
     number_literal,
     boolean_literal,
     string_literal,
@@ -56,6 +57,10 @@ using NodePtr = std::shared_ptr<const Node>;
 struct NumberLiteralNode {
     double value = 0.0;
     std::string lexeme;
+};
+
+struct IntegerLiteralNode {
+    std::string decimal_text;
 };
 
 struct BooleanLiteralNode {
@@ -114,6 +119,7 @@ struct FunctionDefinitionNode {
 };
 
 using NodePayload = std::variant<
+    IntegerLiteralNode,
     NumberLiteralNode,
     BooleanLiteralNode,
     StringLiteralNode,
@@ -128,9 +134,9 @@ using NodePayload = std::variant<
     FunctionDefinitionNode>;
 
 struct Node {
-    NodeKind kind = NodeKind::number_literal;
+    NodeKind kind = NodeKind::integer_literal;
     aleph3::SourceSpan span;
-    NodePayload payload = NumberLiteralNode{};
+    NodePayload payload = IntegerLiteralNode{};
 
     Node() = default;
 
@@ -148,6 +154,8 @@ template <typename Payload>
 [[nodiscard]] NodePtr make_node(aleph3::SourceSpan span, Payload payload) {
     if constexpr (std::is_same_v<Payload, NumberLiteralNode>) {
         return std::make_shared<Node>(NodeKind::number_literal, span, std::move(payload));
+    } else if constexpr (std::is_same_v<Payload, IntegerLiteralNode>) {
+        return std::make_shared<Node>(NodeKind::integer_literal, span, std::move(payload));
     } else if constexpr (std::is_same_v<Payload, BooleanLiteralNode>) {
         return std::make_shared<Node>(NodeKind::boolean_literal, span, std::move(payload));
     } else if constexpr (std::is_same_v<Payload, StringLiteralNode>) {

@@ -1,6 +1,7 @@
 #include "syntax/SymbolicLowering.hpp"
 
 #include "expr/ExprUtils.hpp"
+#include "syntax/IntegerLiteral.hpp"
 #include "syntax/Parser.hpp"
 
 #include <cmath>
@@ -8,6 +9,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace aleph3::syntax {
@@ -109,6 +111,46 @@ public:
     }
 
 private:
+    std::optional<int64_t> bounded_integer_from_text(std::string_view text, SourceSpan span) {
+        const auto bounded = parse_bounded_int64_decimal(text);
+        if (!bounded.has_value()) {
+            diagnostics_.push_back(make_error(
+                "syntax.lowering.integer_out_of_range",
+                "Integer literal is outside the current bounded expression range.",
+                span));
+        }
+        return bounded;
+    }
+
+    std::optional<int64_t> bounded_integer_from_node(const NodePtr& node) {
+        if (const auto* integer = node->as<IntegerLiteralNode>()) {
+            return bounded_integer_from_text(integer->decimal_text, node->span);
+        }
+        if (const auto* unary = node->as<UnaryOpNode>();
+            unary != nullptr && unary->op == UnaryOperator::minus) {
+            if (const auto* integer = unary->operand->as<IntegerLiteralNode>()) {
+                return bounded_integer_from_text("-" + integer->decimal_text, node->span);
+            }
+        }
+        return std::nullopt;
+    }
+
+    ExprPtr lower_integer_literal(std::string_view text, SourceSpan span) {
+        const auto bounded = bounded_integer_from_text(text, span);
+        if (!bounded.has_value()) {
+            return nullptr;
+        }
+        const auto exact_number = exact_double_from_bounded_integer(*bounded);
+        if (!exact_number.has_value()) {
+            diagnostics_.push_back(make_error(
+                "syntax.lowering.integer_out_of_range",
+                "Integer literal cannot be represented exactly by the current expression model.",
+                span));
+            return nullptr;
+        }
+        return make_expr<Number>(*exact_number);
+    }
+
     ExprPtr lower_node(const NodePtr& node) {
         if (node == nullptr) {
             diagnostics_.push_back(make_error(
@@ -117,6 +159,9 @@ private:
             return nullptr;
         }
 
+        if (const auto* integer = node->as<IntegerLiteralNode>()) {
+            return lower_integer_literal(integer->decimal_text, node->span);
+        }
         if (const auto* number = node->as<NumberLiteralNode>()) {
             return make_expr<Number>(number->value);
         }
@@ -133,6 +178,15 @@ private:
             return make_expr<Symbol>(symbol->name);
         }
         if (const auto* fraction = node->as<FractionLiteralNode>()) {
+            const auto literal_numerator = bounded_integer_from_node(fraction->numerator);
+            const auto literal_denominator = bounded_integer_from_node(fraction->denominator);
+            if (literal_numerator.has_value() && literal_denominator.has_value()) {
+                return make_rational_preserving_signs(*literal_numerator, *literal_denominator);
+            }
+            if (!diagnostics_.empty()) {
+                return nullptr;
+            }
+
             auto numerator = lower_node(fraction->numerator);
             auto denominator = lower_node(fraction->denominator);
             if (numerator == nullptr || denominator == nullptr) {
@@ -150,6 +204,12 @@ private:
                 std::vector<ExprPtr>{numerator, denominator});
         }
         if (const auto* unary = node->as<UnaryOpNode>()) {
+            if (const auto* integer = unary->operand->as<IntegerLiteralNode>();
+                integer != nullptr && unary->op == UnaryOperator::minus &&
+                !parse_bounded_int64_decimal(integer->decimal_text).has_value()) {
+                return lower_integer_literal("-" + integer->decimal_text, node->span);
+            }
+
             auto operand = lower_node(unary->operand);
             if (operand == nullptr) {
                 return nullptr;

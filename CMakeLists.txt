@@ -33,6 +33,7 @@ set(ALEPH3_PUBLIC_HEADERS
     include/sdk/Schema.hpp
     include/sdk/Types.hpp
     include/syntax/Token.hpp
+    include/syntax/IntegerLiteral.hpp
     include/syntax/Lexer.hpp
     include/syntax/Node.hpp
     include/syntax/Parser.hpp
@@ -52,6 +53,7 @@ add_library(aleph3_syntax
     src/syntax/SymbolicLowering.cpp
     src/syntax/TrustedSubsetLowering.cpp
     include/syntax/Token.hpp
+    include/syntax/IntegerLiteral.hpp
     include/syntax/Lexer.hpp
     include/syntax/Node.hpp
     include/syntax/Parser.hpp

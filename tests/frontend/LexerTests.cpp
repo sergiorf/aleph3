@@ -19,9 +19,9 @@ TEST_CASE("Lexer tokenizes trusted-subset formulas with spans", "[frontend][lexe
     REQUIRE(result.tokens[2].kind == frontend::TokenKind::identifier);
     REQUIRE(result.tokens[2].lexeme == "x");
     REQUIRE(result.tokens[3].kind == frontend::TokenKind::greater_equal);
-    REQUIRE(result.tokens[4].kind == frontend::TokenKind::number_literal);
-    REQUIRE(result.tokens[4].as<double>() != nullptr);
-    REQUIRE(*result.tokens[4].as<double>() == 10.0);
+    REQUIRE(result.tokens[4].kind == frontend::TokenKind::integer_literal);
+    REQUIRE(result.tokens[4].as<std::string>() != nullptr);
+    REQUIRE(*result.tokens[4].as<std::string>() == "10");
     REQUIRE(result.tokens[6].kind == frontend::TokenKind::string_literal);
     REQUIRE(result.tokens[6].as<std::string>() != nullptr);
     REQUIRE(*result.tokens[6].as<std::string>() == "ok");
@@ -30,6 +30,19 @@ TEST_CASE("Lexer tokenizes trusted-subset formulas with spans", "[frontend][lexe
     REQUIRE_FALSE(*result.tokens[8].as<bool>());
     REQUIRE(result.tokens[9].kind == frontend::TokenKind::right_bracket);
     REQUIRE(result.tokens[10].kind == frontend::TokenKind::end_of_input);
+}
+
+TEST_CASE("Lexer keeps integer literals lossless before trusted lowering", "[frontend][lexer]") {
+    constexpr auto large_integer = "1234567890123456789012345678901234567890";
+    frontend::Lexer lexer(large_integer);
+    const auto result = lexer.tokenize();
+
+    REQUIRE(result.ok());
+    REQUIRE(result.tokens.size() == 2);
+    REQUIRE(result.tokens[0].kind == frontend::TokenKind::integer_literal);
+    REQUIRE(result.tokens[0].lexeme == large_integer);
+    REQUIRE(result.tokens[0].as<std::string>() != nullptr);
+    REQUIRE(*result.tokens[0].as<std::string>() == large_integer);
 }
 
 TEST_CASE("Lexer tracks line and column information across newlines", "[frontend][lexer]") {

@@ -83,6 +83,7 @@ bool can_start_primary(TokenKind kind) noexcept {
     switch (kind) {
         case TokenKind::identifier:
         case TokenKind::boolean_literal:
+        case TokenKind::integer_literal:
         case TokenKind::number_literal:
         case TokenKind::string_literal:
         case TokenKind::left_paren:
@@ -314,6 +315,9 @@ private:
     NodePtr parse_primary() {
         const Token token = current();
         switch (token.kind) {
+            case TokenKind::integer_literal:
+                advance();
+                return parse_integer_literal(token);
             case TokenKind::number_literal:
                 advance();
                 return parse_number_literal(token);
@@ -345,15 +349,15 @@ private:
         }
     }
 
-    NodePtr parse_number_literal(const Token& token) {
-        auto number = make_node(
+    NodePtr parse_integer_literal(const Token& token) {
+        auto integer = make_node(
             token.span,
-            NumberLiteralNode{*token.as<double>(), token.lexeme});
+            IntegerLiteralNode{*token.as<std::string>()});
 
         if (!options_.parse_exact_rational_literals ||
             current().kind != TokenKind::slash ||
             !has_rational_denominator_ahead()) {
-            return number;
+            return integer;
         }
 
         advance();
@@ -364,10 +368,10 @@ private:
             minus_token = advance();
         }
 
-        if (current().kind != TokenKind::number_literal) {
+        if (current().kind != TokenKind::integer_literal) {
             diagnostics_.push_back(make_error(
                 "syntax.parser.expected_rational_denominator",
-                "Expected a numeric denominator in the rational literal.",
+                "Expected an integer denominator in the rational literal.",
                 current().span));
             return nullptr;
         }
@@ -375,7 +379,7 @@ private:
         const Token denominator_token = advance();
         auto denominator = make_node(
             denominator_token.span,
-            NumberLiteralNode{*denominator_token.as<double>(), denominator_token.lexeme});
+            IntegerLiteralNode{*denominator_token.as<std::string>()});
 
         if (denominator_is_negative) {
             denominator = make_node(
@@ -384,8 +388,15 @@ private:
         }
 
         return make_node(
-            merge_spans(number->span, denominator->span),
-            FractionLiteralNode{number, denominator});
+            merge_spans(integer->span, denominator->span),
+            FractionLiteralNode{integer, denominator});
+    }
+
+    NodePtr parse_number_literal(const Token& token) {
+        auto number = make_node(
+            token.span,
+            NumberLiteralNode{*token.as<double>(), token.lexeme});
+        return number;
     }
 
     bool has_rational_denominator_ahead() const noexcept {
@@ -393,7 +404,7 @@ private:
         if (lookahead < tokens_.size() && tokens_[lookahead].kind == TokenKind::minus) {
             ++lookahead;
         }
-        return lookahead < tokens_.size() && tokens_[lookahead].kind == TokenKind::number_literal;
+        return lookahead < tokens_.size() && tokens_[lookahead].kind == TokenKind::integer_literal;
     }
 
     NodePtr parse_identifier_expression() {

@@ -75,6 +75,12 @@ Supported:
 
 Notes:
 
+- Decimal integer tokens are preserved as integer source text by the shared
+  syntax frontend. Trusted-subset lowering accepts the existing bounded
+  host-value range only when the integer can be represented exactly by the
+  current SDK number model, and reports `frontend.parser.integer_out_of_range`
+  otherwise.
+- Decimal floating-point literals remain machine-number input.
 - Unary minus is part of expression syntax, not a separate numeric token
   requirement.
 - String escaping support may be minimal in v1, but whatever is supported must

@@ -263,6 +263,21 @@ Verification:
 
 ### Slice 3: Lossless Integer Literal Frontend
 
+Status: complete.
+
+Completion notes:
+
+- added a distinct integer token and syntax node that preserve decimal source
+  text without calling `std::stod`;
+- kept decimal literals with a dot as machine-real `Number` input;
+- added bounded syntax lowering adapters so current symbolic expressions and
+  trusted SDK IR continue accepting standalone integers that can be represented
+  exactly by the current `Number` storage while reporting source-spanned
+  diagnostics for integers outside that boundary;
+- preserved exact rational literal parsing for integer-token numerators and
+  denominators, with oversized rationals still rejected before the
+  expression-model arbitrary-precision slice.
+
 Behavior delivered:
 
 - parse integer tokens into a lossless syntax representation rather than a

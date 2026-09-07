@@ -32,6 +32,7 @@ bool map_token_kind(syntax::TokenKind kind, TokenKind& out) {
         case syntax::TokenKind::invalid: out = TokenKind::invalid; return true;
         case syntax::TokenKind::identifier: out = TokenKind::identifier; return true;
         case syntax::TokenKind::boolean_literal: out = TokenKind::boolean_literal; return true;
+        case syntax::TokenKind::integer_literal: out = TokenKind::integer_literal; return true;
         case syntax::TokenKind::number_literal: out = TokenKind::number_literal; return true;
         case syntax::TokenKind::string_literal: out = TokenKind::string_literal; return true;
         case syntax::TokenKind::plus: out = TokenKind::plus; return true;
@@ -73,6 +74,7 @@ const char* to_string(TokenKind kind) noexcept {
         case TokenKind::invalid: return "invalid";
         case TokenKind::identifier: return "identifier";
         case TokenKind::boolean_literal: return "boolean_literal";
+        case TokenKind::integer_literal: return "integer_literal";
         case TokenKind::number_literal: return "number_literal";
         case TokenKind::string_literal: return "string_literal";
         case TokenKind::plus: return "plus";

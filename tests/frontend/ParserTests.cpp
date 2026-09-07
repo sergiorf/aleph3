@@ -28,6 +28,29 @@ TEST_CASE("Parser respects arithmetic precedence and grouping", "[frontend][pars
     REQUIRE(grouped->right->as<ir::VariableNode>()->name == "x");
 }
 
+TEST_CASE("Parser reports oversized integer literals at trusted host boundary", "[frontend][parser]") {
+    frontend::Parser parser("1234567890123456789012345678901234567890");
+    const auto result = parser.parse();
+
+    REQUIRE_FALSE(result.ok());
+    REQUIRE(result.diagnostics.size() == 1);
+    REQUIRE(result.diagnostics.front().code == "frontend.parser.integer_out_of_range");
+    REQUIRE(result.diagnostics.front().span.start_offset == 0);
+
+    frontend::Parser small_integer_parser("42");
+    const auto small_result = small_integer_parser.parse();
+
+    REQUIRE(small_result.ok());
+    REQUIRE(small_result.root->as<ir::NumberLiteralNode>()->value == 42.0);
+
+    frontend::Parser rounded_integer_parser("9007199254740993");
+    const auto rounded_result = rounded_integer_parser.parse();
+
+    REQUIRE_FALSE(rounded_result.ok());
+    REQUIRE(rounded_result.diagnostics.size() == 1);
+    REQUIRE(rounded_result.diagnostics.front().code == "frontend.parser.integer_out_of_range");
+}
+
 TEST_CASE("Parser keeps power right-associative", "[frontend][parser]") {
     frontend::Parser parser("2 ^ 3 ^ 4");
     const auto result = parser.parse();

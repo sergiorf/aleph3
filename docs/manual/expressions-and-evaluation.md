@@ -49,6 +49,14 @@ parsing starts from the same source-aware syntax frontend, but rejects syntax
 outside the documented trusted subset such as `2x`, assignments, definitions,
 rules, and patterns.
 
+Decimal integer tokens are preserved by the shared syntax frontend as integer
+source text, distinct from decimal machine-real literals such as `1.0`. Until
+the expression-model arbitrary-precision slice lands, symbolic lowering still
+accepts standalone integers only when they fit and can be represented exactly
+by the current expression representation, and reports
+`syntax.lowering.integer_out_of_range` otherwise. Exact rational literal
+numerators and denominators use the current checked bounded rational storage.
+
 ## Evaluation And Symbolic Fallback
 
 Evaluation applies known meanings:
@@ -108,10 +116,10 @@ stable representation for equality, matching, and algorithms.
 ```
 
 Exact coefficients use checked 64-bit integer storage. Overflow is reported;
-arbitrary-precision integers are future work. Exact rational arithmetic is
-normalized with checked intermediate arithmetic, so oversized integer/rational
-intermediates fail with `kernel.exact_overflow` or its runtime projection
-rather than wrapping or being rounded through a machine real.
+public arbitrary-precision integer expressions are future work. Exact rational
+arithmetic is normalized with checked intermediate arithmetic, so oversized
+integer/rational intermediates fail with `kernel.exact_overflow` or its runtime
+projection rather than wrapping or being rounded through a machine real.
 
 Use decimals only when approximation is intended:
 

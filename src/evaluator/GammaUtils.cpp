@@ -95,7 +95,7 @@ ExprPtr make_gamma_shifted_term(const ExprPtr& base, int64_t offset) {
     }
 
     std::vector<ExprPtr> plus_args;
-    plus_args.push_back(make_expr<Number>(static_cast<double>(offset)));
+    plus_args.push_back(make_integer(offset));
 
     if (const auto* base_plus = std::get_if<FunctionCall>(base.get());
         base_plus != nullptr && base_plus->head == "Plus") {
@@ -119,6 +119,12 @@ std::optional<std::pair<ExprPtr, int64_t>> extract_integer_shift_base(const Expr
     base_terms.reserve(plus->args.size());
 
     for (const auto& term : plus->args) {
+        if (auto integer = exact_int64_from_expr(term)) {
+            integer_shift += *integer;
+            has_integer_shift = true;
+            continue;
+        }
+
         if (const auto* number = std::get_if<Number>(term.get());
             number != nullptr &&
             std::isfinite(number->value) &&
@@ -131,20 +137,25 @@ std::optional<std::pair<ExprPtr, int64_t>> extract_integer_shift_base(const Expr
 
         if (const auto* rational = std::get_if<Rational>(term.get());
             rational != nullptr) {
-            if (rational->denominator == 1) {
-                integer_shift += rational->numerator;
+            const auto bounded = rational->exact().to_bounded();
+            if (!bounded.has_value()) {
+                base_terms.push_back(term);
+                continue;
+            }
+            if (bounded->second == 1) {
+                integer_shift += bounded->first;
                 has_integer_shift = true;
                 continue;
             }
 
-            const int64_t truncated_shift = rational->numerator / rational->denominator;
-            const int64_t remainder_num = rational->numerator % rational->denominator;
+            const int64_t truncated_shift = bounded->first / bounded->second;
+            const int64_t remainder_num = bounded->first % bounded->second;
             if (truncated_shift != 0) {
                 integer_shift += truncated_shift;
                 has_integer_shift = true;
             }
             if (remainder_num != 0) {
-                base_terms.push_back(make_expr<Rational>(remainder_num, rational->denominator));
+                base_terms.push_back(make_expr<Rational>(remainder_num, bounded->second));
             }
             continue;
         }
@@ -197,20 +208,36 @@ std::optional<ExprPtr> simplify_gamma_argument(const ExprPtr& arg) {
         return make_expr<Number>(std::tgamma(value));
     }
 
+    if (std::holds_alternative<Integer>(*arg)) {
+        const auto& integer = std::get<Integer>(*arg);
+        if (integer.value <= 0) {
+            return make_expr<ComplexInfinity>();
+        }
+        const auto bounded = integer.value.to_int64();
+        if (!bounded.has_value()) {
+            return std::nullopt;
+        }
+        return make_expr<Number>(std::tgamma(static_cast<double>(*bounded)));
+    }
+
     if (std::holds_alternative<Rational>(*arg)) {
         const auto& rational = std::get<Rational>(*arg);
-        if (rational.denominator == 1) {
-            if (rational.numerator <= 0) {
+        const auto bounded = rational.exact().to_bounded();
+        if (!bounded.has_value()) {
+            return std::nullopt;
+        }
+        if (bounded->second == 1) {
+            if (bounded->first <= 0) {
                 return make_expr<ComplexInfinity>();
             }
-            return make_expr<Number>(std::tgamma(static_cast<double>(rational.numerator)));
+            return make_expr<Number>(std::tgamma(static_cast<double>(bounded->first)));
         }
-        if (rational.denominator == 2 && (rational.numerator % 2 != 0)) {
-            return make_exact_gamma_half_integer(static_cast<int>(rational.numerator));
+        if (bounded->second == 2 && (bounded->first % 2 != 0)) {
+            return make_exact_gamma_half_integer(static_cast<int>(bounded->first));
         }
 
         const double value =
-            static_cast<double>(rational.numerator) / static_cast<double>(rational.denominator);
+            static_cast<double>(bounded->first) / static_cast<double>(bounded->second);
         return make_expr<Number>(std::tgamma(value));
     }
 

@@ -7,9 +7,9 @@ for monomials, total degree, and variable precedence.
 
 ## Exact Coefficient Boundary
 
-Supported exact polynomial helpers use checked `int64_t` integer and rational
-coefficients. Exact rational coefficients stay exact in the documented
-polynomial subset:
+Supported exact polynomial helpers use the shared arbitrary-precision exact
+integer and rational coefficient model. Exact rational coefficients stay exact
+in the documented polynomial subset:
 
 ```text
 Expand[(1/3*x + 1/6)*6]                 -> 2 * x + 1
@@ -20,14 +20,12 @@ PolynomialRemainder[x^2 + 1, x + 1, x]  -> 2
 LeadingCoefficient[(1/2)*x^2 + x, x]    -> 1/2
 ```
 
-If an exact coefficient intermediate overflows the checked representation,
-Aleph3 reports an exact-overflow diagnostic. It does not wrap and does not
-fall back to approximate arithmetic. Exact-only algebra paths accept current
-integer-valued `Number` expressions as bounded integer coefficients only when
-the value is exactly integral and fits in `int64_t`; other decimal inputs are
-inexact. Decimal inputs only use the documented transitional inexact
-polynomial paths and are rejected by exact-only helpers such as
-rational-expression transformations and exact multivariate division.
+Exact coefficient arithmetic does not wrap through native integer overflow and
+does not fall back to approximate arithmetic. Bounded checks still apply where
+an operation needs a native exponent, degree, matrix size, or part index.
+Decimal inputs are inexact. Decimal inputs only use the documented
+transitional inexact polynomial paths and are rejected by exact-only helpers
+such as rational-expression transformations and exact multivariate division.
 
 ## Expand And Collect
 

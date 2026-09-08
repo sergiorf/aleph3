@@ -21,19 +21,16 @@ namespace aleph3 {
     }
 
     std::optional<int64_t> integer_exponent_value(const ExprPtr& expr) {
-        if (const auto* number = std::get_if<Number>(expr.get())) {
-            auto integer = exact_int64_from_number(number->value);
-            if (!integer.has_value()) {
-                return std::nullopt;
-            }
-            return *integer;
-        }
+        return exact_int64_from_expr(expr);
+    }
 
-        if (const auto* rational = std::get_if<Rational>(expr.get());
-            rational != nullptr && rational->denominator == 1) {
-            return rational->numerator;
+    std::optional<kernel::ExactRational> exact_rational_atom(const ExprPtr& expr) {
+        if (const auto* integer = std::get_if<Integer>(expr.get())) {
+            return kernel::ExactRational(integer->value, kernel::ExactInteger(1));
         }
-
+        if (const auto* rational = std::get_if<Rational>(expr.get())) {
+            return rational->exact();
+        }
         return std::nullopt;
     }
 
@@ -165,7 +162,7 @@ namespace aleph3 {
                         r.numerator, r.denominator, *integer, 1);
                     return make_expr<Rational>(nn, dd);
                 } else {
-                    double val = static_cast<double>(r.numerator) / r.denominator + n;
+                    double val = finite_double_from_exact_rational(r).value_or(0.0) + n;
                     return make_expr<Number>(val);
                 }
             }
@@ -257,7 +254,7 @@ namespace aleph3 {
                         r.numerator, r.denominator, *integer, 1);
                     return make_expr<Rational>(nn, dd);
                 } else {
-                    double val = static_cast<double>(r.numerator) / r.denominator * n;
+                    double val = finite_double_from_exact_rational(r).value_or(0.0) * n;
                     return make_expr<Number>(val);
                 }
             }
@@ -300,8 +297,8 @@ namespace aleph3 {
 
         double numeric_result = 1.0;
         bool has_rational_result = false;
-        int64_t rational_num = 1;
-        int64_t rational_den = 1;
+        kernel::ExactInteger rational_num = 1;
+        kernel::ExactInteger rational_den = 1;
         std::vector<ExprPtr> symbolic_terms;
 
         for (const auto& e : flat_args) {
@@ -313,10 +310,34 @@ namespace aleph3 {
                 continue;
             }
 
+            if (std::holds_alternative<Integer>(*e)) {
+                const auto& integer = std::get<Integer>(*e);
+                if (integer.value.is_zero()) {
+                    return make_expr<Integer>(0);
+                }
+                if (integer.value.is_one()) {
+                    continue;
+                }
+                if (!has_rational_result) {
+                    rational_num = integer.value;
+                    rational_den = 1;
+                    has_rational_result = true;
+                } else {
+                    auto [nn, dd] = checked_rational_multiply(
+                        rational_num,
+                        rational_den,
+                        integer.value,
+                        kernel::ExactInteger(1));
+                    rational_num = nn;
+                    rational_den = dd;
+                }
+                continue;
+            }
+
             if (std::holds_alternative<Rational>(*e)) {
                 const auto& rational = std::get<Rational>(*e);
                 if (rational.numerator == 0) {
-                    return make_expr<Number>(0);
+                    return make_expr<Integer>(0);
                 }
                 if (!has_rational_result) {
                     rational_num = rational.numerator;
@@ -343,23 +364,25 @@ namespace aleph3 {
                 auto [nn, dd] = checked_rational_multiply(
                     rational_num, rational_den, *integer, 1);
                 if (!(nn == 1 && dd == 1 && !symbolic_terms.empty())) {
-                    simplified.push_back(dd == 1 ? make_expr<Number>(static_cast<double>(nn))
-                                                 : make_expr<Rational>(nn, dd));
+                    simplified.push_back(
+                        kernel::ExactInteger(dd).is_one() ? make_expr<Integer>(nn)
+                                                          : make_expr<Rational>(nn, dd));
                 }
             } else {
-                numeric_result *= static_cast<double>(rational_num) / rational_den;
+                numeric_result *= finite_double_from_exact_rational(
+                    Rational(rational_num, rational_den)).value_or(0.0);
             }
         }
 
         if (numeric_result == 0.0) {
             return make_expr<Number>(0);
         }
-        if (!(numeric_result == 1.0 && !symbolic_terms.empty())) {
+        if (!(numeric_result == 1.0 && (!symbolic_terms.empty() || has_rational_result))) {
             simplified.push_back(make_expr<Number>(numeric_result));
         }
 
         simplified.insert(simplified.end(), symbolic_terms.begin(), symbolic_terms.end());
-        if (simplified.empty()) return make_expr<Number>(1);
+        if (simplified.empty()) return make_expr<Integer>(1);
         if (simplified.size() == 1) return simplified[0];
         return make_fcall("Times", simplified);
     }},
@@ -375,9 +398,11 @@ namespace aleph3 {
                 return rewritten;
             }
         }
-        if (std::holds_alternative<Number>(*base) && get_number_value(base) == 0.0 &&
-            std::holds_alternative<Number>(*exp) && get_number_value(exp) > 0.0) {
-            return make_expr<Number>(0.0);
+        if (is_zero(base)) {
+            if (const auto integer_exponent = integer_exponent_value(exp);
+                integer_exponent.has_value() && *integer_exponent > 0) {
+                return make_expr<Integer>(0);
+            }
         }
         if (std::holds_alternative<Complex>(*base)) {
             if (auto integer_exponent = integer_exponent_value(exp)) {
@@ -391,12 +416,13 @@ namespace aleph3 {
             double b = get_number_value(base);
             const auto& r = std::get<Rational>(*exp);
             // Only handle positive denominator
-            if (r.denominator > 0) {
-                double root = std::pow(b, 1.0 / r.denominator);
-                double result = std::pow(root, r.numerator);
+            const auto bounded = r.exact().to_bounded();
+            if (bounded && bounded->second > 0) {
+                double root = std::pow(b, 1.0 / static_cast<double>(bounded->second));
+                double result = std::pow(root, static_cast<double>(bounded->first));
                 // If denominator is odd, allow negative base (real root)
-                if (b < 0 && r.denominator % 2 == 1) {
-                    result = -std::pow(-b, static_cast<double>(r.numerator) / r.denominator);
+                if (b < 0 && bounded->second % 2 == 1) {
+                    result = -std::pow(-b, static_cast<double>(bounded->first) / bounded->second);
                 }
                 return make_expr<Number>(result);
             }
@@ -404,16 +430,46 @@ namespace aleph3 {
         if (std::holds_alternative<Rational>(*base) && std::holds_alternative<Rational>(*exp)) {
             const auto& b = std::get<Rational>(*base);
             const auto& r = std::get<Rational>(*exp);
-            double b_val = static_cast<double>(b.numerator) / b.denominator;
+            const auto b_value = finite_double_from_exact_rational(b);
+            const auto bounded_exp = r.exact().to_bounded();
+            if (!b_value || !bounded_exp) {
+                return make_fcall("Power", {base, exp});
+            }
+            double b_val = *b_value;
             // Only handle positive denominator
-            if (r.denominator > 0) {
-                double root = std::pow(b_val, 1.0 / r.denominator);
-                double result = std::pow(root, r.numerator);
+            if (bounded_exp->second > 0) {
+                double root = std::pow(b_val, 1.0 / static_cast<double>(bounded_exp->second));
+                double result = std::pow(root, static_cast<double>(bounded_exp->first));
                 // If denominator is odd, allow negative base (real root)
-                if (b_val < 0 && r.denominator % 2 == 1) {
-                    result = -std::pow(-b_val, static_cast<double>(r.numerator) / r.denominator);
+                if (b_val < 0 && bounded_exp->second % 2 == 1) {
+                    result = -std::pow(-b_val, static_cast<double>(bounded_exp->first) / bounded_exp->second);
                 }
                 return make_expr<Number>(result);
+            }
+        }
+        if (auto exact_base = exact_rational_atom(base), exact_exp = exact_rational_atom(exp);
+            exact_base.has_value() && exact_exp.has_value()) {
+            const auto bounded_base = exact_base->to_bounded();
+            const auto bounded_exp = exact_exp->to_bounded();
+            if (bounded_base && bounded_exp && bounded_exp->second == 1) {
+                const double b = static_cast<double>(bounded_base->first) /
+                    static_cast<double>(bounded_base->second);
+                const double e = static_cast<double>(bounded_exp->first);
+                if (b == 0.0 && e == 0.0) {
+                    return make_fcall("Power", {base, exp});
+                }
+                if (b == 0.0 && e < 0.0) {
+                    return make_fcall("Power", {base, exp});
+                }
+                if (bounded_base->second == 1 && bounded_exp->first >= 0) {
+                    kernel::ExactInteger result(1);
+                    kernel::ExactInteger factor(bounded_base->first);
+                    for (int64_t i = 0; i < bounded_exp->first; ++i) {
+                        result = result * factor;
+                    }
+                    return make_expr<Integer>(std::move(result));
+                }
+                return make_expr<Number>(std::pow(b, e));
             }
         }
         if (std::holds_alternative<Number>(*base) && std::holds_alternative<Number>(*exp)) {
@@ -469,7 +525,7 @@ namespace aleph3 {
                         a.numerator, a.denominator, *integer, 1);
                     return make_expr<Rational>(nn, dd);
                 } else {
-                    double val = static_cast<double>(a.numerator) / a.denominator / b;
+                    double val = finite_double_from_exact_rational(a).value_or(0.0) / b;
                     return make_expr<Number>(val);
                 }
             }
@@ -481,7 +537,7 @@ namespace aleph3 {
                         *integer, 1, b.numerator, b.denominator);
                     return make_expr<Rational>(nn, dd);
                 } else {
-                    double val = a / (static_cast<double>(b.numerator) / b.denominator);
+                    double val = a / finite_double_from_exact_rational(b).value_or(0.0);
                     return make_expr<Number>(val);
                 }
             }

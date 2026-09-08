@@ -15,17 +15,21 @@
  */
 #pragma once
 
+#include "kernel/ExactScalar.hpp"
+
 #include <memory>
 #include <string>
 #include <variant>
 #include <vector>
 #include <iostream>
 #include <cstdint>
+#include <utility>
 
 namespace aleph3 {
 
 // Forward declarations
 struct Symbol;
+struct Integer;
 struct Number;
 struct Complex;
 struct Rational;
@@ -41,7 +45,7 @@ struct ComplexInfinity;
 struct Indeterminate;
 
 // Core Expression type: variant of all expression types
-using Expr = std::variant < Symbol, Number, Complex, Rational, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List, Infinity, ComplexInfinity, Indeterminate > ;
+using Expr = std::variant < Symbol, Integer, Number, Complex, Rational, Boolean, String, FunctionCall, FunctionDefinition, Assignment, Rule, List, Infinity, ComplexInfinity, Indeterminate > ;
 
 // Smart pointer to immutable expressions
 using ExprPtr = std::shared_ptr<const Expr>;
@@ -66,6 +70,14 @@ struct String {
     String(const std::string& v) : value(v) {}
 };
 
+struct Integer {
+    kernel::ExactInteger value;
+
+    Integer(int v) : value(v) {}
+    Integer(int64_t v) : value(v) {}
+    explicit Integer(kernel::ExactInteger v) : value(std::move(v)) {}
+};
+
 struct Number {
     double value;
 
@@ -79,9 +91,24 @@ struct Complex {
 };
 
 struct Rational {
-    int64_t numerator;
-    int64_t denominator;
-    Rational(int64_t n, int64_t d) : numerator(n), denominator(d) {}
+    kernel::ExactInteger numerator;
+    kernel::ExactInteger denominator;
+
+    Rational(int64_t n, int64_t d)
+        : Rational(kernel::ExactInteger(n), kernel::ExactInteger(d)) {}
+
+    Rational(kernel::ExactInteger n, kernel::ExactInteger d) {
+        const kernel::ExactRational normalized(std::move(n), std::move(d));
+        numerator = normalized.numerator();
+        denominator = normalized.denominator();
+    }
+
+    explicit Rational(kernel::ExactRational value)
+        : numerator(value.numerator()), denominator(value.denominator()) {}
+
+    [[nodiscard]] kernel::ExactRational exact() const {
+        return kernel::ExactRational(numerator, denominator);
+    }
 };
 
 struct Boolean {
@@ -152,6 +179,12 @@ inline std::string to_string(int64_t v) {
 }
 inline std::string to_string_raw(int64_t v) {
     return std::to_string(v);
+}
+inline std::string to_string(const kernel::ExactInteger& v) {
+    return v.to_string();
+}
+inline std::string to_string_raw(const kernel::ExactInteger& v) {
+    return v.to_string();
 }
 
 std::string to_string(const Expr& expr);

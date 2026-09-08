@@ -10,6 +10,26 @@
 
 using namespace aleph3;
 
+namespace {
+
+void require_exact_scalar(const ExprPtr& expr, int64_t num, int64_t den) {
+    REQUIRE(expr);
+    if (den == 1) {
+        REQUIRE(std::holds_alternative<Integer>(*expr));
+        CHECK(std::get<Integer>(*expr).value == num);
+        return;
+    }
+
+    REQUIRE(std::holds_alternative<Rational>(*expr));
+    const auto& r = std::get<Rational>(*expr);
+    INFO("Expected: " << num << "/" << den
+        << " | Got: " << r.numerator << "/" << r.denominator);
+    CHECK(r.numerator == num);
+    CHECK(r.denominator == den);
+}
+
+}  // namespace
+
 TEST_CASE("Evaluator: Rational arithmetic", "[evaluator][rational]") {
     EvaluationContext ctx;
     struct Case {
@@ -36,13 +56,8 @@ TEST_CASE("Evaluator: Rational arithmetic", "[evaluator][rational]") {
         DYNAMIC_SECTION("Evaluating: " << c.input) {
             auto expr = parse_expression(c.input);
             auto result = evaluate(expr, ctx);
-            REQUIRE(result);
-            REQUIRE(std::holds_alternative<Rational>(*result));
-            auto r = std::get<Rational>(*result);
-            INFO("Input: " << c.input << " | Expected: " << c.num << "/" << c.den
-                << " | Got: " << r.numerator << "/" << r.denominator);
-            CHECK(r.numerator == c.num);
-            CHECK(r.denominator == c.den);
+            INFO("Input: " << c.input);
+            require_exact_scalar(result, c.num, c.den);
         }
     }
 }
@@ -119,18 +134,20 @@ TEST_CASE("Evaluator: Rational edge cases", "[evaluator][rational][edge]") {
     }
 }
 
-TEST_CASE("Evaluator: Rational arithmetic reports overflow before wrapping", "[evaluator][rational][overflow]") {
+TEST_CASE("Evaluator: Rational arithmetic preserves large exact values", "[evaluator][rational][exact]") {
     EvaluationContext ctx;
 
-    REQUIRE_THROWS_AS(
-        evaluate(parse_expression("1/3037000500 + 1/3037000501"), ctx),
-        std::overflow_error);
-    REQUIRE_THROWS_AS(
-        evaluate(parse_expression("4611686018427387904/1 * 3/1"), ctx),
-        std::overflow_error);
-    REQUIRE_THROWS_AS(
-        evaluate(parse_expression("4611686018427387904/1 < 1/3"), ctx),
-        std::overflow_error);
+    auto sum = evaluate(parse_expression("1/3037000500 + 1/3037000501"), ctx);
+    REQUIRE(std::holds_alternative<Rational>(*sum));
+    CHECK(to_string(sum) == "6074001001/9223372040037250500");
+
+    auto product = evaluate(parse_expression("4611686018427387904/1 * 3/1"), ctx);
+    REQUIRE(std::holds_alternative<Integer>(*product));
+    CHECK(to_string(product) == "13835058055282163712");
+
+    auto comparison = evaluate(parse_expression("4611686018427387904/1 < 1/3"), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*comparison));
+    CHECK_FALSE(std::get<Boolean>(*comparison).value);
 }
 
 TEST_CASE("Rational normalization handles int64 minimum boundaries", "[evaluator][rational][overflow]") {
@@ -157,13 +174,8 @@ TEST_CASE("Evaluator: Rational reduction to lowest terms", "[evaluator][rational
         DYNAMIC_SECTION("Evaluating: " << c.input) {
             auto expr = parse_expression(c.input);
             auto result = evaluate(expr, ctx);
-            REQUIRE(result);
-            REQUIRE(std::holds_alternative<Rational>(*result));
-            auto r = std::get<Rational>(*result);
-            INFO("Input: " << c.input << " | Expected: " << c.num << "/" << c.den
-                << " | Got: " << r.numerator << "/" << r.denominator);
-            CHECK(r.numerator == c.num);
-            CHECK(r.denominator == c.den);
+            INFO("Input: " << c.input);
+            require_exact_scalar(result, c.num, c.den);
         }
     }
 }
@@ -187,13 +199,8 @@ TEST_CASE("Evaluator: Rational normalization of signs", "[evaluator][rational][s
         DYNAMIC_SECTION("Evaluating: " << c.input) {
             auto expr = parse_expression(c.input);
             auto result = evaluate(expr, ctx);
-            REQUIRE(result);
-            REQUIRE(std::holds_alternative<Rational>(*result));
-            auto r = std::get<Rational>(*result);
-            INFO("Input: " << c.input << " | Expected: " << c.num << "/" << c.den
-                << " | Got: " << r.numerator << "/" << r.denominator);
-            CHECK(r.numerator == c.num);
-            CHECK(r.denominator == c.den);
+            INFO("Input: " << c.input);
+            require_exact_scalar(result, c.num, c.den);
         }
     }
 }

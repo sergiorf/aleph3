@@ -3,9 +3,8 @@
  * ---------------
  * Kernel-owned arbitrary-precision integer and rational scalar values.
  *
- * These types are internal scalar infrastructure. Public Expr numeric storage
- * still uses the current bounded representation until the expression-model
- * migration slice lands.
+ * Public Expr integer and rational atoms use these exact scalar values. Some
+ * evaluator, SDK, and algebra adapters still apply explicit bounded gates.
  */
 
 #pragma once
@@ -14,6 +13,9 @@
 
 #include <cstdint>
 #include <compare>
+#include <cstddef>
+#include <functional>
+#include <ostream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -94,4 +96,19 @@ private:
 
 [[nodiscard]] int compare(const ExactRational& left, const ExactRational& right);
 
+inline std::ostream& operator<<(std::ostream& out, const ExactInteger& value) {
+    return out << value.to_string();
+}
+
 }  // namespace aleph3::kernel
+
+namespace std {
+
+template <>
+struct hash<aleph3::kernel::ExactInteger> {
+    std::size_t operator()(const aleph3::kernel::ExactInteger& value) const noexcept {
+        return std::hash<std::string>{}(value.to_string());
+    }
+};
+
+}  // namespace std

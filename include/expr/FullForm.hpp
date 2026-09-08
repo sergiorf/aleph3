@@ -27,6 +27,9 @@ inline std::string to_fullform(const ExprPtr& expr) {
         void operator()(const Number& n) {
             out << std::setprecision(16) << n.value;
         }
+        void operator()(const Integer& n) {
+            out << n.value.to_string();
+        }
         void operator()(const Complex& c) {
             out << "Complex[" << c.real << ", " << c.imag << "]";
         }
@@ -40,7 +43,7 @@ inline std::string to_fullform(const ExprPtr& expr) {
             out << (b.value ? "True" : "False");
         }
         void operator()(const Rational& r) {
-            out << "Rational[" << r.numerator << ", " << r.denominator << "]";
+            out << "Rational[" << r.numerator.to_string() << ", " << r.denominator.to_string() << "]";
         }
         void operator()(const FunctionCall& f) {
             out << f.head << "[";

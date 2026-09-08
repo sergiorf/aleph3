@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "parser/Parser.hpp"
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
 
 using namespace aleph3;
 
@@ -53,16 +54,13 @@ TEST_CASE("Parser: Complex number literals", "[parser][complex]") {
         CHECK(minus.head == "Minus");
         REQUIRE(minus.args.size() == 2);
         // Check left is 2
-        REQUIRE(std::holds_alternative<Number>(*minus.args[0]));
-        const auto& n = std::get<Number>(*minus.args[0]);
-        CHECK(n.value == 2.0);
+        CHECK(get_number_value(minus.args[0]) == 2.0);
         // Check right is Times[5, I]
         REQUIRE(std::holds_alternative<FunctionCall>(*minus.args[1]));
         const auto& times = std::get<FunctionCall>(*minus.args[1]);
         CHECK(times.head == "Times");
         REQUIRE(times.args.size() == 2);
-        REQUIRE(std::holds_alternative<Number>(*times.args[0]));
-        CHECK(std::get<Number>(*times.args[0]).value == 5.0);
+        CHECK(get_number_value(times.args[0]) == 5.0);
         REQUIRE(std::holds_alternative<Complex>(*times.args[1]));
         const auto& c = std::get<Complex>(*times.args[1]);
         CHECK(c.real == 0.0);
@@ -72,8 +70,6 @@ TEST_CASE("Parser: Complex number literals", "[parser][complex]") {
     SECTION("Pure real") {
         auto expr = parse_expression("7");
         REQUIRE(expr);
-        REQUIRE(std::holds_alternative<Number>(*expr));
-        const auto& n = std::get<Number>(*expr);
-        CHECK(n.value == 7.0);
+        CHECK(get_number_value(expr) == 7.0);
     }
 }

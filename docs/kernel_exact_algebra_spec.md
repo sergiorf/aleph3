@@ -9,14 +9,13 @@ Current implementation contract referenced by the
 
 This document defines the current exact arithmetic and algebra-facing
 foundations required for stronger symbolic math. The kernel now owns an
-internal arbitrary-precision scalar module, but public expressions and algebra
-coefficients still use the checked bounded representation until their focused
-migration slices land.
+arbitrary-precision scalar module used by public exact integer/rational
+expressions and by the supported algebra coefficient paths.
 
 The current exact algebra layer provides:
 
-- internal arbitrary-precision integer and rational scalar infrastructure;
-- checked integer and rational coefficient storage;
+- arbitrary-precision integer and rational scalar infrastructure;
+- exact integer and rational coefficient storage;
 - exact polynomial conversion and helper operations for the algebra pack;
 - explicit overflow and unsupported-case behavior;
 - a migration boundary away from floating-point-centered polynomial internals.
@@ -33,8 +32,8 @@ This spec covers:
 - testing invariants.
 
 Exact complex coefficients, symbolic coefficients, broad coefficient-ring
-abstractions, arbitrary precision, algebraic-number coefficients, and
-approximate polynomial algorithms are outside this contract.
+abstractions, algebraic-number coefficients, and approximate polynomial
+algorithms are outside this contract.
 
 ## Exact Scalar Model
 
@@ -44,13 +43,14 @@ backed by Boost.Multiprecision `cpp_int`, normalize rational signs and common
 factors, provide stable decimal rendering, and expose checked adapters to the
 current bounded `int64_t` representation.
 
-These internal scalar types are not yet public expression alternatives.
-`Expr::Number` remains the current machine-real storage, and `Expr::Rational`
-still stores checked `int64_t` numerator and denominator values until the
-expression-model migration slice replaces that storage.
+`Expr::Integer` stores exact arbitrary-precision integers. `Expr::Rational`
+stores normalized exact rationals with arbitrary-precision numerator and
+denominator fields. `Expr::Number` remains the C++ machine-real storage for
+decimal input and approximate results; its public head is `Real`.
 
 `ExactCoefficient` is the current algebra coefficient value. It stores a
-normalized rational number as checked `int64_t` numerator and denominator.
+normalized exact rational number using the shared arbitrary-precision scalar
+model.
 
 Invariants:
 
@@ -59,19 +59,12 @@ Invariants:
 - equal rational values compare structurally equal after normalization;
 - addition, subtraction, multiplication, and division preserve exactness;
 - denominator zero is invalid;
-- arithmetic overflow throws an exact-overflow condition before wraparound.
+- exact arithmetic does not wrap through native integer overflow.
 
-The current model deliberately does not allocate arbitrary-precision integers.
-When an intermediate numerator, denominator, scale factor, content value, or
-least common multiple cannot fit in `int64_t`, the operation fails explicitly.
-No exact algebra operation may silently demote to `Number` or a `double`
-polynomial path to avoid overflow.
-
-Current guard rails centralize checked bounded rational arithmetic for the
-shared expression, simplification, rewrite, transform, and exact-polynomial
-paths. Normalization handles `INT64_MIN` boundaries without unchecked
-negation; values whose normalized positive denominator cannot fit in `int64_t`
-fail with exact overflow.
+Bounded adapters remain explicit where an operation needs a native index,
+degree, exponent, size, or SDK host-number value. Values outside those local
+bounds are rejected at that boundary rather than rounded through `Number` or
+sent into a `double` polynomial path.
 
 ## Coefficient Abstractions
 
@@ -83,13 +76,12 @@ Near-term algorithms may rely on:
 
 - exact zero and one checks;
 - rational normalization;
-- checked arithmetic;
+- exact arithmetic over the shared scalar model;
 - exact division by a nonzero coefficient;
 - integer-content extraction after denominators are cleared.
 
 Algorithms must not assume:
 
-- arbitrary-precision growth;
 - symbolic coefficients;
 - algebraic-number coefficients;
 - approximate fallback;

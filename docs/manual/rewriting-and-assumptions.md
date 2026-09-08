@@ -14,8 +14,11 @@ MatchQ[3, _Integer]                      -> True
 ```
 
 `a_` matches one expression and binds it. Reusing a binder requires the same
-structure. Typed patterns restrict the matched expression. `ReplaceAll` and
-`/.` use the same whole-expression traversal as `Replace[expr, rule]`.
+structure, so large exact integers compare by exact value rather than by a
+machine-real approximation. Typed patterns restrict the matched expression:
+`_Integer` matches exact integer atoms, `_Rational` matches exact rational
+atoms but not integers, and `_Real` matches machine-real atoms. `ReplaceAll`
+and `/.` use the same whole-expression traversal as `Replace[expr, rule]`.
 Sequence patterns, general rule lists, delayed rules, and replacement strategy
 controls remain outside the current contract.
 

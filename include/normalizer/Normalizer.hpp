@@ -23,7 +23,9 @@ enum class NormalizedSortClass {
 };
 
 inline bool is_numeric_constant(const ExprPtr& expr) {
-    return std::holds_alternative<Number>(*expr) || std::holds_alternative<Rational>(*expr);
+    return std::holds_alternative<Integer>(*expr) ||
+           std::holds_alternative<Number>(*expr) ||
+           std::holds_alternative<Rational>(*expr);
 }
 
 inline NormalizedSortClass normalized_sort_class(const ExprPtr& expr) {
@@ -36,7 +38,7 @@ inline NormalizedSortClass normalized_sort_class(const ExprPtr& expr) {
     if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
         if (call->head == "Power" && call->args.size() == 2 &&
             std::holds_alternative<Symbol>(*call->args[0]) &&
-            std::holds_alternative<Number>(*call->args[1])) {
+            exact_int64_from_expr(call->args[1]).has_value()) {
             return NormalizedSortClass::algebraic;
         }
         if (call->head == "Times") {
@@ -59,7 +61,7 @@ inline NormalizedSortClass normalized_sort_class(const ExprPtr& expr) {
 }
 
 inline int normalized_term_degree(const ExprPtr& expr) {
-    if (std::holds_alternative<Number>(*expr) || std::holds_alternative<Rational>(*expr)) {
+    if (is_numeric_constant(expr)) {
         return 0;
     }
     if (std::holds_alternative<Symbol>(*expr)) {
@@ -67,9 +69,11 @@ inline int normalized_term_degree(const ExprPtr& expr) {
     }
     if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
         if (call->head == "Power" && call->args.size() == 2 &&
-            std::holds_alternative<Symbol>(*call->args[0]) &&
-            std::holds_alternative<Number>(*call->args[1])) {
-            return static_cast<int>(std::get<Number>(*call->args[1]).value);
+            std::holds_alternative<Symbol>(*call->args[0])) {
+            const auto exponent = exact_int64_from_expr(call->args[1]);
+            if (exponent.has_value()) {
+                return static_cast<int>(*exponent);
+            }
         }
         if (call->head == "Times") {
             int degree = 0;
@@ -123,12 +127,14 @@ inline bool canonical_numeric_constant_less(const ExprPtr& left, const ExprPtr& 
     }
 
     const auto numeric_value = [](const ExprPtr& expr) {
+        if (const auto* integer = std::get_if<Integer>(expr.get())) {
+            return finite_double_from_exact_integer(integer->value).value_or(0.0);
+        }
         if (const auto* number = std::get_if<Number>(expr.get())) {
             return number->value;
         }
         const auto& rational = std::get<Rational>(*expr);
-        return static_cast<double>(rational.numerator) /
-               static_cast<double>(rational.denominator);
+        return finite_double_from_exact_rational(rational).value_or(0.0);
     };
     const double left_value = numeric_value(left);
     const double right_value = numeric_value(right);
@@ -232,7 +238,7 @@ inline int canonical_plus_algebraic_shape_rank(const ExprPtr& expr) {
     if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
         if (call->head == "Power" && call->args.size() == 2 &&
             std::holds_alternative<Symbol>(*call->args[0]) &&
-            std::holds_alternative<Number>(*call->args[1])) {
+            exact_int64_from_expr(call->args[1]).has_value()) {
             return 0;
         }
         if (call->head == "Times") {
@@ -247,8 +253,8 @@ inline bool has_non_unit_negative_numeric_coefficient(const ExprPtr& expr) {
         return number->value < 0.0 && number->value != -1.0;
     }
     if (const auto* rational = std::get_if<Rational>(expr.get())) {
-        return rational->numerator < 0 &&
-               !(rational->numerator == -1 && rational->denominator == 1);
+        return rational->numerator.is_negative() &&
+               !(rational->numerator == kernel::ExactInteger(-1) && rational->denominator.is_one());
     }
     if (const auto* call = std::get_if<FunctionCall>(expr.get());
         call != nullptr && call->head == "Times" && !call->args.empty()) {
@@ -355,10 +361,10 @@ inline ExprPtr maybe_normalize_complex_sum(const std::vector<ExprPtr>& terms) {
 
     const ExprPtr* real_term = nullptr;
     const ExprPtr* imag_term = nullptr;
-    if (std::holds_alternative<Number>(*terms[0])) {
+    if (finite_double_from_expr(terms[0]).has_value()) {
         real_term = &terms[0];
         imag_term = &terms[1];
-    } else if (std::holds_alternative<Number>(*terms[1])) {
+    } else if (finite_double_from_expr(terms[1]).has_value()) {
         real_term = &terms[1];
         imag_term = &terms[0];
     } else {
@@ -373,8 +379,8 @@ inline ExprPtr maybe_normalize_complex_sum(const std::vector<ExprPtr>& terms) {
     double imag = 1.0;
     bool saw_imaginary_unit = false;
     for (const auto& arg : times->args) {
-        if (std::holds_alternative<Number>(*arg)) {
-            imag *= std::get<Number>(*arg).value;
+        if (auto scalar = finite_double_from_expr(arg)) {
+            imag *= *scalar;
             continue;
         }
         if (std::holds_alternative<Symbol>(*arg) &&
@@ -396,7 +402,7 @@ inline ExprPtr maybe_normalize_complex_sum(const std::vector<ExprPtr>& terms) {
         return nullptr;
     }
 
-    return make_expr<Complex>(std::get<Number>(**real_term).value, imag);
+    return make_expr<Complex>(*finite_double_from_expr(*real_term), imag);
 }
 
 inline ExprPtr normalize_plus_args(const std::vector<ExprPtr>& args);
@@ -453,6 +459,10 @@ inline ExprPtr normalize_times_args(const std::vector<ExprPtr>& args) {
             number != nullptr && number->value == 1.0) {
             continue;
         }
+        if (const auto* integer = std::get_if<Integer>(arg.get());
+            integer != nullptr && integer->value.is_one()) {
+            continue;
+        }
         if (const auto* rational = std::get_if<Rational>(arg.get());
             rational != nullptr && rational->numerator == rational->denominator) {
             continue;
@@ -465,7 +475,7 @@ inline ExprPtr normalize_times_args(const std::vector<ExprPtr>& args) {
     }
 
     if (factors.empty()) {
-        return make_expr<Number>(1.0);
+        return make_expr<Integer>(1);
     }
 
     if (factors.size() == 1) {
@@ -481,12 +491,14 @@ inline ExprPtr normalize_expr(const ExprPtr& expr) {
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
         },
+        [](const Integer& integer) -> ExprPtr {
+            return make_expr<Integer>(integer.value);
+        },
         [](const Complex& c) -> ExprPtr {
             return make_expr<Complex>(c.real, c.imag);
         },
         [](const Rational& r) -> ExprPtr {
-            auto [n, d] = normalize_rational(r.numerator, r.denominator);
-            return make_expr<Rational>(n, d);
+            return make_exact_scalar_expr(r.exact());
         },
         [](const Boolean& boolean) -> ExprPtr {
             return make_expr<Boolean>(boolean.value);
@@ -511,7 +523,7 @@ inline ExprPtr normalize_expr(const ExprPtr& expr) {
                 // Normalize Minus(a, b) -> Plus(a, Times(-1, b))
                 auto a = normalize_expr(f.args[0]);
                 auto b = normalize_expr(f.args[1]);
-                return detail::normalize_plus_args({a, make_fcall("Times", {make_expr<Number>(-1), b})});
+                return detail::normalize_plus_args({a, make_fcall("Times", {make_expr<Integer>(-1), b})});
             }
             if (f.head == "Plus") {
                 return detail::normalize_plus_args(f.args);
@@ -523,6 +535,12 @@ inline ExprPtr normalize_expr(const ExprPtr& expr) {
                 if (auto num = std::get_if<Number>(arg.get())) {
                     return make_expr<Number>(-num->value);
                 }
+                if (auto integer = std::get_if<Integer>(arg.get())) {
+                    return make_expr<Integer>(-integer->value);
+                }
+                if (auto rational = std::get_if<Rational>(arg.get())) {
+                    return make_exact_scalar_expr(-rational->exact());
+                }
                 // If arg is already Times(-1, ...), flatten
                 if (auto inner = std::get_if<FunctionCall>(arg.get())) {
                     if (inner->head == "Times" && !inner->args.empty()) {
@@ -530,10 +548,17 @@ inline ExprPtr normalize_expr(const ExprPtr& expr) {
                             // Already normalized
                             return arg;
                         }
+                        if (auto n = std::get_if<Integer>(inner->args[0].get()); n && n->value == -1) {
+                            if (inner->args.size() == 2) {
+                                return inner->args[1];
+                            }
+                            std::vector<ExprPtr> positive_args(inner->args.begin() + 1, inner->args.end());
+                            return detail::normalize_times_args(positive_args);
+                        }
                     }
                 }
                 // Otherwise, return Times(-1, arg)
-                return detail::normalize_times_args({make_expr<Number>(-1), arg});
+                return detail::normalize_times_args({make_expr<Integer>(-1), arg});
             }
             // Normalize Times
             if (f.head == "Times") {

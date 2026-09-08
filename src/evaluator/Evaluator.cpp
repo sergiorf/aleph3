@@ -269,8 +269,19 @@ std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
         }
         return Value(value);
     }
+    if (const auto* integer = std::get_if<Integer>(&*expr)) {
+        const auto value = finite_double_from_exact_integer(integer->value);
+        if (!value) {
+            return std::nullopt;
+        }
+        return Value(*value);
+    }
     if (const auto* rational = std::get_if<Rational>(&*expr)) {
-        return Value(static_cast<double>(rational->numerator) / rational->denominator);
+        const auto value = finite_double_from_exact_rational(*rational);
+        if (!value) {
+            return std::nullopt;
+        }
+        return Value(*value);
     }
     if (const auto* boolean = std::get_if<Boolean>(&*expr)) {
         return Value(boolean->value);
@@ -511,12 +522,14 @@ ExprPtr evaluate_impl(const ExprPtr& expr, EvaluationContext& ctx, std::unordere
         [](const Number& num) -> ExprPtr {
             return make_expr<Number>(num.value);
         },
+        [](const Integer& integer) -> ExprPtr {
+            return make_expr<Integer>(integer.value);
+        },
         [](const Complex& c) -> ExprPtr {
             return make_expr<Complex>(c.real, c.imag);
         },
         [](const Rational& r) -> ExprPtr {
-            auto [n, d] = normalize_rational(r.numerator, r.denominator);
-            return make_expr<Rational>(n, d);
+            return make_exact_scalar_expr(r.exact());
         },
         [](const Boolean& boolean) -> ExprPtr {
             return make_expr<Boolean>(boolean.value);

@@ -4,6 +4,7 @@
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "expr/ExprUtils.hpp"
 #include "frontend/Parser.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "kernel/FunctionRegistry.hpp"
@@ -36,7 +37,16 @@ std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
         return Value(value);
     }
     if (const auto* rational = std::get_if<Rational>(&*expr)) {
-        return Value(static_cast<double>(rational->numerator) / rational->denominator);
+        if (auto value = finite_double_from_exact_rational(*rational)) {
+            return Value(*value);
+        }
+        return std::nullopt;
+    }
+    if (const auto* integer = std::get_if<Integer>(&*expr)) {
+        if (auto value = finite_double_from_exact_integer(integer->value)) {
+            return Value(*value);
+        }
+        return std::nullopt;
     }
     if (const auto* boolean = std::get_if<Boolean>(&*expr)) {
         return Value(boolean->value);

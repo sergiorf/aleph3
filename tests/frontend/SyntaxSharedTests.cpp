@@ -55,29 +55,27 @@ TEST_CASE("Shared syntax diagnostics include code and source location", "[syntax
     REQUIRE(result.diagnostics.front().span.column == 1);
 }
 
-TEST_CASE("Symbolic lowering rejects oversized integer literals until Expr stores them", "[syntax][symbolic-lowering]") {
+TEST_CASE("Symbolic lowering accepts arbitrary-precision integer literals", "[syntax][symbolic-lowering]") {
     constexpr auto large_integer = "1234567890123456789012345678901234567890";
     const auto lowered = syntax::parse_symbolic_source(large_integer);
 
-    REQUIRE_FALSE(lowered.ok());
-    REQUIRE(lowered.diagnostics.size() == 1);
-    REQUIRE(lowered.diagnostics.front().code == "syntax.lowering.integer_out_of_range");
-    REQUIRE(lowered.diagnostics.front().span.start_offset == 0);
+    REQUIRE(lowered.ok());
+    REQUIRE(std::holds_alternative<Integer>(*lowered.expr));
+    REQUIRE(to_string(lowered.expr) == large_integer);
 }
 
 TEST_CASE("Symbolic lowering avoids double rounding for integer literals", "[syntax][symbolic-lowering]") {
     const auto integer = syntax::parse_symbolic_source("9007199254740993");
 
-    REQUIRE_FALSE(integer.ok());
-    REQUIRE(integer.diagnostics.size() == 1);
-    REQUIRE(integer.diagnostics.front().code == "syntax.lowering.integer_out_of_range");
+    REQUIRE(integer.ok());
+    REQUIRE(std::holds_alternative<Integer>(*integer.expr));
+    REQUIRE(to_string(integer.expr) == "9007199254740993");
 
-    const auto rational = syntax::parse_symbolic_source("9007199254740993/1");
+    const auto rational = syntax::parse_symbolic_source("9007199254740993/3");
 
     REQUIRE(rational.ok());
-    REQUIRE(std::holds_alternative<Rational>(*rational.expr));
-    REQUIRE(std::get<Rational>(*rational.expr).numerator == 9007199254740993LL);
-    REQUIRE(std::get<Rational>(*rational.expr).denominator == 1);
+    REQUIRE(std::holds_alternative<Integer>(*rational.expr));
+    REQUIRE(to_string(rational.expr) == "3002399751580331");
 }
 
 TEST_CASE("Symbolic lowering preserves existing symbolic forms", "[syntax][symbolic-lowering]") {

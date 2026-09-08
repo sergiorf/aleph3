@@ -1,5 +1,6 @@
 #include "parser/Parser.hpp"
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
@@ -10,10 +11,10 @@ TEST_CASE("Rational parsing: numerator and denominator signs", "[parser][rationa
     std::vector<Case> cases = {
         {"Rational[3,4]", 3, 4},
         {"Rational[-3,4]", -3, 4},
-        {"Rational[3,-4]", 3, -4},
-        {"Rational[-3,-4]", -3, -4},
-        {"Rational[0,5]", 0, 5},
-        {"Rational[0,7]", 0, 7},
+        {"Rational[3,-4]", -3, 4},
+        {"Rational[-3,-4]", 3, 4},
+        {"Rational[0,5]", 0, 1},
+        {"Rational[0,7]", 0, 1},
         {"Rational[5,1]", 5, 1},
         {"Rational[-5,1]", -5, 1},
         {"Rational[7,3]", 7, 3},
@@ -22,10 +23,15 @@ TEST_CASE("Rational parsing: numerator and denominator signs", "[parser][rationa
     for (const auto& c : cases) {
         auto expr = parse_expression(c.input);
         REQUIRE(expr);
-        REQUIRE(std::holds_alternative<Rational>(*expr));
-        auto r = std::get<Rational>(*expr);
-        CHECK(r.numerator == c.num);
-        CHECK(r.denominator == c.den);
+        if (c.den == 1) {
+            REQUIRE(std::holds_alternative<Integer>(*expr));
+            CHECK(std::get<Integer>(*expr).value == c.num);
+        } else {
+            REQUIRE(std::holds_alternative<Rational>(*expr));
+            auto r = std::get<Rational>(*expr);
+            CHECK(r.numerator == c.num);
+            CHECK(r.denominator == c.den);
+        }
     }
 }
 
@@ -34,8 +40,8 @@ TEST_CASE("Rational parsing: large values", "[parser][rational]") {
     REQUIRE(expr);
     REQUIRE(std::holds_alternative<Rational>(*expr));
     auto r = std::get<Rational>(*expr);
-    CHECK(r.numerator == 123456789);
-    CHECK(r.denominator == 987654321);
+    CHECK(r.numerator == 13717421);
+    CHECK(r.denominator == 109739369);
 }
 
 TEST_CASE("Rational parsing: invalid input", "[parser][rational]") {
@@ -100,9 +106,7 @@ TEST_CASE("Parser: rational expressions with operators and mixed types", "[parse
             size_t idx = (num.first == "left") ? 0 : 1;
             INFO("Checking number at " << num.first << " for input: " << c.input);
             REQUIRE(f.args.size() > idx);
-            REQUIRE(std::holds_alternative<Number>(*f.args[idx]));
-            auto n = std::get<Number>(*f.args[idx]);
-            CHECK(n.value == Catch::Approx(num.second));
+            CHECK(get_number_value(f.args[idx]) == Catch::Approx(num.second));
         }
     }
 }
@@ -118,22 +122,22 @@ TEST_CASE("Parser: rational expressions with all sign combinations and implicit 
         // Simple rationals
         {"2/3", 2, 3, "", false},           // Rational[2,3]
         {"-2/3", -2, 3, "", false},         // Rational[-2,3]
-        {"2/-3", 2, -3, "", false},         // Rational[2,-3]
+        {"2/-3", -2, 3, "", false},         // Rational[-2,3]
         {"-2/-3", 2, 3, "", false},         // Rational[2,3]
         // With variable, implicit multiplication
         {"2/3x", 2, 3, "x", false},         // Times[Rational[2,3], x]
         {"-2/3x", -2, 3, "x", false},       // Times[Rational[-2,3], x]
-        {"2/-3x", 2, -3, "x", false},       // Times[Rational[2,-3], x]
+        {"2/-3x", -2, 3, "x", false},       // Times[Rational[-2,3], x]
         {"-2/-3x", 2, 3, "x", false},       // Times[Rational[2,3], x]
         // With variable, explicit multiplication
         {"2/3*x", 2, 3, "x", false},        // Times[Rational[2,3], x]
         {"-2/3*x", -2, 3, "x", false},      // Times[Rational[-2,3], x]
-        {"2/-3*x", 2, -3, "x", false},      // Times[Rational[2,-3], x]
+        {"2/-3*x", -2, 3, "x", false},      // Times[Rational[-2,3], x]
         {"-2/-3*x", 2, 3, "x", false},      // Times[Rational[2,3], x]
         // Parentheses
         {"-(2/3)x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
         {"(-2/3)x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
-        {"(2/-3)x", 2, -3, "x", false},     // Times[Rational[2,-3], x]
+        {"(2/-3)x", -2, 3, "x", false},     // Times[Rational[-2,3], x]
         {"(-2/-3)x", 2, 3, "x", false},     // Times[Rational[2,3], x]
         // Variable numerator/denominator (should parse as Divide)
         {"a/b", 0, 0, "", false},           // not a rational, skip check
@@ -229,8 +233,8 @@ TEST_CASE("Parser: rational equality parses to Equal function", "[parser][ration
     auto r2 = std::get<Rational>(*f.args[1]);
     CHECK(r1.numerator == 1);
     CHECK(r1.denominator == 2);
-    CHECK(r2.numerator == 2);
-    CHECK(r2.denominator == 4);
+    CHECK(r2.numerator == 1);
+    CHECK(r2.denominator == 2);
 }
 
 TEST_CASE("Parser: rational less-than parses to Less function", "[parser][rational][comparison]") {

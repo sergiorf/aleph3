@@ -162,7 +162,7 @@ TEST_CASE("Calculus pack differentiates division through reciprocal products", "
         "2*x*(x^3 - 2)^-1 - 3*x^2*(x^2 + 1)*(x^3 - 2)^-2");
     REQUIRE(
         evaluated_string("D[(3*x + 2)/(5*x - 4), x]") ==
-        "-5 * (3 * x + 2) * (5 * x - 4)^-2 + 3 * (5 * x - 4)^-1");
+        "3 * (5 * x - 4)^-1 - 5 * (3 * x + 2) * (5 * x - 4)^-2");
     REQUIRE(evaluated_string("D[x^2/Exp[x], x]") == "-(x^2 * (Exp[x])^-1) + 2 * x * (Exp[x])^-1");
     require_output_excludes("D[x^2/Exp[x], x]", "-1 *");
     require_equivalent("D[x/(x + 1), x]", "-x*(x + 1)^-2 + (x + 1)^-1");

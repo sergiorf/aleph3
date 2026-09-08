@@ -523,6 +523,14 @@ Polynomial expr_to_polynomial(
         if (auto num = std::get_if<Number>(&(*e))) {
             return Polynomial(static_cast<double>(num->value));
         }
+        if (auto integer = std::get_if<Integer>(&(*e))) {
+            const auto value = finite_double_from_exact_integer(integer->value);
+            if (!value.has_value()) {
+                throw_unsupported_construct(
+                    "Polynomial functions do not yet support unbounded integer coefficients");
+            }
+            return Polynomial(*value);
+        }
         if (std::holds_alternative<Rational>(*e)) {
             throw_unsupported_construct(
                 "Polynomial functions do not yet support exact rational coefficients");
@@ -558,10 +566,10 @@ Polynomial expr_to_polynomial(
             if (pow->args.size() == 2) {
                 auto base = pow->args[0];
                 auto exp = pow->args[1];
-                if (auto n = std::get_if<Number>(&(*exp))) {
-                    const double exponent = n->value;
-                    if (std::floor(exponent) != exponent || exponent < 0.0 ||
-                        exponent > static_cast<double>(std::numeric_limits<int>::max())) {
+                const auto exponent = exact_int64_from_expr(exp);
+                if (exponent.has_value()) {
+                    if (*exponent < 0 ||
+                        *exponent > std::numeric_limits<int>::max()) {
                         throw_invalid_form(
                             "expr_to_polynomial: Polynomial powers require "
                             "non-negative integer exponents");
@@ -574,13 +582,13 @@ Polynomial expr_to_polynomial(
                                 "` is not in the selected polynomial variable set");
                         }
                         std::map<std::string, int> exps;
-                        exps[s->name] = static_cast<int>(exponent);
+                        exps[s->name] = static_cast<int>(*exponent);
                         return Polynomial({{make_monomial(exps), 1.0}});
                     }
 
                     Polynomial result(1.0);
                     const Polynomial base_polynomial = recur(base);
-                    for (int i = 0; i < static_cast<int>(exponent); ++i) {
+                    for (int i = 0; i < static_cast<int>(*exponent); ++i) {
                         result = result * base_polynomial;
                     }
                     return result;

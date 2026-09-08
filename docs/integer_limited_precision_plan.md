@@ -322,8 +322,8 @@ Verification:
 
 ### Slice 4: Expression Model For Arbitrary-Precision Exact Scalars
 
-Status: planned. This slice needs explicit implementation approval because it
-changes the kernel expression representation and public numeric taxonomy.
+Status: complete. Implemented after explicit approval. This slice changed the
+kernel expression representation and public numeric taxonomy.
 
 Behavior delivered:
 
@@ -374,7 +374,26 @@ Non-goals for this slice:
 - deleting all checked-`int64_t` helpers. They remain required adapters for
   bounded consumers until later slices remove or narrow them.
 
-Repository evidence to verify before implementation:
+Completion notes:
+
+- `Expr::Integer` now carries `kernel::ExactInteger`, and `Expr::Rational`
+  carries arbitrary-precision exact numerator and denominator values.
+- Exact integer and rational lowering no longer rejects large symbolic
+  integers at the expression boundary; decimal literals remain machine-real
+  `Number` values with public head `Real`.
+- Denominator-one rational construction canonicalizes to `Integer`.
+- `Head`, `IntegerQ`, `RationalQ`, `RealQ`, exact sign predicates, typed
+  patterns, structural equality/hash/order, rendering, and `FullForm` are
+  updated for the new exact scalar alternatives.
+- Bounded adapters remain in native-size consumers such as string ranges,
+  part indexes, rewrite levels, derivative orders, matrix dimensions, and SDK
+  host-number projection.
+- The implementation also migrated exact arithmetic, simplification, exact
+  polynomial coefficients, and dense matrix scalar paths onto the shared exact
+  scalar model where the existing supported subset already had exact
+  semantics.
+
+Pre-implementation repository evidence that this slice superseded:
 
 - `include/expr/Expr.hpp` currently defines `Expr` as a variant containing
   `Number` and bounded `Rational`, with no `Integer` alternative.

@@ -50,6 +50,29 @@ void ensure_finite_number(double value) {
     }
 }
 
+std::optional<kernel::ExactRational> exact_rational_atom(const ExprPtr& expr) {
+    if (const auto* integer = std::get_if<Integer>(expr.get())) {
+        return kernel::ExactRational(integer->value, kernel::ExactInteger(1));
+    }
+    if (const auto* rational = std::get_if<Rational>(expr.get())) {
+        return rational->exact();
+    }
+    return std::nullopt;
+}
+
+std::optional<double> finite_scalar_atom(const ExprPtr& expr) {
+    if (const auto* number = std::get_if<Number>(expr.get())) {
+        return number->value;
+    }
+    if (const auto* integer = std::get_if<Integer>(expr.get())) {
+        return finite_double_from_exact_integer(integer->value);
+    }
+    if (const auto* rational = std::get_if<Rational>(expr.get())) {
+        return finite_double_from_exact_rational(*rational);
+    }
+    return std::nullopt;
+}
+
 const std::unordered_map<std::string, std::function<double(double)>>& unary_functions() {
     static const std::unordered_map<std::string, std::function<double(double)>> value = {
         {"Sin",   [](double x) { return std::sin(x); }},
@@ -114,6 +137,64 @@ using KnownUnaryValues = std::unordered_map<std::string, std::vector<std::pair<E
 
 ExprPtr known_unary_key(std::string_view source) {
     return normalize_expr(parse_expression(std::string(source)));
+}
+
+std::optional<ExprPtr> without_leading_minus(const ExprPtr& expr) {
+    if (const auto* integer = std::get_if<Integer>(expr.get());
+        integer != nullptr && integer->value < 0) {
+        return make_expr<Integer>(-integer->value);
+    }
+    if (const auto* number = std::get_if<Number>(expr.get());
+        number != nullptr && number->value < 0.0) {
+        return make_expr<Number>(-number->value);
+    }
+    if (const auto* rational = std::get_if<Rational>(expr.get());
+        rational != nullptr && rational->numerator < 0) {
+        return make_exact_scalar_expr(-rational->exact());
+    }
+    const auto* call = std::get_if<FunctionCall>(expr.get());
+    if (call == nullptr) {
+        return std::nullopt;
+    }
+    if (call->head == "Times" && !call->args.empty()) {
+        if (auto coefficient = exact_int64_from_expr(call->args[0]); coefficient.has_value() && *coefficient == -1) {
+            if (call->args.size() == 2) {
+                return call->args[1];
+            }
+            std::vector<ExprPtr> args(call->args.begin() + 1, call->args.end());
+            return make_fcall("Times", args);
+        }
+    }
+    if (call->head == "Divide" && call->args.size() == 2) {
+        if (auto positive_numerator = without_leading_minus(call->args[0])) {
+            return make_fcall("Divide", {*positive_numerator, call->args[1]});
+        }
+    }
+    return std::nullopt;
+}
+
+bool has_odd_unary_symmetry(const std::string& head) {
+    return head == "Sin" || head == "Tan" || head == "Cot" || head == "Csc";
+}
+
+bool has_even_unary_symmetry(const std::string& head) {
+    return head == "Cos" || head == "Sinc";
+}
+
+ExprPtr apply_unary_symmetry(const std::string& head, const ExprPtr& positive_value) {
+    if (!has_odd_unary_symmetry(head)) {
+        return positive_value;
+    }
+    if (const auto* number = std::get_if<Number>(positive_value.get())) {
+        return make_expr<Number>(-number->value);
+    }
+    if (const auto* integer = std::get_if<Integer>(positive_value.get())) {
+        return make_expr<Integer>(-integer->value);
+    }
+    if (const auto* rational = std::get_if<Rational>(positive_value.get())) {
+        return make_exact_scalar_expr(-rational->exact());
+    }
+    return positive_value;
 }
 
 const KnownUnaryValues& known_symbolic_unary() {
@@ -194,6 +275,16 @@ ExprPtr find_known_symbolic_unary_value(const std::string& head, const ExprPtr& 
     for (const auto& [known_arg, value] : known_func->second) {
         if (structural_equal(known_arg, normalized_arg)) {
             return value;
+        }
+    }
+    if (has_odd_unary_symmetry(head) || has_even_unary_symmetry(head)) {
+        if (auto positive_arg = without_leading_minus(normalized_arg)) {
+            const auto normalized_positive = normalize_expr(*positive_arg);
+            for (const auto& [known_arg, value] : known_func->second) {
+                if (structural_equal(known_arg, normalized_positive)) {
+                    return apply_unary_symmetry(head, value);
+                }
+            }
         }
     }
     return nullptr;
@@ -323,8 +414,8 @@ ExprPtr evaluate_builtin_unary(const FunctionCall& func, EvaluationContext& ctx)
         }
     }
 
-    if (std::holds_alternative<Number>(*arg_eval)) {
-        double arg = get_number_value(arg_eval);
+    if (auto finite_arg = finite_scalar_atom(arg_eval)) {
+        double arg = *finite_arg;
         if (ctx.strict_runtime_semantics()) {
             ensure_finite_number(arg);
         }
@@ -375,20 +466,23 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
         }
     }
 
-    if ((func.head == "Plus" || func.head == "Minus") && std::holds_alternative<Number>(*left)) {
-        double real = std::get<Number>(*left).value;
+    if (func.head == "Plus" || func.head == "Minus") {
+        const auto real_value = finite_scalar_atom(left);
+        if (real_value.has_value()) {
+        double real = *real_value;
         int sign = (func.head == "Plus") ? 1 : -1;
         if (auto* times = std::get_if<FunctionCall>(right.get())) {
             if (times->head == "Times" && times->args.size() == 2) {
-                if (std::holds_alternative<Number>(*times->args[0]) &&
-                    std::holds_alternative<Complex>(*times->args[1])) {
-                    double imag = std::get<Number>(*times->args[0]).value;
+                if (auto imag_value = finite_scalar_atom(times->args[0]);
+                    imag_value.has_value() && std::holds_alternative<Complex>(*times->args[1])) {
+                    double imag = *imag_value;
                     const auto& c = std::get<Complex>(*times->args[1]);
                     if (c.real == 0.0 && c.imag == 1.0) {
                         return make_expr<Complex>(real, sign * imag);
                     }
                 }
             }
+        }
         }
     }
     if (func.head == "Plus" &&
@@ -408,53 +502,101 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
         return make_expr<Complex>(real, imag);
     }
     if (func.head == "Plus") {
-        if (std::holds_alternative<Complex>(*left) && std::holds_alternative<Number>(*right)) {
+        if (std::holds_alternative<Complex>(*left)) {
             const auto& c = std::get<Complex>(*left);
-            double n = std::get<Number>(*right).value;
-            return make_expr<Complex>(c.real + n, c.imag);
+            if (auto n = finite_scalar_atom(right)) {
+                return make_expr<Complex>(c.real + *n, c.imag);
+            }
         }
-        if (std::holds_alternative<Number>(*left) && std::holds_alternative<Complex>(*right)) {
-            double n = std::get<Number>(*left).value;
+        if (std::holds_alternative<Complex>(*right)) {
             const auto& c = std::get<Complex>(*right);
-            return make_expr<Complex>(n + c.real, c.imag);
+            if (auto n = finite_scalar_atom(left)) {
+                return make_expr<Complex>(*n + c.real, c.imag);
+            }
         }
     }
     if (func.head == "Times") {
-        if (std::holds_alternative<Complex>(*left) && std::holds_alternative<Number>(*right)) {
+        if (std::holds_alternative<Complex>(*left)) {
             const auto& c = std::get<Complex>(*left);
-            double n = std::get<Number>(*right).value;
-            return make_expr<Complex>(c.real * n, c.imag * n);
+            if (auto n = finite_scalar_atom(right)) {
+                return make_expr<Complex>(c.real * *n, c.imag * *n);
+            }
         }
-        if (std::holds_alternative<Number>(*left) && std::holds_alternative<Complex>(*right)) {
-            double n = std::get<Number>(*left).value;
+        if (std::holds_alternative<Complex>(*right)) {
             const auto& c = std::get<Complex>(*right);
-            return make_expr<Complex>(n * c.real, n * c.imag);
+            if (auto n = finite_scalar_atom(left)) {
+                return make_expr<Complex>(*n * c.real, *n * c.imag);
+            }
         }
     }
-    if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Rational>(*right)) {
-        const auto& a = std::get<Rational>(*left);
-        const auto& b = std::get<Rational>(*right);
+    if (auto left_exact = exact_rational_atom(left), right_exact = exact_rational_atom(right);
+        left_exact.has_value() && right_exact.has_value()) {
+        const auto& a = *left_exact;
+        const auto& b = *right_exact;
         if (func.head == "Plus") {
-            auto [n, d] = checked_rational_add(
-                a.numerator, a.denominator, b.numerator, b.denominator);
-            return make_expr<Rational>(n, d);
+            return make_exact_scalar_expr(a + b);
         }
         if (func.head == "Minus") {
-            auto [n, d] = checked_rational_subtract(
-                a.numerator, a.denominator, b.numerator, b.denominator);
-            return make_expr<Rational>(n, d);
+            return make_exact_scalar_expr(a - b);
         }
         if (func.head == "Times") {
-            auto [n, d] = checked_rational_multiply(
-                a.numerator, a.denominator, b.numerator, b.denominator);
-            return make_expr<Rational>(n, d);
+            return make_exact_scalar_expr(a * b);
         }
         if (func.head == "Divide") {
-            if (b.numerator == 0) throw_domain_violation("Division by zero");
-            auto [n, d] = checked_rational_divide(
-                a.numerator, a.denominator, b.numerator, b.denominator);
-            return make_expr<Rational>(n, d);
+            if (b.numerator().is_zero()) throw_domain_violation("Division by zero");
+            return make_exact_scalar_expr(a / b);
         }
+    }
+    if (auto left_finite = finite_scalar_atom(left), right_finite = finite_scalar_atom(right);
+        left_finite.has_value() && right_finite.has_value()) {
+        double a = *left_finite;
+        double b = *right_finite;
+        if (func.head == "Power" && a == 0.0 && b == 0.0 && !ctx.strict_runtime_semantics()) {
+            return make_fcall(func.head, {left, right});
+        }
+        if (ctx.strict_runtime_semantics()) {
+            ensure_finite_number(a);
+            ensure_finite_number(b);
+            if (func.head == "Divide" && b == 0.0) {
+                kernel::throw_runtime_error(
+                    kernel::ErrorCode::division_by_zero,
+                    "Division by zero is not allowed.");
+            }
+            if (func.head == "Power") {
+                if (a == 0.0 && b == 0.0) {
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::invalid_power_domain,
+                        "Power is undefined for the given numeric inputs.");
+                }
+                if (a < 0.0 && std::floor(b) != b) {
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::invalid_power_domain,
+                        "Power is undefined for the given numeric inputs.");
+                }
+            }
+        }
+        const auto& domains = binary_real_domains();
+        auto domain_it = domains.find(func.head);
+        if (domain_it != domains.end() && !domain_it->second(a, b)) {
+            if (ctx.strict_runtime_semantics()) {
+                if (func.head == "Power") {
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::invalid_power_domain,
+                        "Power is undefined for the given numeric inputs.");
+                }
+                kernel::throw_runtime_error(
+                    kernel::ErrorCode::invalid_numeric_domain,
+                    func.head + " is undefined for the given numeric inputs.");
+            }
+            return make_fcall(func.head, {left, right});
+        }
+        double result = it->second(a, b);
+        if (ctx.strict_runtime_semantics() && !is_finite_number(result)) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::invalid_numeric_result,
+                "Numeric evaluation produced a non-finite result.");
+        }
+        return make_expr<Number>(result);
     }
     if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Number>(*right)) {
         const auto& a = std::get<Rational>(*left);
@@ -462,7 +604,7 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
         if (auto integer = exact_int64_from_number(b)) {
             return evaluate(make_fcall(func.head, {left, make_expr<Rational>(*integer, 1)}), ctx);
         }
-        double a_val = static_cast<double>(a.numerator) / a.denominator;
+        double a_val = finite_double_from_exact_rational(a).value_or(std::numeric_limits<double>::infinity());
         return make_expr<Number>(it->second(a_val, b));
     }
     if (std::holds_alternative<Number>(*left) && std::holds_alternative<Rational>(*right)) {
@@ -471,7 +613,7 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
         if (auto integer = exact_int64_from_number(a)) {
             return evaluate(make_fcall(func.head, {make_expr<Rational>(*integer, 1), right}), ctx);
         }
-        double b_val = static_cast<double>(b.numerator) / b.denominator;
+        double b_val = finite_double_from_exact_rational(b).value_or(std::numeric_limits<double>::infinity());
         return make_expr<Number>(it->second(a, b_val));
     }
     if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
@@ -564,15 +706,15 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
         }
         return make_expr<Boolean>(it->second(arg1, arg2));
     }
-    if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Rational>(*right)) {
-        const auto& a = std::get<Rational>(*left);
-        const auto& b = std::get<Rational>(*right);
+    if (auto left_exact = exact_rational_atom(left), right_exact = exact_rational_atom(right);
+        left_exact.has_value() && right_exact.has_value()) {
+        const auto& a = *left_exact;
+        const auto& b = *right_exact;
         if (func.head == "Equal")
-            return make_expr<Boolean>(a.numerator == b.numerator && a.denominator == b.denominator);
+            return make_expr<Boolean>(a == b);
         if (func.head == "NotEqual")
-            return make_expr<Boolean>(a.numerator != b.numerator || a.denominator != b.denominator);
-        const int comparison = checked_rational_compare(
-            a.numerator, a.denominator, b.numerator, b.denominator);
+            return make_expr<Boolean>(!(a == b));
+        const int comparison = kernel::compare(a, b);
         if (func.head == "Less")
             return make_expr<Boolean>(comparison < 0);
         if (func.head == "Greater")
@@ -582,16 +724,24 @@ ExprPtr evaluate_builtin_comparison(const FunctionCall& func, EvaluationContext&
         if (func.head == "GreaterEqual")
             return make_expr<Boolean>(comparison >= 0);
     }
+    if (auto left_finite = finite_scalar_atom(left), right_finite = finite_scalar_atom(right);
+        left_finite.has_value() && right_finite.has_value()) {
+        if (ctx.strict_runtime_semantics()) {
+            ensure_finite_number(*left_finite);
+            ensure_finite_number(*right_finite);
+        }
+        return make_expr<Boolean>(it->second(*left_finite, *right_finite));
+    }
     if (std::holds_alternative<Rational>(*left) && std::holds_alternative<Number>(*right)) {
         const auto& a = std::get<Rational>(*left);
         double b = std::get<Number>(*right).value;
-        double a_val = static_cast<double>(a.numerator) / a.denominator;
+        double a_val = finite_double_from_exact_rational(a).value_or(std::numeric_limits<double>::infinity());
         return make_expr<Boolean>(it->second(a_val, b));
     }
     if (std::holds_alternative<Number>(*left) && std::holds_alternative<Rational>(*right)) {
         double a = std::get<Number>(*left).value;
         const auto& b = std::get<Rational>(*right);
-        double b_val = static_cast<double>(b.numerator) / b.denominator;
+        double b_val = finite_double_from_exact_rational(b).value_or(std::numeric_limits<double>::infinity());
         if (ctx.strict_runtime_semantics()) {
             ensure_finite_number(a);
         }
@@ -630,6 +780,12 @@ ExprPtr evaluate_builtin_negate(const FunctionCall& func, EvaluationContext& ctx
     if (std::holds_alternative<Number>(*arg)) {
         return make_expr<Number>(-get_number_value(arg));
     }
+    if (std::holds_alternative<Integer>(*arg)) {
+        return make_expr<Integer>(-std::get<Integer>(*arg).value);
+    }
+    if (std::holds_alternative<Rational>(*arg)) {
+        return make_exact_scalar_expr(-std::get<Rational>(*arg).exact());
+    }
     if (std::holds_alternative<Complex>(*arg)) {
         const auto& c = std::get<Complex>(*arg);
         return make_expr<Complex>(-c.real, -c.imag);
@@ -641,7 +797,7 @@ ExprPtr evaluate_builtin_negate(const FunctionCall& func, EvaluationContext& ctx
             }
         }
     }
-    return make_fcall("Times", {make_expr<Number>(-1), arg});
+    return make_fcall("Times", {make_expr<Integer>(-1), arg});
 }
 
 ExprPtr evaluate_builtin_clamp(const FunctionCall& func, EvaluationContext& ctx) {
@@ -655,18 +811,21 @@ ExprPtr evaluate_builtin_clamp(const FunctionCall& func, EvaluationContext& ctx)
     auto value = evaluate(func.args[0], ctx);
     auto low = evaluate(func.args[1], ctx);
     auto high = evaluate(func.args[2], ctx);
-    if (!std::holds_alternative<Number>(*value) ||
-        !std::holds_alternative<Number>(*low) ||
-        !std::holds_alternative<Number>(*high)) {
+    auto numeric_value_opt = finite_scalar_atom(value);
+    auto numeric_low_opt = finite_scalar_atom(low);
+    auto numeric_high_opt = finite_scalar_atom(high);
+    if (!numeric_value_opt.has_value() ||
+        !numeric_low_opt.has_value() ||
+        !numeric_high_opt.has_value()) {
         if (ctx.strict_runtime_semantics()) {
             throw_runtime_invalid_call("Clamp expects three numeric arguments.");
         }
         return make_fcall("Clamp", {value, low, high});
     }
 
-    const double numeric_value = std::get<Number>(*value).value;
-    const double numeric_low = std::get<Number>(*low).value;
-    const double numeric_high = std::get<Number>(*high).value;
+    const double numeric_value = *numeric_value_opt;
+    const double numeric_low = *numeric_low_opt;
+    const double numeric_high = *numeric_high_opt;
     if (ctx.strict_runtime_semantics()) {
         ensure_finite_number(numeric_value);
         ensure_finite_number(numeric_low);

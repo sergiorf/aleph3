@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <algorithm>
 
@@ -15,11 +16,11 @@ namespace aleph3 {
     namespace {
 
     bool try_get_exact_integer(const ExprPtr& expr, int& value) {
-        if (const auto* number = std::get_if<Number>(expr.get())) {
-            if (std::floor(number->value) != number->value) {
-                return false;
-            }
-            value = static_cast<int>(number->value);
+        const auto integer = exact_int64_from_expr(expr);
+        if (integer.has_value() &&
+            *integer >= std::numeric_limits<int>::min() &&
+            *integer <= std::numeric_limits<int>::max()) {
+            value = static_cast<int>(*integer);
             return true;
         }
         return false;
@@ -71,15 +72,28 @@ namespace aleph3 {
 
         ExprPtr to_expr() const {
             return denominator == 1
-                ? make_number(static_cast<double>(numerator))
+                ? make_expr<Integer>(numerator)
                 : make_expr<Rational>(numerator, denominator);
         }
     };
 
     bool try_get_exact_scalar(const ExprPtr& expr, int64_t& numerator, int64_t& denominator) {
+        if (const auto* integer = std::get_if<Integer>(expr.get())) {
+            const auto bounded = integer->value.to_int64();
+            if (!bounded.has_value()) {
+                return false;
+            }
+            numerator = *bounded;
+            denominator = 1;
+            return true;
+        }
         if (const auto* rational = std::get_if<Rational>(expr.get())) {
-            numerator = rational->numerator;
-            denominator = rational->denominator;
+            const auto bounded = rational->exact().to_bounded();
+            if (!bounded.has_value()) {
+                return false;
+            }
+            numerator = bounded->first;
+            denominator = bounded->second;
             return true;
         }
         if (const auto* number = std::get_if<Number>(expr.get())) {
@@ -92,6 +106,18 @@ namespace aleph3 {
             return true;
         }
         return false;
+    }
+
+    bool try_add_numeric_constant(
+        const ExprPtr& expr,
+        std::map<std::string, LinearCoefficient>& exact_term_coefficients) {
+        int64_t numerator = 0;
+        int64_t denominator = 1;
+        if (!try_get_exact_scalar(expr, numerator, denominator)) {
+            return false;
+        }
+        exact_term_coefficients[""].add(numerator, denominator);
+        return true;
     }
 
     bool try_extract_exact_linear_term(
@@ -234,17 +260,35 @@ namespace aleph3 {
 
                 // Simplify 1^n → 1
                 if (is_one(base)) {
-                    return make_number(1);
+                    return make_expr<Integer>(1);
                 }
 
                 // Simplify x^1 → x
-                if (auto num = std::get_if<Number>(exponent.get())) {
-                    if (num->value == 1.0) {
-                        return base;
-                    }
+                if (auto exponent_value = exact_int64_from_expr(exponent);
+                    exponent_value.has_value() && *exponent_value == 1) {
+                    return base;
                 }
 
                 // Simplify n^m where n and m are numbers
+                if (is_zero(base)) {
+                    if (auto exponent_value = exact_int64_from_expr(exponent);
+                        exponent_value.has_value() && *exponent_value > 0) {
+                        return make_expr<Integer>(0);
+                    }
+                }
+                if (const auto base_value = exact_int64_from_expr(base),
+                    exponent_value = exact_int64_from_expr(exponent);
+                    base_value.has_value() && exponent_value.has_value() && *exponent_value >= 0) {
+                    if (*base_value == 0 && *exponent_value == 0) {
+                        return make_expr<FunctionCall>("Power", std::vector<ExprPtr>{base, exponent});
+                    }
+                    kernel::ExactInteger result(1);
+                    kernel::ExactInteger factor(*base_value);
+                    for (int64_t i = 0; i < *exponent_value; ++i) {
+                        result = result * factor;
+                    }
+                    return make_expr<Integer>(std::move(result));
+                }
                 if (auto base_num = std::get_if<Number>(base.get())) {
                     if (auto exp_num = std::get_if<Number>(exponent.get())) {
                         if (base_num->value == 0.0 && exp_num->value == 0.0) {
@@ -320,8 +364,7 @@ namespace aleph3 {
                     } else if (auto symbol = std::get_if<Symbol>(arg.get())) {
                         term_coefficients[symbol->name] += 1.0;
                         continue;
-                    } else if (auto num = std::get_if<Number>(arg.get())) {
-                        term_coefficients[""] += num->value; // Use empty string for constants
+                    } else if (try_add_numeric_constant(arg, exact_term_coefficients)) {
                         continue;
                     }
                     non_numeric_terms.push_back(arg);
@@ -331,7 +374,11 @@ namespace aleph3 {
                     if (coeff.is_zero()) {
                         continue;
                     }
-                    non_numeric_terms.push_back(make_symbol_term(symbol, coeff));
+                    if (symbol.empty()) {
+                        non_numeric_terms.push_back(coeff.to_expr());
+                    } else {
+                        non_numeric_terms.push_back(make_symbol_term(symbol, coeff));
+                    }
                 }
 
                 for (const auto& [symbol, coeff] : term_coefficients) {
@@ -350,16 +397,16 @@ namespace aleph3 {
                     auto degree = [](const ExprPtr& term) -> int {
                         if (auto pow = std::get_if<FunctionCall>(term.get())) {
                             if (pow->head == "Power") {
-                                if (auto exp = std::get_if<Number>(pow->args[1].get())) {
-                                    return static_cast<int>(exp->value);
+                                if (auto exp = exact_int64_from_expr(pow->args[1])) {
+                                    return static_cast<int>(*exp);
                                 }
                             }
                             if (pow->head == "Times") {
                                 for (auto& arg : pow->args) {
                                     if (auto inner_pow = std::get_if<FunctionCall>(arg.get())) {
                                         if (inner_pow->head == "Power") {
-                                            if (auto exp = std::get_if<Number>(inner_pow->args[1].get())) {
-                                                return static_cast<int>(exp->value);
+                                            if (auto exp = exact_int64_from_expr(inner_pow->args[1])) {
+                                                return static_cast<int>(*exp);
                                             }
                                         }
                                     }
@@ -372,7 +419,9 @@ namespace aleph3 {
                         else if (std::holds_alternative<Symbol>(*term)) {
                             return 1;
                         }
-                        else if (std::holds_alternative<Number>(*term)) {
+                        else if (exact_int64_from_expr(term).has_value() ||
+                                 std::holds_alternative<Number>(*term) ||
+                                 std::holds_alternative<Rational>(*term)) {
                             return 0;
                         }
                         return -1; // unknown terms last
@@ -386,7 +435,7 @@ namespace aleph3 {
                 });
 
                 if (non_numeric_terms.empty()) {
-                    return make_number(0);
+                    return make_expr<Integer>(0);
                 }
                 if (non_numeric_terms.size() == 1) {
                     return non_numeric_terms[0];

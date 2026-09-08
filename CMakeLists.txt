@@ -119,6 +119,8 @@ if(ALEPH3_BUILD_KERNEL)
         target_compile_definitions(aleph3_boost_headers INTERFACE BOOST_MP_STANDALONE=1)
     endif()
 
+    target_link_libraries(aleph3_syntax PUBLIC aleph3_boost_headers)
+
     file(GLOB SYMBOLIC_ROOT_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
     file(GLOB SYMBOLIC_COMPONENT_SOURCES CONFIGURE_DEPENDS
         "src/evaluator/*.cpp"
@@ -168,10 +170,12 @@ if(ALEPH3_BUILD_KERNEL)
         src/algebra/PolyUtils.cpp
         src/packs/AlgebraPack.cpp)
     target_include_directories(aleph3_pack_algebra PUBLIC include PRIVATE third_party/utf8cpp)
+    target_link_libraries(aleph3_pack_algebra PUBLIC aleph3_kernel)
 
     add_library(aleph3_pack_calculus
         src/packs/CalculusPack.cpp)
     target_include_directories(aleph3_pack_calculus PUBLIC include PRIVATE third_party/utf8cpp)
+    target_link_libraries(aleph3_pack_calculus PUBLIC aleph3_kernel)
 
     add_library(aleph3_notebook_core
         src/notebook/Notebook.cpp

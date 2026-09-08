@@ -116,6 +116,7 @@ Head[{a, b}]                            -> List
 Head[3]                                 -> Integer
 Head[1.5]                               -> Real
 Head[1/2]                               -> Rational
+Head[123456789012345678901234567890]    -> Integer
 ```
 
 The returned value is an ordinary symbol, so it can itself be inspected:
@@ -156,6 +157,7 @@ expression structure:
 ```text
 FullForm[x + 1]                         -> "Plus[x, 1]"
 FullForm[1/2 + 1/3]                     -> "Rational[5, 6]"
+FullForm[123456789012345678901234567890]-> "123456789012345678901234567890"
 ```
 
 Use exact input when exact preservation matters; a decimal literal is already
@@ -212,10 +214,14 @@ Negative[-2]             -> True
 ZeroQ[0]                 -> True
 IntegerQ[3]              -> True
 RationalQ[1/2]           -> True
+RationalQ[3]             -> True
+RationalQ[0.5]           -> False
 ```
 
-`NonNegative`, `NonPositive`, `NonZeroQ`, and `RealQ` belong to the same family.
-An unknown fact is not silently treated as proven.
+`NonNegative`, `NonPositive`, `NonZeroQ`, and `RealQ` belong to the same
+family. Exact integers are rational and real values for predicate purposes,
+while `_Rational` patterns remain strict to exact rational atoms. An unknown
+fact is not silently treated as proven.
 
 ```text
 Positive[x]              -> Positive[x]

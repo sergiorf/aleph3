@@ -34,8 +34,9 @@ SessionDiagnostic to_session_diagnostic(const Diagnostic& diagnostic) {
 std::string expression_head(const ExprPtr& expr) {
     if (const auto* call = std::get_if<FunctionCall>(expr.get())) return call->head;
     if (std::holds_alternative<Symbol>(*expr)) return "Symbol";
+    if (std::holds_alternative<Integer>(*expr)) return "Integer";
     if (const auto* number = std::get_if<Number>(expr.get())) {
-        return std::floor(number->value) == number->value ? "Integer" : "Real";
+        return "Real";
     }
     if (std::holds_alternative<Rational>(*expr)) return "Rational";
     if (std::holds_alternative<Complex>(*expr)) return "Complex";

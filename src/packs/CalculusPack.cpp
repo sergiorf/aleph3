@@ -30,6 +30,7 @@ struct DerivativeRequest {
 
 bool is_exact_or_inexact_constant_atom(const ExprPtr& expr) {
     return std::holds_alternative<Number>(*expr) ||
+           std::holds_alternative<Integer>(*expr) ||
            std::holds_alternative<Rational>(*expr) ||
            std::holds_alternative<Complex>(*expr) ||
            std::holds_alternative<Boolean>(*expr) ||
@@ -55,6 +56,9 @@ bool is_calculus_one(const ExprPtr& expr) {
     if (const auto* number = std::get_if<Number>(expr.get())) {
         return number->value == 1.0;
     }
+    if (const auto* integer = std::get_if<Integer>(expr.get())) {
+        return integer->value.is_one();
+    }
     if (const auto* rational = std::get_if<Rational>(expr.get())) {
         return rational->numerator == rational->denominator;
     }
@@ -72,7 +76,7 @@ ExprPtr lower_division_for_differentiation(const ExprPtr& expr) {
         if (call->head == "Divide" && lowered_args.size() == 2) {
             auto reciprocal = make_fcall(
                 "Power",
-                {lowered_args[1], make_expr<Number>(-1.0)});
+                {lowered_args[1], make_expr<Integer>(-1)});
             if (is_calculus_one(lowered_args[0])) {
                 return reciprocal;
             }
@@ -133,6 +137,7 @@ ExprPtr maybe_reduce(const ExprPtr& expr, EvaluationContext& ctx, bool contains_
 
 bool is_supported_formal_power_part(const ExprPtr& expr) {
     return std::holds_alternative<Number>(*expr) ||
+           std::holds_alternative<Integer>(*expr) ||
            std::holds_alternative<Rational>(*expr) ||
            std::holds_alternative<Complex>(*expr) ||
            std::holds_alternative<Symbol>(*expr) ||
@@ -179,7 +184,7 @@ DerivativeResult derivative_product(const FunctionCall& call, const std::string&
 }
 
 ExprPtr subtract_one(const ExprPtr& expr, EvaluationContext& ctx) {
-    return evaluate(make_fcall("Plus", {expr, make_expr<Number>(-1.0)}), ctx);
+    return evaluate(make_fcall("Plus", {expr, make_expr<Integer>(-1)}), ctx);
 }
 
 DerivativeResult derivative_power(const FunctionCall& call, const std::string& variable, EvaluationContext& ctx) {
@@ -232,7 +237,7 @@ DerivativeResult derivative_power(const FunctionCall& call, const std::string& v
         make_fcall("Times", {
             exponent,
             base_derivative.expr,
-            make_fcall("Power", {base, make_expr<Number>(-1.0)})
+            make_fcall("Power", {base, make_expr<Integer>(-1)})
         })
     });
     auto result = make_fcall("Times", {
@@ -260,11 +265,11 @@ DerivativeResult derivative_chain(
     if (call.head == "Sin") {
         outer_derivative = make_fcall("Cos", {inner});
     } else if (call.head == "Cos") {
-        outer_derivative = make_fcall("Times", {make_expr<Number>(-1.0), make_fcall("Sin", {inner})});
+        outer_derivative = make_fcall("Times", {make_expr<Integer>(-1), make_fcall("Sin", {inner})});
     } else if (call.head == "Exp") {
         outer_derivative = make_fcall("Exp", {inner});
     } else if (call.head == "Log") {
-        outer_derivative = make_fcall("Power", {inner, make_expr<Number>(-1.0)});
+        outer_derivative = make_fcall("Power", {inner, make_expr<Integer>(-1)});
     } else if (call.head == "Sqrt") {
         outer_derivative = make_fcall("Times", {
             make_expr<Rational>(1, 2),
@@ -337,14 +342,24 @@ std::int64_t require_derivative_order(const ExprPtr& expr) {
             throw_invalid_form("D derivative order exceeds the supported limit");
         }
         order = static_cast<std::int64_t>(number->value);
-    } else if (const auto* rational = std::get_if<Rational>(expr.get())) {
-        if (rational->denominator != 1 || rational->numerator < 0) {
+    } else if (const auto* integer = std::get_if<Integer>(expr.get())) {
+        const auto bounded = integer->value.to_int64();
+        if (!bounded.has_value() || *bounded < 0) {
             throw_invalid_form("D derivative order must be a nonnegative exact integer");
         }
-        if (rational->numerator > kMaxDerivativeOrder) {
+        if (*bounded > kMaxDerivativeOrder) {
             throw_invalid_form("D derivative order exceeds the supported limit");
         }
-        order = rational->numerator;
+        order = *bounded;
+    } else if (const auto* rational = std::get_if<Rational>(expr.get())) {
+        const auto bounded = rational->exact().to_bounded();
+        if (!bounded.has_value() || bounded->second != 1 || bounded->first < 0) {
+            throw_invalid_form("D derivative order must be a nonnegative exact integer");
+        }
+        if (bounded->first > kMaxDerivativeOrder) {
+            throw_invalid_form("D derivative order exceeds the supported limit");
+        }
+        order = bounded->first;
     } else {
         throw_invalid_form("D derivative order must be a nonnegative exact integer");
     }

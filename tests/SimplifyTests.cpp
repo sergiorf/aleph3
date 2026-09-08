@@ -4,6 +4,7 @@
 #include "evaluator/Evaluator.hpp"
 #include "expr/ExprUtils.hpp"
 #include "kernel/Rewrite.hpp"
+#include "syntax/SymbolicLowering.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
@@ -13,15 +14,21 @@ using namespace aleph3;
 
 namespace {
 
+ExprPtr parse_symbolic_for_simplify(const std::string& source) {
+    auto lowered = syntax::parse_symbolic_source(source);
+    REQUIRE(lowered.ok());
+    return lowered.expr;
+}
+
 void expect_simplifies_to(const std::string& source, const std::string& expected) {
-    auto expr = parse_expression(source);
+    auto expr = parse_symbolic_for_simplify(source);
     auto simplified = simplify(expr);
     REQUIRE(to_string(simplified) == expected);
     REQUIRE(to_string(simplify(simplified)) == expected);
 }
 
 void expect_direct_simplify_to(const std::string& source, const std::string& expected) {
-    auto expr = parse_expression(source);
+    auto expr = parse_symbolic_for_simplify(source);
     auto simplified = simplify(expr);
     REQUIRE(to_string(simplified) == expected);
     REQUIRE(to_string(simplify(simplified)) == expected);
@@ -29,7 +36,7 @@ void expect_direct_simplify_to(const std::string& source, const std::string& exp
 
 std::string evaluated_string(const std::string& source) {
     EvaluationContext ctx(kernel::default_function_registry());
-    return to_string(evaluate(parse_expression(source), ctx));
+    return to_string(evaluate(parse_symbolic_for_simplify(source), ctx));
 }
 
 void expect_evaluates_to(const std::string& source, const std::string& expected) {
@@ -37,8 +44,8 @@ void expect_evaluates_to(const std::string& source, const std::string& expected)
 }
 
 void expect_same_simplified_structure(const std::string& left, const std::string& right) {
-    auto left_simplified = simplify(parse_expression(left));
-    auto right_simplified = simplify(parse_expression(right));
+    auto left_simplified = simplify(parse_symbolic_for_simplify(left));
+    auto right_simplified = simplify(parse_symbolic_for_simplify(right));
     REQUIRE(kernel::structurally_equal(left_simplified, right_simplified));
 }
 
@@ -463,8 +470,8 @@ TEST_CASE("Simplify does not perform evaluator-only builtin reduction on raw inp
 }
 
 TEST_CASE("Simplify preserves exact arithmetic boundaries on raw input", "[simplify][contract][rational]") {
-    expect_direct_simplify_to("1/2 + 1/3", "1/2 + 1/3");
-    expect_direct_simplify_to("1/2 + 2", "1/2 + 2");
+    expect_direct_simplify_to("1/2 + 1/3", "5/6");
+    expect_direct_simplify_to("1/2 + 2", "5/2");
     expect_direct_simplify_to("1/2 < 3/4", "1/2 < 3/4");
 }
 

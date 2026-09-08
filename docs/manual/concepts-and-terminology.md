@@ -379,10 +379,14 @@ than becoming an approximate binary floating-point number.
 
 ```text
 1/3 + 1/6  -> 1/2
+12345678901234567890 + 1 -> 12345678901234567891
 ```
 
-Exactness is a contract, not a claim that every mathematical object is already
-supported. The algebra specifications state the current boundary.
+Exact integer expressions and exact rational expressions use the shared
+arbitrary-precision scalar model. A rational with denominator one canonicalizes
+to an integer expression. Exactness is a contract, not a claim that every
+mathematical object is already supported. The algebra specifications state the
+current boundary.
 
 ## Approximate Arithmetic
 

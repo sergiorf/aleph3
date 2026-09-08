@@ -42,6 +42,8 @@ bool structural_equal_impl(const Expr& left, const Expr& right) noexcept {
 
             if constexpr (std::is_same_v<T, Symbol>) {
                 return lhs.name == rhs.name;
+            } else if constexpr (std::is_same_v<T, Integer>) {
+                return lhs.value == rhs.value;
             } else if constexpr (std::is_same_v<T, Number>) {
                 return lhs.value == rhs.value;
             } else if constexpr (std::is_same_v<T, Complex>) {
@@ -122,6 +124,8 @@ std::size_t structural_hash_impl(const Expr& expr) noexcept {
 
             if constexpr (std::is_same_v<T, Symbol>) {
                 hash_combine(seed, value.name);
+            } else if constexpr (std::is_same_v<T, Integer>) {
+                hash_combine(seed, value.value);
             } else if constexpr (std::is_same_v<T, Number>) {
                 hash_combine(seed, hash_double(value.value));
             } else if constexpr (std::is_same_v<T, Complex>) {
@@ -176,6 +180,30 @@ bool double_less(double left, double right) noexcept {
     return left < right;
 }
 
+int structural_type_rank(const Expr& expr) noexcept {
+    return std::visit(
+        [](const auto& value) noexcept -> int {
+            using T = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<T, Integer>) return 0;
+            if constexpr (std::is_same_v<T, Rational>) return 1;
+            if constexpr (std::is_same_v<T, Number>) return 2;
+            if constexpr (std::is_same_v<T, Complex>) return 3;
+            if constexpr (std::is_same_v<T, Symbol>) return 4;
+            if constexpr (std::is_same_v<T, Boolean>) return 5;
+            if constexpr (std::is_same_v<T, String>) return 6;
+            if constexpr (std::is_same_v<T, FunctionCall>) return 7;
+            if constexpr (std::is_same_v<T, FunctionDefinition>) return 8;
+            if constexpr (std::is_same_v<T, Assignment>) return 9;
+            if constexpr (std::is_same_v<T, Rule>) return 10;
+            if constexpr (std::is_same_v<T, List>) return 11;
+            if constexpr (std::is_same_v<T, Infinity>) return 12;
+            if constexpr (std::is_same_v<T, ComplexInfinity>) return 13;
+            if constexpr (std::is_same_v<T, Indeterminate>) return 14;
+            return 15;
+        },
+        expr);
+}
+
 bool structural_less_list(
     const std::vector<ExprPtr>& left,
     const std::vector<ExprPtr>& right) noexcept {
@@ -193,7 +221,7 @@ bool structural_less_list(
 
 bool structural_less_impl(const Expr& left, const Expr& right) noexcept {
     if (left.index() != right.index()) {
-        return left.index() < right.index();
+        return structural_type_rank(left) < structural_type_rank(right);
     }
 
     return std::visit(
@@ -203,6 +231,8 @@ bool structural_less_impl(const Expr& left, const Expr& right) noexcept {
 
             if constexpr (std::is_same_v<T, Symbol>) {
                 return lhs.name < rhs.name;
+            } else if constexpr (std::is_same_v<T, Integer>) {
+                return lhs.value < rhs.value;
             } else if constexpr (std::is_same_v<T, Number>) {
                 return double_less(lhs.value, rhs.value);
             } else if constexpr (std::is_same_v<T, Complex>) {

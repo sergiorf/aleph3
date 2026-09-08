@@ -1,5 +1,6 @@
 ﻿#include "parser/Parser.hpp"
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_all.hpp>
 
@@ -103,11 +104,9 @@ TEST_CASE("Parser handles multiplication with number and symbol (2x)") {
     REQUIRE(func_call->head == "Times");
     REQUIRE(func_call->args.size() == 2);
 
-    auto* left = std::get_if<Number>(&(*func_call->args[0]));
     auto* right = std::get_if<Symbol>(&(*func_call->args[1]));
 
-    REQUIRE(left != nullptr);
-    REQUIRE(left->value == 2.0);
+    REQUIRE(get_number_value(func_call->args[0]) == 2.0);
     REQUIRE(right != nullptr);
     REQUIRE(right->name == "x");
 }
@@ -123,11 +122,9 @@ TEST_CASE("Parser handles negative numbers with multiplication (2x and -2x)") {
     REQUIRE(func_call->head == "Times");
     REQUIRE(func_call->args.size() == 2);
 
-    auto* left = std::get_if<Number>(&(*func_call->args[0]));
     auto* right = std::get_if<Symbol>(&(*func_call->args[1]));
 
-    REQUIRE(left != nullptr);
-    REQUIRE(left->value == -2.0);
+    REQUIRE(get_number_value(func_call->args[0]) == -2.0);
     REQUIRE(right != nullptr);
     REQUIRE(right->name == "x");
 }
@@ -142,20 +139,16 @@ TEST_CASE("Parser handles implicit multiplication with parentheses", "[parser]")
     REQUIRE(func_call->head == "Times");
     REQUIRE(func_call->args.size() == 2);
 
-    auto* left = std::get_if<Number>(&(*func_call->args[0]));
-    REQUIRE(left != nullptr);
-    REQUIRE(left->value == 2.0);
+    REQUIRE(get_number_value(func_call->args[0]) == 2.0);
 
     auto* right = std::get_if<FunctionCall>(&(*func_call->args[1]));
     REQUIRE(right != nullptr);
     REQUIRE(right->head == "Plus");
     REQUIRE(right->args.size() == 2);
 
-    auto* right_left = std::get_if<Number>(&(*right->args[0]));
     auto* right_right = std::get_if<Symbol>(&(*right->args[1]));
 
-    REQUIRE(right_left != nullptr);
-    REQUIRE(right_left->value == 3.0);
+    REQUIRE(get_number_value(right->args[0]) == 3.0);
     REQUIRE(right_right != nullptr);
     REQUIRE(right_right->name == "x");
 }
@@ -170,9 +163,7 @@ TEST_CASE("Parser handles variable assignments", "[parser]") {
     REQUIRE(assign->name == "x");
 
     // Check the assigned value
-    auto* value = std::get_if<Number>(&(*assign->value));
-    REQUIRE(value != nullptr);
-    REQUIRE(value->value == 2.0);
+    REQUIRE(get_number_value(assign->value) == 2.0);
 }
 
 TEST_CASE("Parser handles simple If statement", "[parser]") {
@@ -191,14 +182,11 @@ TEST_CASE("Parser handles simple If statement", "[parser]") {
     REQUIRE(condition.args.size() == 2);
     REQUIRE(std::holds_alternative<Symbol>(*condition.args[0]));
     REQUIRE(std::get<Symbol>(*condition.args[0]).name == "x");
-    REQUIRE(std::holds_alternative<Number>(*condition.args[1]));
-    REQUIRE(std::get<Number>(*condition.args[1]).value == 0.0);
+    REQUIRE(get_number_value(condition.args[1]) == 0.0);
 
-    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
-    REQUIRE(std::get<Number>(*func.args[1]).value == 1.0);
+    REQUIRE(get_number_value(func.args[1]) == 1.0);
 
-    REQUIRE(std::holds_alternative<Number>(*func.args[2]));
-    REQUIRE(std::get<Number>(*func.args[2]).value == 2.0);
+    REQUIRE(get_number_value(func.args[2]) == 2.0);
 }
 
 TEST_CASE("Parser handles equality operator (==)", "[parser]") {
@@ -214,8 +202,7 @@ TEST_CASE("Parser handles equality operator (==)", "[parser]") {
     REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
     REQUIRE(std::get<Symbol>(*func.args[0]).name == "x");
 
-    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
-    REQUIRE(std::get<Number>(*func.args[1]).value == 0.0);
+    REQUIRE(get_number_value(func.args[1]) == 0.0);
 }
 
 TEST_CASE("Parser handles logical AND (&&)", "[parser][logic]") {
@@ -429,15 +416,9 @@ TEST_CASE("Parser handles simple lists", "[parser][list]") {
     REQUIRE(list->head == "List");
     REQUIRE(list->args.size() == 3);
 
-    auto* n1 = std::get_if<Number>(&(*list->args[0]));
-    auto* n2 = std::get_if<Number>(&(*list->args[1]));
-    auto* n3 = std::get_if<Number>(&(*list->args[2]));
-    REQUIRE(n1);
-    REQUIRE(n2);
-    REQUIRE(n3);
-    REQUIRE(n1->value == 1.0);
-    REQUIRE(n2->value == 2.0);
-    REQUIRE(n3->value == 3.0);
+    REQUIRE(get_number_value(list->args[0]) == 1.0);
+    REQUIRE(get_number_value(list->args[1]) == 2.0);
+    REQUIRE(get_number_value(list->args[2]) == 3.0);
 }
 
 TEST_CASE("Parser handles nested lists", "[parser][list]") {
@@ -449,25 +430,17 @@ TEST_CASE("Parser handles nested lists", "[parser][list]") {
     REQUIRE(list->head == "List");
     REQUIRE(list->args.size() == 3);
 
-    auto* n1 = std::get_if<Number>(&(*list->args[0]));
-    REQUIRE(n1);
-    REQUIRE(n1->value == 1.0);
+    REQUIRE(get_number_value(list->args[0]) == 1.0);
 
     auto* inner_list = std::get_if<FunctionCall>(&(*list->args[1]));
     REQUIRE(inner_list != nullptr);
     REQUIRE(inner_list->head == "List");
     REQUIRE(inner_list->args.size() == 2);
 
-    auto* n2 = std::get_if<Number>(&(*inner_list->args[0]));
-    auto* n3 = std::get_if<Number>(&(*inner_list->args[1]));
-    REQUIRE(n2);
-    REQUIRE(n2->value == 2.0);
-    REQUIRE(n3);
-    REQUIRE(n3->value == 3.0);
+    REQUIRE(get_number_value(inner_list->args[0]) == 2.0);
+    REQUIRE(get_number_value(inner_list->args[1]) == 3.0);
 
-    auto* n4 = std::get_if<Number>(&(*list->args[2]));
-    REQUIRE(n4);
-    REQUIRE(n4->value == 4.0);
+    REQUIRE(get_number_value(list->args[2]) == 4.0);
 }
 
 TEST_CASE("Parser handles lists as function arguments", "[parser][list]") {
@@ -484,16 +457,10 @@ TEST_CASE("Parser handles lists as function arguments", "[parser][list]") {
     REQUIRE(list->head == "List");
     REQUIRE(list->args.size() == 2);
 
-    auto* n1 = std::get_if<Number>(&(*list->args[0]));
-    auto* n2 = std::get_if<Number>(&(*list->args[1]));
-    REQUIRE(n1);
-    REQUIRE(n1->value == 1.0);
-    REQUIRE(n2);
-    REQUIRE(n2->value == 2.0);
+    REQUIRE(get_number_value(list->args[0]) == 1.0);
+    REQUIRE(get_number_value(list->args[1]) == 2.0);
 
-    auto* n3 = std::get_if<Number>(&(*func->args[1]));
-    REQUIRE(n3);
-    REQUIRE(n3->value == 3.0);
+    REQUIRE(get_number_value(func->args[1]) == 3.0);
 }
 
 TEST_CASE("Parser handles empty lists", "[parser][list]") {
@@ -515,8 +482,7 @@ TEST_CASE("Parser handles lists with mixed types", "[parser][list]") {
     REQUIRE(list->head == "List");
     REQUIRE(list->args.size() == 4);
 
-    REQUIRE(std::holds_alternative<Number>(*list->args[0]));
-    REQUIRE(std::get<Number>(*list->args[0]).value == 1.0);
+    REQUIRE(get_number_value(list->args[0]) == 1.0);
 
     REQUIRE(std::holds_alternative<String>(*list->args[1]));
     REQUIRE(std::get<String>(*list->args[1]).value == "hello");
@@ -552,8 +518,7 @@ TEST_CASE("Parser handles lists with expressions", "[parser][list]") {
     auto fcall = std::get<FunctionCall>(*list->args[2]);
     REQUIRE(fcall.head == "f");
     REQUIRE(fcall.args.size() == 1);
-    REQUIRE(std::holds_alternative<Number>(*fcall.args[0]));
-    REQUIRE(std::get<Number>(*fcall.args[0]).value == 3.0);
+    REQUIRE(get_number_value(fcall.args[0]) == 3.0);
 }
 
 TEST_CASE("Parser handles lists as arguments to built-in functions", "[parser][list]") {
@@ -644,9 +609,7 @@ TEST_CASE("Parser handles division by products and negatives") {
         REQUIRE(times->head == "Times");
         REQUIRE(times->args.size() == 2);
 
-        auto* num = std::get_if<Number>(&(*times->args[0]));
-        REQUIRE(num != nullptr);
-        REQUIRE(num->value == c.denom_num);
+        REQUIRE(get_number_value(times->args[0]) == c.denom_num);
 
         auto* var = std::get_if<Symbol>(&(*times->args[1]));
         REQUIRE(var != nullptr);
@@ -692,9 +655,7 @@ TEST_CASE("Parser handles division with negative numerators and products in deno
             REQUIRE(times != nullptr);
             REQUIRE(times->head == "Times");
             REQUIRE(times->args.size() == 2);
-            auto* minus_one = std::get_if<Number>(&(*times->args[0]));
-            REQUIRE(minus_one != nullptr);
-            REQUIRE(minus_one->value == -1.0);
+            REQUIRE(get_number_value(times->args[0]) == -1.0);
             auto* sym = std::get_if<Symbol>(&(*times->args[1]));
             REQUIRE(sym != nullptr);
             if (c.input.find("-a/") == 0)
@@ -704,9 +665,7 @@ TEST_CASE("Parser handles division with negative numerators and products in deno
         }
         else {
             // Numerator: Number
-            auto* numerator = std::get_if<Number>(&(*divide->args[0]));
-            REQUIRE(numerator != nullptr);
-            REQUIRE(numerator->value == c.numer);
+            REQUIRE(get_number_value(divide->args[0]) == c.numer);
         }
 
         // Denominator
@@ -737,9 +696,7 @@ TEST_CASE("Parser handles division with negative numerators and products in deno
             auto* x = std::get_if<Symbol>(&(*power->args[0]));
             REQUIRE(x != nullptr);
             REQUIRE(x->name == "x");
-            auto* two = std::get_if<Number>(&(*power->args[1]));
-            REQUIRE(two != nullptr);
-            REQUIRE(two->value == 2.0);
+            REQUIRE(get_number_value(power->args[1]) == 2.0);
         }
         else if (c.input == "-x/(y+z)") {
             // Sum in denominator
@@ -771,9 +728,7 @@ TEST_CASE("Parser handles division with negative numerators and products in deno
             REQUIRE(times->head == "Times");
             REQUIRE(times->args.size() == 2);
 
-            auto* denom_num = std::get_if<Number>(&(*times->args[0]));
-            REQUIRE(denom_num != nullptr);
-            REQUIRE(denom_num->value == c.denom_num);
+            REQUIRE(get_number_value(times->args[0]) == c.denom_num);
 
             auto* denom_var = std::get_if<Symbol>(&(*times->args[1]));
             REQUIRE(denom_var != nullptr);

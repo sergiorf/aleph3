@@ -85,7 +85,7 @@ Algorithms must not assume:
 - symbolic coefficients;
 - algebraic-number coefficients;
 - approximate fallback;
-- field operations outside checked rationals.
+- field operations outside the supported exact rational scalar model.
 
 ## Polynomial Representation
 
@@ -156,7 +156,9 @@ Pack-facing dispatch follows this rule:
   transformations reject inexact inputs explicitly;
 - exact multivariate `GCD` and `PolynomialQuotient` require exact polynomial
   coefficients and explicit selector lists;
-- exact overflow maps to `runtime.exact_overflow`;
+- exact scalar values are preserved without native-integer overflow; local
+  bounded adapters still report deterministic diagnostics where a native size,
+  exponent, index, or public host value is required;
 - division by a zero exact polynomial denominator maps to the stable
   division-by-zero diagnostic where it reaches a public runtime boundary.
 
@@ -190,7 +192,7 @@ Tests for exact algebra growth should cover:
 
 - exact coefficient sign and denominator normalization;
 - rational arithmetic preservation;
-- explicit overflow;
+- preservation beyond native integer bounds;
 - zero polynomial normalization;
 - exact polynomial addition and multiplication;
 - division reconstruction,
@@ -198,8 +200,8 @@ Tests for exact algebra growth should cover:
 - fixed monomial ordering under explicit variable precedence;
 - pack-level exact dispatch for supported integer/rational public helpers;
 - explicit rejection of inexact inputs in exact-only paths;
-- stable public diagnostics for overflow, invalid forms, unsupported
-  constructs, and division by zero.
+- stable public diagnostics for invalid forms, unsupported constructs, budget
+  cases, bounded-adapter failures, and division by zero.
 
 ## Current Decision Relevant To Rewrite Migration
 
@@ -333,7 +335,8 @@ This spec is sufficient when:
 - `GCD[x^2*y, x*y^2, {x, y}]` returns `x*y`
 - zero with a nonzero supported operand returns its monic form; two zero
   operands remain invalid
-- unit input returns `1`; exact coefficient overflow remains explicit
+- unit input returns `1`; exact coefficients preserve arbitrary-precision
+  scalar values
 
 For a selected variable, the polynomial valuation is the minimum exponent of
 that variable among all nonzero terms. The result uses the minimum valuation

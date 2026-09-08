@@ -82,8 +82,7 @@ ExactMatrix exact_matrix_from_expr(const ExprPtr& expr) {
 }
 
 ExprPtr exact_scalar_to_expr(const ExactCoefficient& value) {
-    if (value.denominator == 1) return make_expr<Integer>(value.numerator);
-    return make_expr<Rational>(value.numerator, value.denominator);
+    return make_exact_scalar_expr(value.exact());
 }
 
 ExprPtr exact_matrix_to_expr(const ExactMatrix& matrix) {

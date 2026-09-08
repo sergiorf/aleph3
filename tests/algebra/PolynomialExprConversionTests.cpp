@@ -98,6 +98,26 @@ TEST_CASE("exact polynomial conversion preserves multivariate rational coefficie
     REQUIRE(poly.terms.at(Monomial{{"y", 1}}) == coeff(2, 3));
 }
 
+TEST_CASE("exact polynomial conversion preserves large exact coefficients", "[algebra][conversion][exact][large]") {
+    const auto poly = expr_to_exact_polynomial(
+        parse_expression("9223372036854775808*x + 1/9223372036854775809"),
+        {"x"});
+
+    REQUIRE(
+        poly.terms.at(Monomial{{"x", 1}}) ==
+        ExactCoefficient(
+            kernel::ExactInteger::from_decimal_string("9223372036854775808"),
+            kernel::ExactInteger(1)));
+    REQUIRE(
+        poly.terms.at(Monomial{}) ==
+        ExactCoefficient(
+            kernel::ExactInteger(1),
+            kernel::ExactInteger::from_decimal_string("9223372036854775809")));
+    REQUIRE(
+        simplify_string(exact_polynomial_to_expr(poly)) ==
+        "9223372036854775808 * x + 1/9223372036854775809");
+}
+
 TEST_CASE("exact polynomial conversion round-trips to a stable canonical form", "[algebra][conversion][exact]") {
     const auto expr = parse_expression("1/3 + 2/3*x*y + x^2");
     const auto poly = expr_to_exact_polynomial(expr, {"x", "y"});
@@ -232,7 +252,7 @@ TEST_CASE("exact multivariate gcd normalizes zero and unit cases", "[algebra][co
     REQUIRE_THROWS_AS(gcd(zero, zero, {"x", "y"}), EvaluatorError);
 }
 
-TEST_CASE("exact multivariate gcd rejects two multi-term operands and reports overflow", "[algebra][conversion][exact][gcd]") {
+TEST_CASE("exact multivariate gcd rejects two multi-term operands", "[algebra][conversion][exact][gcd]") {
     const auto left = expr_to_exact_polynomial(parse_expression("x + y"), {"x", "y"});
     const auto right = expr_to_exact_polynomial(parse_expression("x - y"), {"x", "y"});
     try {
@@ -244,29 +264,37 @@ TEST_CASE("exact multivariate gcd rejects two multi-term operands and reports ov
             "gcd: at least one multivariate operand must be a monomial");
     }
 
-    const auto maximum = std::numeric_limits<int64_t>::max();
-    const ExactPolynomial overflow_candidate({
-        {Monomial{{"x", 1}}, ExactCoefficient(1, maximum)},
-        {Monomial{}, ExactCoefficient(maximum, 1)}});
-    REQUIRE_THROWS_AS(
-        gcd(ExactPolynomial{}, overflow_candidate, {"x", "y"}),
-        std::overflow_error);
 }
 
-TEST_CASE("exact coefficient arithmetic rejects overflow", "[algebra][conversion][exact][overflow]") {
-    const ExactCoefficient large(std::numeric_limits<int64_t>::max(), 1);
-    const ExactCoefficient small(std::numeric_limits<int64_t>::min(), 1);
-    REQUIRE_THROWS_AS(large * ExactCoefficient(2, 1), std::overflow_error);
-    REQUIRE_THROWS_AS(large + ExactCoefficient(1, 1), std::overflow_error);
-    REQUIRE_THROWS_AS(small - ExactCoefficient(1, 1), std::overflow_error);
-    REQUIRE_THROWS_AS(large / ExactCoefficient(1, 2), std::overflow_error);
+TEST_CASE("exact coefficient arithmetic preserves values beyond native bounds", "[algebra][conversion][exact][large]") {
+    const ExactCoefficient large(
+        kernel::ExactInteger::from_decimal_string("9223372036854775808"),
+        kernel::ExactInteger(1));
+    const ExactCoefficient small(
+        kernel::ExactInteger::from_decimal_string("-9223372036854775809"),
+        kernel::ExactInteger(1));
+
+    REQUIRE(large * ExactCoefficient(2, 1) == ExactCoefficient(
+        kernel::ExactInteger::from_decimal_string("18446744073709551616"),
+        kernel::ExactInteger(1)));
+    REQUIRE(large + ExactCoefficient(1, 1) == ExactCoefficient(
+        kernel::ExactInteger::from_decimal_string("9223372036854775809"),
+        kernel::ExactInteger(1)));
+    REQUIRE(small - ExactCoefficient(1, 1) == ExactCoefficient(
+        kernel::ExactInteger::from_decimal_string("-9223372036854775810"),
+        kernel::ExactInteger(1)));
+    REQUIRE(large / ExactCoefficient(1, 2) == ExactCoefficient(
+        kernel::ExactInteger::from_decimal_string("18446744073709551616"),
+        kernel::ExactInteger(1)));
 }
 
-TEST_CASE("exact polynomial denominator LCM rejects overflow", "[algebra][conversion][exact][overflow]") {
+TEST_CASE("exact polynomial denominator LCM preserves values beyond native bounds", "[algebra][conversion][exact][large]") {
     const ExactPolynomial polynomial({
         {Monomial{{"x", 1}}, ExactCoefficient(1, std::numeric_limits<int64_t>::max())},
         {Monomial{}, ExactCoefficient(1, 2)}
     });
 
-    REQUIRE_THROWS_AS(coefficient_denominator_lcm(polynomial), std::overflow_error);
+    REQUIRE(
+        coefficient_denominator_lcm(polynomial) ==
+        kernel::ExactInteger::from_decimal_string("18446744073709551614"));
 }

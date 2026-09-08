@@ -24,17 +24,6 @@ std::string simplify_string(const ExprPtr& expr) {
 }
 
 template <typename Operation>
-void require_exact_overflow(Operation&& operation) {
-    try {
-        operation();
-        FAIL("Expected exact overflow");
-    } catch (const kernel::RuntimeFailure& error) {
-        REQUIRE(error.error().code == "runtime.exact_overflow");
-        REQUIRE(std::string(error.what()) == "Exact coefficient overflow");
-    }
-}
-
-template <typename Operation>
 void require_runtime_diagnostic(
     Operation&& operation,
     std::string_view code,
@@ -532,48 +521,47 @@ TEST_CASE("Polynomial factor supports exact rational univariate coefficients", "
     }
 }
 
-TEST_CASE("Polynomial helpers map exact overflow to public diagnostics", "[algebra][functions][overflow]") {
+TEST_CASE("Polynomial helpers preserve large exact coefficients", "[algebra][functions][large]") {
     EvaluationContext ctx;
 
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("Expand[(3037000500*x) * (3037000500*x)]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("Collect[(3037000500*x) * (3037000500*x), x]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("GCD[(3037000500*x) * (3037000500*x), 3037000500*x, x]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("PolynomialQuotient[3037000500*x, 1/3037000500, x]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("PolynomialRemainder[3037000500*x, 1/3037000500, x]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("PolynomialDegree[(3037000500*x) * (3037000500*x), x]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("LeadingCoefficient[(3037000500*x) * (3037000500*x), x]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("Coefficient[(3037000500*x) * (3037000500*x), x, 2]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("CoefficientList[(3037000500*x) * (3037000500*x), x]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("Factor[(3037000500*x) * (3037000500*x)]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("Numerator[1/3037000500 + 1/3037000501]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("Denominator[1/3037000500 + 1/3037000501]", ctx));
-    });
-    require_exact_overflow([&] {
-        static_cast<void>(evaluate_source("Together[1/3037000500 + 1/3037000501]", ctx));
-    });
+    const auto large_product = "(3037000500*x) * (3037000500*x)";
+    REQUIRE(to_string(*evaluate_source(std::string("Expand[") + large_product + "]", ctx)) ==
+        "9223372037000250000 * x^2");
+    REQUIRE(to_string(*evaluate_source(std::string("Collect[") + large_product + ", x]", ctx)) ==
+        "9223372037000250000 * x^2");
+    REQUIRE(to_string(*evaluate_source(
+        "GCD[(3037000500*x) * (3037000500*x), 3037000500*x, x]", ctx)) == "x");
+    REQUIRE(to_string(*evaluate_source("PolynomialQuotient[3037000500*x, 1/3037000500, x]", ctx)) ==
+        "{9223372037000250000 * x, 0}");
+    REQUIRE(to_string(*evaluate_source("PolynomialRemainder[3037000500*x, 1/3037000500, x]", ctx)) ==
+        "0");
+    REQUIRE(to_string(*evaluate_source(std::string("PolynomialDegree[") + large_product + ", x]", ctx)) ==
+        "2");
+    REQUIRE(to_string(*evaluate_source(std::string("LeadingCoefficient[") + large_product + ", x]", ctx)) ==
+        "9223372037000250000");
+    REQUIRE(to_string(*evaluate_source(std::string("Coefficient[") + large_product + ", x, 2]", ctx)) ==
+        "9223372037000250000");
+    REQUIRE(to_string(*evaluate_source(std::string("CoefficientList[") + large_product + ", x]", ctx)) ==
+        "{0, 0, 9223372037000250000}");
+    REQUIRE(to_string(*evaluate_source("Numerator[1/3037000500 + 1/3037000501]", ctx)) ==
+        "6074001001");
+    REQUIRE(to_string(*evaluate_source("Denominator[1/3037000500 + 1/3037000501]", ctx)) ==
+        "9223372040037250500");
+    REQUIRE(to_string(*evaluate_source("Together[1/3037000500 + 1/3037000501]", ctx)) ==
+        "6074001001 / 9223372040037250500");
+}
+
+TEST_CASE("Factor reports a stable rational-root candidate budget case", "[algebra][functions][budget]") {
+    EvaluationContext ctx;
+
+    try {
+        static_cast<void>(evaluate_source("Factor[x^2 - 100001]", ctx));
+        FAIL("Expected rational-root candidate budget rejection");
+    } catch (const EvaluatorError& error) {
+        REQUIRE(error.kind() == EvaluatorErrorKind::unsupported_construct);
+        REQUIRE(std::string(error.what()) ==
+            "Factor exceeded the rational-root divisor candidate budget");
+    }
 }
 
 TEST_CASE("Polynomial helpers map exact division by zero to public diagnostics", "[algebra][functions][diagnostics]") {

@@ -7,8 +7,7 @@
 #include "expr/ExprStructural.hpp"
 
 #include <algorithm>
-#include <cstdlib>
-#include <numeric>
+#include <cstdint>
 #include <optional>
 #include <set>
 
@@ -16,9 +15,15 @@ namespace aleph3 {
 
 namespace {
 
+constexpr int64_t kMaxRationalRootDivisorScan = 100000;
+
 struct RationalRoot {
-    int64_t numerator = 0;
-    int64_t denominator = 1;
+    kernel::ExactInteger numerator;
+    kernel::ExactInteger denominator = kernel::ExactInteger(1);
+
+    [[nodiscard]] kernel::ExactRational exact() const {
+        return kernel::ExactRational(numerator, denominator);
+    }
 };
 
 std::vector<std::string> infer_variables(const ExactPolynomial& poly) {
@@ -52,11 +57,6 @@ int degree_in_variable(const ExactPolynomial& poly, const std::string& var) {
     return degree;
 }
 
-int64_t checked_exact_lcm(int64_t left, int64_t right) {
-    if (left == 0 || right == 0) return 0;
-    return checked_exact_multiply(left / std::gcd(left, right), right);
-}
-
 struct ExactPolynomialContent {
     ExactCoefficient coefficient = ExactCoefficient::one();
     Monomial monomial;
@@ -77,11 +77,13 @@ ExactPolynomialContent split_exact_content(
         return content;
     }
 
-    int64_t denominator_lcm = 1;
+    kernel::ExactInteger denominator_lcm(1);
     bool first_term = true;
     for (const auto& [monomial, coefficient] : poly.terms) {
         if (coefficient.is_zero()) continue;
-        denominator_lcm = checked_exact_lcm(denominator_lcm, coefficient.denominator);
+        const kernel::ExactInteger common =
+            kernel::gcd(denominator_lcm, coefficient.denominator());
+        denominator_lcm = (denominator_lcm / common) * coefficient.denominator();
         if (first_term) {
             content.monomial = monomial;
             first_term = false;
@@ -103,8 +105,8 @@ ExactPolynomialContent split_exact_content(
     }
 
     ExactPolynomial integer_poly =
-        multiply_by_scalar(poly, ExactCoefficient(denominator_lcm, 1));
-    const int64_t coefficient_content = integer_content(integer_poly);
+        multiply_by_scalar(poly, ExactCoefficient(denominator_lcm, kernel::ExactInteger(1)));
+    const kernel::ExactInteger coefficient_content = integer_content(integer_poly);
     content.coefficient = ExactCoefficient(coefficient_content, denominator_lcm);
 
     ExactPolynomial primitive;
@@ -120,12 +122,13 @@ ExactPolynomialContent split_exact_content(
             }
         }
         primitive.terms[reduced] =
-            primitive.terms[reduced] + (coefficient / ExactCoefficient(coefficient_content, 1));
+            primitive.terms[reduced] +
+            (coefficient / ExactCoefficient(coefficient_content, kernel::ExactInteger(1)));
     }
     primitive.normalize();
 
     const auto leading = leading_coefficient_for_order(primitive, variables);
-    if (leading.numerator < 0) {
+    if (leading.is_negative()) {
         primitive = multiply_by_scalar(primitive, ExactCoefficient(-1, 1));
         content.coefficient = content.coefficient * ExactCoefficient(-1, 1);
     }
@@ -133,47 +136,56 @@ ExactPolynomialContent split_exact_content(
     return content;
 }
 
-std::vector<int64_t> univariate_integer_coefficients(
+std::vector<kernel::ExactInteger> univariate_integer_coefficients(
     const ExactPolynomial& poly,
     const std::string& var) {
     const int degree = degree_in_variable(poly, var);
-    std::vector<int64_t> coefficients(static_cast<size_t>(degree) + 1, 0);
+    std::vector<kernel::ExactInteger> coefficients(
+        static_cast<size_t>(degree) + 1,
+        kernel::ExactInteger(0));
     for (const auto& [monomial, coefficient] : poly.terms) {
         if (coefficient.is_zero()) continue;
-        if (coefficient.denominator != 1) {
+        if (!coefficient.is_integer()) {
             throw_unsupported_construct(
                 "Polynomial factorization currently requires integer coefficients");
         }
         int exponent = 0;
         const auto exponent_it = monomial.find(var);
         if (exponent_it != monomial.end()) exponent = exponent_it->second;
-        coefficients[static_cast<size_t>(degree - exponent)] = coefficient.numerator;
+        coefficients[static_cast<size_t>(degree - exponent)] = coefficient.numerator();
     }
     return coefficients;
 }
 
-std::vector<int64_t> positive_divisors(int64_t value) {
-    value = checked_abs_int64(value);
-    if (value == 0) return {0};
-    std::vector<int64_t> divisors;
-    for (int64_t candidate = 1; candidate <= value; ++candidate) {
-        if (value % candidate == 0) divisors.push_back(candidate);
+std::vector<kernel::ExactInteger> positive_divisors(const kernel::ExactInteger& value) {
+    const kernel::ExactInteger absolute = kernel::abs(value);
+    if (absolute.is_zero()) return {kernel::ExactInteger(0)};
+    const auto bounded = absolute.to_int64();
+    if (!bounded.has_value() || *bounded > kMaxRationalRootDivisorScan) {
+        throw_unsupported_construct(
+            "Factor exceeded the rational-root divisor candidate budget");
+    }
+    std::vector<kernel::ExactInteger> divisors;
+    for (int64_t candidate = 1; candidate <= *bounded; ++candidate) {
+        const kernel::ExactInteger exact_candidate(candidate);
+        if ((absolute % exact_candidate).is_zero()) divisors.push_back(exact_candidate);
     }
     return divisors;
 }
 
-std::vector<RationalRoot> rational_root_candidates(const std::vector<int64_t>& coefficients) {
+std::vector<RationalRoot> rational_root_candidates(
+    const std::vector<kernel::ExactInteger>& coefficients) {
     if (coefficients.empty()) return {};
 
-    const int64_t leading = coefficients.front();
-    const int64_t constant = coefficients.back();
-    if (leading == 0) return {};
+    const kernel::ExactInteger& leading = coefficients.front();
+    const kernel::ExactInteger& constant = coefficients.back();
+    if (leading.is_zero()) return {};
 
     std::vector<RationalRoot> candidates;
-    std::set<std::pair<int64_t, int64_t>> seen;
+    std::set<std::pair<kernel::ExactInteger, kernel::ExactInteger>> seen;
     for (const auto numerator : positive_divisors(constant)) {
         for (const auto denominator : positive_divisors(leading)) {
-            if (denominator == 0) continue;
+            if (denominator.is_zero()) continue;
             auto [positive_n, positive_d] = normalize_rational(numerator, denominator);
             auto [negative_n, negative_d] = normalize_rational(-numerator, denominator);
             if (seen.insert({positive_n, positive_d}).second) {
@@ -188,30 +200,30 @@ std::vector<RationalRoot> rational_root_candidates(const std::vector<int64_t>& c
 }
 
 ExactCoefficient evaluate_univariate_coefficients_exact(
-    const std::vector<int64_t>& coefficients,
+    const std::vector<kernel::ExactInteger>& coefficients,
     const RationalRoot& root) {
-    const ExactCoefficient root_value(root.numerator, root.denominator);
+    const ExactCoefficient root_value(root.exact());
     ExactCoefficient value = ExactCoefficient::zero();
     for (const auto coefficient : coefficients) {
-        value = value * root_value + ExactCoefficient(coefficient, 1);
+        value = value * root_value + ExactCoefficient(coefficient, kernel::ExactInteger(1));
     }
     return value;
 }
 
 std::optional<std::vector<ExactCoefficient>> synthetic_divide_exact(
-    const std::vector<int64_t>& coefficients,
+    const std::vector<kernel::ExactInteger>& coefficients,
     const RationalRoot& root) {
     if (coefficients.size() < 2) return std::nullopt;
-    const ExactCoefficient root_value(root.numerator, root.denominator);
+    const ExactCoefficient root_value(root.exact());
     std::vector<ExactCoefficient> quotient(coefficients.size() - 1);
-    ExactCoefficient carry(coefficients.front(), 1);
+    ExactCoefficient carry(coefficients.front(), kernel::ExactInteger(1));
     quotient.front() = carry;
     for (size_t i = 1; i + 1 < coefficients.size(); ++i) {
-        carry = carry * root_value + ExactCoefficient(coefficients[i], 1);
+        carry = carry * root_value + ExactCoefficient(coefficients[i], kernel::ExactInteger(1));
         quotient[i] = carry;
     }
     const ExactCoefficient remainder =
-        carry * root_value + ExactCoefficient(coefficients.back(), 1);
+        carry * root_value + ExactCoefficient(coefficients.back(), kernel::ExactInteger(1));
     if (!remainder.is_zero()) return std::nullopt;
     return quotient;
 }
@@ -221,19 +233,19 @@ bool all_integer_coefficients(const std::vector<ExactCoefficient>& coefficients)
         coefficients.begin(),
         coefficients.end(),
         [](const ExactCoefficient& coefficient) {
-            return coefficient.denominator == 1;
+            return coefficient.is_integer();
         });
 }
 
-std::vector<int64_t> exact_coefficients_to_ints(
+std::vector<kernel::ExactInteger> exact_coefficients_to_ints(
     const std::vector<ExactCoefficient>& coefficients) {
-    std::vector<int64_t> result;
+    std::vector<kernel::ExactInteger> result;
     result.reserve(coefficients.size());
     for (const auto& coefficient : coefficients) {
-        if (coefficient.denominator != 1) {
+        if (!coefficient.is_integer()) {
             throw_internal_inconsistency("Expected integer exact coefficients");
         }
-        result.push_back(coefficient.numerator);
+        result.push_back(coefficient.numerator());
     }
     return result;
 }
@@ -257,35 +269,35 @@ ExactPolynomial exact_coefficients_to_polynomial(
 }
 
 ExactPolynomial integer_coefficients_to_exact_polynomial(
-    const std::vector<int64_t>& coefficients,
+    const std::vector<kernel::ExactInteger>& coefficients,
     const std::string& var) {
     std::vector<ExactCoefficient> exact_coefficients;
     exact_coefficients.reserve(coefficients.size());
     for (const auto coefficient : coefficients) {
-        exact_coefficients.emplace_back(coefficient, 1);
+        exact_coefficients.emplace_back(coefficient, kernel::ExactInteger(1));
     }
     return exact_coefficients_to_polynomial(exact_coefficients, var);
 }
 
 ExprPtr monic_linear_factor_expr(const std::string& var, const RationalRoot& root) {
     auto variable_term = make_expr<Symbol>(var);
-    if (root.denominator == 1) {
-        if (root.numerator < 0) {
+    if (root.denominator.is_one()) {
+        if (root.numerator.is_negative()) {
             return make_plus(
                 variable_term,
-                make_expr<Number>(static_cast<double>(checked_abs_int64(root.numerator))));
+                make_integer(kernel::abs(root.numerator)));
         }
         return make_expr<FunctionCall>(
             "Minus",
             std::vector<ExprPtr>{
                 variable_term,
-                make_expr<Number>(static_cast<double>(root.numerator))
+                make_integer(root.numerator)
             });
     }
 
-    ExprPtr constant_term =
-        make_expr<Rational>(checked_abs_int64(root.numerator), root.denominator);
-    if (root.numerator < 0) return make_plus(variable_term, constant_term);
+    ExprPtr constant_term = make_exact_scalar_expr(
+        kernel::ExactRational(kernel::abs(root.numerator), root.denominator));
+    if (root.numerator.is_negative()) return make_plus(variable_term, constant_term);
     return make_expr<FunctionCall>("Minus", std::vector<ExprPtr>{variable_term, constant_term});
 }
 
@@ -306,7 +318,7 @@ RationalRoot exact_linear_root(const ExactPolynomial& poly, const std::string& v
     }
     const ExactCoefficient root =
         (ExactCoefficient::zero() - constant_term) / variable_coefficient;
-    return RationalRoot{root.numerator, root.denominator};
+    return RationalRoot{root.numerator(), root.denominator()};
 }
 
 std::vector<ExprPtr> factor_univariate_exact_polynomial(
@@ -361,11 +373,8 @@ std::vector<ExprPtr> factor_univariate_exact_polynomial(
         linear_factors.begin(),
         linear_factors.end(),
         [](const auto& left, const auto& right) {
-            const long double left_value =
-                static_cast<long double>(left.first.numerator) / left.first.denominator;
-            const long double right_value =
-                static_cast<long double>(right.first.numerator) / right.first.denominator;
-            if (left_value != right_value) return left_value > right_value;
+            const int root_order = kernel::compare(left.first.exact(), right.first.exact());
+            if (root_order != 0) return root_order > 0;
             return structural_less(left.second, right.second);
         });
 

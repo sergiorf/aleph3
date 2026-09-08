@@ -8,7 +8,6 @@
 
 #include "algebra/ExactPolynomial.hpp"
 
-#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -40,13 +39,12 @@ int exact_degree_in_variable(
     const ExactPolynomial& poly,
     const std::string& variable);
 
-int64_t coefficient_denominator_lcm(const ExactPolynomial& polynomial);
-int64_t checked_abs_int64(int64_t value);
-int64_t integer_content(const ExactPolynomial& polynomial);
+kernel::ExactInteger coefficient_denominator_lcm(const ExactPolynomial& polynomial);
+kernel::ExactInteger integer_content(const ExactPolynomial& polynomial);
 
 ExactPolynomial divide_by_integer_content(
     ExactPolynomial polynomial,
-    int64_t content);
+    const kernel::ExactInteger& content);
 
 ExactPolynomial expand(const ExactPolynomial& poly);
 

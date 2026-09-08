@@ -68,19 +68,11 @@ ExactPolynomial expr_to_exact_polynomial_impl(
             return ExactPolynomial(ExactCoefficient(*integer, 1));
         }
         if (const auto* integer = std::get_if<Integer>(&(*current))) {
-            const auto bounded = integer->value.to_int64();
-            if (!bounded.has_value()) {
-                throw std::overflow_error("Exact coefficient overflow");
-            }
-            return ExactPolynomial(ExactCoefficient(*bounded, 1));
+            return ExactPolynomial(
+                ExactCoefficient(integer->value, kernel::ExactInteger(1)));
         }
         if (const auto* rational = std::get_if<Rational>(&(*current))) {
-            const auto bounded = rational->exact().to_bounded();
-            if (!bounded.has_value()) {
-                throw std::overflow_error("Exact coefficient overflow");
-            }
-            return ExactPolynomial(
-                ExactCoefficient(bounded->first, bounded->second));
+            return ExactPolynomial(ExactCoefficient(rational->exact()));
         }
         if (const auto* symbol = std::get_if<Symbol>(&(*current))) {
             if (!contains_variable(variables, symbol->name)) {
@@ -168,10 +160,7 @@ bool is_exact_polynomial_candidate(const ExprPtr& expr) {
 }
 
 ExprPtr exact_coefficient_to_expr(const ExactCoefficient& coefficient) {
-    if (coefficient.denominator == 1) {
-        return make_expr<Integer>(coefficient.numerator);
-    }
-    return make_expr<Rational>(coefficient.numerator, coefficient.denominator);
+    return make_exact_scalar_expr(coefficient.exact());
 }
 
 ExactPolynomial expr_to_exact_polynomial(

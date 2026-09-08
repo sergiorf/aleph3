@@ -249,7 +249,7 @@ Mid-term CAS tranche:
 - add a deliberately small rule-based `Integrate` subset only after
   assumptions, domains, and transformation metadata can prevent invalid
   antiderivative claims;
-- broaden exact dense linear algebra only where checked exact coefficients,
+- broaden exact dense linear algebra only where shared exact coefficients,
   diagnostics, and resource budgets remain explicit.
 
 Longer-term CAS tranche:

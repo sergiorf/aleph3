@@ -734,6 +734,26 @@ Verification:
 
 ### Slice 6: Exact Algebra Coefficients
 
+Status: complete.
+
+Completion notes:
+
+- migrated `ExactCoefficient` from checked `int64_t` numerator/denominator
+  storage to the shared `kernel::ExactRational` scalar model;
+- exact polynomial conversion, arithmetic, division, GCD, rational-expression
+  normalization, coefficient extraction, and supported factorization now
+  preserve large exact integer and rational coefficients without native
+  coefficient overflow;
+- rational-root factorization keeps a bounded divisor-candidate scan and
+  reports a stable unsupported/budget diagnostic when that search would exceed
+  the configured slice-local limit;
+- focused tests now cover large exact coefficient preservation across
+  polynomial helpers, rational-expression helpers, low-level coefficient
+  arithmetic, denominator LCM/content helpers, and the factorization budget
+  boundary;
+- public dense-matrix entry parsing remains bounded for Slice 7, although the
+  shared internal coefficient type can now represent larger exact entries.
+
 Behavior delivered:
 
 - migrate `ExactCoefficient` to the shared exact-rational representation;
@@ -767,6 +787,15 @@ Documentation:
 - update [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md),
   [Algebra Supported Subset](algebra_supported_subset.md), and
   [packs-algebra manual](manual/packs-algebra.md);
+- document the user-visible exact-algebra feature in
+  [packs-algebra manual](manual/packs-algebra.md), including runnable examples
+  for large integer coefficients, large rational coefficients, and the
+  exact/inexact boundary for decimal inputs;
+- define "budget case" behavior in the algebra manual and focused specs: a
+  mathematically valid supported-shape input may still fail when term growth,
+  scalar growth, or factor-candidate enumeration exceeds a documented resource
+  limit, and that failure must use a stable budget diagnostic rather than
+  overflow, approximation, or an implementation-specific error;
 - replace stale checked-`int64_t` claims with exact-scalar size-budget claims.
 
 Verification:

@@ -4,12 +4,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <limits>
-
 using aleph3::ExactCoefficient;
 using aleph3::algebra::DenseMatrix;
 
-TEST_CASE("DenseMatrix owns checked row-major value storage", "[algebra][matrix]") {
+TEST_CASE("DenseMatrix owns exact row-major value storage", "[algebra][matrix]") {
     DenseMatrix<ExactCoefficient> matrix(2, 2, {{1, 1}, {2, 1}, {3, 1}, {4, 1}});
     REQUIRE(matrix.rows() == 2);
     REQUIRE(matrix.columns() == 2);
@@ -29,7 +27,13 @@ TEST_CASE("Dense matrix algorithms preserve exact rational arithmetic", "[algebr
     REQUIRE(reduced == aleph3::algebra::identity_matrix<ExactCoefficient>(2));
 
     DenseMatrix<ExactCoefficient> large(
-        1, 1, {{std::numeric_limits<std::int64_t>::max(), 1}});
+        1,
+        1,
+        {{aleph3::kernel::ExactInteger::from_decimal_string("9223372036854775808"),
+          aleph3::kernel::ExactInteger(1)}});
     DenseMatrix<ExactCoefficient> two(1, 1, {{2, 1}});
-    REQUIRE_THROWS_AS(aleph3::algebra::matrix_multiply(large, two), std::overflow_error);
+    const auto large_product = aleph3::algebra::matrix_multiply(large, two);
+    REQUIRE(large_product(0, 0) == ExactCoefficient(
+        aleph3::kernel::ExactInteger::from_decimal_string("18446744073709551616"),
+        aleph3::kernel::ExactInteger(1)));
 }

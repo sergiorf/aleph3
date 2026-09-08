@@ -13,9 +13,12 @@ in the documented polynomial subset:
 
 ```text
 Expand[(1/3*x + 1/6)*6]                 -> 2 * x + 1
+Expand[(3037000500*x)*(3037000500*x)]   -> 9223372037000250000 * x^2
 GCD[x^2 - 1/9, x - 1/3, x]              -> x - 1/3
 PolynomialQuotient[x^2 - 1/9, x - 1/3, x]
     -> {x + 1/3, 0}
+CoefficientList[9223372036854775808*x^2 + 1/9223372036854775809, x]
+    -> {1/9223372036854775809, 0, 9223372036854775808}
 PolynomialRemainder[x^2 + 1, x + 1, x]  -> 2
 LeadingCoefficient[(1/2)*x^2 + x, x]    -> 1/2
 ```
@@ -26,6 +29,13 @@ an operation needs a native exponent, degree, matrix size, or part index.
 Decimal inputs are inexact. Decimal inputs only use the documented
 transitional inexact polynomial paths and are rejected by exact-only helpers
 such as rational-expression transformations and exact multivariate division.
+
+A budget case is a supported-shape exact input that is mathematically valid
+but too expensive for the current implementation limits. For example,
+univariate rational-root factorization may reject a polynomial when divisor
+candidate enumeration would exceed its scan budget. Budget cases report a
+stable diagnostic instead of overflowing native integers, approximating the
+input, or exposing an implementation-specific failure.
 
 ## Expand And Collect
 
@@ -63,8 +73,8 @@ Factor[1/2*x^2 + x + 1/2]                -> 1/2 * (x + 1) * (x + 1)
 
 General multivariate factorization is not yet supported.
 Supported univariate integer and rational coefficients are handled by the
-exact polynomial path with checked `int64_t` arithmetic. Decimal inputs remain
-outside this exact factorization subset.
+exact polynomial path with arbitrary-precision exact scalar arithmetic.
+Decimal inputs remain outside this exact factorization subset.
 
 ## Polynomial GCD
 
@@ -125,7 +135,9 @@ x*y * (x + y) + y                      -> x^2*y + x*y^2 + y
 Decimal multivariate division, multiple divisors, configurable orders,
 general multivariate GCD, and broad multivariate factorization remain
 unsupported.
-Exact `int64_t` coefficient overflow is reported instead of wrapped.
+Exact coefficient operations use arbitrary-precision integers and rationals;
+algorithmic limits such as term growth and rational-root candidate scans still
+apply.
 
 Examples outside the current boundary include:
 
@@ -151,9 +163,9 @@ LeadingCoefficient[(1/2)*x^2 + x, x]   -> 1/2
 
 The selector must be one symbol. Decimal coefficients, symbolic coefficients,
 non-polynomial inputs, unsupported variables outside the selected univariate
-polynomial, negative or symbolic exponents, and exact coefficient overflow are
-rejected explicitly. The zero polynomial is a domain violation in this slice;
-Aleph3 does not yet expose a first-class negative-infinity degree value.
+polynomial, and negative or symbolic exponents are rejected explicitly. The
+zero polynomial is a domain violation in this slice; Aleph3 does not yet
+expose a first-class negative-infinity degree value.
 
 ## Coefficient Extraction
 
@@ -175,8 +187,8 @@ largest exponent of `x`.
 
 The selector must be a single symbol. Decimal coefficients, symbolic
 coefficients, non-polynomial inputs, unsupported variables outside the selected
-univariate polynomial, negative or symbolic exponents, and exact coefficient
-overflow are rejected explicitly.
+univariate polynomial, and negative or symbolic exponents are rejected
+explicitly.
 
 ## Rational Expression Parts
 
@@ -265,7 +277,9 @@ Equivalent[Sqrt[x^2], x]                         -> Unknown
 ## Exact Dense Matrices
 
 Matrices are written as rectangular nested lists. The algebra pack validates
-their shape and computes with checked exact integers and rationals:
+their shape and computes with exact integers and rationals. Public matrix
+entry parsing still uses a bounded native adapter pending the exact
+dense-matrix migration slice.
 
 ```text
 MatrixAdd[{{1, 1/2}, {2, 3}}, {{4, 1/2}, {5, 6}}] -> {{5, 1}, {7, 9}}

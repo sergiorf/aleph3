@@ -198,7 +198,7 @@ Boundaries:
 - exact integer and rational coefficients are preserved;
 - decimal coefficients, symbolic coefficients, non-polynomial inputs,
   unsupported variables outside the selected univariate polynomial, negative
-  or symbolic exponents, and exact coefficient overflow fail explicitly.
+  or symbolic exponents fail explicitly.
 
 ## Polynomial Inspection
 
@@ -246,7 +246,7 @@ Boundaries:
   first-class negative-infinity degree value;
 - decimal coefficients, symbolic coefficients, non-polynomial inputs,
   unsupported variables outside the selected univariate polynomial, negative
-  or symbolic exponents, and exact coefficient overflow fail explicitly.
+  or symbolic exponents fail explicitly.
 
 ## Rational Expression Parts
 
@@ -430,13 +430,17 @@ and `0^0` are not made valid by product aggregation.
 - general multivariate factorization beyond content extraction
 - higher-degree irreducible decomposition beyond the supported rational-root
   path
-- arbitrary-precision exact arithmetic
+- unbounded rational-root candidate enumeration
 
 Supported univariate integer and rational `Factor` inputs use the exact
 polynomial path. The legacy `double` polynomial layer remains present for
-inexact inputs and transitional internals. Large exact intermediates are still
-bounded by checked `int64_t` coefficient storage; overflow is reported rather
-than wrapped.
+inexact inputs and transitional internals. Large exact coefficients are
+preserved by the shared arbitrary-precision scalar model.
+
+Budget cases are valid supported-shape inputs that exceed an explicit resource
+limit such as term growth, scalar growth, or rational-root divisor candidate
+enumeration. They fail with a stable budget or unsupported diagnostic rather
+than falling back to approximation or native-integer overflow.
 
 ## Future Work
 
@@ -447,7 +451,6 @@ Not part of the current supported subset:
 - general multivariate polynomial GCD and configurable or multi-divisor division
 - exact multivariate factorization beyond current content extraction
 - broader factorization algorithms
-- arbitrary-precision exact algebra
 - symbolic, approximate, sparse, or arbitrary-rank matrix algebra
 
 ## Planned Rational-Expression Follow-Up

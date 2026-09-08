@@ -4,9 +4,12 @@
 #include "evaluator/Evaluator.hpp"
 #include "expr/Expr.hpp"
 #include "expr/ExprUtils.hpp"
+#include "kernel/Diagnostics.hpp"
+#include "sdk/Policy.hpp"
 
 #include <limits>
 #include <stdexcept>
+#include <unordered_map>
 
 using namespace aleph3;
 
@@ -148,6 +151,60 @@ TEST_CASE("Evaluator: Rational arithmetic preserves large exact values", "[evalu
     auto comparison = evaluate(parse_expression("4611686018427387904/1 < 1/3"), ctx);
     REQUIRE(std::holds_alternative<Boolean>(*comparison));
     CHECK_FALSE(std::get<Boolean>(*comparison).value);
+}
+
+TEST_CASE("Evaluator: Exact power preserves integer and rational precision", "[evaluator][rational][exact][power]") {
+    EvaluationContext ctx;
+
+    const auto large_square = evaluate(parse_expression("3037000500^2"), ctx);
+    REQUIRE(std::holds_alternative<Integer>(*large_square));
+    CHECK(to_string(large_square) == "9223372037000250000");
+
+    const auto very_large_square =
+        evaluate(parse_expression("12345678901234567890^2"), ctx);
+    REQUIRE(std::holds_alternative<Integer>(*very_large_square));
+    CHECK(to_string(very_large_square) == "152415787532388367501905199875019052100");
+
+    const auto rational_square = evaluate(parse_expression("(2/3)^2"), ctx);
+    REQUIRE(std::holds_alternative<Rational>(*rational_square));
+    CHECK(to_string(rational_square) == "4/9");
+
+    const auto rational_negative_power = evaluate(parse_expression("(2/3)^-2"), ctx);
+    REQUIRE(std::holds_alternative<Rational>(*rational_negative_power));
+    CHECK(to_string(rational_negative_power) == "9/4");
+
+    const auto negative_rational_cube = evaluate(parse_expression("(-2/3)^3"), ctx);
+    REQUIRE(std::holds_alternative<Rational>(*negative_rational_cube));
+    CHECK(to_string(negative_rational_cube) == "-8/27");
+
+    const auto comparison =
+        evaluate(parse_expression("3037000500^2 > 9223372036854775807"), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*comparison));
+    CHECK(std::get<Boolean>(*comparison).value);
+
+    const auto oversized_exponent =
+        evaluate(parse_expression("2^9223372036854775808"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*oversized_exponent));
+    CHECK(to_string(oversized_exponent) == "2^9223372036854775808");
+}
+
+TEST_CASE("Evaluator: Exact power growth observes strict runtime step budget", "[evaluator][rational][exact][power][budget]") {
+    Policy policy = Policy::default_policy();
+    policy.budget().max_evaluation_steps = 3;
+
+    Bindings bindings;
+    Bindings constants;
+    std::unordered_map<std::string, HostFunctionSpec> host_functions;
+    EvaluationContext ctx(bindings, constants, host_functions, policy);
+    ctx.enable_runtime_strict_semantics(true);
+    ctx.reset_runtime_step_counter();
+
+    try {
+        evaluate(parse_expression("2^64"), ctx);
+        FAIL("Expected exact power to consume the strict runtime step budget");
+    } catch (const kernel::RuntimeFailure& failure) {
+        CHECK(failure.error().code == "runtime.step_budget_exhausted");
+    }
 }
 
 TEST_CASE("Rational normalization handles int64 minimum boundaries", "[evaluator][rational][overflow]") {

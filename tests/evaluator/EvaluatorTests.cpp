@@ -72,9 +72,8 @@ TEST_CASE("Evaluator correctly evaluates power expressions", "[evaluator][pow]")
     auto result = evaluate(expr, ctx);
 
     REQUIRE(result != nullptr);
-
-    auto num = std::get<Number>(*result);
-    REQUIRE(std::abs(num.value - 8.0) < 1e-9); // Floating-point comparison
+    REQUIRE(std::holds_alternative<Integer>(*result));
+    REQUIRE(to_string(result) == "8");
 }
 
 TEST_CASE("Exponential function is evaluated correctly", "[evaluator][exp]") {

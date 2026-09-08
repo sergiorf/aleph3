@@ -670,6 +670,27 @@ Verification:
 
 ### Slice 5: Exact Arithmetic And Simplification Migration
 
+Status: complete.
+
+Completion notes:
+
+- exact integer/rational `Plus`, `Times`, division, unary minus, comparison,
+  and normalization use the shared exact-scalar model across the evaluator and
+  normalized-head arithmetic rewrites;
+- exact `Power` now evaluates exact integer powers of exact integer and
+  rational bases through exact-scalar exponentiation before any finite-double
+  fallback, preserving large integer powers and rational positive or negative
+  integer powers;
+- exact powers with unsupported oversized exponents remain symbolic instead of
+  demoting to approximate machine-real evaluation;
+- exact power growth consumes the runtime evaluation-step budget in strict
+  execution contexts;
+- focused regression coverage now proves large exact integer powers, exact
+  rational powers, exact comparisons after power evaluation, and strict-budget
+  exhaustion for exact power growth;
+- manual arithmetic and help text document large exact powers, rational powers,
+  exactness boundaries, and budget behavior.
+
 Behavior delivered:
 
 - migrate exact integer/rational arithmetic in `Plus`, `Times`, `Power`,

@@ -114,14 +114,21 @@ stable representation for equality, matching, and algorithms.
 1/2 + 2                  -> 5/2
 12345678901234567890 + 1 -> 12345678901234567891
 9007199254740993/3       -> 3002399751580331
+(2/3)^-2                 -> 9/4
+3037000500^2             -> 9223372037000250000
 1/2 + 0.5                -> approximate Number
 ```
 
 Exact integer and rational expressions use arbitrary-precision scalar storage
-and are not rounded through machine reals. Bounded adapters remain explicit for
-places that require native sizes, indexes, exponents, SDK host-number values,
-or budgeted algorithms. Values outside those local bounds are rejected at that
-boundary rather than wrapped or silently approximated.
+and are not rounded through machine reals. Arithmetic over exact integers and
+rationals, including exact integer powers of exact integer or rational bases,
+uses that same scalar model. In strict execution contexts, power growth
+consumes the runtime evaluation-step budget.
+
+Bounded adapters remain explicit for places that require native sizes,
+indexes, exponents, SDK host-number values, or budgeted algorithms. Values
+outside those local bounds are rejected at that boundary rather than wrapped or
+silently approximated.
 
 Use decimals only when approximation is intended:
 

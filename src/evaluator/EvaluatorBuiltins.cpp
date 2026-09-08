@@ -60,6 +60,49 @@ std::optional<kernel::ExactRational> exact_rational_atom(const ExprPtr& expr) {
     return std::nullopt;
 }
 
+ExprPtr evaluate_exact_power(
+    const kernel::ExactRational& base,
+    const kernel::ExactInteger& exponent,
+    EvaluationContext& ctx) {
+    if (!exponent.to_int64().has_value()) {
+        return nullptr;
+    }
+
+    const int64_t bounded_exponent = *exponent.to_int64();
+    if (bounded_exponent == 0) {
+        if (base.is_zero()) {
+            return nullptr;
+        }
+        return make_expr<Integer>(1);
+    }
+    if (base.is_zero()) {
+        if (bounded_exponent < 0) {
+            return nullptr;
+        }
+        return make_expr<Integer>(0);
+    }
+
+    kernel::ExactRational factor = base;
+    uint64_t remaining = unsigned_abs_int64(bounded_exponent);
+    if (bounded_exponent < 0) {
+        factor = kernel::ExactRational(base.denominator(), base.numerator());
+    }
+
+    kernel::ExactRational result(1, 1);
+    while (remaining > 0) {
+        if ((remaining & 1U) != 0U) {
+            ctx.consume_evaluation_step();
+            result = result * factor;
+        }
+        remaining >>= 1U;
+        if (remaining > 0) {
+            ctx.consume_evaluation_step();
+            factor = factor * factor;
+        }
+    }
+    return make_exact_scalar_expr(result);
+}
+
 std::optional<double> finite_scalar_atom(const ExprPtr& expr) {
     if (const auto* number = std::get_if<Number>(expr.get())) {
         return number->value;
@@ -545,6 +588,12 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
         if (func.head == "Divide") {
             if (b.numerator().is_zero()) throw_domain_violation("Division by zero");
             return make_exact_scalar_expr(a / b);
+        }
+        if (func.head == "Power" && b.denominator().is_one()) {
+            if (auto exact_power = evaluate_exact_power(a, b.numerator(), ctx)) {
+                return exact_power;
+            }
+            return make_fcall(func.head, {left, right});
         }
     }
     if (auto left_finite = finite_scalar_atom(left), right_finite = finite_scalar_atom(right);

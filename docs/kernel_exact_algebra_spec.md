@@ -282,8 +282,9 @@ Practical implication:
   coefficient-ring and algorithm story is stronger; the current exact
   factorization support is limited to the documented univariate rational-root
   subset
-- exact coefficient operations detect `int64_t` overflow and fail explicitly;
-  arbitrary precision remains outside this contract
+- exact coefficient operations use the shared arbitrary-precision scalar model;
+  local native-size adapters remain explicit only where a bounded algorithm or
+  public host boundary requires them
 
 ## Current Algebra Implementation Ownership
 

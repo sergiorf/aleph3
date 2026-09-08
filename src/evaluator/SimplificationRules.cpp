@@ -34,6 +34,48 @@ namespace aleph3 {
         return std::nullopt;
     }
 
+    ExprPtr simplify_exact_power(
+        const kernel::ExactRational& base,
+        const kernel::ExactInteger& exponent,
+        EvaluationContext& ctx) {
+        const auto bounded_exponent = exponent.to_int64();
+        if (!bounded_exponent.has_value()) {
+            return nullptr;
+        }
+        if (*bounded_exponent == 0) {
+            if (base.is_zero()) {
+                return nullptr;
+            }
+            return make_expr<Integer>(1);
+        }
+        if (base.is_zero()) {
+            if (*bounded_exponent < 0) {
+                return nullptr;
+            }
+            return make_expr<Integer>(0);
+        }
+
+        kernel::ExactRational factor = base;
+        uint64_t remaining = unsigned_abs_int64(*bounded_exponent);
+        if (*bounded_exponent < 0) {
+            factor = kernel::ExactRational(base.denominator(), base.numerator());
+        }
+
+        kernel::ExactRational result(1, 1);
+        while (remaining > 0) {
+            if ((remaining & 1U) != 0U) {
+                ctx.consume_evaluation_step();
+                result = result * factor;
+            }
+            remaining >>= 1U;
+            if (remaining > 0) {
+                ctx.consume_evaluation_step();
+                factor = factor * factor;
+            }
+        }
+        return make_exact_scalar_expr(result);
+    }
+
     Complex multiply_complex(const Complex& lhs, const Complex& rhs) {
         return Complex{
             lhs.real * rhs.real - lhs.imag * rhs.imag,
@@ -430,6 +472,11 @@ namespace aleph3 {
         if (std::holds_alternative<Rational>(*base) && std::holds_alternative<Rational>(*exp)) {
             const auto& b = std::get<Rational>(*base);
             const auto& r = std::get<Rational>(*exp);
+            if (r.denominator.is_one()) {
+                if (auto exact_power = simplify_exact_power(b.exact(), r.numerator, ctx)) {
+                    return exact_power;
+                }
+            }
             const auto b_value = finite_double_from_exact_rational(b);
             const auto bounded_exp = r.exact().to_bounded();
             if (!b_value || !bounded_exp) {
@@ -449,27 +496,10 @@ namespace aleph3 {
         }
         if (auto exact_base = exact_rational_atom(base), exact_exp = exact_rational_atom(exp);
             exact_base.has_value() && exact_exp.has_value()) {
-            const auto bounded_base = exact_base->to_bounded();
-            const auto bounded_exp = exact_exp->to_bounded();
-            if (bounded_base && bounded_exp && bounded_exp->second == 1) {
-                const double b = static_cast<double>(bounded_base->first) /
-                    static_cast<double>(bounded_base->second);
-                const double e = static_cast<double>(bounded_exp->first);
-                if (b == 0.0 && e == 0.0) {
-                    return make_fcall("Power", {base, exp});
+            if (exact_exp->denominator().is_one()) {
+                if (auto exact_power = simplify_exact_power(*exact_base, exact_exp->numerator(), ctx)) {
+                    return exact_power;
                 }
-                if (b == 0.0 && e < 0.0) {
-                    return make_fcall("Power", {base, exp});
-                }
-                if (bounded_base->second == 1 && bounded_exp->first >= 0) {
-                    kernel::ExactInteger result(1);
-                    kernel::ExactInteger factor(bounded_base->first);
-                    for (int64_t i = 0; i < bounded_exp->first; ++i) {
-                        result = result * factor;
-                    }
-                    return make_expr<Integer>(std::move(result));
-                }
-                return make_expr<Number>(std::pow(b, e));
             }
         }
         if (std::holds_alternative<Number>(*base) && std::holds_alternative<Number>(*exp)) {

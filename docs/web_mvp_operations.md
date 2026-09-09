@@ -121,8 +121,8 @@ npm run build
 
 ## Transitional Web API Core
 
-The repository still includes a transport-independent legacy web API core used
-as transitional contract evidence while browser traffic migrates to the BFF.
+The repository still includes a transport-independent web API core used as
+transitional contract evidence while browser traffic remains on the BFF path.
 It does not start the public web MVP backend.
 
 Build the current API-core executable:

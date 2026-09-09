@@ -26,10 +26,15 @@ namespace aleph3 {
     // Helper for numeric evaluation of constants and expressions
     inline ExprPtr numeric_eval(const ExprPtr& expr) {
         return std::visit(overloaded{
+            [](const Integer& integer) -> ExprPtr {
+                return make_expr<Number>(
+                    finite_double_from_exact_integer(integer.value).value_or(std::numeric_limits<double>::infinity()));
+            },
             [](const Number& num) -> ExprPtr { return make_expr<Number>(num.value); },
             [](const Complex& c) -> ExprPtr { return make_expr<Complex>(c.real, c.imag); },
             [](const Rational& rat) -> ExprPtr {
-                return make_expr<Number>(static_cast<double>(rat.numerator) / rat.denominator);
+                return make_expr<Number>(
+                    finite_double_from_exact_rational(rat).value_or(std::numeric_limits<double>::infinity()));
             },
             [](const Boolean& boolean) -> ExprPtr { return make_expr<Boolean>(boolean.value); },
             [](const String& str) -> ExprPtr { return make_expr<String>(str.value); },
@@ -86,15 +91,13 @@ namespace aleph3 {
         const ExprPtr& expr,
         const std::string& name) {
         const auto require_depth = [&](const ExprPtr& value) -> std::size_t {
-            const auto* number = std::get_if<Number>(value.get());
-            if (number == nullptr || !std::isfinite(number->value) || number->value < 0.0 ||
-                std::floor(number->value) != number->value ||
-                number->value > static_cast<double>(std::numeric_limits<std::size_t>::max())) {
+            const auto depth = exact_int64_from_expr(value);
+            if (!depth.has_value() || *depth < 0) {
                 throw_invalid_form(name + " expects a nonnegative integral level or {min, max}");
             }
-            return static_cast<std::size_t>(number->value);
+            return static_cast<std::size_t>(*depth);
         };
-        if (std::holds_alternative<Number>(*expr)) {
+        if (exact_int64_from_expr(expr).has_value()) {
             const auto depth = require_depth(expr);
             return {depth, depth};
         }
@@ -225,9 +228,8 @@ namespace aleph3 {
     std::string expression_head_name(const ExprPtr& expr) {
         return std::visit(overloaded{
             [](const Symbol&) -> std::string { return "Symbol"; },
-            [](const Number& number) -> std::string {
-                return std::floor(number.value) == number.value ? "Integer" : "Real";
-            },
+            [](const Integer&) -> std::string { return "Integer"; },
+            [](const Number&) -> std::string { return "Real"; },
             [](const Complex&) -> std::string { return "Complex"; },
             [](const Rational&) -> std::string { return "Rational"; },
             [](const Boolean&) -> std::string { return "Boolean"; },
@@ -244,13 +246,11 @@ namespace aleph3 {
     }
 
     std::size_t require_one_based_index(const ExprPtr& expr, const std::string& name) {
-        const auto* number = std::get_if<Number>(expr.get());
-        if (number == nullptr || !std::isfinite(number->value) ||
-            std::floor(number->value) != number->value || number->value < 1.0 ||
-            number->value > static_cast<double>(std::numeric_limits<std::size_t>::max())) {
+        const auto index = exact_int64_from_expr(expr);
+        if (!index.has_value() || *index < 1) {
             throw_invalid_form(name + " expects a positive integer index");
         }
-        return static_cast<std::size_t>(number->value);
+        return static_cast<std::size_t>(*index);
     }
 
     const std::vector<ExprPtr>& require_list_argument(
@@ -412,8 +412,12 @@ namespace aleph3 {
             auto idx_arg = evaluate(func.args[1], ctx);
 
             // Case 1: StringTake["Hello", 3] -> "Hel"
-            if (std::holds_alternative<Number>(*idx_arg)) {
-                int n = static_cast<int>(std::get<Number>(*idx_arg).value);
+            if (auto index = exact_int64_from_expr(idx_arg)) {
+                if (*index < std::numeric_limits<int>::min() ||
+                    *index > std::numeric_limits<int>::max()) {
+                    throw_invalid_form("StringTake expects a valid index or range");
+                }
+                int n = static_cast<int>(*index);
                 if (n == 0 || std::abs(n) > static_cast<int>(str.size())) {
                     throw_invalid_form("StringTake expects a valid index or range");
                 }
@@ -429,11 +433,15 @@ namespace aleph3 {
             if (std::holds_alternative<List>(*idx_arg)) {
                 const auto& list = std::get<List>(*idx_arg);
                 if (list.elements.size() == 2) {
-                    auto* start_num = std::get_if<Number>(&(*list.elements[0]));
-                    auto* end_num = std::get_if<Number>(&(*list.elements[1]));
-                    if (start_num && end_num) {
-                        int start = static_cast<int>(start_num->value);
-                        int end = static_cast<int>(end_num->value);
+                    auto start_index = exact_int64_from_expr(list.elements[0]);
+                    auto end_index = exact_int64_from_expr(list.elements[1]);
+                    if (start_index && end_index &&
+                        *start_index >= std::numeric_limits<int>::min() &&
+                        *start_index <= std::numeric_limits<int>::max() &&
+                        *end_index >= std::numeric_limits<int>::min() &&
+                        *end_index <= std::numeric_limits<int>::max()) {
+                        int start = static_cast<int>(*start_index);
+                        int end = static_cast<int>(*end_index);
                         if (start < 1 || end < start || end > static_cast<int>(str.size())) {
                             throw_invalid_form("StringTake expects a valid index or range");
                         }

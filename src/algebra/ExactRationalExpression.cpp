@@ -48,14 +48,22 @@ ExactRationalExpression normalize_exact_rational_expression(
         throw std::domain_error("Rational expression denominator is zero");
     }
 
-    const int64_t numerator_lcm = coefficient_denominator_lcm(numerator);
-    const int64_t denominator_lcm = coefficient_denominator_lcm(denominator);
-    numerator = multiply_by_scalar(numerator, ExactCoefficient(numerator_lcm, 1));
-    denominator = multiply_by_scalar(denominator, ExactCoefficient(denominator_lcm, 1));
-    numerator = multiply_by_scalar(numerator, ExactCoefficient(denominator_lcm, 1));
-    denominator = multiply_by_scalar(denominator, ExactCoefficient(numerator_lcm, 1));
+    const kernel::ExactInteger numerator_lcm = coefficient_denominator_lcm(numerator);
+    const kernel::ExactInteger denominator_lcm = coefficient_denominator_lcm(denominator);
+    numerator = multiply_by_scalar(
+        numerator,
+        ExactCoefficient(numerator_lcm, kernel::ExactInteger(1)));
+    denominator = multiply_by_scalar(
+        denominator,
+        ExactCoefficient(denominator_lcm, kernel::ExactInteger(1)));
+    numerator = multiply_by_scalar(
+        numerator,
+        ExactCoefficient(denominator_lcm, kernel::ExactInteger(1)));
+    denominator = multiply_by_scalar(
+        denominator,
+        ExactCoefficient(numerator_lcm, kernel::ExactInteger(1)));
 
-    const int64_t common_integer_content = std::gcd(
+    const kernel::ExactInteger common_integer_content = kernel::gcd(
         integer_content(numerator),
         integer_content(denominator));
     numerator = divide_by_integer_content(std::move(numerator), common_integer_content);
@@ -63,7 +71,7 @@ ExactRationalExpression normalize_exact_rational_expression(
 
     const ExactCoefficient denominator_lead =
         leading_coefficient_for_order(denominator, variables);
-    if (denominator_lead.numerator < 0) {
+    if (denominator_lead.is_negative()) {
         numerator = multiply_by_scalar(numerator, ExactCoefficient(-1, 1));
         denominator = multiply_by_scalar(denominator, ExactCoefficient(-1, 1));
     }

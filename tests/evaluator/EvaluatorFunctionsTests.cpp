@@ -86,8 +86,7 @@ TEST_CASE("Evaluator handles simple function call", "[evaluator][functions]") {
     auto expr = parse_expression("f[4]");
     auto result = evaluate(expr, ctx);
 
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 16.0);
+    REQUIRE(get_number_value(result) == 16.0);
 }
 
 TEST_CASE("Evaluator handles function with multiple arguments", "[evaluator][functions]") {
@@ -97,8 +96,7 @@ TEST_CASE("Evaluator handles function with multiple arguments", "[evaluator][fun
     auto expr = parse_expression("g[3, 5]");
     auto result = evaluate(expr, ctx);
 
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 8.0);
+    REQUIRE(get_number_value(result) == 8.0);
 }
 
 TEST_CASE("Evaluator handles function with default argument (missing)", "[evaluator][functions]") {
@@ -108,8 +106,7 @@ TEST_CASE("Evaluator handles function with default argument (missing)", "[evalua
     auto expr = parse_expression("h[7]");
     auto result = evaluate(expr, ctx);
 
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 9.0);
+    REQUIRE(get_number_value(result) == 9.0);
 }
 
 TEST_CASE("Evaluator handles function with default argument (provided)", "[evaluator][functions]") {
@@ -119,8 +116,7 @@ TEST_CASE("Evaluator handles function with default argument (provided)", "[evalu
     auto expr = parse_expression("h[7, 10]");
     auto result = evaluate(expr, ctx);
 
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 17.0);
+    REQUIRE(get_number_value(result) == 17.0);
 }
 
 TEST_CASE("Evaluator handles immediate function definitions with x assigned first", "[evaluator][functgions]") {
@@ -142,14 +138,14 @@ TEST_CASE("Evaluator handles immediate function definitions with x assigned firs
 
     // Call the function with a specific value for 'a'
     auto result = evaluate(make_fcall("f", { make_expr<Number>(3) }), ctx);
-    REQUIRE(std::get<Number>(*result).value == 25.0); // 3^3 - 2 = 25
+    REQUIRE(get_number_value(result) == 25.0); // 3^3 - 2 = 25
 
     // Change the value of x
     ctx.variables["x"] = make_expr<Number>(5);
 
     // Call the function again with the same value for 'a'
     auto result_after_x_change = evaluate(make_fcall("f", { make_expr<Number>(3) }), ctx);
-    REQUIRE(std::get<Number>(*result_after_x_change).value == 25.0); // Should still be 25, as f was defined with the old x
+    REQUIRE(get_number_value(result_after_x_change) == 25.0); // Should still be 25, as f was defined with the old x
 
     // Validate that the function definition in the context has not changed
     const auto& stored_func_def = ctx.user_functions["f"];
@@ -177,14 +173,14 @@ TEST_CASE("Evaluator handles delayed function definitions", "[evaluator][functio
 
     // Call the function with a specific value for 'a'
     auto result = evaluate(make_fcall("f", { make_expr<Number>(3) }), ctx);
-    REQUIRE(std::get<Number>(*result).value == 25.0); // 3^3 - 2 = 25
+    REQUIRE(get_number_value(result) == 25.0); // 3^3 - 2 = 25
 
     // Change the value of x
     ctx.variables["x"] = make_expr<Number>(5);
 
     // Call the function again with the same value for 'a'
     auto result_after_x_change = evaluate(make_fcall("f", { make_expr<Number>(3) }), ctx);
-    REQUIRE(std::get<Number>(*result_after_x_change).value == 22.0); // 3^3 - 5 = 22
+    REQUIRE(get_number_value(result_after_x_change) == 22.0); // 3^3 - 5 = 22
 
     // Validate that the function definition in the context remains delayed
     const auto& stored_func_def = ctx.user_functions["f"];
@@ -222,14 +218,12 @@ TEST_CASE("Evaluator resolves default arguments at call time", "[evaluator][func
     evaluate(parse_expression("shift[x_, y_:offset] := x + y"), ctx);
 
     auto first = evaluate(parse_expression("shift[3]"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*first));
-    REQUIRE(std::get<Number>(*first).value == 5.0);
+    REQUIRE(get_number_value(first) == 5.0);
 
     ctx.variables["offset"] = make_expr<Number>(10);
 
     auto second = evaluate(parse_expression("shift[3]"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*second));
-    REQUIRE(std::get<Number>(*second).value == 13.0);
+    REQUIRE(get_number_value(second) == 13.0);
 }
 
 void check_builtin_eval(const std::string& expr_str, double expected, double tol = 1e-12) {
@@ -237,12 +231,6 @@ void check_builtin_eval(const std::string& expr_str, double expected, double tol
     try {
         auto expr = parse_expression(expr_str);
         auto result = evaluate(expr, ctx);
-
-        // Check that result is a Number
-        if (!std::holds_alternative<Number>(*result)) {
-            CAPTURE(expr_str);
-            FAIL("Result is not a Number, got: " << result->index());
-        }
 
         double actual = get_number_value(result);
         CAPTURE(expr_str, expected, actual);
@@ -459,10 +447,15 @@ TEST_CASE("Evaluator Gamma exact-value and pole contract", "[evaluator][gamma][e
         const auto& times = std::get<FunctionCall>(*expr);
         REQUIRE(times.head == "Times");
         REQUIRE(times.args.size() == 2);
-        REQUIRE(std::holds_alternative<Rational>(*times.args[0]));
-        const auto& coeff = std::get<Rational>(*times.args[0]);
-        REQUIRE(coeff.numerator == num);
-        REQUIRE(coeff.denominator == den);
+        if (den == 1) {
+            REQUIRE(std::holds_alternative<Integer>(*times.args[0]));
+            REQUIRE(std::get<Integer>(*times.args[0]).value == num);
+        } else {
+            REQUIRE(std::holds_alternative<Rational>(*times.args[0]));
+            const auto& coeff = std::get<Rational>(*times.args[0]);
+            REQUIRE(coeff.numerator == num);
+            REQUIRE(coeff.denominator == den);
+        }
         REQUIRE(std::holds_alternative<FunctionCall>(*times.args[1]));
         const auto& sqrt_call = std::get<FunctionCall>(*times.args[1]);
         REQUIRE(sqrt_call.head == "Sqrt");

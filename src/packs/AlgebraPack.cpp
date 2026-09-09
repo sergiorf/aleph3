@@ -6,9 +6,9 @@
 #include "algebra/PolyUtils.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "expr/ExprUtils.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <functional>
 #include <limits>
 #include <set>
@@ -29,15 +29,11 @@ using ExactMatrix = algebra::DenseMatrix<ExactCoefficient>;
 }
 
 ExactCoefficient exact_matrix_scalar(const ExprPtr& expr) {
-    if (const auto* rational = std::get_if<Rational>(expr.get())) {
-        return ExactCoefficient(rational->numerator, rational->denominator);
+    if (const auto* integer = std::get_if<Integer>(expr.get())) {
+        return ExactCoefficient(integer->value, kernel::ExactInteger(1));
     }
-    if (const auto* number = std::get_if<Number>(expr.get())) {
-        if (std::isfinite(number->value) && std::trunc(number->value) == number->value &&
-            number->value >= static_cast<double>(std::numeric_limits<std::int64_t>::min()) &&
-            number->value <= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
-            return ExactCoefficient(static_cast<std::int64_t>(number->value), 1);
-        }
+    if (const auto* rational = std::get_if<Rational>(expr.get())) {
+        return ExactCoefficient(rational->exact());
     }
     kernel::throw_runtime_error(kernel::ErrorCode::unsupported_construct,
         "Matrices currently support exact integer and rational entries only");
@@ -70,8 +66,7 @@ ExactMatrix exact_matrix_from_expr(const ExprPtr& expr) {
 }
 
 ExprPtr exact_scalar_to_expr(const ExactCoefficient& value) {
-    if (value.denominator == 1) return make_expr<Number>(static_cast<double>(value.numerator));
-    return make_expr<Rational>(value.numerator, value.denominator);
+    return make_exact_scalar_expr(value.exact());
 }
 
 ExprPtr exact_matrix_to_expr(const ExactMatrix& matrix) {
@@ -156,14 +151,13 @@ std::string extract_single_variable(const ExprPtr& expr) {
 }
 
 int extract_non_negative_integer_exponent(const ExprPtr& expr) {
-    const auto* number = std::get_if<Number>(expr.get());
-    if (!number || !std::isfinite(number->value) ||
-        std::trunc(number->value) != number->value ||
-        number->value < 0.0 ||
-        number->value > static_cast<double>(std::numeric_limits<int>::max())) {
+    const auto exponent = exact_int64_from_expr(expr);
+    if (!exponent.has_value() ||
+        *exponent < 0 ||
+        *exponent > std::numeric_limits<int>::max()) {
         throw_invalid_form("Coefficient exponent must be a non-negative integer");
     }
-    return static_cast<int>(number->value);
+    return static_cast<int>(*exponent);
 }
 
 std::vector<std::string> infer_variables(const ExprPtr& expr) {
@@ -550,13 +544,12 @@ ExprPtr evaluate_matrix_multiply(const FunctionCall& func, EvaluationContext& ct
 ExprPtr evaluate_identity_matrix(const FunctionCall& func, EvaluationContext& ctx) {
     if (func.args.size() != 1) throw_invalid_arity_exact("IdentityMatrix", 1);
     const auto evaluated_size = evaluate(func.args[0], ctx);
-    const auto* number = std::get_if<Number>(evaluated_size.get());
-    if (!number || !std::isfinite(number->value) || std::trunc(number->value) != number->value ||
-        number->value <= 0 || number->value > 64) {
+    const auto size = exact_int64_from_expr(evaluated_size);
+    if (!size.has_value() || *size <= 0 || *size > 64) {
         throw_matrix_domain("IdentityMatrix size must be an integer from 1 through 64");
     }
     return exact_matrix_to_expr(
-        algebra::identity_matrix<ExactCoefficient>(static_cast<std::size_t>(number->value)));
+        algebra::identity_matrix<ExactCoefficient>(static_cast<std::size_t>(*size)));
 }
 
 ExprPtr evaluate_transpose(const FunctionCall& func, EvaluationContext& ctx) {

@@ -1,4 +1,5 @@
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
 
 #include <sstream>
 #include <iomanip>
@@ -58,7 +59,12 @@ namespace aleph3 {
             return true;
         }
 
-        if (const auto* rational = std::get_if<Rational>(expr.get()); rational && rational->numerator < 0) {
+        if (const auto* integer = std::get_if<Integer>(expr.get()); integer && integer->value.is_negative()) {
+            formatted = (-integer->value).to_string();
+            return true;
+        }
+
+        if (const auto* rational = std::get_if<Rational>(expr.get()); rational && rational->numerator.is_negative()) {
             formatted = to_string(Rational{-rational->numerator, rational->denominator});
             return true;
         }
@@ -94,8 +100,24 @@ namespace aleph3 {
             return true;
         }
 
+        if (const auto* first_integer = std::get_if<Integer>(positive_args.front().get());
+            first_integer && first_integer->value.is_negative()) {
+            positive_args.front() = make_expr<Integer>(-first_integer->value);
+            if (std::get<Integer>(*positive_args.front()).value.is_one()) {
+                positive_args.erase(positive_args.begin());
+                if (positive_args.size() == 1) {
+                    formatted = to_string_with_parens(positive_args.front(), get_precedence("Plus"));
+                } else {
+                    formatted = to_string_with_parens(make_expr<FunctionCall>("Times", positive_args), get_precedence("Plus"));
+                }
+            } else {
+                formatted = to_string_with_parens(make_expr<FunctionCall>("Times", positive_args), get_precedence("Plus"));
+            }
+            return true;
+        }
+
         if (const auto* first_rational = std::get_if<Rational>(positive_args.front().get());
-            first_rational && first_rational->numerator < 0) {
+            first_rational && first_rational->numerator.is_negative()) {
             positive_args.front() = make_expr<Rational>(-first_rational->numerator, first_rational->denominator);
             if (std::holds_alternative<Rational>(*positive_args.front()) &&
                 std::get<Rational>(*positive_args.front()).numerator ==
@@ -122,6 +144,10 @@ namespace aleph3 {
                 return format_number(num.value);
             },
 
+            [](const Integer& integer) -> std::string {
+                return integer.value.to_string();
+            },
+
             [](const Complex& c) -> std::string {
                 if (c.real == 0.0 && c.imag == 0.0) return "0";
                 if (c.real == 0.0) return format_number(c.imag) + "*I";
@@ -131,7 +157,7 @@ namespace aleph3 {
             },
 
             [](const Rational& r) -> std::string {
-                return to_string(r.numerator) + "/" + to_string(r.denominator);
+                return r.numerator.to_string() + "/" + r.denominator.to_string();
             },
 
             [](const Symbol& sym) -> std::string {
@@ -166,6 +192,16 @@ namespace aleph3 {
                 if (f.head == "Times") {
                     if (!args.empty()) {
                         if (auto num = std::get_if<Number>(args[0].get()); num && num->value == -1) {
+                            if (args.size() == 2) {
+                                return "-" + to_string_with_parens(args[1], get_precedence("Negate"));
+                            }
+                            std::vector<ExprPtr> positive_args(args.begin() + 1, args.end());
+                            return "-" + to_string_with_parens(
+                                make_expr<FunctionCall>("Times", positive_args),
+                                get_precedence("Negate"));
+                        }
+                        if (auto integer = std::get_if<Integer>(args[0].get());
+                            integer && integer->value == kernel::ExactInteger(-1)) {
                             if (args.size() == 2) {
                                 return "-" + to_string_with_parens(args[1], get_precedence("Negate"));
                             }
@@ -293,6 +329,9 @@ namespace aleph3 {
             [](const Number& num) -> std::string {
                 return format_number(num.value);
             },
+            [](const Integer& integer) -> std::string {
+                return integer.value.to_string();
+            },
             [](const Complex& c) -> std::string {
                 if (c.real == 0.0 && c.imag == 0.0) return "0";
                 if (c.real == 0.0) return format_number(c.imag) + "*I";
@@ -301,7 +340,7 @@ namespace aleph3 {
                 return format_number(c.real) + imag_part;
             },
             [](const Rational& r) -> std::string {
-                return to_string_raw(r.numerator) + "/" + to_string_raw(r.denominator);
+                return r.numerator.to_string() + "/" + r.denominator.to_string();
             },
             [](const Symbol& sym) -> std::string {
                 return sym.name;

@@ -209,6 +209,19 @@ TEST_CASE("Algebra pack exposes exact elimination workflows", "[packs][algebra][
     REQUIRE(to_string(*evaluate_source("LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]", ctx)) == "{2, 1}");
 }
 
+TEST_CASE("Algebra pack dense matrices preserve large exact entries", "[packs][algebra][matrix][exact]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+
+    REQUIRE(to_string(*evaluate_source("Det[{{9223372036854775808, 1}, {0, 1}}]", ctx)) ==
+        "9223372036854775808");
+    REQUIRE(to_string(*evaluate_source("MatrixMultiply[{{9223372036854775808}}, {{2}}]", ctx)) ==
+        "{{18446744073709551616}}");
+    REQUIRE(to_string(*evaluate_source("RowReduce[{{9223372036854775808, 1}}]", ctx)) ==
+        "{{1, 1/9223372036854775808}}");
+    REQUIRE(to_string(*evaluate_source("LinearSolve[{{9223372036854775808}}, {18446744073709551616}]", ctx)) ==
+        "{2}");
+}
+
 TEST_CASE("Matrix pack failures use shared diagnostics", "[packs][algebra][matrix][diagnostics]") {
     EvaluationContext ctx(kernel::default_function_registry());
     const auto code_for = [&](std::string_view source) {
@@ -222,6 +235,7 @@ TEST_CASE("Matrix pack failures use shared diagnostics", "[packs][algebra][matri
     REQUIRE(code_for("Transpose[{{1}, {2, 3}}]") == "runtime.invalid_form");
     REQUIRE(code_for("MatrixAdd[{{1}}, {{1, 2}}]") == "runtime.domain_violation");
     REQUIRE(code_for("Det[{{x}}]") == "runtime.unsupported_construct");
+    REQUIRE(code_for("Det[{{0.5}}]") == "runtime.unsupported_construct");
     REQUIRE(code_for("LinearSolve[{{1, 2}, {2, 4}}, {1, 2}]") == "runtime.domain_violation");
 }
 

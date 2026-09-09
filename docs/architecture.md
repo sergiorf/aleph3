@@ -147,6 +147,11 @@ flowchart TB
     Context["EvaluationContext<br/>registry + mutable session state + budgets"] --> Eval
 ```
 
+Exact scalar ownership is shared through kernel primitives: public
+`Expr::Integer` and `Expr::Rational` carry arbitrary-precision exact values,
+while `Expr::Number` remains the machine-real implementation type for the
+public `Real` head.
+
 `EvaluationContext` is the mutable execution environment for one SDK engine or
 interactive session. It carries the function registry, session-local symbol
 values, user function definitions, active assumptions, and request budget

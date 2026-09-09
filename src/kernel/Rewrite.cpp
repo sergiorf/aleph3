@@ -28,23 +28,7 @@ bool is_integral(double value) {
 }
 
 std::optional<int64_t> exact_integer_value(const ExprPtr& expr) {
-    if (const auto* number = std::get_if<Number>(expr.get())) {
-        if (!std::isfinite(number->value) || !is_integral(number->value)) {
-            return std::nullopt;
-        }
-        if (number->value < static_cast<double>(std::numeric_limits<int64_t>::min()) ||
-            number->value > static_cast<double>(std::numeric_limits<int64_t>::max())) {
-            return std::nullopt;
-        }
-        return static_cast<int64_t>(number->value);
-    }
-
-    if (const auto* rational = std::get_if<Rational>(expr.get());
-        rational != nullptr && rational->denominator == 1) {
-        return rational->numerator;
-    }
-
-    return std::nullopt;
+    return exact_int64_from_expr(expr);
 }
 
 bool contains_list_expr(const ExprPtr& expr) {
@@ -141,37 +125,40 @@ void sync_registered_head_rewrite_metadata(
 
 struct ScalarCoefficient {
     bool exact = true;
-    int64_t numerator = 0;
-    int64_t denominator = 1;
+    ExactInteger numerator = 0;
+    ExactInteger denominator = 1;
     double approximate = 0.0;
 
     void add_number(double value) {
-        if (exact && is_integral(value)) {
-            auto [nn, dd] = normalize_rational(
-                numerator + static_cast<int64_t>(value) * denominator,
-                denominator);
-            numerator = nn;
-            denominator = dd;
-            return;
+        if (exact) {
+            auto integer = exact_int64_from_number(value);
+            if (integer.has_value()) {
+                auto [nn, dd] = checked_rational_add(numerator, denominator, *integer, 1);
+                numerator = nn;
+                denominator = dd;
+                return;
+            }
         }
 
         if (exact) {
-            approximate = static_cast<double>(numerator) / denominator;
+            approximate = finite_double_from_exact_rational(Rational(numerator, denominator)).value_or(0.0);
             exact = false;
         }
         approximate += value;
     }
 
     void add_rational(int64_t num, int64_t den) {
+        add_rational(ExactInteger(num), ExactInteger(den));
+    }
+
+    void add_rational(const ExactInteger& num, const ExactInteger& den) {
         if (exact) {
-            auto [nn, dd] = normalize_rational(
-                numerator * den + num * denominator,
-                denominator * den);
+            auto [nn, dd] = checked_rational_add(numerator, denominator, num, den);
             numerator = nn;
             denominator = dd;
             return;
         }
-        approximate += static_cast<double>(num) / den;
+        approximate += finite_double_from_exact_rational(Rational(num, den)).value_or(0.0);
     }
 
     void add(const ScalarCoefficient& other) {
@@ -183,34 +170,39 @@ struct ScalarCoefficient {
     }
 
     void multiply_number(double value) {
-        if (exact && is_integral(value)) {
-            auto [nn, dd] = normalize_rational(
-                numerator * static_cast<int64_t>(value),
-                denominator);
-            numerator = nn;
-            denominator = dd;
-            return;
+        if (exact) {
+            auto integer = exact_int64_from_number(value);
+            if (integer.has_value()) {
+                auto [nn, dd] = checked_rational_multiply(numerator, denominator, *integer, 1);
+                numerator = nn;
+                denominator = dd;
+                return;
+            }
         }
 
         if (exact) {
-            approximate = static_cast<double>(numerator) / denominator;
+            approximate = finite_double_from_exact_rational(Rational(numerator, denominator)).value_or(0.0);
             exact = false;
         }
         approximate *= value;
     }
 
     void multiply_rational(int64_t num, int64_t den) {
+        multiply_rational(ExactInteger(num), ExactInteger(den));
+    }
+
+    void multiply_rational(const ExactInteger& num, const ExactInteger& den) {
         if (exact) {
-            auto [nn, dd] = normalize_rational(numerator * num, denominator * den);
+            auto [nn, dd] = checked_rational_multiply(numerator, denominator, num, den);
             numerator = nn;
             denominator = dd;
             return;
         }
-        approximate *= static_cast<double>(num) / den;
+        approximate *= finite_double_from_exact_rational(Rational(num, den)).value_or(0.0);
     }
 
     [[nodiscard]] bool is_zero() const {
-        return exact ? numerator == 0 : approximate == 0.0;
+        return exact ? numerator.is_zero() : approximate == 0.0;
     }
 
     [[nodiscard]] bool is_one() const {
@@ -224,8 +216,8 @@ struct ScalarCoefficient {
         if (!exact) {
             return make_expr<Number>(approximate);
         }
-        if (denominator == 1) {
-            return make_expr<Number>(static_cast<double>(numerator));
+        if (denominator.is_one()) {
+            return make_expr<Integer>(numerator);
         }
         return make_expr<Rational>(numerator, denominator);
     }
@@ -254,8 +246,8 @@ ExprPtr build_plus_bucket_expr(
     bool& changed) {
     double numeric_result = 0.0;
     bool has_rational_result = false;
-    int64_t rational_num = 0;
-    int64_t rational_den = 1;
+    ExactInteger rational_num = 0;
+    ExactInteger rational_den = 1;
     std::vector<ExprPtr> symbolic_terms;
 
     for (const auto& arg : args) {
@@ -268,6 +260,14 @@ ExprPtr build_plus_bucket_expr(
             numeric_result += value;
             continue;
         }
+        if (std::holds_alternative<Integer>(*arg)) {
+            const auto& integer = std::get<Integer>(*arg);
+            auto [nn, dd] = checked_rational_add(rational_num, rational_den, integer.value, 1);
+            rational_num = nn;
+            rational_den = dd;
+            has_rational_result = true;
+            continue;
+        }
         if (std::holds_alternative<Rational>(*arg)) {
             const auto& rational = std::get<Rational>(*arg);
             if (!has_rational_result) {
@@ -275,9 +275,11 @@ ExprPtr build_plus_bucket_expr(
                 rational_den = rational.denominator;
                 has_rational_result = true;
             } else {
-                auto [nn, dd] = normalize_rational(
-                    rational_num * rational.denominator + rational.numerator * rational_den,
-                    rational_den * rational.denominator);
+                auto [nn, dd] = checked_rational_add(
+                    rational_num,
+                    rational_den,
+                    rational.numerator,
+                    rational.denominator);
                 rational_num = nn;
                 rational_den = dd;
             }
@@ -291,19 +293,18 @@ ExprPtr build_plus_bucket_expr(
     rebuilt_terms.insert(rebuilt_terms.end(), symbolic_terms.begin(), symbolic_terms.end());
 
     if (has_rational_result) {
-        if (is_integral(numeric_result)) {
-            auto [nn, dd] = normalize_rational(
-                rational_num + static_cast<int64_t>(numeric_result) * rational_den,
-                rational_den);
-            if (nn != 0) {
+        if (auto integer = exact_int64_from_number(numeric_result)) {
+            auto [nn, dd] = checked_rational_add(rational_num, rational_den, *integer, 1);
+            if (!nn.is_zero()) {
                 rebuilt_terms.push_back(
-                    dd == 1 ? make_expr<Number>(static_cast<double>(nn))
-                            : make_expr<Rational>(nn, dd));
+                    dd.is_one() ? make_expr<Integer>(nn)
+                                : make_expr<Rational>(nn, dd));
             } else {
                 changed = true;
             }
         } else {
-            const double rational_value = static_cast<double>(rational_num) / rational_den;
+            const double rational_value = finite_double_from_exact_rational(
+                Rational(rational_num, rational_den)).value_or(0.0);
             const double combined = rational_value + numeric_result;
             if (combined != 0.0) {
                 rebuilt_terms.push_back(make_expr<Number>(combined));
@@ -331,8 +332,8 @@ ExprPtr build_times_bucket_expr(
     bool& changed) {
     double numeric_result = 1.0;
     bool has_rational_result = false;
-    int64_t rational_num = 1;
-    int64_t rational_den = 1;
+    ExactInteger rational_num = 1;
+    ExactInteger rational_den = 1;
     std::vector<ExprPtr> symbolic_terms;
 
     for (const auto& arg : args) {
@@ -349,6 +350,18 @@ ExprPtr build_times_bucket_expr(
             numeric_result *= value;
             continue;
         }
+        if (std::holds_alternative<Integer>(*arg)) {
+            const auto& integer = std::get<Integer>(*arg);
+            if (integer.value.is_zero()) {
+                changed = true;
+                return make_expr<Integer>(0);
+            }
+            auto [nn, dd] = checked_rational_multiply(rational_num, rational_den, integer.value, 1);
+            rational_num = nn;
+            rational_den = dd;
+            has_rational_result = true;
+            continue;
+        }
         if (std::holds_alternative<Rational>(*arg)) {
             const auto& rational = std::get<Rational>(*arg);
             if (rational.numerator == 0) {
@@ -360,9 +373,11 @@ ExprPtr build_times_bucket_expr(
                 rational_den = rational.denominator;
                 has_rational_result = true;
             } else {
-                auto [nn, dd] = normalize_rational(
-                    rational_num * rational.numerator,
-                    rational_den * rational.denominator);
+                auto [nn, dd] = checked_rational_multiply(
+                    rational_num,
+                    rational_den,
+                    rational.numerator,
+                    rational.denominator);
                 rational_num = nn;
                 rational_den = dd;
             }
@@ -378,19 +393,19 @@ ExprPtr build_times_bucket_expr(
     rebuilt_terms.reserve(symbolic_terms.size() + 1);
 
     if (has_rational_result) {
-        if (is_integral(numeric_result)) {
-            auto [nn, dd] = normalize_rational(
-                rational_num * static_cast<int64_t>(numeric_result),
-                rational_den);
+        if (auto integer = exact_int64_from_number(numeric_result)) {
+            auto [nn, dd] = checked_rational_multiply(
+                rational_num, rational_den, *integer, 1);
             if (!(nn == 1 && dd == 1)) {
                 rebuilt_terms.push_back(
-                    dd == 1 ? make_expr<Number>(static_cast<double>(nn))
-                            : make_expr<Rational>(nn, dd));
+                    dd.is_one() ? make_expr<Integer>(nn)
+                                : make_expr<Rational>(nn, dd));
             } else if (!symbolic_terms.empty()) {
                 changed = true;
             }
         } else {
-            const double combined = numeric_result * (static_cast<double>(rational_num) / rational_den);
+            const double combined = numeric_result * finite_double_from_exact_rational(
+                Rational(rational_num, rational_den)).value_or(0.0);
             if (combined == 0.0) {
                 changed = true;
                 return make_expr<Number>(0.0);
@@ -436,6 +451,11 @@ bool multiply_numeric_factor_into_coefficient(const ExprPtr& expr, ScalarCoeffic
         coefficient.multiply_number(std::get<Number>(*expr).value);
         return true;
     }
+    if (std::holds_alternative<Integer>(*expr)) {
+        const auto& integer = std::get<Integer>(*expr);
+        coefficient.multiply_rational(integer.value, 1);
+        return true;
+    }
     if (std::holds_alternative<Rational>(*expr)) {
         const auto& rational = std::get<Rational>(*expr);
         coefficient.multiply_rational(rational.numerator, rational.denominator);
@@ -447,7 +467,9 @@ bool multiply_numeric_factor_into_coefficient(const ExprPtr& expr, ScalarCoeffic
 bool extract_supported_coefficient_term(
     const ExprPtr& expr,
     SupportedCoefficientTerm& term) {
-    if (std::holds_alternative<Number>(*expr) || std::holds_alternative<Rational>(*expr)) {
+    if (std::holds_alternative<Number>(*expr) ||
+        std::holds_alternative<Integer>(*expr) ||
+        std::holds_alternative<Rational>(*expr)) {
         return false;
     }
 
@@ -539,6 +561,9 @@ bool is_explicit_numeric_zero(const ExprPtr& expr) {
     if (const auto* number = std::get_if<Number>(expr.get())) {
         return number->value == 0.0;
     }
+    if (const auto* integer = std::get_if<Integer>(expr.get())) {
+        return integer->value == 0;
+    }
     if (const auto* rational = std::get_if<Rational>(expr.get())) {
         return rational->numerator == 0;
     }
@@ -570,8 +595,7 @@ std::string pattern_type_name(const std::string& name) {
 bool matches_pattern_type(const std::string& type, const ExprPtr& expr) {
     if (type.empty()) return true;
     if (type == "Integer") {
-        const auto* number = std::get_if<Number>(&*expr);
-        return number != nullptr && is_integral(number->value);
+        return std::holds_alternative<Integer>(*expr);
     }
     if (type == "Rational") return std::holds_alternative<Rational>(*expr);
     if (type == "Real") return std::holds_alternative<Number>(*expr);
@@ -1108,25 +1132,25 @@ std::optional<ExprPtr> rewrite_normalized_power_identity_head(
     const auto& base = func.args[0];
     const auto& exponent = func.args[1];
 
-    if (std::holds_alternative<Number>(*exponent)) {
-        const double exponent_value = get_number_value(exponent);
-        if (exponent_value == 0.0) {
+    if (const auto exponent_value = exact_int64_from_expr(exponent)) {
+        if (*exponent_value == 0) {
             const auto nonzero = ctx.assumptions.evaluate_predicate("NonZeroQ", base);
             if (nonzero.has_value() && *nonzero) {
                 ctx.consume_evaluation_step();
-                return make_expr<Number>(1.0);
+                return make_expr<Integer>(1);
             }
             return std::nullopt;
         }
-        if (exponent_value == 1.0) {
+        if (*exponent_value == 1) {
             ctx.consume_evaluation_step();
             return base;
         }
     }
 
-    if (std::holds_alternative<Number>(*base) && get_number_value(base) == 1.0) {
+    if ((std::holds_alternative<Number>(*base) && get_number_value(base) == 1.0) ||
+        (std::holds_alternative<Integer>(*base) && std::get<Integer>(*base).value.is_one())) {
         ctx.consume_evaluation_step();
-        return make_expr<Number>(1.0);
+        return make_expr<Integer>(1);
     }
 
     return std::nullopt;
@@ -1183,7 +1207,7 @@ std::optional<ExprPtr> rewrite_normalized_symbolic_coefficient_head(
 
     ExprPtr rewritten;
     if (rebuilt_terms.empty()) {
-        rewritten = make_expr<Number>(0.0);
+        rewritten = make_expr<Integer>(0);
     } else if (rebuilt_terms.size() == 1) {
         rewritten = rebuilt_terms.front();
     } else {
@@ -1232,7 +1256,7 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
             auto [it, inserted] = power_buckets.emplace(
                 key,
                 PowerBucket{key, 0, 0, {}});
-            it->second.exponent += factor.exponent;
+            it->second.exponent = checked_int64_add(it->second.exponent, factor.exponent);
             it->second.term_count += 1;
             it->second.original_terms.push_back(arg);
         }
@@ -1269,7 +1293,7 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
             } else {
                 auto rebuilt_power = make_fcall(
                     "Power",
-                    {bucket.base, make_expr<Number>(static_cast<double>(bucket.exponent))});
+                    {bucket.base, make_expr<Integer>(bucket.exponent)});
                 if (bucket.term_count > 1 ||
                     !structurally_equal(bucket.original_terms.front(), rebuilt_power)) {
                     changed = true;
@@ -1281,7 +1305,7 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
 
         ExprPtr rewritten;
         if (rebuilt_terms.empty()) {
-            rewritten = make_expr<Number>(1.0);
+            rewritten = make_expr<Integer>(1);
         } else if (rebuilt_terms.size() == 1) {
             rewritten = rebuilt_terms.front();
         } else {
@@ -1302,11 +1326,15 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
 
     if (func.head == "Power" && func.args.size() == 2) {
         const auto* nested_power = std::get_if<FunctionCall>(func.args[0].get());
+        const auto nested_exponent = nested_power != nullptr && nested_power->args.size() == 2
+            ? exact_int64_from_expr(nested_power->args[1])
+            : std::optional<int64_t>{};
+        const auto outer_exponent = exact_int64_from_expr(func.args[1]);
         if (nested_power == nullptr ||
             nested_power->head != "Power" ||
             nested_power->args.size() != 2 ||
-            !std::holds_alternative<Number>(*nested_power->args[1]) ||
-            !std::holds_alternative<Number>(*func.args[1])) {
+            !nested_exponent ||
+            !outer_exponent) {
             return std::nullopt;
         }
 
@@ -1314,8 +1342,7 @@ std::optional<ExprPtr> rewrite_normalized_algebraic_head(
         return make_fcall(
             "Power",
             {nested_power->args[0],
-             make_expr<Number>(
-                 get_number_value(nested_power->args[1]) * get_number_value(func.args[1]))});
+             make_expr<Integer>(checked_int64_multiply(*nested_exponent, *outer_exponent))});
     }
 
     return std::nullopt;

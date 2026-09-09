@@ -1,6 +1,11 @@
 #include "syntax/TrustedSubsetLowering.hpp"
 
+#include "syntax/IntegerLiteral.hpp"
+
+#include <cstdint>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace aleph3::syntax {
@@ -58,6 +63,26 @@ public:
     }
 
 private:
+    std::optional<double> trusted_number_from_integer_text(std::string_view text, SourceSpan span) {
+        const auto bounded = parse_bounded_int64_decimal(text);
+        if (!bounded.has_value()) {
+            diagnostics_.push_back(make_error(
+                "frontend.parser.integer_out_of_range",
+                "Integer literal is outside the current trusted SDK host-value range.",
+                span));
+            return std::nullopt;
+        }
+        const auto exact_number = exact_double_from_bounded_integer(*bounded);
+        if (!exact_number.has_value()) {
+            diagnostics_.push_back(make_error(
+                "frontend.parser.integer_out_of_range",
+                "Integer literal cannot be represented exactly by the current trusted SDK number model.",
+                span));
+            return std::nullopt;
+        }
+        return exact_number;
+    }
+
     ir::NodePtr lower_node(const NodePtr& node) {
         if (node == nullptr) {
             diagnostics_.push_back(make_error(
@@ -66,6 +91,13 @@ private:
             return nullptr;
         }
 
+        if (const auto* integer = node->as<IntegerLiteralNode>()) {
+            const auto value = trusted_number_from_integer_text(integer->decimal_text, node->span);
+            if (!value.has_value()) {
+                return nullptr;
+            }
+            return ir::make_node(node->span, ir::NumberLiteralNode{*value});
+        }
         if (const auto* number = node->as<NumberLiteralNode>()) {
             return ir::make_node(node->span, ir::NumberLiteralNode{number->value});
         }
@@ -79,6 +111,17 @@ private:
             return ir::make_node(node->span, ir::VariableNode{symbol->name});
         }
         if (const auto* unary = node->as<UnaryOpNode>()) {
+            if (const auto* integer = unary->operand->as<IntegerLiteralNode>();
+                integer != nullptr && unary->op == UnaryOperator::minus &&
+                !parse_bounded_int64_decimal(integer->decimal_text).has_value()) {
+                const auto text = "-" + integer->decimal_text;
+                const auto value = trusted_number_from_integer_text(text, node->span);
+                if (!value.has_value()) {
+                    return nullptr;
+                }
+                return ir::make_node(node->span, ir::NumberLiteralNode{*value});
+            }
+
             auto operand = lower_node(unary->operand);
             if (operand == nullptr) {
                 return nullptr;

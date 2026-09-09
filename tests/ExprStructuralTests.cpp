@@ -9,6 +9,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <set>
+#include <string_view>
 #include <unordered_set>
 #include <type_traits>
 #include <utility>
@@ -25,6 +26,11 @@ ExprPtr symbol(std::string name) {
 
 ExprPtr number(double value) {
     return make_expr<Number>(value);
+}
+
+ExprPtr integer(std::string_view value) {
+    auto parsed = kernel::ExactInteger::from_decimal_string(std::string(value));
+    return make_expr<Integer>(std::move(parsed));
 }
 
 ExprPtr call(std::string head, std::initializer_list<ExprPtr> args) {
@@ -65,6 +71,13 @@ TEST_CASE("Structural equality compares atomic expression values", "[expr][struc
     require_structurally_equal(number(1.0), number(1.0));
     require_structurally_unequal(number(1.0), number(2.0));
 
+    require_structurally_equal(
+        integer("123456789012345678901234567890"),
+        integer("123456789012345678901234567890"));
+    require_structurally_unequal(
+        integer("123456789012345678901234567890"),
+        integer("123456789012345678901234567891"));
+
     require_structurally_equal(make_expr<Rational>(1, 2), make_expr<Rational>(1, 2));
     require_structurally_unequal(make_expr<Rational>(1, 2), make_expr<Rational>(2, 3));
 
@@ -94,6 +107,8 @@ TEST_CASE("Structural equality handles null expression pointers explicitly", "[e
 TEST_CASE("Structural hashes distinguish representative unequal expressions", "[expr][structural]") {
     REQUIRE(structural_hash(symbol("x")) != structural_hash(symbol("y")));
     REQUIRE(structural_hash(number(1.0)) != structural_hash(number(2.0)));
+    REQUIRE(structural_hash(integer("123456789012345678901234567890")) !=
+            structural_hash(integer("123456789012345678901234567891")));
     REQUIRE(structural_hash(make_expr<Rational>(1, 2)) != structural_hash(make_expr<Rational>(2, 3)));
     REQUIRE(structural_hash(call("f", {symbol("x")})) != structural_hash(call("g", {symbol("x")})));
     REQUIRE(structural_hash(call("f", {symbol("x")})) != structural_hash(call("f", {symbol("x"), symbol("y")})));
@@ -114,8 +129,14 @@ TEST_CASE("Structural ordering compares representative expression values determi
     ExprPtr empty;
 
     require_structural_order(empty, symbol("x"));
+    require_structural_order(integer("1"), make_expr<Rational>(1, 2));
+    require_structural_order(make_expr<Rational>(1, 2), number(1.0));
+    require_structural_order(number(1.0), make_expr<Complex>(1.0, 0.0));
     require_structural_order(symbol("a"), symbol("b"));
     require_structural_order(number(1.0), number(2.0));
+    require_structural_order(
+        integer("123456789012345678901234567890"),
+        integer("123456789012345678901234567891"));
     require_structural_order(make_expr<Rational>(1, 2), make_expr<Rational>(2, 3));
     require_structural_order(make_expr<Boolean>(false), make_expr<Boolean>(true));
     require_structural_order(make_expr<String>("a"), make_expr<String>("b"));

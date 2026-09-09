@@ -151,10 +151,9 @@ contracts rather than a floating-point-centered legacy path.
 
 Remaining work:
 
-- introduce or finish exact coefficient-ring abstractions and a documented
-  large-integer/overflow strategy; use the
-  [integer limited-precision remediation plan](integer_limited_precision_plan.md)
-  as the current implementation plan for that work;
+- continue exact coefficient-ring abstractions beyond the completed
+  [integer limited-precision remediation plan](archive/integer_limited_precision_plan.md)
+  where future algebra algorithms require them;
 - remove growth-facing dependence on `double` polynomial internals;
 - deepen exact multivariate division, GCD, and factorization only in that
   order, with explicit monomial ordering and canonical-form invariants;
@@ -249,7 +248,7 @@ Mid-term CAS tranche:
 - add a deliberately small rule-based `Integrate` subset only after
   assumptions, domains, and transformation metadata can prevent invalid
   antiderivative claims;
-- broaden exact dense linear algebra only where checked exact coefficients,
+- broaden exact dense linear algebra only where shared exact coefficients,
   diagnostics, and resource budgets remain explicit.
 
 Longer-term CAS tranche:

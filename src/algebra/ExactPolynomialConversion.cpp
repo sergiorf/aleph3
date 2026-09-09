@@ -4,7 +4,6 @@
 #include "expr/ExprUtils.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <functional>
 #include <limits>
 #include <map>
@@ -12,16 +11,6 @@
 namespace aleph3 {
 
 namespace {
-
-constexpr double EPSILON = 1e-10;
-
-bool is_near_integer(double value) {
-    return std::abs(value - std::round(value)) < EPSILON;
-}
-
-int64_t rounded_integer(double value) {
-    return static_cast<int64_t>(std::llround(value));
-}
 
 bool contains_variable(
     const std::vector<std::string>& variables,
@@ -71,15 +60,19 @@ ExactPolynomial expr_to_exact_polynomial_impl(
     std::function<ExactPolynomial(const ExprPtr&)> recur =
         [&](const ExprPtr& current) -> ExactPolynomial {
         if (const auto* number = std::get_if<Number>(&(*current))) {
-            if (!is_near_integer(number->value)) {
+            auto integer = exact_int64_from_number(number->value);
+            if (!integer.has_value()) {
                 throw_unsupported_construct(
                     "Exact polynomial conversion does not accept inexact numeric coefficients");
             }
-            return ExactPolynomial(ExactCoefficient(rounded_integer(number->value), 1));
+            return ExactPolynomial(ExactCoefficient(*integer, 1));
+        }
+        if (const auto* integer = std::get_if<Integer>(&(*current))) {
+            return ExactPolynomial(
+                ExactCoefficient(integer->value, kernel::ExactInteger(1)));
         }
         if (const auto* rational = std::get_if<Rational>(&(*current))) {
-            return ExactPolynomial(
-                ExactCoefficient(rational->numerator, rational->denominator));
+            return ExactPolynomial(ExactCoefficient(rational->exact()));
         }
         if (const auto* symbol = std::get_if<Symbol>(&(*current))) {
             if (!contains_variable(variables, symbol->name)) {
@@ -115,36 +108,34 @@ ExactPolynomial expr_to_exact_polynomial_impl(
             power && power->head == "Power" && power->args.size() == 2) {
             const auto& base = power->args[0];
             const auto& exponent = power->args[1];
-            if (const auto* number_exponent = std::get_if<Number>(&(*exponent))) {
-                if (!is_near_integer(number_exponent->value) ||
-                    number_exponent->value < 0.0 ||
-                    number_exponent->value >
-                        static_cast<double>(std::numeric_limits<int>::max())) {
-                    throw_invalid_form(
-                        "expr_to_polynomial: Polynomial powers require non-negative "
-                        "integer exponents");
-                }
-
-                if (const auto* symbol = std::get_if<Symbol>(&(*base))) {
-                    if (!contains_variable(variables, symbol->name)) {
-                        throw_invalid_form(
-                            "expr_to_polynomial: Symbol `" + symbol->name +
-                            "` is not in the selected polynomial variable set");
-                    }
-                    std::map<std::string, int> exponents;
-                    exponents[symbol->name] = static_cast<int>(number_exponent->value);
-                    return ExactPolynomial({
-                        {make_monomial(exponents), ExactCoefficient::one()}
-                    });
-                }
-
-                ExactPolynomial result(ExactCoefficient::one());
-                const ExactPolynomial base_polynomial = recur(base);
-                for (int i = 0; i < static_cast<int>(number_exponent->value); ++i) {
-                    result = result * base_polynomial;
-                }
-                return result;
+            auto integer_exponent = exact_int64_from_expr(exponent);
+            if (!integer_exponent.has_value() ||
+                *integer_exponent < 0 ||
+                *integer_exponent > std::numeric_limits<int>::max()) {
+                throw_invalid_form(
+                    "expr_to_polynomial: Polynomial powers require non-negative "
+                    "integer exponents");
             }
+
+            if (const auto* symbol = std::get_if<Symbol>(&(*base))) {
+                if (!contains_variable(variables, symbol->name)) {
+                    throw_invalid_form(
+                        "expr_to_polynomial: Symbol `" + symbol->name +
+                        "` is not in the selected polynomial variable set");
+                }
+                std::map<std::string, int> exponents;
+                exponents[symbol->name] = static_cast<int>(*integer_exponent);
+                return ExactPolynomial({
+                    {make_monomial(exponents), ExactCoefficient::one()}
+                });
+            }
+
+            ExactPolynomial result(ExactCoefficient::one());
+            const ExactPolynomial base_polynomial = recur(base);
+            for (int i = 0; i < static_cast<int>(*integer_exponent); ++i) {
+                result = result * base_polynomial;
+            }
+            return result;
         }
         throw_unsupported_construct("expr_to_polynomial: Not implemented for this expression");
     };
@@ -156,8 +147,10 @@ ExactPolynomial expr_to_exact_polynomial_impl(
 
 bool is_exact_polynomial_candidate(const ExprPtr& expr) {
     if (!expr) return false;
-    if (const auto* number = std::get_if<Number>(&(*expr))) return is_near_integer(number->value);
-    if (std::holds_alternative<Rational>(*expr)) return true;
+    if (const auto* number = std::get_if<Number>(&(*expr))) {
+        return exact_int64_from_number(number->value).has_value();
+    }
+    if (std::holds_alternative<Integer>(*expr) || std::holds_alternative<Rational>(*expr)) return true;
     if (const auto* call = std::get_if<FunctionCall>(&(*expr))) {
         for (const auto& arg : call->args) {
             if (!is_exact_polynomial_candidate(arg)) return false;
@@ -167,10 +160,7 @@ bool is_exact_polynomial_candidate(const ExprPtr& expr) {
 }
 
 ExprPtr exact_coefficient_to_expr(const ExactCoefficient& coefficient) {
-    if (coefficient.denominator == 1) {
-        return make_expr<Number>(static_cast<double>(coefficient.numerator));
-    }
-    return make_expr<Rational>(coefficient.numerator, coefficient.denominator);
+    return make_exact_scalar_expr(coefficient.exact());
 }
 
 ExactPolynomial expr_to_exact_polynomial(
@@ -197,13 +187,13 @@ ExprPtr exact_polynomial_to_expr(const ExactPolynomial& poly) {
             } else {
                 factors.push_back(make_fcall(
                     "Power",
-                    {variable, make_expr<Number>(static_cast<double>(exponent))}));
+                    {variable, make_expr<Integer>(exponent)}));
             }
         }
         terms.push_back(factors.size() == 1 ? factors.front() : make_times(factors));
     }
 
-    if (terms.empty()) return make_expr<Number>(0.0);
+    if (terms.empty()) return make_expr<Integer>(0);
     if (terms.size() == 1) return terms[0];
     return make_expr<FunctionCall>("Plus", terms);
 }

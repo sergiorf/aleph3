@@ -13,6 +13,7 @@ enum class TokenKind {
     invalid,
     identifier,
     boolean_literal,
+    integer_literal,
     number_literal,
     string_literal,
     plus,

@@ -313,7 +313,7 @@ void print_help() {
         << "  CoefficientList, Numerator, Denominator, Together, and Cancel.\n"
         << "  It also supports first-step symbolic rule workflows through Replace,\n"
         << "  ReplaceAll, /., ReplaceRepeated, and MatchQ over the current named-binder pattern subset.\n"
-        << "  Factor currently supports common-content extraction and integer-coefficient\n"
+        << "  Factor currently supports common-content extraction and exact-coefficient\n"
         << "  univariate rational-root factorization in the supported subset.\n"
 #endif
         << "  In the REPL, bare input evaluates as an expression.\n"

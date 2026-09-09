@@ -45,10 +45,11 @@ explicitly rather than silently approximating or partially rewriting.
 ## Exact Dense Matrices
 
 Matrices use nested lists at the expression boundary and an algebra-owned
-row-major value type internally. The supported 4,096-element exact surface
-includes shape-checked addition and multiplication, identity construction,
-transpose, determinant, reduced row-echelon form, and unique square-system
-solving. See the [dense-matrix specification](algebra_dense_matrix_spec.md).
+row-major value type internally. Exact integer and rational entries use the
+shared arbitrary-precision scalar model. The supported 4,096-element exact
+surface includes shape-checked addition and multiplication, identity
+construction, transpose, determinant, reduced row-echelon form, and unique
+square-system solving. See the [dense-matrix specification](algebra_dense_matrix_spec.md).
 
 Symbolic, decimal, complex, empty, sparse, and arbitrary-rank inputs remain
 unsupported. Matrix operations never reinterpret scalar `Plus` or `Times`.
@@ -198,7 +199,7 @@ Boundaries:
 - exact integer and rational coefficients are preserved;
 - decimal coefficients, symbolic coefficients, non-polynomial inputs,
   unsupported variables outside the selected univariate polynomial, negative
-  or symbolic exponents, and exact coefficient overflow fail explicitly.
+  or symbolic exponents fail explicitly.
 
 ## Polynomial Inspection
 
@@ -246,7 +247,7 @@ Boundaries:
   first-class negative-infinity degree value;
 - decimal coefficients, symbolic coefficients, non-polynomial inputs,
   unsupported variables outside the selected univariate polynomial, negative
-  or symbolic exponents, and exact coefficient overflow fail explicitly.
+  or symbolic exponents fail explicitly.
 
 ## Rational Expression Parts
 
@@ -375,7 +376,7 @@ Supported basis shapes for like-term collection are:
 Where:
 
 - each basis factor is a symbol or a supported numeric power of a symbol
-- `c` is `Number` or `Rational`
+- `c` is an exact `Integer`, exact `Rational`, or machine `Real`
 - `n` is a supported numeric exponent
 
 This layer is intentionally not a general polynomial collector. It combines
@@ -430,13 +431,17 @@ and `0^0` are not made valid by product aggregation.
 - general multivariate factorization beyond content extraction
 - higher-degree irreducible decomposition beyond the supported rational-root
   path
-- arbitrary-precision exact arithmetic
+- unbounded rational-root candidate enumeration
 
 Supported univariate integer and rational `Factor` inputs use the exact
 polynomial path. The legacy `double` polynomial layer remains present for
-inexact inputs and transitional internals. Large exact intermediates are still
-bounded by checked `int64_t` coefficient storage; overflow is reported rather
-than wrapped.
+inexact inputs and transitional internals. Large exact coefficients are
+preserved by the shared arbitrary-precision scalar model.
+
+Budget cases are valid supported-shape inputs that exceed an explicit resource
+limit such as term growth, scalar growth, or rational-root divisor candidate
+enumeration. They fail with a stable budget or unsupported diagnostic rather
+than falling back to approximation or native-integer overflow.
 
 ## Future Work
 
@@ -447,7 +452,6 @@ Not part of the current supported subset:
 - general multivariate polynomial GCD and configurable or multi-divisor division
 - exact multivariate factorization beyond current content extraction
 - broader factorization algorithms
-- arbitrary-precision exact algebra
 - symbolic, approximate, sparse, or arbitrary-rank matrix algebra
 
 ## Planned Rational-Expression Follow-Up

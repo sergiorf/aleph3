@@ -24,6 +24,26 @@ TEST_CASE("Shared syntax parser builds source-aware nodes for symbolic syntax", 
     REQUIRE(rule->right->as<syntax::CallNode>() != nullptr);
 }
 
+TEST_CASE("Shared syntax parser preserves integer literal source text", "[syntax][parser]") {
+    constexpr auto large_integer = "1234567890123456789012345678901234567890";
+    syntax::Parser parser(large_integer);
+    const auto result = parser.parse();
+
+    REQUIRE(result.ok());
+    const auto* integer = result.root->as<syntax::IntegerLiteralNode>();
+    REQUIRE(integer != nullptr);
+    REQUIRE(integer->decimal_text == large_integer);
+
+    syntax::Parser decimal_parser("1.0");
+    const auto decimal_result = decimal_parser.parse();
+
+    REQUIRE(decimal_result.ok());
+    const auto* decimal = decimal_result.root->as<syntax::NumberLiteralNode>();
+    REQUIRE(decimal != nullptr);
+    REQUIRE(decimal->value == 1.0);
+    REQUIRE(decimal->lexeme == "1.0");
+}
+
 TEST_CASE("Shared syntax diagnostics include code and source location", "[syntax][parser]") {
     syntax::Parser parser("x +\n)");
     const auto result = parser.parse();
@@ -33,6 +53,29 @@ TEST_CASE("Shared syntax diagnostics include code and source location", "[syntax
     REQUIRE(result.diagnostics.front().code == "syntax.parser.expected_expression");
     REQUIRE(result.diagnostics.front().span.line == 2);
     REQUIRE(result.diagnostics.front().span.column == 1);
+}
+
+TEST_CASE("Symbolic lowering accepts arbitrary-precision integer literals", "[syntax][symbolic-lowering]") {
+    constexpr auto large_integer = "1234567890123456789012345678901234567890";
+    const auto lowered = syntax::parse_symbolic_source(large_integer);
+
+    REQUIRE(lowered.ok());
+    REQUIRE(std::holds_alternative<Integer>(*lowered.expr));
+    REQUIRE(to_string(lowered.expr) == large_integer);
+}
+
+TEST_CASE("Symbolic lowering avoids double rounding for integer literals", "[syntax][symbolic-lowering]") {
+    const auto integer = syntax::parse_symbolic_source("9007199254740993");
+
+    REQUIRE(integer.ok());
+    REQUIRE(std::holds_alternative<Integer>(*integer.expr));
+    REQUIRE(to_string(integer.expr) == "9007199254740993");
+
+    const auto rational = syntax::parse_symbolic_source("9007199254740993/3");
+
+    REQUIRE(rational.ok());
+    REQUIRE(std::holds_alternative<Integer>(*rational.expr));
+    REQUIRE(to_string(rational.expr) == "3002399751580331");
 }
 
 TEST_CASE("Symbolic lowering preserves existing symbolic forms", "[syntax][symbolic-lowering]") {

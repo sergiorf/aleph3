@@ -4,6 +4,7 @@
 #include "evaluator/EvaluationContext.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "expr/ExprUtils.hpp"
 #include "frontend/Parser.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "kernel/FunctionRegistry.hpp"
@@ -36,7 +37,16 @@ std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
         return Value(value);
     }
     if (const auto* rational = std::get_if<Rational>(&*expr)) {
-        return Value(static_cast<double>(rational->numerator) / rational->denominator);
+        if (auto value = finite_double_from_exact_rational(*rational)) {
+            return Value(*value);
+        }
+        return std::nullopt;
+    }
+    if (const auto* integer = std::get_if<Integer>(&*expr)) {
+        if (auto value = finite_double_from_exact_integer(integer->value)) {
+            return Value(*value);
+        }
+        return std::nullopt;
     }
     if (const auto* boolean = std::get_if<Boolean>(&*expr)) {
         return Value(boolean->value);
@@ -58,6 +68,15 @@ std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
     }
 
     return std::nullopt;
+}
+
+EvaluationResult value_not_representable() {
+    EvaluationResult result;
+    result.error = RuntimeError{
+        "sdk.value_not_representable",
+        "The kernel result cannot be represented by the SDK v1 Value model.",
+        std::nullopt};
+    return result;
 }
 
 ExprPtr sdk_value_to_expr(const Value& value) {
@@ -132,7 +151,7 @@ EvaluationResult evaluate_direct_kernel_expr(
             return result;
         }
 
-        return {};
+        return value_not_representable();
     } catch (const kernel::RuntimeFailure& failure) {
         EvaluationResult result;
         result.error = failure.error();
@@ -351,6 +370,31 @@ TEST_CASE("Engine evaluate reports runtime errors for compiled formulas", "[sdk]
     REQUIRE_FALSE(overflow_power_result.ok());
     REQUIRE(overflow_power_result.error.has_value());
     REQUIRE(overflow_power_result.error->code == "runtime.invalid_numeric_result");
+}
+
+TEST_CASE("Trusted subset bridge reports unrepresentable exact kernel results", "[sdk][engine][kernel][exact]") {
+    const auto large = kernel::ExactInteger::from_decimal_string(
+        std::string("1") + std::string(400, '0'));
+
+    const auto result = kernel::evaluate_trusted_subset_formula(
+        make_expr<Integer>(large),
+        {},
+        {},
+        {},
+        Policy::default_policy());
+
+    REQUIRE_FALSE(result.ok());
+    REQUIRE_FALSE(result.value.has_value());
+    REQUIRE(result.error.has_value());
+    REQUIRE(result.error->code == "sdk.value_not_representable");
+
+    const auto direct_result = evaluate_direct_kernel_expr(
+        make_expr<Integer>(large),
+        {},
+        {},
+        {},
+        Policy::default_policy());
+    require_same_evaluation_result(result, direct_result);
 }
 
 TEST_CASE("Engine validate reports schema and policy failures with structured diagnostics", "[sdk][engine]") {

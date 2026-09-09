@@ -3,8 +3,35 @@
 #include "parser/Parser.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
+#include "kernel/Diagnostics.hpp"
+#include "sdk/Policy.hpp"
+
+#include <limits>
+#include <stdexcept>
+#include <unordered_map>
 
 using namespace aleph3;
+
+namespace {
+
+void require_exact_scalar(const ExprPtr& expr, int64_t num, int64_t den) {
+    REQUIRE(expr);
+    if (den == 1) {
+        REQUIRE(std::holds_alternative<Integer>(*expr));
+        CHECK(std::get<Integer>(*expr).value == num);
+        return;
+    }
+
+    REQUIRE(std::holds_alternative<Rational>(*expr));
+    const auto& r = std::get<Rational>(*expr);
+    INFO("Expected: " << num << "/" << den
+        << " | Got: " << r.numerator << "/" << r.denominator);
+    CHECK(r.numerator == num);
+    CHECK(r.denominator == den);
+}
+
+}  // namespace
 
 TEST_CASE("Evaluator: Rational arithmetic", "[evaluator][rational]") {
     EvaluationContext ctx;
@@ -32,13 +59,8 @@ TEST_CASE("Evaluator: Rational arithmetic", "[evaluator][rational]") {
         DYNAMIC_SECTION("Evaluating: " << c.input) {
             auto expr = parse_expression(c.input);
             auto result = evaluate(expr, ctx);
-            REQUIRE(result);
-            REQUIRE(std::holds_alternative<Rational>(*result));
-            auto r = std::get<Rational>(*result);
-            INFO("Input: " << c.input << " | Expected: " << c.num << "/" << c.den
-                << " | Got: " << r.numerator << "/" << r.denominator);
-            CHECK(r.numerator == c.num);
-            CHECK(r.denominator == c.den);
+            INFO("Input: " << c.input);
+            require_exact_scalar(result, c.num, c.den);
         }
     }
 }
@@ -115,6 +137,86 @@ TEST_CASE("Evaluator: Rational edge cases", "[evaluator][rational][edge]") {
     }
 }
 
+TEST_CASE("Evaluator: Rational arithmetic preserves large exact values", "[evaluator][rational][exact]") {
+    EvaluationContext ctx;
+
+    auto sum = evaluate(parse_expression("1/3037000500 + 1/3037000501"), ctx);
+    REQUIRE(std::holds_alternative<Rational>(*sum));
+    CHECK(to_string(sum) == "6074001001/9223372040037250500");
+
+    auto product = evaluate(parse_expression("4611686018427387904/1 * 3/1"), ctx);
+    REQUIRE(std::holds_alternative<Integer>(*product));
+    CHECK(to_string(product) == "13835058055282163712");
+
+    auto comparison = evaluate(parse_expression("4611686018427387904/1 < 1/3"), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*comparison));
+    CHECK_FALSE(std::get<Boolean>(*comparison).value);
+}
+
+TEST_CASE("Evaluator: Exact power preserves integer and rational precision", "[evaluator][rational][exact][power]") {
+    EvaluationContext ctx;
+
+    const auto large_square = evaluate(parse_expression("3037000500^2"), ctx);
+    REQUIRE(std::holds_alternative<Integer>(*large_square));
+    CHECK(to_string(large_square) == "9223372037000250000");
+
+    const auto very_large_square =
+        evaluate(parse_expression("12345678901234567890^2"), ctx);
+    REQUIRE(std::holds_alternative<Integer>(*very_large_square));
+    CHECK(to_string(very_large_square) == "152415787532388367501905199875019052100");
+
+    const auto rational_square = evaluate(parse_expression("(2/3)^2"), ctx);
+    REQUIRE(std::holds_alternative<Rational>(*rational_square));
+    CHECK(to_string(rational_square) == "4/9");
+
+    const auto rational_negative_power = evaluate(parse_expression("(2/3)^-2"), ctx);
+    REQUIRE(std::holds_alternative<Rational>(*rational_negative_power));
+    CHECK(to_string(rational_negative_power) == "9/4");
+
+    const auto negative_rational_cube = evaluate(parse_expression("(-2/3)^3"), ctx);
+    REQUIRE(std::holds_alternative<Rational>(*negative_rational_cube));
+    CHECK(to_string(negative_rational_cube) == "-8/27");
+
+    const auto comparison =
+        evaluate(parse_expression("3037000500^2 > 9223372036854775807"), ctx);
+    REQUIRE(std::holds_alternative<Boolean>(*comparison));
+    CHECK(std::get<Boolean>(*comparison).value);
+
+    const auto oversized_exponent =
+        evaluate(parse_expression("2^9223372036854775808"), ctx);
+    REQUIRE(std::holds_alternative<FunctionCall>(*oversized_exponent));
+    CHECK(to_string(oversized_exponent) == "2^9223372036854775808");
+}
+
+TEST_CASE("Evaluator: Exact power growth observes strict runtime step budget", "[evaluator][rational][exact][power][budget]") {
+    Policy policy = Policy::default_policy();
+    policy.budget().max_evaluation_steps = 3;
+
+    Bindings bindings;
+    Bindings constants;
+    std::unordered_map<std::string, HostFunctionSpec> host_functions;
+    EvaluationContext ctx(bindings, constants, host_functions, policy);
+    ctx.enable_runtime_strict_semantics(true);
+    ctx.reset_runtime_step_counter();
+
+    try {
+        evaluate(parse_expression("2^64"), ctx);
+        FAIL("Expected exact power to consume the strict runtime step budget");
+    } catch (const kernel::RuntimeFailure& failure) {
+        CHECK(failure.error().code == "runtime.step_budget_exhausted");
+    }
+}
+
+TEST_CASE("Rational normalization handles int64 minimum boundaries", "[evaluator][rational][overflow]") {
+    const auto min = std::numeric_limits<int64_t>::min();
+    const auto normalized = normalize_rational(min, min);
+    REQUIRE(normalized.first == 1);
+    REQUIRE(normalized.second == 1);
+
+    REQUIRE_THROWS_AS(normalize_rational(1, min), std::overflow_error);
+    REQUIRE_THROWS_AS(normalize_rational(min, -1), std::overflow_error);
+}
+
 TEST_CASE("Evaluator: Rational reduction to lowest terms", "[evaluator][rational][reduction]") {
     EvaluationContext ctx;
     struct Case { std::string input; int64_t num, den; };
@@ -129,13 +231,8 @@ TEST_CASE("Evaluator: Rational reduction to lowest terms", "[evaluator][rational
         DYNAMIC_SECTION("Evaluating: " << c.input) {
             auto expr = parse_expression(c.input);
             auto result = evaluate(expr, ctx);
-            REQUIRE(result);
-            REQUIRE(std::holds_alternative<Rational>(*result));
-            auto r = std::get<Rational>(*result);
-            INFO("Input: " << c.input << " | Expected: " << c.num << "/" << c.den
-                << " | Got: " << r.numerator << "/" << r.denominator);
-            CHECK(r.numerator == c.num);
-            CHECK(r.denominator == c.den);
+            INFO("Input: " << c.input);
+            require_exact_scalar(result, c.num, c.den);
         }
     }
 }
@@ -159,13 +256,8 @@ TEST_CASE("Evaluator: Rational normalization of signs", "[evaluator][rational][s
         DYNAMIC_SECTION("Evaluating: " << c.input) {
             auto expr = parse_expression(c.input);
             auto result = evaluate(expr, ctx);
-            REQUIRE(result);
-            REQUIRE(std::holds_alternative<Rational>(*result));
-            auto r = std::get<Rational>(*result);
-            INFO("Input: " << c.input << " | Expected: " << c.num << "/" << c.den
-                << " | Got: " << r.numerator << "/" << r.denominator);
-            CHECK(r.numerator == c.num);
-            CHECK(r.denominator == c.den);
+            INFO("Input: " << c.input);
+            require_exact_scalar(result, c.num, c.den);
         }
     }
 }

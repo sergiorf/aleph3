@@ -38,7 +38,7 @@ ExprPtr factor_polynomial(const ExprPtr& expr, EvaluationContext& ctx) {
                 exact.terms.begin(),
                 exact.terms.end(),
                 [](const auto& term) {
-                    return term.second.denominator != 1;
+                    return !term.second.is_integer();
                 });
             if (has_rational_coefficient && variables.size() > 1) {
                 throw_unsupported_construct(

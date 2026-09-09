@@ -8,12 +8,14 @@ Current implementation contract referenced by the
 ## Purpose
 
 This document defines the current exact arithmetic and algebra-facing
-foundations required for stronger symbolic math. It is intentionally narrower
-than arbitrary-precision or general coefficient-ring algebra.
+foundations required for stronger symbolic math. The kernel now owns an
+arbitrary-precision scalar module used by public exact integer/rational
+expressions and by the supported algebra coefficient paths.
 
 The current exact algebra layer provides:
 
-- checked integer and rational coefficient storage;
+- arbitrary-precision integer and rational scalar infrastructure;
+- exact integer and rational coefficient storage;
 - exact polynomial conversion and helper operations for the algebra pack;
 - explicit overflow and unsupported-case behavior;
 - a migration boundary away from floating-point-centered polynomial internals.
@@ -30,13 +32,25 @@ This spec covers:
 - testing invariants.
 
 Exact complex coefficients, symbolic coefficients, broad coefficient-ring
-abstractions, arbitrary precision, algebraic-number coefficients, and
-approximate polynomial algorithms are outside this contract.
+abstractions, algebraic-number coefficients, and approximate polynomial
+algorithms are outside this contract.
 
 ## Exact Scalar Model
 
+`kernel::ExactInteger` and `kernel::ExactRational` are the kernel-owned
+internal scalar values for arbitrary-precision exact arithmetic. They are
+backed by Boost.Multiprecision `cpp_int`, normalize rational signs and common
+factors, provide stable decimal rendering, and expose checked adapters to the
+current bounded `int64_t` representation.
+
+`Expr::Integer` stores exact arbitrary-precision integers. `Expr::Rational`
+stores normalized exact rationals with arbitrary-precision numerator and
+denominator fields. `Expr::Number` remains the C++ machine-real storage for
+decimal input and approximate results; its public head is `Real`.
+
 `ExactCoefficient` is the current algebra coefficient value. It stores a
-normalized rational number as checked `int64_t` numerator and denominator.
+normalized exact rational number using the shared arbitrary-precision scalar
+model.
 
 Invariants:
 
@@ -45,13 +59,12 @@ Invariants:
 - equal rational values compare structurally equal after normalization;
 - addition, subtraction, multiplication, and division preserve exactness;
 - denominator zero is invalid;
-- arithmetic overflow throws an exact-overflow condition before wraparound.
+- exact arithmetic does not wrap through native integer overflow.
 
-The current model deliberately does not allocate arbitrary-precision integers.
-When an intermediate numerator, denominator, scale factor, content value, or
-least common multiple cannot fit in `int64_t`, the operation fails explicitly.
-No exact algebra operation may silently demote to `Number` or a `double`
-polynomial path to avoid overflow.
+Bounded adapters remain explicit where an operation needs a native index,
+degree, exponent, size, or SDK host-number value. Values outside those local
+bounds are rejected at that boundary rather than rounded through `Number` or
+sent into a `double` polynomial path.
 
 ## Coefficient Abstractions
 
@@ -63,17 +76,16 @@ Near-term algorithms may rely on:
 
 - exact zero and one checks;
 - rational normalization;
-- checked arithmetic;
+- exact arithmetic over the shared scalar model;
 - exact division by a nonzero coefficient;
 - integer-content extraction after denominators are cleared.
 
 Algorithms must not assume:
 
-- arbitrary-precision growth;
 - symbolic coefficients;
 - algebraic-number coefficients;
 - approximate fallback;
-- field operations outside checked rationals.
+- field operations outside the supported exact rational scalar model.
 
 ## Polynomial Representation
 
@@ -126,8 +138,8 @@ rewrite system.
 
 The narrow kernel-owned symbolic coefficient rewrite contract remains separate
 from full exact polynomial algebra. Like-term collection for structurally
-identical symbolic bodies with numeric or exact-rational scalar coefficients
-may proceed without requiring this full exact polynomial layer. Algebra-heavy
+identical symbolic bodies with supported numeric scalar coefficients may
+proceed without requiring this full exact polynomial layer. Algebra-heavy
 transformations such as polynomial division, GCD, factoring, rational-expression
 cancellation, symbolic coefficient collection, and future solving/equivalence
 helpers must use explicit exact-algebra contracts instead of broad rewrite
@@ -144,7 +156,9 @@ Pack-facing dispatch follows this rule:
   transformations reject inexact inputs explicitly;
 - exact multivariate `GCD` and `PolynomialQuotient` require exact polynomial
   coefficients and explicit selector lists;
-- exact overflow maps to `runtime.exact_overflow`;
+- exact scalar values are preserved without native-integer overflow; local
+  bounded adapters still report deterministic diagnostics where a native size,
+  exponent, index, or public host value is required;
 - division by a zero exact polynomial denominator maps to the stable
   division-by-zero diagnostic where it reaches a public runtime boundary.
 
@@ -178,7 +192,7 @@ Tests for exact algebra growth should cover:
 
 - exact coefficient sign and denominator normalization;
 - rational arithmetic preservation;
-- explicit overflow;
+- preservation beyond native integer bounds;
 - zero polynomial normalization;
 - exact polynomial addition and multiplication;
 - division reconstruction,
@@ -186,8 +200,8 @@ Tests for exact algebra growth should cover:
 - fixed monomial ordering under explicit variable precedence;
 - pack-level exact dispatch for supported integer/rational public helpers;
 - explicit rejection of inexact inputs in exact-only paths;
-- stable public diagnostics for overflow, invalid forms, unsupported
-  constructs, and division by zero.
+- stable public diagnostics for invalid forms, unsupported constructs, budget
+  cases, bounded-adapter failures, and division by zero.
 
 ## Current Decision Relevant To Rewrite Migration
 
@@ -270,8 +284,9 @@ Practical implication:
   coefficient-ring and algorithm story is stronger; the current exact
   factorization support is limited to the documented univariate rational-root
   subset
-- exact coefficient operations detect `int64_t` overflow and fail explicitly;
-  arbitrary precision remains outside this contract
+- exact coefficient operations use the shared arbitrary-precision scalar model;
+  local native-size adapters remain explicit only where a bounded algorithm or
+  public host boundary requires them
 
 ## Current Algebra Implementation Ownership
 
@@ -320,7 +335,8 @@ This spec is sufficient when:
 - `GCD[x^2*y, x*y^2, {x, y}]` returns `x*y`
 - zero with a nonzero supported operand returns its monic form; two zero
   operands remain invalid
-- unit input returns `1`; exact coefficient overflow remains explicit
+- unit input returns `1`; exact coefficients preserve arbitrary-precision
+  scalar values
 
 For a selected variable, the polynomial valuation is the minimum exponent of
 that variable among all nonzero terms. The result uses the minimum valuation

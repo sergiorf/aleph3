@@ -20,8 +20,8 @@ not add a kernel `Expr` alternative and do not change scalar `Plus` or `Times`.
 
 Entries must be exact integers or normalized rationals. Results use canonical
 nested lists, except determinants use an exact scalar and linear solutions use
-an exact vector. Checked `int64_t` rational arithmetic never falls back to
-floating point.
+an exact vector. Matrix scalar arithmetic uses the shared arbitrary-precision
+exact rational model and never falls back to floating point.
 
 ## Diagnostics And Budgets
 
@@ -30,7 +30,6 @@ floating point.
   or non-unique systems report `kernel.domain_violation`.
 - Symbolic, decimal, and complex entries report
   `kernel.unsupported_construct`.
-- Checked arithmetic overflow reports `kernel.exact_overflow`.
 - Matrix multiplication and elimination charge one shared evaluation step per
   scalar arithmetic update and report `kernel.step_budget_exhausted` when the
   configured budget is exhausted.

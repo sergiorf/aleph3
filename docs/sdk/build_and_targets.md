@@ -25,8 +25,8 @@ Related documents:
 | `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
 | `aleph3_pack_algebra` | library | Current polynomial implementation and registered algebra pack |
 | `aleph3_pack_calculus` | library | Current focused differentiation pack registered as `core-calculus` |
-| `aleph3_notebook_core` | library | Experimental notebook document model and session-backed `Run All` consumer |
-| `aleph3_web_api` | library | Experimental transport-independent web API core over anonymous clients and shared sessions |
+| `aleph3_notebook_core` | library | Tested headless notebook document model and session-backed `Run All` consumer |
+| `aleph3_web_api` | library | Tested transitional transport-independent web API core over anonymous clients and shared sessions |
 | `aleph3_web_api_server` | executable | Minimal smoke-check executable for the web API core; not a network listener |
 | `aleph3_engine_api` | library | Internal engine API core for `/internal/*` session creation, evaluation, and reset |
 | `aleph3_engine_service` | executable | Internal HTTP engine listener used by the BFF in the paused Web MVP service graph |
@@ -52,6 +52,15 @@ Current interpretation:
   symbolic test target
 - `ALEPH3_BUILD_SYMBOLIC_ENGINE=OFF` no longer means "no kernel at all" if the
   SDK is enabled
+
+## Dependencies
+
+- The symbolic kernel uses Boost.Multiprecision for internal exact scalar
+  infrastructure. CMake first tries `find_package(Boost 1.86 CONFIG QUIET)`;
+  when no system Boost config package is available, it fetches the modular
+  Boost.Config and Boost.Multiprecision header repositories at `boost-1.86.0`
+  and uses Boost.Multiprecision standalone mode.
+- Catch2 is fetched by CMake when `BUILD_TESTING=ON`.
 
 ## Target Dependency Diagram
 

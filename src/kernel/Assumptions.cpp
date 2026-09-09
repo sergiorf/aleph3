@@ -32,6 +32,9 @@ bool is_domain_predicate(std::string_view head) {
 }
 
 bool is_zero_literal(const ExprPtr& expr) {
+    if (const auto* integer = std::get_if<Integer>(&*expr)) {
+        return integer->value.is_zero();
+    }
     if (const auto* number = std::get_if<Number>(&*expr)) {
         return number->value == 0.0;
     }
@@ -42,6 +45,9 @@ bool is_zero_literal(const ExprPtr& expr) {
 }
 
 std::optional<int> compare_numeric_to_zero(const ExprPtr& expr) {
+    if (const auto* integer = std::get_if<Integer>(&*expr)) {
+        return integer->value.sign();
+    }
     if (const auto* number = std::get_if<Number>(&*expr)) {
         if (number->value > 0.0) {
             return 1;
@@ -52,18 +58,15 @@ std::optional<int> compare_numeric_to_zero(const ExprPtr& expr) {
         return 0;
     }
     if (const auto* rational = std::get_if<Rational>(&*expr)) {
-        if (rational->numerator > 0) {
-            return 1;
-        }
-        if (rational->numerator < 0) {
-            return -1;
-        }
-        return 0;
+        return rational->numerator.sign();
     }
     return std::nullopt;
 }
 
 bool is_exact_two(const ExprPtr& expr) {
+    if (const auto* integer = std::get_if<Integer>(&*expr)) {
+        return integer->value == ExactInteger(2);
+    }
     if (const auto* number = std::get_if<Number>(&*expr)) {
         return number->value == 2.0;
     }
@@ -74,13 +77,16 @@ bool is_exact_two(const ExprPtr& expr) {
 }
 
 ExprPtr make_negated(const ExprPtr& expr) {
-    return make_times({make_expr<Number>(-1), expr});
+    return make_times({make_expr<Integer>(-1), expr});
 }
 
 ExprPtr negate_known_nonpositive_expr(const ExprPtr& expr) {
     auto normalize_times_with_updated_lead = [](std::vector<ExprPtr> factors) -> ExprPtr {
         if (const auto* number = std::get_if<Number>(&*factors.front()); number != nullptr &&
             number->value == 1.0) {
+            factors.erase(factors.begin());
+        } else if (const auto* integer = std::get_if<Integer>(&*factors.front());
+                   integer != nullptr && integer->value.is_one()) {
             factors.erase(factors.begin());
         } else if (const auto* rational = std::get_if<Rational>(&*factors.front());
                    rational != nullptr &&
@@ -100,6 +106,9 @@ ExprPtr negate_known_nonpositive_expr(const ExprPtr& expr) {
     if (const auto* number = std::get_if<Number>(&*expr)) {
         return make_expr<Number>(-number->value);
     }
+    if (const auto* integer = std::get_if<Integer>(&*expr)) {
+        return make_expr<Integer>(-integer->value);
+    }
     if (const auto* rational = std::get_if<Rational>(&*expr)) {
         return make_expr<Rational>(-rational->numerator, rational->denominator);
     }
@@ -109,6 +118,10 @@ ExprPtr negate_known_nonpositive_expr(const ExprPtr& expr) {
         std::vector<ExprPtr> factors = func->args;
         if (const auto* number = std::get_if<Number>(&*factors.front())) {
             factors.front() = make_expr<Number>(-number->value);
+            return normalize_times_with_updated_lead(std::move(factors));
+        }
+        if (const auto* integer = std::get_if<Integer>(&*factors.front())) {
+            factors.front() = make_expr<Integer>(-integer->value);
             return normalize_times_with_updated_lead(std::move(factors));
         }
         if (const auto* rational = std::get_if<Rational>(&*factors.front())) {
@@ -121,19 +134,7 @@ ExprPtr negate_known_nonpositive_expr(const ExprPtr& expr) {
 }
 
 std::optional<int64_t> exact_integer_value(const ExprPtr& expr) {
-    if (const auto* number = std::get_if<Number>(&*expr)) {
-        if (!is_integral_number_value(number->value)) {
-            return std::nullopt;
-        }
-        return static_cast<int64_t>(number->value);
-    }
-    if (const auto* rational = std::get_if<Rational>(&*expr)) {
-        if (rational->denominator != 1) {
-            return std::nullopt;
-        }
-        return rational->numerator;
-    }
-    return std::nullopt;
+    return exact_int64_from_expr(expr);
 }
 
 void apply_sign_fact(SymbolAssumptionFacts& facts, std::string_view head) {
@@ -213,6 +214,14 @@ std::optional<bool> evaluate_exact_numeric_domain_predicate(
             return rational->denominator == 1;
         }
         if (predicate_name == "RationalQ" || predicate_name == "RealQ") {
+            return true;
+        }
+    }
+
+    if (const auto* integer = std::get_if<Integer>(&*expr)) {
+        if (predicate_name == "IntegerQ" ||
+            predicate_name == "RationalQ" ||
+            predicate_name == "RealQ") {
             return true;
         }
     }

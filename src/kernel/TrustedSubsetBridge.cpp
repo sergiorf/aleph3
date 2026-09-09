@@ -3,6 +3,7 @@
 #include "evaluator/BuiltInFunctions.hpp"
 #include "evaluator/Evaluator.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
+#include "expr/ExprUtils.hpp"
 #include "kernel/Diagnostics.hpp"
 #include "kernel/EvaluationContext.hpp"
 
@@ -27,8 +28,19 @@ std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
         }
         return Value(value);
     }
+    if (const auto* integer = std::get_if<Integer>(&*expr)) {
+        const auto value = finite_double_from_exact_integer(integer->value);
+        if (!value) {
+            return std::nullopt;
+        }
+        return Value(*value);
+    }
     if (const auto* rational = std::get_if<Rational>(&*expr)) {
-        return Value(static_cast<double>(rational->numerator) / rational->denominator);
+        const auto value = finite_double_from_exact_rational(*rational);
+        if (!value) {
+            return std::nullopt;
+        }
+        return Value(*value);
     }
     if (const auto* boolean = std::get_if<Boolean>(&*expr)) {
         return Value(boolean->value);
@@ -50,6 +62,15 @@ std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
     }
 
     return std::nullopt;
+}
+
+EvaluationResult value_not_representable() {
+    EvaluationResult result;
+    result.error = RuntimeError{
+        "sdk.value_not_representable",
+        "The kernel result cannot be represented by the SDK v1 Value model.",
+        std::nullopt};
+    return result;
 }
 
 ExprPtr sdk_value_to_expr(const Value& value) {
@@ -127,7 +148,7 @@ EvaluationResult evaluate_trusted_subset_formula(
             return result;
         }
 
-        return {};
+        return value_not_representable();
     } catch (const RuntimeFailure& failure) {
         EvaluationResult result;
         result.error = failure.error();

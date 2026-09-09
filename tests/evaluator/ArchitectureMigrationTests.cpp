@@ -78,8 +78,7 @@ TEST_CASE("EvaluationContext copies preserve symbol and function state", "[archi
     REQUIRE(copy.user_functions.contains("f"));
 
     auto result = evaluate(parse_expression("f[7]"), copy);
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 12.0);
+    REQUIRE(get_number_value(result) == 12.0);
 }
 
 TEST_CASE("EvaluationContext copies preserve assumptions state", "[architecture][assumptions]") {
@@ -374,8 +373,7 @@ TEST_CASE("Evaluation context resolves builtins from its active registry", "[arc
 
     EvaluationContext default_ctx(kernel::default_function_registry());
     auto resolved = evaluate(parse_expression("Clamp[5, 0, 10]"), default_ctx);
-    REQUIRE(std::holds_alternative<Number>(*resolved));
-    REQUIRE(std::get<Number>(*resolved).value == 5.0);
+    REQUIRE(get_number_value(resolved) == 5.0);
 }
 
 TEST_CASE("Normalized head rewrites use the registry from the current context", "[architecture][kernel][rewrite]") {
@@ -544,8 +542,7 @@ TEST_CASE("Builtin evaluator functions win before user-defined functions", "[arc
     evaluate(parse_expression("Plus[x_, y_] := 99"), ctx);
 
     auto result = evaluate(parse_expression("Plus[1, 2]"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 3.0);
+    REQUIRE(get_number_value(result) == 3.0);
     REQUIRE(ctx.symbol_metadata.contains("Plus"));
     REQUIRE(ctx.symbol_metadata.has_attribute("Plus", symbols::SymbolAttribute::listable));
     REQUIRE(ctx.symbol_metadata.has_attribute("Plus", symbols::SymbolAttribute::numeric_function));
@@ -613,8 +610,7 @@ TEST_CASE("Registered special forms retain precedence over user and host definit
         ctx);
     auto result = evaluate(parse_expression("If[True, 1, 2]"), ctx);
 
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 1.0);
+    REQUIRE(get_number_value(result) == 1.0);
     REQUIRE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::special_form));
     REQUIRE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::user_function));
     REQUIRE(ctx.definition_records.contains("If", symbols::SymbolDefinitionKind::host_function));
@@ -691,7 +687,7 @@ TEST_CASE("Assignments populate kernel symbol metadata and definition records", 
     REQUIRE(ctx.symbol_metadata.contains("answer"));
     REQUIRE(ctx.definition_records.contains("answer", symbols::SymbolDefinitionKind::own_value));
     REQUIRE(ctx.variables.contains("answer"));
-    REQUIRE(std::holds_alternative<Number>(*ctx.variables.at("answer")));
+    REQUIRE(get_number_value(ctx.variables.at("answer")) == 42.0);
 }
 
 TEST_CASE("User-defined functions populate kernel definition records", "[architecture][symbols]") {
@@ -724,8 +720,7 @@ TEST_CASE("Host function definitions stay explicit and below builtin evaluator o
 
     auto result = evaluate(parse_expression("Plus[1, 2]"), ctx);
 
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 3.0);
+    REQUIRE(get_number_value(result) == 3.0);
     REQUIRE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::builtin_function));
     REQUIRE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::host_function));
     REQUIRE_FALSE(ctx.definition_records.contains("Plus", symbols::SymbolDefinitionKind::registered_handler));

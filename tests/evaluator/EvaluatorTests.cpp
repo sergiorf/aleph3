@@ -72,9 +72,8 @@ TEST_CASE("Evaluator correctly evaluates power expressions", "[evaluator][pow]")
     auto result = evaluate(expr, ctx);
 
     REQUIRE(result != nullptr);
-
-    auto num = std::get<Number>(*result);
-    REQUIRE(std::abs(num.value - 8.0) < 1e-9); // Floating-point comparison
+    REQUIRE(std::holds_alternative<Integer>(*result));
+    REQUIRE(to_string(result) == "8");
 }
 
 TEST_CASE("Exponential function is evaluated correctly", "[evaluator][exp]") {
@@ -169,14 +168,11 @@ TEST_CASE("Simplify multiplication with zero", "[evaluator][simplification]") {
     auto expr = parse_expression("0 * x");
     auto result = evaluate(expr, ctx);
 
-    // Ensure the result is a numeric value: 0
-    REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(get_number_value(result) == 0.0);
 
     expr = parse_expression("x * 0");
     result = evaluate(expr, ctx);
 
-    REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(get_number_value(result) == 0.0);
 }
 
@@ -209,8 +205,6 @@ TEST_CASE("Simplify nested expressions", "[evaluator][simplification]") {
     expr = parse_expression("(x * 0) + 1");
     result = evaluate(expr, ctx);
 
-    // Ensure the result is a numeric value: 1
-    REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(get_number_value(result) == 1.0);
 }
 
@@ -247,7 +241,6 @@ TEST_CASE("Simplify Plus[2, 3, 4] to 9", "[evaluator][simplification]") {
     auto expr = parse_expression("2 + 3 + 4");
     auto result = evaluate(expr, ctx);
 
-    REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(get_number_value(result) == 9.0);
 }
 
@@ -256,7 +249,6 @@ TEST_CASE("Simplify Times[2, 3, 0] to 0", "[evaluator][simplification]") {
     auto expr = parse_expression("2 * 3 * 0");
     auto result = evaluate(expr, ctx);
 
-    REQUIRE(std::holds_alternative<Number>(*result));
     REQUIRE(get_number_value(result) == 0.0);
 }
 
@@ -294,7 +286,6 @@ TEST_CASE("Symbolic coefficient contract combines supported like terms", "[evalu
     REQUIRE(to_string(power_basis) == "3 * x^2");
 
     const auto cancelled = evaluate(parse_expression("x + (-1 * x)"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*cancelled));
     REQUIRE(get_number_value(cancelled) == 0.0);
 }
 
@@ -330,7 +321,6 @@ TEST_CASE("Algebra-aware layer merges supported exponent structure only", "[eval
     REQUIRE(to_string(collapsed_power) == "x^6");
 
     const auto divide_identity = evaluate(parse_expression("x / x"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*divide_identity));
     REQUIRE(get_number_value(divide_identity) == 1.0);
 }
 
@@ -346,7 +336,6 @@ TEST_CASE("Algebra-aware layer preserves unsupported exponent structure and comb
     REQUIRE(to_string(mixed_basis) == "x^2 * y^2");
 
     const auto inverse_product = evaluate(parse_expression("x * x^-1"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*inverse_product));
     REQUIRE(get_number_value(inverse_product) == 1.0);
 }
 
@@ -361,7 +350,6 @@ TEST_CASE("Evaluator retains ownership of domain-sensitive power semantics", "[e
     REQUIRE(power_call.args.size() == 2);
 
     const auto safe_integer_power = evaluate(parse_expression("(-4)^2"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*safe_integer_power));
     REQUIRE(get_number_value(safe_integer_power) == 16.0);
 }
 
@@ -376,8 +364,7 @@ TEST_CASE("Evaluator routes fixed Power identities through the kernel-owned entr
     REQUIRE(to_string(unit_exponent) == "mystery[x]");
 
     const auto unit_base = evaluate(parse_expression("1^mystery[x]"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*unit_base));
-    REQUIRE(get_number_value(unit_base) == 1.0);
+    REQUIRE(to_string(unit_base) == "1");
 }
 
 TEST_CASE("Evaluator retains ownership of list-aware arithmetic semantics", "[evaluator][simplification][rewrite]") {
@@ -397,12 +384,10 @@ TEST_CASE("Evaluator contract keeps If lazy and symbolic when required", "[evalu
 
     auto true_branch_only = parse_expression("If[True, 1, 1/0]");
     auto true_result = evaluate(true_branch_only, ctx);
-    REQUIRE(std::holds_alternative<Number>(*true_result));
     REQUIRE(get_number_value(true_result) == 1.0);
 
     auto false_branch_only = parse_expression("If[False, 1/0, 2]");
     auto false_result = evaluate(false_branch_only, ctx);
-    REQUIRE(std::holds_alternative<Number>(*false_result));
     REQUIRE(get_number_value(false_result) == 2.0);
 
     auto symbolic_if = parse_expression("If[x, 1, 2]");
@@ -418,12 +403,10 @@ TEST_CASE("Evaluator special forms preserve nested branch laziness", "[evaluator
 
     auto nested_true = parse_expression("If[True, If[False, 1/0, 9], 1/0]");
     auto nested_true_result = evaluate(nested_true, ctx);
-    REQUIRE(std::holds_alternative<Number>(*nested_true_result));
     REQUIRE(get_number_value(nested_true_result) == 9.0);
 
     auto nested_false = parse_expression("If[False, 1/0, If[True, 7, 1/0]]");
     auto nested_false_result = evaluate(nested_false, ctx);
-    REQUIRE(std::holds_alternative<Number>(*nested_false_result));
     REQUIRE(get_number_value(nested_false_result) == 7.0);
 }
 
@@ -496,14 +479,12 @@ TEST_CASE("Evaluator registry-backed builtins preserve Negate and Clamp behavior
     EvaluationContext ctx;
 
     const auto negated_number = evaluate(parse_expression("-5"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*negated_number));
     REQUIRE(get_number_value(negated_number) == -5.0);
 
     const auto symbolic_negate = evaluate(parse_expression("-x"), ctx);
     REQUIRE(to_string(symbolic_negate) == "-x");
 
     const auto clamped = evaluate(parse_expression("Clamp[12, 0, 10]"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*clamped));
     REQUIRE(get_number_value(clamped) == 10.0);
 
     const auto symbolic_clamp = evaluate(parse_expression("Clamp[x, 0, 10]"), ctx);
@@ -640,8 +621,6 @@ TEST_CASE("Evaluator semantics drive numeric-function dispatch and edge-domain f
     const auto& power_call = std::get<FunctionCall>(*negative_fractional_power);
     REQUIRE(power_call.head == "Power");
     REQUIRE(power_call.args.size() == 2);
-    REQUIRE(std::holds_alternative<Number>(*power_call.args[0]));
-    REQUIRE(std::holds_alternative<Number>(*power_call.args[1]));
     REQUIRE(std::abs(get_number_value(power_call.args[0]) + 4.0) < 1e-12);
     REQUIRE(std::abs(get_number_value(power_call.args[1]) - 0.5) < 1e-12);
 }
@@ -697,7 +676,6 @@ TEST_CASE("Evaluator semantics registry drives structural and registry-backed sy
     const auto& elements = std::get<List>(*list_result).elements;
     REQUIRE(elements.size() == 3);
     REQUIRE(std::holds_alternative<Symbol>(*elements[0]));
-    REQUIRE(std::holds_alternative<Number>(*elements[1]));
     REQUIRE(std::abs(get_number_value(elements[1]) - 3.0) < 1e-12);
     REQUIRE(std::holds_alternative<Number>(*elements[2]));
     REQUIRE(std::abs(get_number_value(elements[2])) < 1e-12);
@@ -713,7 +691,6 @@ TEST_CASE("Evaluator simplification rules flatten, cancel, and combine symbolic 
     REQUIRE(to_string(nested_plus) == "x + y + 5");
 
     const auto cancelled_sum = evaluate(parse_expression("x + (-1 * x)"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*cancelled_sum));
     REQUIRE(get_number_value(cancelled_sum) == 0.0);
 
     const auto merged_product = evaluate(parse_expression("x * x * y"), ctx);
@@ -723,7 +700,6 @@ TEST_CASE("Evaluator simplification rules flatten, cancel, and combine symbolic 
     REQUIRE(to_string(collapsed_power) == "x^6");
 
     const auto divided_identity = evaluate(parse_expression("(x + 1) / (x + 1)"), ctx);
-    REQUIRE(std::holds_alternative<Number>(*divided_identity));
     REQUIRE(get_number_value(divided_identity) == 1.0);
 }
 
@@ -796,8 +772,7 @@ TEST_CASE("Unknown variables are treated as symbolic", "[evaluator]") {
     REQUIRE(func.args.size() == 2);
     REQUIRE(std::holds_alternative<Symbol>(*func.args[0]));
     REQUIRE(std::get<Symbol>(*func.args[0]).name == "z");
-    REQUIRE(std::holds_alternative<Number>(*func.args[1]));
-    REQUIRE(std::get<Number>(*func.args[1]).value == 1.0);
+    REQUIRE(get_number_value(func.args[1]) == 1.0);
 }
 
 TEST_CASE("Evaluator handles nested parentheses correctly", "[evaluator]") {
@@ -1142,6 +1117,8 @@ TEST_CASE("Evaluator targets replacement by nonnegative depth", "[evaluator][rew
 
 TEST_CASE("Evaluator supports typed single-expression patterns", "[evaluator][rewrite][typed-pattern]") {
     EvaluationContext ctx;
+    constexpr auto large = "123456789012345678901234567890";
+    constexpr auto odd_large = "123456789012345678901234567891";
 
     REQUIRE(to_string(evaluate(parse_expression("MatchQ[3, _Integer]"), ctx)) == "True");
     REQUIRE(to_string(evaluate(parse_expression("MatchQ[1/2, _Rational]"), ctx)) == "True");
@@ -1150,6 +1127,16 @@ TEST_CASE("Evaluator supports typed single-expression patterns", "[evaluator][re
     REQUIRE(to_string(evaluate(parse_expression("MatchQ[f[2, 3], f[n_Integer, n_Integer]]"), ctx)) == "False");
     REQUIRE(to_string(evaluate(parse_expression("Replace[f[2], f[n_Integer] -> g[n]]"), ctx)) == "g[2]");
     REQUIRE(to_string(evaluate(parse_expression("ReplaceRepeated[f[f[2]], f[n_Integer] -> g[n]]"), ctx)) == "f[g[2]]");
+    REQUIRE(to_string(evaluate(parse_expression(std::string("MatchQ[") + large + ", _Integer]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression(std::string("MatchQ[") + odd_large + "/2, _Rational]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression(std::string("MatchQ[") + large + ", _Rational]"), ctx)) == "False");
+    REQUIRE(to_string(evaluate(parse_expression(
+        std::string("MatchQ[f[") + large + ", " + large + "], f[n_Integer, n_Integer]]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression(
+        std::string("MatchQ[f[") + large + ", 123456789012345678901234567891], f[n_Integer, n_Integer]]"), ctx)) == "False");
+    REQUIRE(to_string(evaluate(parse_expression(
+        std::string("Replace[f[") + large + "], f[n_Integer] -> g[n]]"), ctx)) ==
+        std::string("g[") + large + "]");
 
     REQUIRE_THROWS_WITH(
         evaluate(parse_expression("MatchQ[2, _Matrix]"), ctx),
@@ -1194,8 +1181,7 @@ TEST_CASE("Evaluator scopes assumptions through Assuming and Refine", "[evaluato
 
     auto expr = parse_expression("Assuming[x > 0, If[x > 0, 1, 2]]");
     auto result = evaluate(expr, ctx);
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 1.0);
+    REQUIRE(to_string(result) == "1");
 
     expr = parse_expression("If[x > 0, 1, 2]");
     result = evaluate(expr, ctx);
@@ -1231,8 +1217,7 @@ TEST_CASE("Evaluator resolves boolean and comparison facts from assumptions", "[
 
     auto expr = parse_expression("Assuming[flag, If[flag, 7, 9]]");
     auto result = evaluate(expr, ctx);
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 7.0);
+    REQUIRE(to_string(result) == "7");
 
     expr = parse_expression("Refine[x > 0, And[x >= 0, NotEqual[x, 0]]]");
     result = evaluate(expr, ctx);
@@ -1247,11 +1232,12 @@ TEST_CASE("Evaluator resolves boolean and comparison facts from assumptions", "[
 
 TEST_CASE("Evaluator resolves explicit sign predicates from assumptions", "[evaluator][assumptions]") {
     EvaluationContext ctx;
+    constexpr auto positive_large = "123456789012345678901234567890";
+    constexpr auto negative_large = "-123456789012345678901234567890";
 
     auto expr = parse_expression("Assuming[Positive[x], If[Positive[x], 5, 9]]");
     auto result = evaluate(expr, ctx);
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 5.0);
+    REQUIRE(to_string(result) == "5");
 
     expr = parse_expression("Refine[NonZeroQ[x], x > 0]");
     result = evaluate(expr, ctx);
@@ -1276,15 +1262,20 @@ TEST_CASE("Evaluator resolves explicit sign predicates from assumptions", "[eval
     result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<Boolean>(*result));
     REQUIRE(std::get<Boolean>(*result).value);
+
+    REQUIRE(to_string(evaluate(parse_expression(std::string("Positive[") + positive_large + "]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression(std::string("Negative[") + negative_large + "]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression(std::string("NonZeroQ[") + positive_large + "]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression(std::string("ZeroQ[") + positive_large + "/-" + positive_large + "]"), ctx)) == "False");
 }
 
 TEST_CASE("Evaluator resolves explicit symbol domain predicates from assumptions", "[evaluator][assumptions]") {
     EvaluationContext ctx;
+    constexpr auto large = "123456789012345678901234567890";
 
     auto expr = parse_expression("Assuming[IntegerQ[n], If[RationalQ[n], 5, 9]]");
     auto result = evaluate(expr, ctx);
-    REQUIRE(std::holds_alternative<Number>(*result));
-    REQUIRE(std::get<Number>(*result).value == 5.0);
+    REQUIRE(to_string(result) == "5");
 
     expr = parse_expression("Refine[RealQ[x], Positive[x]]");
     result = evaluate(expr, ctx);
@@ -1320,6 +1311,10 @@ TEST_CASE("Evaluator resolves explicit symbol domain predicates from assumptions
     result = evaluate(expr, ctx);
     REQUIRE(std::holds_alternative<Boolean>(*result));
     REQUIRE_FALSE(std::get<Boolean>(*result).value);
+
+    REQUIRE(to_string(evaluate(parse_expression(std::string("IntegerQ[") + large + "]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression(std::string("RationalQ[") + large + "]"), ctx)) == "True");
+    REQUIRE(to_string(evaluate(parse_expression(std::string("RealQ[") + large + "]"), ctx)) == "True");
 
     expr = parse_expression("Refine[Positive[x], IntegerQ[x]]");
     result = evaluate(expr, ctx);
@@ -1392,12 +1387,14 @@ TEST_CASE("Evaluator rejects unsupported assumption forms explicitly", "[evaluat
 
 TEST_CASE("Structural inspection builtins expose public heads and parts", "[evaluator][structural][mvp]") {
     EvaluationContext ctx;
+    constexpr auto large = "123456789012345678901234567890";
 
     REQUIRE(to_string(evaluate(parse_expression("Head[f[x, y + 1]]"), ctx)) == "f");
     REQUIRE(to_string(evaluate(parse_expression("Head[{a, b}]"), ctx)) == "List");
     REQUIRE(to_string(evaluate(parse_expression("Head[3]"), ctx)) == "Integer");
     REQUIRE(to_string(evaluate(parse_expression("Head[1.5]"), ctx)) == "Real");
     REQUIRE(to_string(evaluate(parse_expression("Head[1/2]"), ctx)) == "Rational");
+    REQUIRE(to_string(evaluate(parse_expression(std::string("Head[") + large + "]"), ctx)) == "Integer");
     REQUIRE(to_string(evaluate(parse_expression("Head[x]"), ctx)) == "Symbol");
     REQUIRE(to_string(evaluate(parse_expression("Head[x -> y]"), ctx)) == "Rule");
 
@@ -1408,6 +1405,7 @@ TEST_CASE("Structural inspection builtins expose public heads and parts", "[eval
 
 TEST_CASE("FullForm builtin renders evaluated structure as a string", "[evaluator][structural][fullform]") {
     EvaluationContext ctx;
+    constexpr auto large = "123456789012345678901234567890";
 
     auto arithmetic = evaluate(parse_expression("FullForm[x + 1]"), ctx);
     REQUIRE(std::holds_alternative<String>(*arithmetic));
@@ -1417,6 +1415,10 @@ TEST_CASE("FullForm builtin renders evaluated structure as a string", "[evaluato
     auto exact_rational = evaluate(parse_expression("FullForm[1/2 + 1/3]"), ctx);
     REQUIRE(std::holds_alternative<String>(*exact_rational));
     REQUIRE(std::get<String>(*exact_rational).value == "Rational[5, 6]");
+
+    auto exact_integer = evaluate(parse_expression(std::string("FullForm[") + large + "]"), ctx);
+    REQUIRE(std::holds_alternative<String>(*exact_integer));
+    REQUIRE(std::get<String>(*exact_integer).value == large);
 
     auto unresolved_call = evaluate(parse_expression("FullForm[UnknownHead[2 + 3]]"), ctx);
     REQUIRE(std::holds_alternative<String>(*unresolved_call));
@@ -1849,8 +1851,15 @@ TEST_CASE("Evaluator handles division by products and negatives") {
         if (auto* num = std::get_if<Number>(&(*result_expr))) {
             value = num->value;
         }
+        else if (auto* integer = std::get_if<Integer>(&(*result_expr))) {
+            const auto converted = finite_double_from_exact_integer(integer->value);
+            REQUIRE(converted.has_value());
+            value = *converted;
+        }
         else if (auto* rat = std::get_if<Rational>(&(*result_expr))) {
-            value = static_cast<double>(rat->numerator) / rat->denominator;
+            const auto converted = finite_double_from_exact_rational(*rat);
+            REQUIRE(converted.has_value());
+            value = *converted;
         }
         else {
             FAIL("Evaluator did not return a numeric result");

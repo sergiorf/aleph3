@@ -12,6 +12,8 @@ does not imply that every possible symbolic identity is implemented.
 4 * 5                    -> 20
 8 / 4                    -> 2
 2^5                      -> 32
+(2/3)^2                  -> 4/9
+3037000500^2             -> 9223372037000250000
 I^2                      -> -1
 (1 + I)^2                -> 2*I
 Sqrt[9]                  -> 3
@@ -22,6 +24,10 @@ Abs[-4]                  -> 4
 provide exponential and logarithmic forms. Domain errors remain explicit.
 Complex arithmetic supports finite complex addition, multiplication, and
 integer powers, including negative integer powers of nonzero complex values.
+Exact integer and rational arithmetic, including exact integer powers of exact
+integer or rational bases, stays exact unless a machine-real input participates
+or explicit numeric evaluation is requested. Exact power growth is bounded by
+the runtime evaluation-step budget in strict execution contexts.
 Non-integer or complex exponents on complex bases, such as `I^(1/2)` and
 `I^I`, remain symbolic because branch conventions for complex logarithms are
 not part of the supported subset.
@@ -116,6 +122,7 @@ Head[{a, b}]                            -> List
 Head[3]                                 -> Integer
 Head[1.5]                               -> Real
 Head[1/2]                               -> Rational
+Head[123456789012345678901234567890]    -> Integer
 ```
 
 The returned value is an ordinary symbol, so it can itself be inspected:
@@ -156,6 +163,7 @@ expression structure:
 ```text
 FullForm[x + 1]                         -> "Plus[x, 1]"
 FullForm[1/2 + 1/3]                     -> "Rational[5, 6]"
+FullForm[123456789012345678901234567890]-> "123456789012345678901234567890"
 ```
 
 Use exact input when exact preservation matters; a decimal literal is already
@@ -183,6 +191,7 @@ Simplify[Sin[x] * Sin[x]^-1]           -> 1
 Simplify[(x + 1)^2 * (x + 1)^3]        -> (x + 1)^5
 Simplify[y^4 * z^4 * x^3]              -> x^3 * y^4 * z^4
 Simplify[1/2 + 1/3]                    -> 5/6
+Simplify[(2/3)^2]                      -> 4/9
 Simplify[Sin[0]]                       -> 0
 Simplify[0^-1]                         -> 0^-1
 ```
@@ -192,7 +201,9 @@ It covers the documented arithmetic cleanup, exact rational arithmetic, and
 canonical multiplication cleanup such as identity removal, numeric coefficient
 collection, structural like-term collection for identical symbolic bodies,
 deterministic factor ordering, repeated-factor powers, and exact integer power
-merging. Like-term collection extracts only numeric or exact-rational factors
+merging. Exact integer powers of exact integer and rational bases are evaluated
+through the shared exact-scalar path. Like-term collection extracts only
+numeric or exact-rational factors
 from products; it does not treat symbolic factors as coefficients, so
 `a*x + b*x` is not rewritten to `(a + b)*x`. Exact
 integer powers of identical symbolic bases cancel generically in products, so
@@ -212,10 +223,14 @@ Negative[-2]             -> True
 ZeroQ[0]                 -> True
 IntegerQ[3]              -> True
 RationalQ[1/2]           -> True
+RationalQ[3]             -> True
+RationalQ[0.5]           -> False
 ```
 
-`NonNegative`, `NonPositive`, `NonZeroQ`, and `RealQ` belong to the same family.
-An unknown fact is not silently treated as proven.
+`NonNegative`, `NonPositive`, `NonZeroQ`, and `RealQ` belong to the same
+family. Exact integers are rational and real values for predicate purposes,
+while `_Rational` patterns remain strict to exact rational atoms. An unknown
+fact is not silently treated as proven.
 
 ```text
 Positive[x]              -> Positive[x]

@@ -131,10 +131,10 @@ Token lex_number(Cursor& cursor) {
     }
 
     Token token;
-    token.kind = TokenKind::number_literal;
+    token.kind = seen_dot ? TokenKind::number_literal : TokenKind::integer_literal;
     token.lexeme = lexeme;
     token.span = cursor.span_from(start_offset, start_line, start_column);
-    token.value = std::stod(lexeme);
+    token.value = seen_dot ? TokenValue{std::stod(lexeme)} : TokenValue{lexeme};
     return token;
 }
 
@@ -365,6 +365,7 @@ const char* to_string(TokenKind kind) noexcept {
         case TokenKind::invalid: return "invalid";
         case TokenKind::identifier: return "identifier";
         case TokenKind::boolean_literal: return "boolean_literal";
+        case TokenKind::integer_literal: return "integer_literal";
         case TokenKind::number_literal: return "number_literal";
         case TokenKind::string_literal: return "string_literal";
         case TokenKind::plus: return "plus";

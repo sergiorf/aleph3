@@ -184,6 +184,8 @@ TEST_CASE("Session exposes variable dependency inspection values and diagnostics
 TEST_CASE("Session exposes exact matrix values and diagnostics", "[session][algebra][matrix]") {
     Session session;
     REQUIRE(session.execute({"Det[{{1, 2}, {3, 4}}]"}).output == "-2");
+    REQUIRE(session.execute({"Det[{{9223372036854775808, 1}, {0, 1}}]"}).output ==
+        "9223372036854775808");
     REQUIRE(session.execute({"LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]"}).output == "{2, 1}");
     const auto failure = session.execute({"MatrixMultiply[{{1, 2}}, {{1, 2}}]"});
     REQUIRE_FALSE(failure.ok);
@@ -366,6 +368,13 @@ TEST_CASE("Session reports polynomial division by zero with a stable diagnostic"
     REQUIRE_FALSE(result.ok);
     REQUIRE(result.diagnostics.size() == 1);
     REQUIRE(result.diagnostics.front().code == "runtime.division_by_zero");
+}
+
+TEST_CASE("Session preserves large exact rational arithmetic", "[session][rational]") {
+    Session session;
+    const auto result = session.execute({"1/3037000500 + 1/3037000501"});
+    REQUIRE(result.ok);
+    REQUIRE(result.output == "6074001001/9223372040037250500");
 }
 
 TEST_CASE("Session exposes bounded multivariate GCD values and diagnostics", "[session][algebra][gcd]") {

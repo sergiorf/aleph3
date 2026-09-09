@@ -2,9 +2,8 @@
  * ExactPolynomial.hpp
  * -------------------
  * Defines the exact polynomial layer used by the algebra pack for exact
- * integer and rational coefficient preservation. Coefficients use checked
- * int64_t numerator/denominator storage; overflow is reported explicitly
- * rather than wrapping or falling back to approximate arithmetic.
+ * integer and rational coefficient preservation. Coefficients use the shared
+ * kernel arbitrary-precision exact-rational scalar representation.
  */
 
 #pragma once
@@ -12,16 +11,14 @@
 #include <algorithm>
 #include <cstdint>
 #include <map>
-#include <limits>
-#include <numeric>
 #include <stdexcept>
-#include <tuple>
 #include <string>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "algebra/Polynomial.hpp"
-#include "expr/ExprUtils.hpp"
+#include "kernel/ExactScalar.hpp"
 
 namespace aleph3 {
 
@@ -75,14 +72,18 @@ inline bool exact_monomial_precedes(
 }
 
 struct ExactCoefficient {
-    int64_t numerator = 0;
-    int64_t denominator = 1;
+    kernel::ExactRational value;
 
     ExactCoefficient() = default;
 
-    ExactCoefficient(int64_t num, int64_t den) {
-        std::tie(numerator, denominator) = normalize_rational(num, den);
-    }
+    ExactCoefficient(int64_t num, int64_t den)
+        : value(num, den) {}
+
+    ExactCoefficient(kernel::ExactInteger num, kernel::ExactInteger den)
+        : value(std::move(num), std::move(den)) {}
+
+    explicit ExactCoefficient(kernel::ExactRational rational)
+        : value(std::move(rational)) {}
 
     static ExactCoefficient zero() {
         return ExactCoefficient(0, 1);
@@ -93,93 +94,53 @@ struct ExactCoefficient {
     }
 
     [[nodiscard]] bool is_zero() const {
-        return numerator == 0;
+        return value.is_zero();
     }
 
     [[nodiscard]] bool is_one() const {
-        return numerator == denominator;
+        return value.is_one();
+    }
+
+    [[nodiscard]] bool is_integer() const {
+        return value.denominator().is_one();
+    }
+
+    [[nodiscard]] bool is_negative() const {
+        return value.sign() < 0;
+    }
+
+    [[nodiscard]] const kernel::ExactInteger& numerator() const noexcept {
+        return value.numerator();
+    }
+
+    [[nodiscard]] const kernel::ExactInteger& denominator() const noexcept {
+        return value.denominator();
+    }
+
+    [[nodiscard]] const kernel::ExactRational& exact() const noexcept {
+        return value;
     }
 
     bool operator==(const ExactCoefficient&) const = default;
 };
 
-inline int64_t checked_exact_add(int64_t left, int64_t right) {
-    if ((right > 0 && left > std::numeric_limits<int64_t>::max() - right) ||
-        (right < 0 && left < std::numeric_limits<int64_t>::min() - right)) {
-        throw std::overflow_error("Exact coefficient overflow");
-    }
-    return left + right;
-}
-
-inline int64_t checked_exact_subtract(int64_t left, int64_t right) {
-    if ((right < 0 && left > std::numeric_limits<int64_t>::max() + right) ||
-        (right > 0 && left < std::numeric_limits<int64_t>::min() + right)) {
-        throw std::overflow_error("Exact coefficient overflow");
-    }
-    return left - right;
-}
-
-inline int64_t checked_exact_multiply(int64_t left, int64_t right) {
-    if (left == 0 || right == 0) return 0;
-    if ((left == -1 && right == std::numeric_limits<int64_t>::min()) ||
-        (right == -1 && left == std::numeric_limits<int64_t>::min())) {
-        throw std::overflow_error("Exact coefficient overflow");
-    }
-    if (left > 0) {
-        if ((right > 0 && left > std::numeric_limits<int64_t>::max() / right) ||
-            (right < 0 && right < std::numeric_limits<int64_t>::min() / left)) {
-            throw std::overflow_error("Exact coefficient overflow");
-        }
-    } else if ((right > 0 && left < std::numeric_limits<int64_t>::min() / right) ||
-               (right < 0 && left < std::numeric_limits<int64_t>::max() / right)) {
-        throw std::overflow_error("Exact coefficient overflow");
-    }
-    return left * right;
-}
-
 inline ExactCoefficient operator+(const ExactCoefficient& left, const ExactCoefficient& right) {
-    const int64_t common = std::gcd(left.denominator, right.denominator);
-    const int64_t left_scale = right.denominator / common;
-    const int64_t right_scale = left.denominator / common;
-    return ExactCoefficient(
-        checked_exact_add(
-            checked_exact_multiply(left.numerator, left_scale),
-            checked_exact_multiply(right.numerator, right_scale)),
-        checked_exact_multiply(left.denominator, left_scale));
+    return ExactCoefficient(left.value + right.value);
 }
 
 inline ExactCoefficient operator-(const ExactCoefficient& left, const ExactCoefficient& right) {
-    const int64_t common = std::gcd(left.denominator, right.denominator);
-    const int64_t left_scale = right.denominator / common;
-    const int64_t right_scale = left.denominator / common;
-    return ExactCoefficient(
-        checked_exact_subtract(
-            checked_exact_multiply(left.numerator, left_scale),
-            checked_exact_multiply(right.numerator, right_scale)),
-        checked_exact_multiply(left.denominator, left_scale));
+    return ExactCoefficient(left.value - right.value);
 }
 
 inline ExactCoefficient operator*(const ExactCoefficient& left, const ExactCoefficient& right) {
-    const int64_t left_cancel = std::gcd(left.numerator, right.denominator);
-    const int64_t right_cancel = std::gcd(right.numerator, left.denominator);
-    return ExactCoefficient(
-        checked_exact_multiply(left.numerator / left_cancel, right.numerator / right_cancel),
-        checked_exact_multiply(left.denominator / right_cancel, right.denominator / left_cancel));
+    return ExactCoefficient(left.value * right.value);
 }
 
 inline ExactCoefficient operator/(const ExactCoefficient& left, const ExactCoefficient& right) {
-    if (right.numerator == 0) {
+    if (right.is_zero()) {
         throw std::domain_error("Polynomial division by zero");
     }
-    const int64_t numerator_cancel = std::gcd(left.numerator, right.numerator);
-    const int64_t denominator_cancel = std::gcd(left.denominator, right.denominator);
-    return ExactCoefficient(
-        checked_exact_multiply(
-            left.numerator / numerator_cancel,
-            right.denominator / denominator_cancel),
-        checked_exact_multiply(
-            left.denominator / denominator_cancel,
-            right.numerator / numerator_cancel));
+    return ExactCoefficient(left.value / right.value);
 }
 
 struct ExactPolynomial {

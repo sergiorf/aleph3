@@ -1,5 +1,6 @@
 #include "parser/Parser.hpp"
 #include "expr/Expr.hpp"
+#include "expr/ExprUtils.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 using namespace aleph3;
@@ -49,8 +50,7 @@ TEST_CASE("Parser handles function call with all arguments", "[parser][functions
     REQUIRE(call != nullptr);
     REQUIRE(call->head == "f");
     REQUIRE(call->args.size() == 1);
-    REQUIRE(std::holds_alternative<Number>(*call->args[0]));
-    REQUIRE(std::get<Number>(*call->args[0]).value == 3.0);
+    REQUIRE(get_number_value(call->args[0]) == 3.0);
 }
 
 TEST_CASE("Parser handles function call with missing optional argument", "[parser][functions]") {
@@ -61,8 +61,7 @@ TEST_CASE("Parser handles function call with missing optional argument", "[parse
     REQUIRE(call != nullptr);
     REQUIRE(call->head == "h");
     REQUIRE(call->args.size() == 1);
-    REQUIRE(std::holds_alternative<Number>(*call->args[0]));
-    REQUIRE(std::get<Number>(*call->args[0]).value == 5.0);
+    REQUIRE(get_number_value(call->args[0]) == 5.0);
 }
 
 TEST_CASE("Parser handles function call with all arguments including optional", "[parser][functions]") {
@@ -73,10 +72,8 @@ TEST_CASE("Parser handles function call with all arguments including optional", 
     REQUIRE(call != nullptr);
     REQUIRE(call->head == "h");
     REQUIRE(call->args.size() == 2);
-    REQUIRE(std::holds_alternative<Number>(*call->args[0]));
-    REQUIRE(std::get<Number>(*call->args[0]).value == 5.0);
-    REQUIRE(std::holds_alternative<Number>(*call->args[1]));
-    REQUIRE(std::get<Number>(*call->args[1]).value == 10.0);
+    REQUIRE(get_number_value(call->args[0]) == 5.0);
+    REQUIRE(get_number_value(call->args[1]) == 10.0);
 }
 
 TEST_CASE("Parser handles recursive function definitions", "[parser]") {
@@ -100,10 +97,9 @@ TEST_CASE("Parser handles recursive function definitions", "[parser]") {
     REQUIRE(condition.head == "Equal");
     REQUIRE(condition.args.size() == 2);
     REQUIRE(std::get<Symbol>(*condition.args[0]).name == "n");
-    REQUIRE(std::get<Number>(*condition.args[1]).value == 0.0);
+    REQUIRE(get_number_value(condition.args[1]) == 0.0);
 
-    REQUIRE(std::holds_alternative<Number>(*if_call.args[1]));
-    REQUIRE(std::get<Number>(*if_call.args[1]).value == 1.0);
+    REQUIRE(get_number_value(if_call.args[1]) == 1.0);
 
     REQUIRE(std::holds_alternative<FunctionCall>(*if_call.args[2]));
     auto false_branch = std::get<FunctionCall>(*if_call.args[2]);
@@ -119,7 +115,7 @@ TEST_CASE("Parser handles recursive function definitions", "[parser]") {
     REQUIRE(recursive_arg.head == "Minus");
     REQUIRE(recursive_arg.args.size() == 2);
     REQUIRE(std::get<Symbol>(*recursive_arg.args[0]).name == "n");
-    REQUIRE(std::get<Number>(*recursive_arg.args[1]).value == 1.0);
+    REQUIRE(get_number_value(recursive_arg.args[1]) == 1.0);
 }
 
 void validate_function_definition(
@@ -150,22 +146,16 @@ void validate_function_definition(
     REQUIRE(body->args.size() == 2);
 
     auto* left = std::get_if<FunctionCall>(&(*body->args[0]));
-    auto* right = std::get_if<Number>(&(*body->args[1]));
-
     REQUIRE(left != nullptr);
     REQUIRE(left->head == "Power");
     REQUIRE(left->args.size() == 2);
 
     auto* base = std::get_if<Symbol>(&(*left->args[0]));
-    auto* exponent = std::get_if<Number>(&(*left->args[1]));
-
     REQUIRE(base != nullptr);
     REQUIRE(base->name == expected_params[0]); // The parameter name
-    REQUIRE(exponent != nullptr);
-    REQUIRE(exponent->value == 3.0);
+    REQUIRE(get_number_value(left->args[1]) == 3.0);
 
-    REQUIRE(right != nullptr);
-    REQUIRE(right->value == 1.0);
+    REQUIRE(get_number_value(body->args[1]) == 1.0);
 }
 
 TEST_CASE("Parser handles function definitions with delayed and immediate assignment", "[parser][functions]") {
@@ -192,8 +182,7 @@ TEST_CASE("Parser handles log(exp(2))", "[parser][functions]") {
     REQUIRE(inner->head == "exp");
     REQUIRE(inner->args.size() == 1);
 
-    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
-    REQUIRE(std::get<Number>(*inner->args[0]).value == 2.0);
+    REQUIRE(get_number_value(inner->args[0]) == 2.0);
 }
 
 TEST_CASE("Parser handles cos(acos(0.5))", "[parser][functions]") {
@@ -228,8 +217,7 @@ TEST_CASE("Parser handles tan(atan(3))", "[parser][functions]") {
     REQUIRE(inner->head == "atan");
     REQUIRE(inner->args.size() == 1);
 
-    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
-    REQUIRE(std::get<Number>(*inner->args[0]).value == 3.0);
+    REQUIRE(get_number_value(inner->args[0]) == 3.0);
 }
 
 TEST_CASE("Parser handles exp(log(7))", "[parser][functions]") {
@@ -246,8 +234,7 @@ TEST_CASE("Parser handles exp(log(7))", "[parser][functions]") {
     REQUIRE(inner->head == "log");
     REQUIRE(inner->args.size() == 1);
 
-    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
-    REQUIRE(std::get<Number>(*inner->args[0]).value == 7.0);
+    REQUIRE(get_number_value(inner->args[0]) == 7.0);
 }
 
 TEST_CASE("Parser handles asin(sin(0.7))", "[parser][functions]") {
@@ -305,8 +292,7 @@ TEST_CASE("Parser handles ArcTan[Tan[-2]]", "[parser][functions]") {
     REQUIRE(neg != nullptr);
     REQUIRE(neg->head == "Negate");
     REQUIRE(neg->args.size() == 1);
-    REQUIRE(std::holds_alternative<Number>(*neg->args[0]));
-    REQUIRE(std::get<Number>(*neg->args[0]).value == 2.0);
+    REQUIRE(get_number_value(neg->args[0]) == 2.0);
 }
 
 TEST_CASE("Parser handles Exp[Log[3.5]]", "[parser][functions]") {
@@ -341,10 +327,8 @@ TEST_CASE("Parser handles log10(pow(10, 4))", "[parser][functions]") {
     REQUIRE(inner->head == "Power");
     REQUIRE(inner->args.size() == 2);
 
-    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
-    REQUIRE(std::get<Number>(*inner->args[0]).value == 10.0);
-    REQUIRE(std::holds_alternative<Number>(*inner->args[1]));
-    REQUIRE(std::get<Number>(*inner->args[1]).value == 4.0);
+    REQUIRE(get_number_value(inner->args[0]) == 10.0);
+    REQUIRE(get_number_value(inner->args[1]) == 4.0);
 }
 
 TEST_CASE("Parser handles pow(sqrt(5), 2)", "[parser][functions]") {
@@ -361,11 +345,9 @@ TEST_CASE("Parser handles pow(sqrt(5), 2)", "[parser][functions]") {
     REQUIRE(inner->head == "Sqrt");
     REQUIRE(inner->args.size() == 1);
 
-    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
-    REQUIRE(std::get<Number>(*inner->args[0]).value == 5.0);
+    REQUIRE(get_number_value(inner->args[0]) == 5.0);
 
-    REQUIRE(std::holds_alternative<Number>(*outer->args[1]));
-    REQUIRE(std::get<Number>(*outer->args[1]).value == 2.0);
+    REQUIRE(get_number_value(outer->args[1]) == 2.0);
 }
 
 TEST_CASE("Parser handles sqrt(pow(8, 2))", "[parser][functions]") {
@@ -382,10 +364,8 @@ TEST_CASE("Parser handles sqrt(pow(8, 2))", "[parser][functions]") {
     REQUIRE(inner->head == "Power");
     REQUIRE(inner->args.size() == 2);
 
-    REQUIRE(std::holds_alternative<Number>(*inner->args[0]));
-    REQUIRE(std::get<Number>(*inner->args[0]).value == 8.0);
-    REQUIRE(std::holds_alternative<Number>(*inner->args[1]));
-    REQUIRE(std::get<Number>(*inner->args[1]).value == 2.0);
+    REQUIRE(get_number_value(inner->args[0]) == 8.0);
+    REQUIRE(get_number_value(inner->args[1]) == 2.0);
 }
 
 TEST_CASE("Parser handles Abs(Abs(-7))", "[parser][functions]") {
@@ -406,8 +386,7 @@ TEST_CASE("Parser handles Abs(Abs(-7))", "[parser][functions]") {
     REQUIRE(neg != nullptr);
     REQUIRE(neg->head == "Negate");
     REQUIRE(neg->args.size() == 1);
-    REQUIRE(std::holds_alternative<Number>(*neg->args[0]));
-    REQUIRE(std::get<Number>(*neg->args[0]).value == 7.0);
+    REQUIRE(get_number_value(neg->args[0]) == 7.0);
 }
 
 TEST_CASE("Parser handles floor(ceil(3.2))", "[parser][functions]") {

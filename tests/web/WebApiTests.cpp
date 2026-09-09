@@ -152,6 +152,22 @@ TEST_CASE("Web API evaluates expressions through isolated sessions", "[web][api]
     REQUIRE(right_value.at("result").at("canonicalText") == "a");
 }
 
+TEST_CASE("Web API returns large exact session results as canonical text strings", "[web][api][session][exact]") {
+    ApiHarness harness;
+    const auto client_id = harness.create_client();
+    const auto session_id = harness.create_session(client_id);
+
+    const auto integer = body_json(harness.evaluate(client_id, session_id, "9223372036854775808 + 1"));
+    REQUIRE(integer.at("result").at("status") == "ok");
+    REQUIRE(integer.at("result").at("canonicalText").is_string());
+    REQUIRE(integer.at("result").at("canonicalText") == "9223372036854775809");
+
+    const auto rational = body_json(harness.evaluate(client_id, session_id, "1/9223372036854775808"));
+    REQUIRE(rational.at("result").at("status") == "ok");
+    REQUIRE(rational.at("result").at("canonicalText").is_string());
+    REQUIRE(rational.at("result").at("canonicalText") == "1/9223372036854775808");
+}
+
 TEST_CASE("Web API reset clears session-local definitions", "[web][api][session]") {
     ApiHarness harness;
     const auto client_id = harness.create_client();
@@ -543,6 +559,34 @@ TEST_CASE("Web API runs persisted notebooks through a clean notebook runner", "[
 
     const auto load = body_json(harness.api.handle({"GET", "/api/notebooks/" + notebook_id, {{"X-Aleph3-Client", client_id}}, ""}));
     REQUIRE(load.at("notebook").at("document").at("results").at(1).at("output") == "5");
+}
+
+TEST_CASE("Web API notebook run-all preserves large exact cached outputs as strings", "[web][api][notebook][runner][exact]") {
+    ApiHarness harness;
+    const auto client_id = harness.create_client();
+    const auto notebook_id = harness.create_notebook(
+        client_id,
+        minimal_document("9223372036854775808 + 1"));
+
+    const auto run = harness.api.handle({
+        "POST",
+        "/api/notebooks/" + notebook_id + "/run-all",
+        {{"X-Aleph3-Client", client_id}},
+        ""});
+
+    REQUIRE(run.status == 200);
+    const auto result = body_json(run).at("notebook").at("document").at("results").at(0);
+    REQUIRE(result.at("ok") == true);
+    REQUIRE(result.at("output").is_string());
+    REQUIRE(result.at("output") == "9223372036854775809");
+
+    const auto load = body_json(harness.api.handle({
+        "GET",
+        "/api/notebooks/" + notebook_id,
+        {{"X-Aleph3-Client", client_id}},
+        ""}));
+    REQUIRE(load.at("notebook").at("document").at("results").at(0).at("output").is_string());
+    REQUIRE(load.at("notebook").at("document").at("results").at(0).at("output") == "9223372036854775809");
 }
 
 TEST_CASE("Web API clears persisted notebook generated results", "[web][api][notebook][runner]") {

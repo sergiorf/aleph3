@@ -5,7 +5,6 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
-#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -39,13 +38,21 @@ TEST_CASE("Exact coefficients normalize signs and preserve rational arithmetic",
     REQUIRE(ExactCoefficient(2, 3) / ExactCoefficient(4, 9) == ExactCoefficient(3, 2));
 }
 
-TEST_CASE("Exact coefficients detect overflow instead of wrapping", "[algebra][exact][overflow]") {
-    REQUIRE_THROWS_AS(
-        ExactCoefficient(std::numeric_limits<int64_t>::max(), 1) + ExactCoefficient(1, 1),
-        std::overflow_error);
-    REQUIRE_THROWS_AS(
-        ExactCoefficient(3037000500LL, 1) * ExactCoefficient(3037000500LL, 1),
-        std::overflow_error);
+TEST_CASE("Exact coefficients preserve values beyond native integer bounds", "[algebra][exact][large]") {
+    const auto large_integer =
+        kernel::ExactInteger::from_decimal_string("9223372036854775808");
+    const auto larger_integer =
+        kernel::ExactInteger::from_decimal_string("9223372036854775809");
+
+    REQUIRE(
+        ExactCoefficient(large_integer, kernel::ExactInteger(1)) +
+        ExactCoefficient(1, 1) ==
+        ExactCoefficient(larger_integer, kernel::ExactInteger(1)));
+    REQUIRE(
+        ExactCoefficient(3037000500LL, 1) * ExactCoefficient(3037000500LL, 1) ==
+        ExactCoefficient(
+            kernel::ExactInteger::from_decimal_string("9223372037000250000"),
+            kernel::ExactInteger(1)));
 }
 
 TEST_CASE("Exact polynomial operations normalize zero and preserve rational terms", "[algebra][exact]") {

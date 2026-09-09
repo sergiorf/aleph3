@@ -230,6 +230,12 @@ TEST_CASE("CLI evaluates exact matrix pack expressions", "[tooling][cli][matrix]
     const auto result = run_shell_command(make_direct_command(expression));
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output == "-2\n");
+
+    const auto large_expression =
+        std::string(1, char(34)) + "Det[{{9223372036854775808,1},{0,1}}]" + char(34);
+    const auto large_result = run_shell_command(make_direct_command(large_expression));
+    REQUIRE(large_result.exit_code == 0);
+    REQUIRE(large_result.output == "9223372036854775808\n");
 }
 
 TEST_CASE("CLI evaluates focused calculus pack expressions", "[tooling][cli][calculus]") {
@@ -363,6 +369,21 @@ TEST_CASE("CLI scripts emit deterministic JSON Lines", "[tooling][cli][script][j
     REQUIRE(result.output.find("\"line\":2") != std::string::npos);
     REQUIRE(result.output.find("\"output\":\"2\"") != std::string::npos);
     REQUIRE(result.output.find("Aleph3") == std::string::npos);
+}
+
+TEST_CASE("CLI script JSON preserves large exact outputs as strings", "[tooling][cli][script][json][exact]") {
+    TemporaryScript script(
+        "aleph3-script-json-exact.txt",
+        "9223372036854775808 + 1\n1/9223372036854775808\n");
+    const auto result = run_shell_command(make_direct_command(
+        "script --json \"" + script.path().string() + "\""));
+
+    REQUIRE(result.exit_code == 0);
+    REQUIRE(result.output.find("\"line\":1") != std::string::npos);
+    REQUIRE(result.output.find("\"output\":\"9223372036854775809\"") != std::string::npos);
+    REQUIRE(result.output.find("\"line\":2") != std::string::npos);
+    REQUIRE(result.output.find("\"output\":\"1/9223372036854775808\"") != std::string::npos);
+    REQUIRE(result.output.find("\"output\":9223372036854775809") == std::string::npos);
 }
 
 TEST_CASE("CLI scripts enforce usage and line limits", "[tooling][cli][script][limits]") {

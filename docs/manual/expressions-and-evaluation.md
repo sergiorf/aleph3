@@ -49,6 +49,14 @@ parsing starts from the same source-aware syntax frontend, but rejects syntax
 outside the documented trusted subset such as `2x`, assignments, definitions,
 rules, and patterns.
 
+Decimal integer tokens are preserved by the shared syntax frontend and lower
+to exact arbitrary-precision `Integer` expressions. Decimal machine-real
+literals such as `1.0` lower to approximate `Real` values. Exact rational
+literals normalize through the shared arbitrary-precision rational model;
+denominator-one rationals canonicalize to `Integer`. The trusted SDK subset
+still projects accepted integer source text through its bounded host-number
+model and reports `frontend.parser.integer_out_of_range` outside that boundary.
+
 ## Evaluation And Symbolic Fallback
 
 Evaluation applies known meanings:
@@ -104,11 +112,23 @@ stable representation for equality, matching, and algorithms.
 ```text
 1/2 + 1/3                -> 5/6
 1/2 + 2                  -> 5/2
+12345678901234567890 + 1 -> 12345678901234567891
+9007199254740993/3       -> 3002399751580331
+(2/3)^-2                 -> 9/4
+3037000500^2             -> 9223372037000250000
 1/2 + 0.5                -> approximate Number
 ```
 
-Exact coefficients use checked 64-bit integer storage. Overflow is reported;
-arbitrary-precision integers are future work.
+Exact integer and rational expressions use arbitrary-precision scalar storage
+and are not rounded through machine reals. Arithmetic over exact integers and
+rationals, including exact integer powers of exact integer or rational bases,
+uses that same scalar model. In strict execution contexts, power growth
+consumes the runtime evaluation-step budget.
+
+Bounded adapters remain explicit for places that require native sizes,
+indexes, exponents, SDK host-number values, or budgeted algorithms. Values
+outside those local bounds are rejected at that boundary rather than wrapped or
+silently approximated.
 
 Use decimals only when approximation is intended:
 

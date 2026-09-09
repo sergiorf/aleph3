@@ -80,7 +80,10 @@ React/Vite frontend -> ASP.NET Core BFF /api/* -> internal C++ engine /internal/
 
 ## Build And Try The CLI
 
-You need CMake 3.20+ and a C++20 compiler.
+You need CMake 3.20+ and a C++20 compiler. The symbolic kernel uses
+Boost.Multiprecision for internal exact scalar arithmetic; CMake uses a system
+Boost 1.86 config package when available and otherwise fetches the needed
+header-only Boost modules.
 
 ```bash
 git clone https://github.com/sergiorf/aleph3.git

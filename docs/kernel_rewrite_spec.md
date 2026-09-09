@@ -444,8 +444,9 @@ The currently implemented surface now covers:
 
 Where `c` may be:
 
-- `Number`
-- `Rational`
+- exact `Integer`
+- exact `Rational`
+- machine `Real`
 
 And where collection is limited to normalized `Plus` forms.
 
@@ -498,12 +499,12 @@ of these coefficient/body shapes:
 Where:
 
 - `body` is a normalized symbol or non-list function expression
-- `c` is `Number` or `Rational`
+- `c` is an exact `Integer`, exact `Rational`, or machine `Real`
 - product bodies use the existing canonical `Times` normalization before they
   are used as structural keys
 
 This means the current coefficient layer promises stable behavior for
-structurally identical symbolic bodies with numeric or exact-rational scalar
+structurally identical symbolic bodies with supported numeric scalar
 coefficients. It is not a general polynomial factorer or symbolic coefficient
 domain.
 
@@ -546,7 +547,7 @@ coefficient-light. Exponent merging crosses into algebra structure.
 The intended long-term split should be:
 
 - arithmetic rewrite layer:
-  numeric and exact-rational accumulation for normalized `Plus`/`Times`
+  numeric and exact-scalar accumulation for normalized `Plus`/`Times`
 - symbolic coefficient layer:
   like-term collection for supported coefficient/basis shapes
 - algebra-aware layer:

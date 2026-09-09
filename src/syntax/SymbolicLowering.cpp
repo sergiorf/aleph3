@@ -1,13 +1,16 @@
 #include "syntax/SymbolicLowering.hpp"
 
 #include "expr/ExprUtils.hpp"
+#include "syntax/IntegerLiteral.hpp"
 #include "syntax/Parser.hpp"
 
 #include <cmath>
 #include <cstdint>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace aleph3::syntax {
@@ -23,39 +26,41 @@ Diagnostic make_error(std::string code, std::string message, SourceSpan span = {
     return diagnostic;
 }
 
-bool is_integer_number(const ExprPtr& expr, int64_t& out) {
+std::optional<kernel::ExactInteger> exact_integer_from_expr(const ExprPtr& expr) {
+    if (const auto* integer = std::get_if<Integer>(expr.get())) {
+        return integer->value;
+    }
     if (const auto* number = std::get_if<Number>(expr.get())) {
-        if (std::floor(number->value) == number->value) {
-            out = static_cast<int64_t>(number->value);
-            return true;
+        auto integer = exact_int64_from_number(number->value);
+        if (integer.has_value()) {
+            return kernel::ExactInteger(*integer);
         }
+    }
+    if (const auto* rational = std::get_if<Rational>(expr.get());
+        rational != nullptr && rational->denominator.is_one()) {
+        return rational->numerator;
     }
     if (const auto* call = std::get_if<FunctionCall>(expr.get());
         call != nullptr && call->head == "Negate" && call->args.size() == 1) {
-        if (is_integer_number(call->args[0], out)) {
-            out = -out;
-            return true;
+        if (auto value = exact_integer_from_expr(call->args[0])) {
+            return -*value;
         }
     }
-    return false;
+    return std::nullopt;
 }
 
-ExprPtr make_exact_rational(int64_t numerator, int64_t denominator) {
-    if (denominator == 0) {
-        return numerator == 0 ? make_expr<Indeterminate>() : make_expr<Infinity>();
+ExprPtr make_exact_rational(kernel::ExactInteger numerator, kernel::ExactInteger denominator) {
+    if (denominator.is_zero()) {
+        return numerator.is_zero() ? make_expr<Indeterminate>() : make_expr<Infinity>();
     }
-    if (numerator < 0 && denominator < 0) {
-        numerator = -numerator;
-        denominator = -denominator;
-    }
-    return make_expr<Rational>(numerator, denominator);
+    return make_exact_scalar_expr(kernel::ExactRational(std::move(numerator), std::move(denominator)));
 }
 
-ExprPtr make_rational_preserving_signs(int64_t numerator, int64_t denominator) {
-    if (denominator == 0) {
-        return numerator == 0 ? make_expr<Indeterminate>() : make_expr<Infinity>();
+ExprPtr make_rational_preserving_signs(kernel::ExactInteger numerator, kernel::ExactInteger denominator) {
+    if (denominator.is_zero()) {
+        return numerator.is_zero() ? make_expr<Indeterminate>() : make_expr<Infinity>();
     }
-    return make_expr<Rational>(numerator, denominator);
+    return make_exact_scalar_expr(kernel::ExactRational(std::move(numerator), std::move(denominator)));
 }
 
 bool is_imaginary_unit(const ExprPtr& expr) {
@@ -108,6 +113,39 @@ public:
     }
 
 private:
+    std::optional<kernel::ExactInteger> exact_integer_from_text(std::string_view text, SourceSpan span) {
+        try {
+            return kernel::ExactInteger::from_decimal_string(text);
+        } catch (const std::invalid_argument&) {
+            diagnostics_.push_back(make_error(
+                "syntax.lowering.invalid_integer",
+                "Integer literal is invalid.",
+                span));
+            return std::nullopt;
+        }
+    }
+
+    std::optional<kernel::ExactInteger> exact_integer_from_node(const NodePtr& node) {
+        if (const auto* integer = node->as<IntegerLiteralNode>()) {
+            return exact_integer_from_text(integer->decimal_text, node->span);
+        }
+        if (const auto* unary = node->as<UnaryOpNode>();
+            unary != nullptr && unary->op == UnaryOperator::minus) {
+            if (const auto* integer = unary->operand->as<IntegerLiteralNode>()) {
+                return exact_integer_from_text("-" + integer->decimal_text, node->span);
+            }
+        }
+        return std::nullopt;
+    }
+
+    ExprPtr lower_integer_literal(std::string_view text, SourceSpan span) {
+        const auto exact = exact_integer_from_text(text, span);
+        if (!exact.has_value()) {
+            return nullptr;
+        }
+        return make_expr<Integer>(*exact);
+    }
+
     ExprPtr lower_node(const NodePtr& node) {
         if (node == nullptr) {
             diagnostics_.push_back(make_error(
@@ -116,6 +154,9 @@ private:
             return nullptr;
         }
 
+        if (const auto* integer = node->as<IntegerLiteralNode>()) {
+            return lower_integer_literal(integer->decimal_text, node->span);
+        }
         if (const auto* number = node->as<NumberLiteralNode>()) {
             return make_expr<Number>(number->value);
         }
@@ -132,23 +173,37 @@ private:
             return make_expr<Symbol>(symbol->name);
         }
         if (const auto* fraction = node->as<FractionLiteralNode>()) {
+            const auto literal_numerator = exact_integer_from_node(fraction->numerator);
+            const auto literal_denominator = exact_integer_from_node(fraction->denominator);
+            if (literal_numerator.has_value() && literal_denominator.has_value()) {
+                return make_rational_preserving_signs(*literal_numerator, *literal_denominator);
+            }
+            if (!diagnostics_.empty()) {
+                return nullptr;
+            }
+
             auto numerator = lower_node(fraction->numerator);
             auto denominator = lower_node(fraction->denominator);
             if (numerator == nullptr || denominator == nullptr) {
                 return nullptr;
             }
 
-            int64_t numerator_value = 0;
-            int64_t denominator_value = 0;
-            if (is_integer_number(numerator, numerator_value) &&
-                is_integer_number(denominator, denominator_value)) {
-                return make_rational_preserving_signs(numerator_value, denominator_value);
+            const auto numerator_value = exact_integer_from_expr(numerator);
+            const auto denominator_value = exact_integer_from_expr(denominator);
+            if (numerator_value.has_value() && denominator_value.has_value()) {
+                return make_rational_preserving_signs(*numerator_value, *denominator_value);
             }
             return make_expr<FunctionCall>(
                 "Divide",
                 std::vector<ExprPtr>{numerator, denominator});
         }
         if (const auto* unary = node->as<UnaryOpNode>()) {
+            if (const auto* integer = unary->operand->as<IntegerLiteralNode>();
+                integer != nullptr && unary->op == UnaryOperator::minus &&
+                true) {
+                return lower_integer_literal("-" + integer->decimal_text, node->span);
+            }
+
             auto operand = lower_node(unary->operand);
             if (operand == nullptr) {
                 return nullptr;
@@ -187,19 +242,18 @@ private:
             }
 
             if (call->callee == "Rational" && arguments.size() == 2) {
-                int64_t numerator = 0;
-                int64_t denominator = 0;
-                if (is_integer_number(arguments[0], numerator) &&
-                    is_integer_number(arguments[1], denominator)) {
-                    return make_rational_preserving_signs(numerator, denominator);
+                const auto numerator = exact_integer_from_expr(arguments[0]);
+                const auto denominator = exact_integer_from_expr(arguments[1]);
+                if (numerator.has_value() && denominator.has_value()) {
+                    return make_rational_preserving_signs(*numerator, *denominator);
                 }
             }
 
             if (call->callee == "Complex" && arguments.size() == 2) {
-                const auto* real = std::get_if<Number>(arguments[0].get());
-                const auto* imag = std::get_if<Number>(arguments[1].get());
-                if (real != nullptr && imag != nullptr) {
-                    return make_expr<Complex>(real->value, imag->value);
+                const auto real = finite_double_from_expr(arguments[0]);
+                const auto imag = finite_double_from_expr(arguments[1]);
+                if (real.has_value() && imag.has_value()) {
+                    return make_expr<Complex>(*real, *imag);
                 }
             }
 
@@ -304,7 +358,7 @@ private:
             return make_expr<Number>(-number->value);
         }
         if (const auto* rational = std::get_if<Rational>(operand.get())) {
-            return make_exact_rational(-rational->numerator, rational->denominator);
+            return make_exact_scalar_expr(-rational->exact());
         }
         if (std::holds_alternative<Symbol>(*operand)) {
             return make_expr<FunctionCall>(
@@ -324,10 +378,10 @@ private:
         }
 
         if (op == BinaryOperator::divide) {
-            int64_t numerator = 0;
-            int64_t denominator = 0;
-            if (is_integer_number(left, numerator) && is_integer_number(right, denominator)) {
-                return make_exact_rational(numerator, denominator);
+            const auto numerator = exact_integer_from_expr(left);
+            const auto denominator = exact_integer_from_expr(right);
+            if (numerator.has_value() && denominator.has_value()) {
+                return make_exact_rational(*numerator, *denominator);
             }
         }
 
@@ -359,10 +413,10 @@ private:
         if (const auto* call = std::get_if<FunctionCall>(expr.get())) {
             if (call->head == "Plus") {
                 if (call->args.size() == 2) {
-                    const auto real = std::get_if<Number>(call->args[0].get());
+                    const auto real = finite_double_from_expr(call->args[0]);
                     auto imag = imaginary_coefficient(call->args[1]);
-                    if (real != nullptr && imag.has_value()) {
-                        return make_expr<Complex>(real->value, *imag);
+                    if (real.has_value() && imag.has_value()) {
+                        return make_expr<Complex>(*real, *imag);
                     }
                 }
             }
@@ -389,9 +443,17 @@ private:
             number != nullptr && is_imaginary_unit(call->args[1])) {
             return number->value;
         }
+        if (const auto value = finite_double_from_expr(call->args[0]);
+            value.has_value() && is_imaginary_unit(call->args[1])) {
+            return *value;
+        }
         if (const auto* number = std::get_if<Number>(call->args[1].get());
             number != nullptr && is_imaginary_unit(call->args[0])) {
             return number->value;
+        }
+        if (const auto value = finite_double_from_expr(call->args[1]);
+            value.has_value() && is_imaginary_unit(call->args[0])) {
+            return *value;
         }
         return std::nullopt;
     }

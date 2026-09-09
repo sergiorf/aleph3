@@ -3,9 +3,7 @@
 #include "evaluator/EvaluatorErrors.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <limits>
-#include <numeric>
 
 namespace aleph3 {
 
@@ -223,41 +221,34 @@ int exact_degree_in_variable(
     return degree;
 }
 
-int64_t coefficient_denominator_lcm(const ExactPolynomial& polynomial) {
-    int64_t result = 1;
+kernel::ExactInteger coefficient_denominator_lcm(const ExactPolynomial& polynomial) {
+    kernel::ExactInteger result(1);
     for (const auto& [_, coefficient] : polynomial.terms) {
-        const int64_t common = std::gcd(result, coefficient.denominator);
-        result = checked_exact_multiply(result / common, coefficient.denominator);
+        const kernel::ExactInteger common = kernel::gcd(result, coefficient.denominator());
+        result = (result / common) * coefficient.denominator();
     }
     return result;
 }
 
-int64_t checked_abs_int64(int64_t value) {
-    if (value == std::numeric_limits<int64_t>::min()) {
-        throw std::overflow_error("Exact coefficient overflow");
-    }
-    return std::llabs(value);
-}
-
-int64_t integer_content(const ExactPolynomial& polynomial) {
-    int64_t result = 0;
+kernel::ExactInteger integer_content(const ExactPolynomial& polynomial) {
+    kernel::ExactInteger result(0);
     for (const auto& [_, coefficient] : polynomial.terms) {
         if (coefficient.is_zero()) continue;
-        if (coefficient.denominator != 1) {
+        if (!coefficient.is_integer()) {
             throw_internal_inconsistency("Integer content requires cleared exact coefficients");
         }
-        const int64_t abs_numerator = checked_abs_int64(coefficient.numerator);
-        result = result == 0 ? abs_numerator : std::gcd(result, abs_numerator);
+        const kernel::ExactInteger abs_numerator = kernel::abs(coefficient.numerator());
+        result = result.is_zero() ? abs_numerator : kernel::gcd(result, abs_numerator);
     }
-    return result == 0 ? 1 : result;
+    return result.is_zero() ? kernel::ExactInteger(1) : result;
 }
 
 ExactPolynomial divide_by_integer_content(
     ExactPolynomial polynomial,
-    int64_t content) {
-    if (content <= 1) return polynomial;
+    const kernel::ExactInteger& content) {
+    if (content <= kernel::ExactInteger(1)) return polynomial;
     for (auto& [_, coefficient] : polynomial.terms) {
-        coefficient = coefficient / ExactCoefficient(content, 1);
+        coefficient = coefficient / ExactCoefficient(content, kernel::ExactInteger(1));
     }
     polynomial.normalize();
     return polynomial;

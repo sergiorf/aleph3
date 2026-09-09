@@ -13,6 +13,14 @@ The SDK exposes the kernel through host-controlled contracts:
 The SDK does not implement a second evaluator. Validated formulas are lowered
 to the same kernel expression model used by symbolic tools.
 
+The public SDK value model remains intentionally narrower than the symbolic
+expression model. `ValueType::number`, `Value(double)`, and `Value::as_number`
+represent finite machine-real host values. The SDK v1 boundary does not expose
+arbitrary-precision `Integer` or `Rational` values as host-visible `Value`
+variants. Symbolic/session consumers carry those exact values as canonical
+text; SDK formulas either produce a representable machine number or return a
+structured runtime error such as `sdk.value_not_representable`.
+
 ## Compile Once, Evaluate With Bindings
 
 A normal workflow constructs an engine, schema, and policy, compiles source,
@@ -69,7 +77,8 @@ source validation cannot predict.
 
 The SDK trusted subset is intentionally narrower than the symbolic session. It
 does not expose assignments, rewrite rules, user definitions, polynomial
-commands, or symbolic fallback as host-visible runtime values.
+commands, arbitrary-precision exact scalar host values, or symbolic fallback as
+host-visible runtime values.
 
 ## Host Functions
 

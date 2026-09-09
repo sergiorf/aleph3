@@ -103,8 +103,10 @@ aleph3_cli script --json calculations.aleph3
 One session is shared across the file, failures do not stop later lines, and
 the process exits with `2` if any expression fails. JSON mode emits one compact
 object per submitted line with its line number, source, status, canonical
-output, and unchanged session diagnostics. Scripts are limited to 8 MiB and
-individual lines to 1 MiB; comments and multiline expressions are unsupported.
+output, and unchanged session diagnostics. The `output` field is a JSON string
+containing canonical text, so large exact integers and rationals are not
+coerced into JSON numbers. Scripts are limited to 8 MiB and individual lines
+to 1 MiB; comments and multiline expressions are unsupported.
 
 ## Headless Notebook Foundation
 
@@ -121,8 +123,10 @@ failed input records its session diagnostics without preventing later inputs
 from running. Generated results retain canonical plain text and current
 diagnostic codes/messages. The core saves and loads bounded UTF-8 JSON v1
 documents, including optional cached results marked with their producer
-version. Loading preserves cached results as data and never evaluates source;
-rerunning the notebook replaces the cache from a fresh session.
+version. Cached `output` values are JSON strings containing canonical text,
+including arbitrary-size exact integers and rationals. Loading preserves
+cached results as data and never evaluates source; rerunning the notebook
+replaces the cache from a fresh session.
 
 Saves validate first, write beside the destination, and atomically replace the
 old file using the supported platform API. A failed validation, write, or
@@ -179,7 +183,8 @@ operation:
 ```
 
 A successful evaluation response contains canonical plain text and the current
-session diagnostics array:
+session diagnostics array. `canonicalText` is a JSON string, not a numeric JSON
+atom, so exact symbolic results keep their full canonical text:
 
 ```json
 {
@@ -356,8 +361,8 @@ The BFF validates browser JSON, forwards evaluation to the engine, and maps
 engine failures into public JSON error envelopes. It does not parse,
 evaluate, simplify, or maintain symbolic help catalogs. The React/Vite
 frontend creates a session, sends input source to the BFF, and renders
-canonical plain text plus diagnostics. Running `1/2 + 1/3` through the browser
-should display `5/6`.
+canonical plain text plus diagnostics. Exact results are transported as
+canonical text. Running `1/2 + 1/3` through the browser should display `5/6`.
 
 The production-like Compose graph routes `/` to the frontend and `/api/*` to
 the BFF through Traefik. The engine and Postgres services are internal-only in

@@ -117,6 +117,22 @@ classDiagram
     Engine --> HostFunctionSpec
 ```
 
+## Numeric Boundary
+
+The SDK v1 host-value model exposes `ValueType::number`, `Value(double)`, and
+`Value::as_number()` as finite machine-real values. It does not expose kernel
+`Integer`, `Rational`, `ExactInteger`, `ExactRational`, or symbolic
+expressions as public `Value` alternatives. This keeps the trusted embedding
+surface independent from kernel expression storage.
+
+Validated SDK formulas still execute through the kernel. When a kernel result
+can be represented by the SDK v1 value model, evaluation returns the matching
+`Value`. When the result is an exact scalar or other expression that cannot be
+represented at that boundary, evaluation fails with a structured runtime error
+instead of silently rounding or returning an empty result. Oversized decimal
+integer source remains rejected during SDK parsing/lowering with
+`frontend.parser.integer_out_of_range`.
+
 ## Stable Design Rules
 
 - Host applications must not depend on internal symbolic AST types such as `Expr`.
@@ -146,12 +162,16 @@ classDiagram
 - The same compiled formula may evaluate differently across engines because
   host-function registration remains engine-scoped.
 - Evaluate executes the trusted subset for literals, bindings, arithmetic, comparisons, `If`, and registered host calls.
+- SDK numeric host values are finite machine reals; arbitrary-precision exact
+  integers and rationals are not public SDK `Value` variants in v1.
 - Optional built-ins can be enabled by policy for `Abs`, `Min`, `Max`, `Clamp`, `Floor`, `Ceil`/`Ceiling`, `Round`, and `Sqrt`.
 - Schema-valued constants can participate in validation and runtime evaluation without host bindings.
 - Non-finite numeric arithmetic inputs/results fail with structured runtime errors instead of leaking raw floating-point behavior.
 - Numeric equality and ordering reject non-finite inputs instead of exposing raw floating-point comparison behavior.
 - Invalid numeric power domains such as `0 ^ 0` and negative-base fractional powers fail with structured runtime errors.
 - Built-in numeric domain failures such as `Sqrt[-1]` or `Clamp[x, high, low]` fail with structured runtime errors.
+- Kernel results outside the SDK value model fail with
+  `sdk.value_not_representable`.
 - Zero-valued numeric results are canonicalized to positive zero for deterministic output behavior.
 - Equality comparisons require comparable concrete value types and reject mixed-type equality.
 - Registered host functions enforce arity/parameter metadata at registration and argument/return contracts at runtime.

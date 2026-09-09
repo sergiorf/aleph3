@@ -191,6 +191,27 @@ TEST_CASE("Notebook JSON persistence round trips cells and cached diagnostics", 
     REQUIRE_FALSE(decoded.results[0].producer_version.empty());
 }
 
+TEST_CASE("Notebook JSON persistence preserves large exact cached outputs as text", "[notebook][persistence][exact]") {
+    auto document = make_document({
+        {"large-integer", CellKind::input, "9223372036854775808 + 1"},
+        {"large-rational", CellKind::input, "1/9223372036854775808"}});
+    Runner{}.run_all(document);
+
+    REQUIRE(document.results.size() == 2);
+    REQUIRE(document.results[0].output == "9223372036854775809");
+    REQUIRE(document.results[1].output == "1/9223372036854775808");
+
+    const auto encoded = aleph3::notebook::encode_document(document);
+    REQUIRE(encoded.find(R"("output": "9223372036854775809")") != std::string::npos);
+    REQUIRE(encoded.find(R"("output": "1/9223372036854775808")") != std::string::npos);
+    REQUIRE(encoded.find(R"("output": 9223372036854775809)") == std::string::npos);
+
+    const auto decoded = aleph3::notebook::decode_document(encoded);
+    REQUIRE(decoded.results.size() == 2);
+    REQUIRE(decoded.results[0].output == "9223372036854775809");
+    REQUIRE(decoded.results[1].output == "1/9223372036854775808");
+}
+
 TEST_CASE("Notebook JSON loading preserves cached results without evaluating source", "[notebook][persistence][session]") {
     const auto decoded = aleph3::notebook::decode_document(
         R"({"format":"aleph3-notebook","version":1,"cells":[{"id":"define","kind":"input","source":"a = 2"},{"id":"use","kind":"input","source":"a + 3"}],"results":[{"source_cell_id":"use","ok":true,"output":"stale cached output","diagnostics":[],"producer_version":"old"}]})");

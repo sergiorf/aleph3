@@ -70,6 +70,21 @@ TEST_CASE("Engine API evaluates through the shared symbolic session", "[web][eng
     REQUIRE(algebra.at("result").at("canonicalText").get<std::string>().find("x - 1") != std::string::npos);
 }
 
+TEST_CASE("Engine API returns large exact results as canonical text strings", "[web][engine][session][exact]") {
+    Harness harness;
+    const auto session_id = harness.create_session();
+
+    const auto integer = body_json(harness.evaluate(session_id, "9223372036854775808 + 1"));
+    REQUIRE(integer.at("result").at("status") == "ok");
+    REQUIRE(integer.at("result").at("canonicalText").is_string());
+    REQUIRE(integer.at("result").at("canonicalText") == "9223372036854775809");
+
+    const auto rational = body_json(harness.evaluate(session_id, "1/9223372036854775808"));
+    REQUIRE(rational.at("result").at("status") == "ok");
+    REQUIRE(rational.at("result").at("canonicalText").is_string());
+    REQUIRE(rational.at("result").at("canonicalText") == "1/9223372036854775808");
+}
+
 TEST_CASE("Engine API exposes reset without unloading registered packs", "[web][engine][reset]") {
     Harness harness;
     const auto session_id = harness.create_session();

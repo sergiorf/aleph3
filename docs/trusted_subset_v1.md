@@ -61,6 +61,10 @@ Notes:
 
 - Internally the runtime may represent values however it wants.
 - Public SDK behavior should expose a clean value model, not symbolic AST detail.
+- SDK `number` values are finite machine-real host values. Kernel exact
+  `Integer` and `Rational` expressions are not public SDK value variants in
+  v1; results that cannot be represented by the SDK value model fail with a
+  structured runtime error such as `sdk.value_not_representable`.
 
 ## Supported Syntax
 
@@ -81,6 +85,8 @@ Notes:
   current SDK number model, and reports `frontend.parser.integer_out_of_range`
   otherwise.
 - Decimal floating-point literals remain machine-number input.
+- Symbolic/session parsing accepts arbitrary-size exact integer literals, but
+  trusted-subset SDK lowering keeps the bounded host-number boundary in v1.
 - Unary minus is part of expression syntax, not a separate numeric token
   requirement.
 - String escaping support may be minimal in v1, but whatever is supported must

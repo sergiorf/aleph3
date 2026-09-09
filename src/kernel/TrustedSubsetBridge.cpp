@@ -64,6 +64,15 @@ std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
     return std::nullopt;
 }
 
+EvaluationResult value_not_representable() {
+    EvaluationResult result;
+    result.error = RuntimeError{
+        "sdk.value_not_representable",
+        "The kernel result cannot be represented by the SDK v1 Value model.",
+        std::nullopt};
+    return result;
+}
+
 ExprPtr sdk_value_to_expr(const Value& value) {
     if (const auto* number = value.as_number()) {
         return make_expr<Number>(*number);
@@ -139,7 +148,7 @@ EvaluationResult evaluate_trusted_subset_formula(
             return result;
         }
 
-        return {};
+        return value_not_representable();
     } catch (const RuntimeFailure& failure) {
         EvaluationResult result;
         result.error = failure.error();

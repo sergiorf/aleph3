@@ -70,6 +70,15 @@ std::optional<Value> expr_to_sdk_value(const ExprPtr& expr) {
     return std::nullopt;
 }
 
+EvaluationResult value_not_representable() {
+    EvaluationResult result;
+    result.error = RuntimeError{
+        "sdk.value_not_representable",
+        "The kernel result cannot be represented by the SDK v1 Value model.",
+        std::nullopt};
+    return result;
+}
+
 ExprPtr sdk_value_to_expr(const Value& value) {
     if (const auto* number = value.as_number()) {
         return make_expr<Number>(*number);
@@ -142,7 +151,7 @@ EvaluationResult evaluate_direct_kernel_expr(
             return result;
         }
 
-        return {};
+        return value_not_representable();
     } catch (const kernel::RuntimeFailure& failure) {
         EvaluationResult result;
         result.error = failure.error();
@@ -361,6 +370,31 @@ TEST_CASE("Engine evaluate reports runtime errors for compiled formulas", "[sdk]
     REQUIRE_FALSE(overflow_power_result.ok());
     REQUIRE(overflow_power_result.error.has_value());
     REQUIRE(overflow_power_result.error->code == "runtime.invalid_numeric_result");
+}
+
+TEST_CASE("Trusted subset bridge reports unrepresentable exact kernel results", "[sdk][engine][kernel][exact]") {
+    const auto large = kernel::ExactInteger::from_decimal_string(
+        std::string("1") + std::string(400, '0'));
+
+    const auto result = kernel::evaluate_trusted_subset_formula(
+        make_expr<Integer>(large),
+        {},
+        {},
+        {},
+        Policy::default_policy());
+
+    REQUIRE_FALSE(result.ok());
+    REQUIRE_FALSE(result.value.has_value());
+    REQUIRE(result.error.has_value());
+    REQUIRE(result.error->code == "sdk.value_not_representable");
+
+    const auto direct_result = evaluate_direct_kernel_expr(
+        make_expr<Integer>(large),
+        {},
+        {},
+        {},
+        Policy::default_policy());
+    require_same_evaluation_result(result, direct_result);
 }
 
 TEST_CASE("Engine validate reports schema and policy failures with structured diagnostics", "[sdk][engine]") {

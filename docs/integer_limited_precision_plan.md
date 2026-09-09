@@ -861,6 +861,23 @@ Verification:
 
 ### Slice 8: Cross-Surface Compatibility And SDK Exposure
 
+Status: complete.
+
+Completion notes:
+
+- kept the SDK v1 public host-value model bounded to finite machine `number`,
+  `boolean`, `string`, and list values rather than adding public exact-scalar
+  variants;
+- added a stable `sdk.value_not_representable` runtime error when a kernel
+  exact result cannot be represented by the SDK v1 `Value` model;
+- preserved symbolic/session, CLI JSON, notebook cached-result, web API, and
+  internal engine API transport of arbitrary-size exact values as canonical
+  text strings;
+- added regression coverage proving large exact integer and rational outputs
+  are not coerced into JSON numbers at existing text-based public boundaries;
+- documented which consumers carry arbitrary-size exact values and which
+  intentionally remain bounded.
+
 Behavior delivered:
 
 - settle exact scalar exposure through SDK schemas, host values, JSON, CLI

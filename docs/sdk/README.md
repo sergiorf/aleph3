@@ -9,6 +9,9 @@ The SDK is a supported embedding surface, not the planned desktop product and
 not a semantic layer above the kernel. Notebook symbolic cells may use the
 session/kernel path directly; host applications use the SDK when they need
 schemas, policies, trusted-subset validation, and host-value conversion.
+The SDK v1 host-value model keeps numeric values as finite machine `double`
+values; arbitrary-precision exact symbolic integers and rationals remain
+kernel/session values and are not public SDK `Value` variants.
 
 The surviving host-facing SDK surface is:
 
@@ -30,6 +33,8 @@ The surviving host-facing SDK surface is:
 - Signed-zero numeric results normalized to positive zero
 - Mixed-type equality rejected as a type error
 - Numeric comparisons reject `NaN` and infinities with structured runtime errors
+- Kernel results that cannot be represented by the SDK v1 value model return
+  `sdk.value_not_representable` instead of being rounded or dropped
 - Optional SDK numeric built-ins: `Abs`, `Min`, `Max`, `Clamp`, `Floor`, `Ceil`/`Ceiling`, `Round`, `Sqrt`
 - Reusable `CompiledFormula` creation through `Engine::compile()`
 - Trusted-subset kernel-backed evaluation through `Engine::evaluate()`

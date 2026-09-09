@@ -41,7 +41,7 @@ architecture.
 | Kernel and engine structure | [Architecture](architecture.md), [Kernel design](kernel_design_spec.md), [execution bridge](kernel_execution_bridge_spec.md) |
 | Symbols | [Symbol model](kernel_symbol_model_spec.md), [definition precedence](kernel_symbol_definition_precedence.md), [attributes](kernel_attribute_spec.md), [variable analysis](kernel_variable_analysis_spec.md), [list and structural operations](kernel_list_structural_spec.md) |
 | Rewriting | [Rewrite specification](kernel_rewrite_spec.md) |
-| Exact mathematics | [Exact algebra](kernel_exact_algebra_spec.md), [integer limited-precision remediation plan](integer_limited_precision_plan.md), [supported algebra subset](algebra_supported_subset.md), [algebra equivalence](algebra_equivalence_spec.md), [dense matrices](algebra_dense_matrix_spec.md), [focused differentiation](calculus_differentiation_spec.md) |
+| Exact mathematics | [Exact algebra](kernel_exact_algebra_spec.md), [supported algebra subset](algebra_supported_subset.md), [algebra equivalence](algebra_equivalence_spec.md), [dense matrices](algebra_dense_matrix_spec.md), [focused differentiation](calculus_differentiation_spec.md) |
 | Assumptions | [Assumptions specification](kernel_assumptions_spec.md) |
 | Registration | [Registration lifecycle](kernel_registration_lifecycle_spec.md) |
 | Quality | [Feature development workflow](feature_development_workflow.md), [contract test matrix](contract_test_matrix.md), [header documentation guideline](header_documentation_guideline.md) |
@@ -52,6 +52,9 @@ architecture.
 - **Guide** documents teach readers how the system fits together.
 - **Specification** documents state testable current contracts and limits.
 - **Plan** documents track unfinished work and sequencing.
+- **Archive** documents under [docs/archive](archive/README.md) preserve completed
+  implementation plans that are no longer canonical current-behavior
+  references.
 
 A specification should link to architecture terminology rather than reproduce
 it. A plan may point at a specification, but does not override it. When code,

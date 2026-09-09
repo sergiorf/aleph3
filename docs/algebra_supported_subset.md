@@ -376,7 +376,7 @@ Supported basis shapes for like-term collection are:
 Where:
 
 - each basis factor is a symbol or a supported numeric power of a symbol
-- `c` is `Number` or `Rational`
+- `c` is an exact `Integer`, exact `Rational`, or machine `Real`
 - `n` is a supported numeric exponent
 
 This layer is intentionally not a general polynomial collector. It combines

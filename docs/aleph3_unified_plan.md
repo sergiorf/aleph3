@@ -151,10 +151,9 @@ contracts rather than a floating-point-centered legacy path.
 
 Remaining work:
 
-- introduce or finish exact coefficient-ring abstractions and a documented
-  large-integer/overflow strategy; use the
-  [integer limited-precision remediation plan](integer_limited_precision_plan.md)
-  as the current implementation plan for that work;
+- continue exact coefficient-ring abstractions beyond the completed
+  [integer limited-precision remediation plan](archive/integer_limited_precision_plan.md)
+  where future algebra algorithms require them;
 - remove growth-facing dependence on `double` polynomial internals;
 - deepen exact multivariate division, GCD, and factorization only in that
   order, with explicit monomial ordering and canonical-form invariants;

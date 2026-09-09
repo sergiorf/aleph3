@@ -138,8 +138,8 @@ rewrite system.
 
 The narrow kernel-owned symbolic coefficient rewrite contract remains separate
 from full exact polynomial algebra. Like-term collection for structurally
-identical symbolic bodies with numeric or exact-rational scalar coefficients
-may proceed without requiring this full exact polynomial layer. Algebra-heavy
+identical symbolic bodies with supported numeric scalar coefficients may
+proceed without requiring this full exact polynomial layer. Algebra-heavy
 transformations such as polynomial division, GCD, factoring, rational-expression
 cancellation, symbolic coefficient collection, and future solving/equivalence
 helpers must use explicit exact-algebra contracts instead of broad rewrite

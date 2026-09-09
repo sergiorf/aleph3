@@ -1,5 +1,9 @@
 # Integer Limited-Precision Remediation Plan
 
+Status: archived completed implementation plan. Current exact-scalar behavior
+is owned by the exact algebra, algebra supported-subset, dense-matrix, SDK, and
+manual documents linked from the documentation index.
+
 ## Goal
 
 Aleph3 should preserve exact integer and rational meaning for supported
@@ -40,17 +44,17 @@ Current contracts and implementation show three separate precision issues:
 
 Relevant current documents:
 
-- [Unified Plan](aleph3_unified_plan.md), especially Exact Algebra Depth and
+- [Unified Plan](../aleph3_unified_plan.md), especially Exact Algebra Depth and
   Bounded Numerical and Finite Data MVP.
-- [Feature Development Workflow](feature_development_workflow.md).
-- [Architecture](architecture.md), which owns the expression representation
+- [Feature Development Workflow](../feature_development_workflow.md).
+- [Architecture](../architecture.md), which owns the expression representation
   overview and must be updated when `Expr` grows new numeric alternatives.
-- [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md).
-- [Algebra Supported Subset](algebra_supported_subset.md).
-- [Exact Dense-Matrix Specification](algebra_dense_matrix_spec.md).
-- [Expressions And Evaluation](manual/expressions-and-evaluation.md).
-- [Trusted Subset](trusted_subset_v1.md) and
-  [SDK Stable Interfaces](sdk/stable_interfaces.md) for SDK compatibility.
+- [Kernel Exact Algebra Spec](../kernel_exact_algebra_spec.md).
+- [Algebra Supported Subset](../algebra_supported_subset.md).
+- [Exact Dense-Matrix Specification](../algebra_dense_matrix_spec.md).
+- [Expressions And Evaluation](../manual/expressions-and-evaluation.md).
+- [Trusted Subset](../trusted_subset_v1.md) and
+  [SDK Stable Interfaces](../sdk/stable_interfaces.md) for SDK compatibility.
 
 Likely implementation entry points:
 
@@ -195,7 +199,7 @@ Tests:
 
 Documentation:
 
-- update [Expressions And Evaluation](manual/expressions-and-evaluation.md)
+- update [Expressions And Evaluation](../manual/expressions-and-evaluation.md)
   and exact algebra docs only for clarified current behavior;
 - keep arbitrary precision labeled as planned, not shipped.
 
@@ -251,7 +255,7 @@ Tests:
 
 Documentation:
 
-- update [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md) with the new
+- update [Kernel Exact Algebra Spec](../kernel_exact_algebra_spec.md) with the new
   internal scalar module while stating that public expressions still have the
   old bounded storage until later slices.
 
@@ -309,8 +313,8 @@ Tests:
 
 Documentation:
 
-- update [Trusted Subset](trusted_subset_v1.md) and
-  [Expressions And Evaluation](manual/expressions-and-evaluation.md) for the
+- update [Trusted Subset](../trusted_subset_v1.md) and
+  [Expressions And Evaluation](../manual/expressions-and-evaluation.md) for the
   frontend distinction between exact integers and machine reals.
 
 Verification:
@@ -460,8 +464,8 @@ Tests:
 Documentation:
 
 - add the expression taxonomy decision to
-  [Architecture](architecture.md) and
-  [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md).
+  [Architecture](../architecture.md) and
+  [Kernel Exact Algebra Spec](../kernel_exact_algebra_spec.md).
 
 Verification:
 
@@ -496,10 +500,10 @@ Tests:
 
 Documentation:
 
-- update [Expressions And Evaluation](manual/expressions-and-evaluation.md)
+- update [Expressions And Evaluation](../manual/expressions-and-evaluation.md)
   to remove the pre-slice symbolic lowering limitation while keeping the SDK
   boundary explicit;
-- update [Trusted Subset](trusted_subset_v1.md) only to clarify that the SDK
+- update [Trusted Subset](../trusted_subset_v1.md) only to clarify that the SDK
   public host-number range remains bounded in this slice.
 
 Verification:
@@ -541,8 +545,8 @@ Tests:
 
 Documentation:
 
-- update [Built-in Functions](manual/built-in-functions.md),
-  [Concepts And Terminology](manual/concepts-and-terminology.md), and help
+- update [Built-in Functions](../manual/built-in-functions.md),
+  [Concepts And Terminology](../manual/concepts-and-terminology.md), and help
   entries for `Head`, predicates, `N`, and numeric exactness notes.
 
 Verification:
@@ -785,11 +789,11 @@ Tests:
 
 Documentation:
 
-- update [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md),
-  [Algebra Supported Subset](algebra_supported_subset.md), and
-  [packs-algebra manual](manual/packs-algebra.md);
+- update [Kernel Exact Algebra Spec](../kernel_exact_algebra_spec.md),
+  [Algebra Supported Subset](../algebra_supported_subset.md), and
+  [packs-algebra manual](../manual/packs-algebra.md);
 - document the user-visible exact-algebra feature in
-  [packs-algebra manual](manual/packs-algebra.md), including runnable examples
+  [packs-algebra manual](../manual/packs-algebra.md), including runnable examples
   for large integer coefficients, large rational coefficients, and the
   exact/inexact boundary for decimal inputs;
 - define "budget case" behavior in the algebra manual and focused specs: a
@@ -850,8 +854,8 @@ Tests:
 
 Documentation:
 
-- update [Exact Dense-Matrix Specification](algebra_dense_matrix_spec.md) and
-  [packs-algebra manual](manual/packs-algebra.md).
+- update [Exact Dense-Matrix Specification](../algebra_dense_matrix_spec.md) and
+  [packs-algebra manual](../manual/packs-algebra.md).
 
 Verification:
 
@@ -918,6 +922,19 @@ Verification:
 - full `ctest --test-dir build -C Release --output-on-failure`.
 
 ### Slice 9: Documentation And Compatibility Cleanup
+
+Status: complete.
+
+Completion notes:
+
+- audited docs, focused specifications, SDK docs, and help text for stale
+  checked-`int64_t` product claims after the exact scalar migration;
+- aligned the symbolic coefficient wording with the current public numeric
+  taxonomy: exact `Integer`, exact `Rational`, and machine `Real`;
+- left SDK v1 host-value boundaries explicit: arbitrary-precision exact
+  scalars remain kernel expressions and are not public SDK `Value` variants;
+- updated the Unified Plan so this remediation plan is no longer described as
+  active implementation work for the large-integer strategy.
 
 Behavior delivered:
 

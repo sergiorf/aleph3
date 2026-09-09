@@ -295,8 +295,8 @@ Current product-contract boundaries for those two upper layers are:
 
 - symbolic coefficient layer:
   supported basis class is structural monomials such as `x`, `x^n`, `c*x`,
-  `c*x^n`, `x*y`, and `c*x^m*y^n`, with `c` restricted to `Number` or
-  `Rational`
+  `c*x^n`, `x*y`, and `c*x^m*y^n`, with `c` restricted to an exact
+  `Integer`, exact `Rational`, or machine `Real`
 - algebra-aware layer:
   supported exponent class is exact-integer exponent accumulation on
   structurally identical non-list bases in normalized `Times` plus nested

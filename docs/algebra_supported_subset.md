@@ -45,10 +45,11 @@ explicitly rather than silently approximating or partially rewriting.
 ## Exact Dense Matrices
 
 Matrices use nested lists at the expression boundary and an algebra-owned
-row-major value type internally. The supported 4,096-element exact surface
-includes shape-checked addition and multiplication, identity construction,
-transpose, determinant, reduced row-echelon form, and unique square-system
-solving. See the [dense-matrix specification](algebra_dense_matrix_spec.md).
+row-major value type internally. Exact integer and rational entries use the
+shared arbitrary-precision scalar model. The supported 4,096-element exact
+surface includes shape-checked addition and multiplication, identity
+construction, transpose, determinant, reduced row-echelon form, and unique
+square-system solving. See the [dense-matrix specification](algebra_dense_matrix_spec.md).
 
 Symbolic, decimal, complex, empty, sparse, and arbitrary-rank inputs remain
 unsupported. Matrix operations never reinterpret scalar `Plus` or `Times`.

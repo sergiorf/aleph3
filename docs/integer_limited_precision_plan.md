@@ -751,8 +751,9 @@ Completion notes:
   polynomial helpers, rational-expression helpers, low-level coefficient
   arithmetic, denominator LCM/content helpers, and the factorization budget
   boundary;
-- public dense-matrix entry parsing remains bounded for Slice 7, although the
-  shared internal coefficient type can now represent larger exact entries.
+- public dense-matrix entry parsing remained bounded until Slice 7, although
+  the shared internal coefficient type could already represent larger exact
+  entries.
 
 Behavior delivered:
 
@@ -805,6 +806,26 @@ Verification:
 - CLI examples from the algebra manual.
 
 ### Slice 7: Exact Dense Matrices
+
+Status: complete.
+
+Completion notes:
+
+- removed the public dense-matrix entry adapter's native integer ceiling by
+  constructing `ExactCoefficient` values directly from exact `Integer` and
+  `Rational` expressions;
+- preserved exact-only entry validation: decimal machine reals, symbolic
+  values, complex values, ragged matrices, invalid shapes, singular systems,
+  and oversized matrices continue using the documented diagnostics;
+- preserved the existing 4,096-element matrix limit, `IdentityMatrix[1..64]`
+  bound, and shared evaluation-step charging for multiplication and
+  elimination;
+- added public pack regression coverage for large exact determinants,
+  multiplication, row reduction, and linear solving through the evaluator
+  path;
+- no separate scalar-size budget was introduced in this slice; exact scalar
+  operations continue to use the shared exact-scalar model and matrix growth
+  remains bounded by existing shape and step budgets.
 
 Behavior delivered:
 

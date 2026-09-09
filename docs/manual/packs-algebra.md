@@ -277,9 +277,8 @@ Equivalent[Sqrt[x^2], x]                         -> Unknown
 ## Exact Dense Matrices
 
 Matrices are written as rectangular nested lists. The algebra pack validates
-their shape and computes with exact integers and rationals. Public matrix
-entry parsing still uses a bounded native adapter pending the exact
-dense-matrix migration slice.
+their shape and computes with exact integers and rationals using the shared
+arbitrary-precision exact scalar model.
 
 ```text
 MatrixAdd[{{1, 1/2}, {2, 3}}, {{4, 1/2}, {5, 6}}] -> {{5, 1}, {7, 9}}
@@ -289,6 +288,8 @@ Transpose[{{1, 2, 3}, {4, 5, 6}}]                  -> {{1, 4}, {2, 5}, {3, 6}}
 Det[{{1, 2}, {3, 4}}]                              -> -2
 RowReduce[{{1, 2}, {3, 4}}]                        -> {{1, 0}, {0, 1}}
 LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]             -> {2, 1}
+Det[{{9223372036854775808, 1}, {0, 1}}]            -> 9223372036854775808
+RowReduce[{{9223372036854775808, 1}}]              -> {{1, 1/9223372036854775808}}
 ```
 
 Rows must be non-empty and equally sized. A matrix may contain at most 4,096

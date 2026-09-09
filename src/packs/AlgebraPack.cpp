@@ -9,7 +9,6 @@
 #include "expr/ExprUtils.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <functional>
 #include <limits>
 #include <set>
@@ -31,25 +30,10 @@ using ExactMatrix = algebra::DenseMatrix<ExactCoefficient>;
 
 ExactCoefficient exact_matrix_scalar(const ExprPtr& expr) {
     if (const auto* integer = std::get_if<Integer>(expr.get())) {
-        const auto bounded = integer->value.to_int64();
-        if (!bounded.has_value()) {
-            throw std::overflow_error("Exact coefficient overflow");
-        }
-        return ExactCoefficient(*bounded, 1);
+        return ExactCoefficient(integer->value, kernel::ExactInteger(1));
     }
     if (const auto* rational = std::get_if<Rational>(expr.get())) {
-        const auto bounded = rational->exact().to_bounded();
-        if (!bounded.has_value()) {
-            throw std::overflow_error("Exact coefficient overflow");
-        }
-        return ExactCoefficient(bounded->first, bounded->second);
-    }
-    if (const auto* number = std::get_if<Number>(expr.get())) {
-        if (std::isfinite(number->value) && std::trunc(number->value) == number->value &&
-            number->value >= static_cast<double>(std::numeric_limits<std::int64_t>::min()) &&
-            number->value <= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
-            return ExactCoefficient(static_cast<std::int64_t>(number->value), 1);
-        }
+        return ExactCoefficient(rational->exact());
     }
     kernel::throw_runtime_error(kernel::ErrorCode::unsupported_construct,
         "Matrices currently support exact integer and rational entries only");

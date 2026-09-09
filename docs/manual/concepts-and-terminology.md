@@ -477,8 +477,9 @@ kernel or a pack must be able to justify it from supported facts.
 A **dense matrix** is a rectangular rank-two array that stores every entry.
 Aleph3 writes matrices as nested lists such as `{{1, 2}, {3, 4}}`; the algebra
 pack validates that shape and converts it to a typed row-major value while it
-computes. This does not make every nested list a matrix or introduce a general
-tensor type.
+computes. Exact integer and rational entries use the shared arbitrary-precision
+scalar model. This does not make every nested list a matrix or introduce a
+general tensor type.
 
 ```text
 Det[{{1, 2}, {3, 4}}]  -> -2

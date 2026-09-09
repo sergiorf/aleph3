@@ -230,6 +230,12 @@ TEST_CASE("CLI evaluates exact matrix pack expressions", "[tooling][cli][matrix]
     const auto result = run_shell_command(make_direct_command(expression));
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output == "-2\n");
+
+    const auto large_expression =
+        std::string(1, char(34)) + "Det[{{9223372036854775808,1},{0,1}}]" + char(34);
+    const auto large_result = run_shell_command(make_direct_command(large_expression));
+    REQUIRE(large_result.exit_code == 0);
+    REQUIRE(large_result.output == "9223372036854775808\n");
 }
 
 TEST_CASE("CLI evaluates focused calculus pack expressions", "[tooling][cli][calculus]") {

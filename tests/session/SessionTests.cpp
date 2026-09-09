@@ -184,6 +184,8 @@ TEST_CASE("Session exposes variable dependency inspection values and diagnostics
 TEST_CASE("Session exposes exact matrix values and diagnostics", "[session][algebra][matrix]") {
     Session session;
     REQUIRE(session.execute({"Det[{{1, 2}, {3, 4}}]"}).output == "-2");
+    REQUIRE(session.execute({"Det[{{9223372036854775808, 1}, {0, 1}}]"}).output ==
+        "9223372036854775808");
     REQUIRE(session.execute({"LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]"}).output == "{2, 1}");
     const auto failure = session.execute({"MatrixMultiply[{{1, 2}}, {{1, 2}}]"});
     REQUIRE_FALSE(failure.ok);

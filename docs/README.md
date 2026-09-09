@@ -8,8 +8,9 @@ repeating its background.
 
 For the complete user journey, start with the
 [Aleph3 Manual](manual/README.md). It covers expressions, built-ins, rewriting,
-the SDK, packs, sessions, the CLI, and the notebook/web direction. The same
-sources can be [built as a PDF book](manual/README.md#build-the-pdf-book).
+the SDK, packs, sessions, the CLI, and the current notebook and paused web
+foundations. The same sources can be
+[built as a PDF book](manual/README.md#build-the-pdf-book).
 
 1. [Project README](../README.md) - build, run, and product orientation.
 2. [Architecture](architecture.md) - system shape and ownership boundaries,
@@ -23,10 +24,10 @@ sources can be [built as a PDF book](manual/README.md#build-the-pdf-book).
    including the Windows-first local notebook MVP.
 6. [Web MVP Launch Plan](web_mvp_launch_plan.md) - paused web launch scope,
    anonymous-user strategy, API shape, deployment phases, and acceptance gates
-   for a future web notebook.
+   for a possible future web notebook. It is not the active roadmap.
 7. [Web MVP Operations](web_mvp_operations.md) - local service, port,
-   Docker Compose, Traefik, and smoke-test procedures for the existing web
-   slice.
+   Docker Compose, Traefik, and smoke-test procedures for the existing paused
+   web slice.
 8. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
    public/private transition guidance.
 
@@ -51,7 +52,9 @@ architecture.
 
 - **Guide** documents teach readers how the system fits together.
 - **Specification** documents state testable current contracts and limits.
-- **Plan** documents track unfinished work and sequencing.
+- **Plan** documents track unfinished work and sequencing. A paused plan may
+  remain in the tree when it documents an implemented transitional surface or
+  an intentionally deferred product path.
 - **Archive** documents under [docs/archive](archive/README.md) preserve completed
   implementation plans that are no longer canonical current-behavior
   references.
@@ -67,3 +70,9 @@ Before adding a document, decide whether the material belongs in an existing
 guide, specification, or plan. Prefer a section and a stable anchor over a new
 top-level file. Keep historical discussion in Git history; keep the current
 tree focused on facts readers still need.
+
+Remove a document only when it is obsolete, unreferenced, and no longer useful
+as a canonical specification, current guide, active or paused plan, operational
+runbook, or archived implementation record. When a superseded document still
+explains a completed decision or migration, move it under `docs/archive/`
+instead of deleting it.

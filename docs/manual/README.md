@@ -1,9 +1,9 @@
 # The Aleph3 Manual
 
 This is the user-facing manual for Aleph3 and the source of the Aleph3 book.
-It explains the current CLI, kernel, SDK, packs, session model, and notebook
-foundations while preparing workflow documentation for the planned full
-notebook product.
+It explains the current CLI, kernel, SDK, packs, session model, headless
+notebook foundation, and paused web foundation without presenting planned
+product workflows as shipped behavior.
 
 Aleph3 is becoming a lightweight local symbolic notebook. Today the CLI makes
 the focused symbolic system interactive, the SDK embeds it in host
@@ -42,7 +42,7 @@ in the symbolic CLI REPL started with `aleph3_cli repl`. Output shown after
 
 Aleph3 already provides exact arithmetic, symbolic fallback, persistent
 session definitions, bounded rewriting, assumptions, polynomial algebra,
-focused differentiation, a headless notebook core, and the first web
+focused differentiation, a headless notebook core, and a paused first web
 evaluation path. The near-term product focus is the Windows-first local
 notebook. Aleph3 is not yet a broad general-purpose CAS. Unsupported forms are
 preserved or rejected according to documented contracts rather than

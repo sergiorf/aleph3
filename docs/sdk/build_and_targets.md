@@ -25,8 +25,8 @@ Related documents:
 | `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
 | `aleph3_pack_algebra` | library | Current polynomial implementation and registered algebra pack |
 | `aleph3_pack_calculus` | library | Current focused differentiation pack registered as `core-calculus` |
-| `aleph3_notebook_core` | library | Experimental notebook document model and session-backed `Run All` consumer |
-| `aleph3_web_api` | library | Experimental transport-independent web API core over anonymous clients and shared sessions |
+| `aleph3_notebook_core` | library | Tested headless notebook document model and session-backed `Run All` consumer |
+| `aleph3_web_api` | library | Tested transitional transport-independent web API core over anonymous clients and shared sessions |
 | `aleph3_web_api_server` | executable | Minimal smoke-check executable for the web API core; not a network listener |
 | `aleph3_engine_api` | library | Internal engine API core for `/internal/*` session creation, evaluation, and reset |
 | `aleph3_engine_service` | executable | Internal HTTP engine listener used by the BFF in the paused Web MVP service graph |

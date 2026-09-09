@@ -110,8 +110,8 @@ to 1 MiB; comments and multiline expressions are unsupported.
 
 ## Headless Notebook Foundation
 
-The current build includes an experimental `aleph3_notebook_core` library, but
-not a graphical notebook executable. The library models ordered input and text
+The current build includes the tested `aleph3_notebook_core` library, but not
+a graphical notebook executable. The library models ordered input and text
 cells with stable document-local identifiers. Its `Run All` operation starts a
 fresh session, skips text cells, evaluates every input in order, and replaces
 the previous generated results. Documents can also clear cached generated
@@ -135,13 +135,12 @@ journals, and migrations are not implemented.
 
 ## Paused Web API Foundation
 
-The current build also includes an experimental `aleph3_web_api` library. It
-is a transport-independent API core that predates the Web MVP BFF boundary.
-It is now transitional contract evidence rather than the active product path
-or public browser backend. The existing web slice includes an internal C++
-engine HTTP service, an ASP.NET Core BFF that owns public `/api/*` browser
-routes, a React/Vite evaluator surface, and a Docker Compose graph through
-Traefik.
+The current build also includes the tested `aleph3_web_api` library. It is a
+transport-independent API core that predates the Web MVP BFF boundary. It is
+now transitional contract evidence rather than the active product path or
+public browser backend. The existing web slice includes an internal C++ engine
+HTTP service, an ASP.NET Core BFF that owns public `/api/*` browser routes, a
+React/Vite evaluator surface, and a Docker Compose graph through Traefik.
 
 The API core still has a notebook store boundary; ordinary tests use an
 in-memory store, and cloud-oriented builds can enable the Postgres store. The

@@ -65,6 +65,38 @@ TEST_CASE("Rational parsing: invalid input", "[parser][rational]") {
     }
 }
 
+TEST_CASE("Parser baseline records zero-denominator exact literal lowering", "[parser][rational][division-by-zero][baseline]") {
+    SECTION("Slash exact literals lower before runtime evaluation") {
+        auto nonzero_over_zero = parse_expression("1/0");
+        REQUIRE(nonzero_over_zero);
+        CHECK(std::holds_alternative<Infinity>(*nonzero_over_zero));
+
+        auto zero_over_zero = parse_expression("0/0");
+        REQUIRE(zero_over_zero);
+        CHECK(std::holds_alternative<Indeterminate>(*zero_over_zero));
+    }
+
+    SECTION("Rational head exact literals lower before runtime evaluation") {
+        auto nonzero_over_zero = parse_expression("Rational[1,0]");
+        REQUIRE(nonzero_over_zero);
+        CHECK(std::holds_alternative<Infinity>(*nonzero_over_zero));
+
+        auto zero_over_zero = parse_expression("Rational[0,0]");
+        REQUIRE(zero_over_zero);
+        CHECK(std::holds_alternative<Indeterminate>(*zero_over_zero));
+    }
+
+    SECTION("Evaluated zero denominators remain ordinary Divide syntax") {
+        auto evaluated_zero = parse_expression("1/(2-2)");
+        REQUIRE(evaluated_zero);
+        REQUIRE(std::holds_alternative<FunctionCall>(*evaluated_zero));
+        const auto& divide = std::get<FunctionCall>(*evaluated_zero);
+        CHECK(divide.head == "Divide");
+        REQUIRE(divide.args.size() == 2);
+        REQUIRE(std::holds_alternative<FunctionCall>(*divide.args[1]));
+    }
+}
+
 TEST_CASE("Parser: rational expressions with operators and mixed types", "[parser][rational][operators]") {
     struct OpCase {
         std::string input;

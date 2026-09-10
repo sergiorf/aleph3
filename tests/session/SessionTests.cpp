@@ -370,6 +370,27 @@ TEST_CASE("Session reports polynomial division by zero with a stable diagnostic"
     REQUIRE(result.diagnostics.front().code == "runtime.division_by_zero");
 }
 
+TEST_CASE("Session red tests exact division by known zero reports runtime diagnostic and recovers", "[session][rational][division-by-zero][red]") {
+    Session session;
+
+    for (const auto* input : {
+             "1/0",
+             "0/0",
+             "1/(2-2)",
+             "(1/2)/(3-3)"}) {
+        DYNAMIC_SECTION(input) {
+            const auto result = session.execute({input});
+            REQUIRE_FALSE(result.ok);
+            REQUIRE(result.diagnostics.size() == 1);
+            REQUIRE(result.diagnostics.front().code == "runtime.division_by_zero");
+
+            const auto recovery = session.execute({"1/2 + 1/2"});
+            REQUIRE(recovery.ok);
+            REQUIRE(recovery.output == "1");
+        }
+    }
+}
+
 TEST_CASE("Session preserves large exact rational arithmetic", "[session][rational]") {
     Session session;
     const auto result = session.execute({"1/3037000500 + 1/3037000501"});

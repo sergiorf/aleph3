@@ -31,6 +31,18 @@ void require_exact_scalar(const ExprPtr& expr, int64_t num, int64_t den) {
     CHECK(r.denominator == den);
 }
 
+void require_runtime_division_by_zero(const std::string& input) {
+    EvaluationContext ctx;
+    try {
+        static_cast<void>(evaluate(parse_expression(input), ctx));
+        FAIL("Expected runtime.division_by_zero for " << input);
+    } catch (const kernel::RuntimeFailure& failure) {
+        CHECK(failure.error().code == "runtime.division_by_zero");
+    } catch (const std::exception& error) {
+        FAIL("Expected runtime.division_by_zero for " << input << ", got exception: " << error.what());
+    }
+}
+
 }  // namespace
 
 TEST_CASE("Evaluator: Rational arithmetic", "[evaluator][rational]") {
@@ -134,6 +146,66 @@ TEST_CASE("Evaluator: Rational edge cases", "[evaluator][rational][edge]") {
         auto r = std::get<Rational>(*result);
         CHECK(r.numerator == 2);
         CHECK(r.denominator == 5);
+    }
+}
+
+TEST_CASE("Evaluator red tests exact division by literal zero denominators", "[evaluator][rational][division-by-zero][red]") {
+    for (const auto* input : {
+             "1/0",
+             "-1/0",
+             "42/0",
+             "0/0",
+             "123456789012345678901234567890/0"}) {
+        DYNAMIC_SECTION(input) {
+            require_runtime_division_by_zero(input);
+        }
+    }
+}
+
+TEST_CASE("Evaluator red tests exact division by evaluated zero denominators", "[evaluator][rational][division-by-zero][red]") {
+    for (const auto* input : {
+             "1/(1-1)",
+             "1/(2-2)",
+             "1/(2*0)",
+             "1/(0+0)",
+             "1/(12345678901234567890 - 12345678901234567890)"}) {
+        DYNAMIC_SECTION(input) {
+            require_runtime_division_by_zero(input);
+        }
+    }
+}
+
+TEST_CASE("Evaluator red tests rational exact division by known zero denominators", "[evaluator][rational][division-by-zero][red]") {
+    for (const auto* input : {
+             "(1/2)/0",
+             "(1/2)/(3-3)",
+             "1/(0/3)",
+             "1/((2/6)-(1/3))"}) {
+        DYNAMIC_SECTION(input) {
+            require_runtime_division_by_zero(input);
+        }
+    }
+}
+
+TEST_CASE("Evaluator keeps valid exact division normalized during division-by-zero work", "[evaluator][rational][division-by-zero]") {
+    EvaluationContext ctx;
+
+    struct Case {
+        std::string input;
+        int64_t num;
+        int64_t den;
+    };
+
+    for (const auto& c : std::vector<Case>{
+             {"2/4", 1, 2},
+             {"2/(-4)", -1, 2},
+             {"0/17", 0, 1},
+             {"1/(2/3)", 3, 2},
+             {"(1/2)/(3/4)", 2, 3},
+             {"12345678901234567890/3", 4115226300411522630LL, 1}}) {
+        DYNAMIC_SECTION(c.input) {
+            require_exact_scalar(evaluate(parse_expression(c.input), ctx), c.num, c.den);
+        }
     }
 }
 

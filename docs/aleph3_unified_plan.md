@@ -28,8 +28,11 @@ small, coherent environment for exact symbolic work, bounded numerical
 approximation, session state, examples, and deterministic diagnostics. The
 first DSP pack follows that notebook foundation and uses shared kernel
 contracts rather than moving DSP-specific semantics into the kernel. Broader
-symbolic mathematics, accelerated DSP, advanced transform work, and hosted web
-product work remain later tranches.
+symbolic mathematics, exact continuous-time signal-systems workflows,
+accelerated DSP, advanced transform work, and hosted web product work remain
+later tranches. The future exact SISO LTI direction is captured in the
+[Signal Systems V0 Plan](signal_systems_v0_plan.md) and does not replace the
+focused finite-DSP milestone below.
 
 The near-term product claim must remain narrower than a general-purpose CAS:
 today's strongest surfaces are the SDK, CLI, session, and a bounded symbolic
@@ -438,8 +441,9 @@ Remaining work:
 FFT acceleration, general symbolic DTFT, continuous Fourier transform, inverse
 continuous Fourier transform, Fourier series, broad transform tables,
 distribution theory, multidimensional Fourier transforms, signal plotting,
-streaming audio, codecs, real-time scheduling, hardware integration, and image
-processing are outside the first DSP pack.
+exact continuous-time control-system workflows, streaming audio, codecs,
+real-time scheduling, hardware integration, and image processing are outside
+the first DSP pack.
 
 ## Cross-Cutting Workstreams
 

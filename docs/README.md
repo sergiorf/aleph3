@@ -25,13 +25,16 @@ foundations. The same sources can be
 6. [Exact Division-By-Zero Plan](exact_division_by_zero_plan.md) - active
    implementation plan for standardizing known exact zero-denominator
    arithmetic diagnostics.
-7. [Web MVP Launch Plan](web_mvp_launch_plan.md) - paused web launch scope,
+7. [Signal Systems V0 Plan](signal_systems_v0_plan.md) - future plan for
+   exact continuous-time SISO transfer functions and stability analysis. It is
+   not the active roadmap.
+8. [Web MVP Launch Plan](web_mvp_launch_plan.md) - paused web launch scope,
    anonymous-user strategy, API shape, deployment phases, and acceptance gates
    for a possible future web notebook. It is not the active roadmap.
-8. [Web MVP Operations](web_mvp_operations.md) - local service, port,
+9. [Web MVP Operations](web_mvp_operations.md) - local service, port,
    Docker Compose, Traefik, and smoke-test procedures for the existing paused
    web slice.
-9. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
+10. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
    public/private transition guidance.
 
 ## Normative References

@@ -22,13 +22,16 @@ foundations. The same sources can be
    persistence, display, and acceptance contract.
 5. [Unified Plan](aleph3_unified_plan.md) - active implementation roadmap,
    including the Windows-first local notebook MVP.
-6. [Web MVP Launch Plan](web_mvp_launch_plan.md) - paused web launch scope,
+6. [Exact Division-By-Zero Plan](exact_division_by_zero_plan.md) - active
+   implementation plan for standardizing known exact zero-denominator
+   arithmetic diagnostics.
+7. [Web MVP Launch Plan](web_mvp_launch_plan.md) - paused web launch scope,
    anonymous-user strategy, API shape, deployment phases, and acceptance gates
    for a possible future web notebook. It is not the active roadmap.
-7. [Web MVP Operations](web_mvp_operations.md) - local service, port,
+8. [Web MVP Operations](web_mvp_operations.md) - local service, port,
    Docker Compose, Traefik, and smoke-test procedures for the existing paused
    web slice.
-8. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
+9. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
    public/private transition guidance.
 
 ## Normative References

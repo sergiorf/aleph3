@@ -21,6 +21,8 @@ ExprPtr expand_polynomial(const ExprPtr& expr, EvaluationContext& ctx) {
             return exact_polynomial_to_expr(expand(expr_to_exact_polynomial(expr, variables)));
         } catch (const std::overflow_error& error) {
             kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        } catch (const std::domain_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
         }
     }
 
@@ -74,6 +76,8 @@ ExprPtr collect_polynomial(
                 collect(expr_to_exact_polynomial(expr, polynomial_variables), variables));
         } catch (const std::overflow_error& error) {
             kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
+        } catch (const std::domain_error& error) {
+            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
         }
     }
 

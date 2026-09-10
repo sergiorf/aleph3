@@ -254,6 +254,14 @@ is public to pack-owned helpers through:
   precedence and fixed graded-lexicographic leading terms
 - exact monomial-bounded multivariate GCD using explicit selectors
 
+Exact polynomial conversion accepts explicit `Divide` only when the numerator
+is in the supported exact polynomial subset and the denominator converts to a
+nonzero constant exact polynomial. This treats forms such as `(x + 1)/3` and
+`x/(3/2)` as exact rational coefficient scaling. Nonconstant denominators such
+as `x/(x + 1)`, `1/x`, and `(x + 1)/(x - 1)` remain rational-expression forms
+and are not accepted as exact polynomials. Zero scalar denominators are mapped
+to the stable division-by-zero diagnostic at public algebra boundaries.
+
 Current ownership is intentionally narrow:
 
 - the algebra layer owns exact integer/rational coefficient preservation for

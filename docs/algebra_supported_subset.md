@@ -133,6 +133,9 @@ Current boundary:
 - mixed rational and floating-point arithmetic demotes to inexact `Number`
 - `Expand` and `Collect` preserve exact rational coefficients for both
   univariate and multivariate supported polynomial inputs
+- exact scalar division in polynomial expressions, such as `(x + 1)/3` or
+  `x/(3/2)`, is treated as exact rational coefficient scaling when the
+  denominator is a nonzero exact scalar
 - supported univariate `GCD` and univariate or explicitly selected multivariate
   `PolynomialQuotient` and `PolynomialRemainder` preserve exact rational
   coefficients
@@ -155,6 +158,8 @@ Examples:
 - `1/2 + 0.5` -> inexact `Number`
 - `Expand[(1/2) * (x + 1)]` -> `1/2 * x + 1/2`
 - `Expand[(1/2) * (x + y)]` -> `1/2 * x + 1/2 * y`
+- `Expand[(x + 1)/3]` -> `1/3 * x + 1/3`
+- `Expand[x/(3/2)]` -> `2/3 * x`
 - `Collect[(1/2) * x + 1, x]` -> `1/2 * x + 1`
 - `Collect[(1/2) * x * y + (3/2) * y, y]` -> `1/2 * x * y + 3/2 * y`
 - `PolynomialQuotient[x^2 - 1/4, x - 1/2, x]` -> `{x + 1/2, 0}`
@@ -353,6 +358,7 @@ Unsupported cases:
 - symbolic coefficients outside the selected exact polynomial variables;
 - unsupported powers or expression heads;
 - denominator zero;
+- nonconstant denominators in polynomial helpers, such as `Expand[x/(x + 1)]`;
 - general multivariate cancellation such as `Cancel[(x*y + x)/(x + 1)]`;
 - `Apart` and partial-fraction decomposition.
 

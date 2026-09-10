@@ -8,6 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <limits>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 using namespace aleph3;
@@ -20,6 +21,12 @@ std::string simplify_string(const ExprPtr& expr) {
 
 ExactCoefficient coeff(int64_t numerator, int64_t denominator = 1) {
     return ExactCoefficient(numerator, denominator);
+}
+
+ExactCoefficient coeff(std::string_view numerator, std::string_view denominator = "1") {
+    return ExactCoefficient(
+        kernel::ExactInteger::from_decimal_string(std::string(numerator)),
+        kernel::ExactInteger::from_decimal_string(std::string(denominator)));
 }
 
 }  // namespace
@@ -116,6 +123,114 @@ TEST_CASE("exact polynomial conversion preserves large exact coefficients", "[al
     REQUIRE(
         simplify_string(exact_polynomial_to_expr(poly)) ==
         "9223372036854775808 * x + 1/9223372036854775809");
+}
+
+TEST_CASE("exact polynomial conversion accepts exact scalar division", "[algebra][conversion][exact]") {
+    const auto divided_product =
+        expr_to_exact_polynomial(parse_expression("2*x/3"), {"x"});
+    REQUIRE(divided_product.terms.size() == 1);
+    REQUIRE(divided_product.terms.at(Monomial{{"x", 1}}) == coeff(2, 3));
+
+    const auto grouped_product =
+        expr_to_exact_polynomial(parse_expression("(2*x)/3"), {"x"});
+    REQUIRE(grouped_product.terms.size() == 1);
+    REQUIRE(grouped_product.terms.at(Monomial{{"x", 1}}) == coeff(2, 3));
+
+    const auto nested_division =
+        expr_to_exact_polynomial(parse_expression("2*(x/3)"), {"x"});
+    REQUIRE(nested_division.terms.size() == 1);
+    REQUIRE(nested_division.terms.at(Monomial{{"x", 1}}) == coeff(2, 3));
+
+    const auto existing_left_scalar =
+        expr_to_exact_polynomial(parse_expression("(2/3)*x"), {"x"});
+    REQUIRE(existing_left_scalar.terms.size() == 1);
+    REQUIRE(existing_left_scalar.terms.at(Monomial{{"x", 1}}) == coeff(2, 3));
+
+    const auto existing_right_scalar =
+        expr_to_exact_polynomial(parse_expression("x*(2/3)"), {"x"});
+    REQUIRE(existing_right_scalar.terms.size() == 1);
+    REQUIRE(existing_right_scalar.terms.at(Monomial{{"x", 1}}) == coeff(2, 3));
+}
+
+TEST_CASE("exact polynomial conversion divides polynomial terms by exact scalars", "[algebra][conversion][exact]") {
+    const auto affine = expr_to_exact_polynomial(parse_expression("(x + 1)/3"), {"x"});
+    REQUIRE(affine.terms.size() == 2);
+    REQUIRE(affine.terms.at(Monomial{{"x", 1}}) == coeff(1, 3));
+    REQUIRE(affine.terms.at(Monomial{}) == coeff(1, 3));
+
+    const auto quadratic =
+        expr_to_exact_polynomial(parse_expression("(x^2 + 2*x + 1)/3"), {"x"});
+    REQUIRE(quadratic.terms.size() == 3);
+    REQUIRE(quadratic.terms.at(Monomial{{"x", 2}}) == coeff(1, 3));
+    REQUIRE(quadratic.terms.at(Monomial{{"x", 1}}) == coeff(2, 3));
+    REQUIRE(quadratic.terms.at(Monomial{}) == coeff(1, 3));
+
+    const auto signed_quadratic =
+        expr_to_exact_polynomial(parse_expression("(2*x^2 - 3*x + 7)/5"), {"x"});
+    REQUIRE(signed_quadratic.terms.size() == 3);
+    REQUIRE(signed_quadratic.terms.at(Monomial{{"x", 2}}) == coeff(2, 5));
+    REQUIRE(signed_quadratic.terms.at(Monomial{{"x", 1}}) == coeff(-3, 5));
+    REQUIRE(signed_quadratic.terms.at(Monomial{}) == coeff(7, 5));
+
+    const auto rational_denominator =
+        expr_to_exact_polynomial(parse_expression("x/(3/2)"), {"x"});
+    REQUIRE(rational_denominator.terms.size() == 1);
+    REQUIRE(rational_denominator.terms.at(Monomial{{"x", 1}}) == coeff(2, 3));
+
+    const auto repeated_division =
+        expr_to_exact_polynomial(parse_expression("(x/2)/3"), {"x"});
+    REQUIRE(repeated_division.terms.size() == 1);
+    REQUIRE(repeated_division.terms.at(Monomial{{"x", 1}}) == coeff(1, 6));
+
+    const auto multivariate =
+        expr_to_exact_polynomial(parse_expression("(x + y)/7"), {"x", "y"});
+    REQUIRE(multivariate.terms.size() == 2);
+    REQUIRE(multivariate.terms.at(Monomial{{"x", 1}}) == coeff(1, 7));
+    REQUIRE(multivariate.terms.at(Monomial{{"y", 1}}) == coeff(1, 7));
+}
+
+TEST_CASE("exact polynomial conversion rejects nonconstant denominators", "[algebra][conversion][exact]") {
+    REQUIRE_THROWS_AS(expr_to_exact_polynomial(parse_expression("x/y"), {"x", "y"}), EvaluatorError);
+    REQUIRE_THROWS_AS(expr_to_exact_polynomial(parse_expression("x/(x + 1)"), {"x"}), EvaluatorError);
+    REQUIRE_THROWS_AS(expr_to_exact_polynomial(parse_expression("1/x"), {"x"}), EvaluatorError);
+    REQUIRE_THROWS_AS(
+        expr_to_exact_polynomial(parse_expression("(x + 1)/(x - 1)"), {"x"}),
+        EvaluatorError);
+}
+
+TEST_CASE("exact polynomial conversion rejects zero scalar denominators", "[algebra][conversion][exact]") {
+    REQUIRE_THROWS_AS(expr_to_exact_polynomial(parse_expression("x/0"), {"x"}), std::domain_error);
+    REQUIRE_THROWS_AS(
+        expr_to_exact_polynomial(parse_expression("x/(1 - 1)"), {"x"}),
+        std::domain_error);
+}
+
+TEST_CASE("exact polynomial conversion preserves large scalar division", "[algebra][conversion][exact][large]") {
+    const auto rational_coefficients = expr_to_exact_polynomial(
+        parse_expression(
+            "(1000000000000000000000000000000*x + "
+            "2000000000000000000000000000000) / 3"),
+        {"x"});
+
+    REQUIRE(
+        rational_coefficients.terms.at(Monomial{{"x", 1}}) ==
+        coeff("1000000000000000000000000000000", "3"));
+    REQUIRE(
+        rational_coefficients.terms.at(Monomial{}) ==
+        coeff("2000000000000000000000000000000", "3"));
+
+    const auto canceled_coefficients = expr_to_exact_polynomial(
+        parse_expression(
+            "(3000000000000000000000000000000*x + "
+            "6000000000000000000000000000000) / 3"),
+        {"x"});
+
+    REQUIRE(
+        canceled_coefficients.terms.at(Monomial{{"x", 1}}) ==
+        coeff("1000000000000000000000000000000"));
+    REQUIRE(
+        canceled_coefficients.terms.at(Monomial{}) ==
+        coeff("2000000000000000000000000000000"));
 }
 
 TEST_CASE("exact polynomial conversion round-trips to a stable canonical form", "[algebra][conversion][exact]") {

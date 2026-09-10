@@ -1,5 +1,6 @@
 #include "algebra/ExactPolynomialConversion.hpp"
 
+#include "algebra/ExactPolynomialOps.hpp"
 #include "evaluator/EvaluatorErrors.hpp"
 #include "expr/ExprUtils.hpp"
 
@@ -7,6 +8,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <optional>
 
 namespace aleph3 {
 
@@ -41,6 +43,14 @@ std::vector<std::pair<Monomial, ExactCoefficient>> ordered_exact_terms(
         });
 
     return ordered;
+}
+
+std::optional<ExactCoefficient> exact_constant_coefficient(
+    const ExactPolynomial& polynomial) {
+    if (polynomial.terms.size() != 1) return std::nullopt;
+    const auto& [monomial, coefficient] = *polynomial.terms.begin();
+    if (!monomial.empty()) return std::nullopt;
+    return coefficient;
 }
 
 ExactPolynomial expr_to_exact_polynomial_impl(
@@ -103,6 +113,17 @@ ExactPolynomial expr_to_exact_polynomial_impl(
             ExactPolynomial result(ExactCoefficient::one());
             for (const auto& arg : times->args) result = result * recur(arg);
             return result;
+        }
+        if (const auto* divide = std::get_if<FunctionCall>(&(*current));
+            divide && divide->head == "Divide" && divide->args.size() == 2) {
+            ExactPolynomial numerator = recur(divide->args[0]);
+            const ExactPolynomial denominator = recur(divide->args[1]);
+            const auto scalar = exact_constant_coefficient(denominator);
+            if (!scalar.has_value()) {
+                throw_unsupported_construct(
+                    "expr_to_polynomial: Polynomial division requires an exact scalar denominator");
+            }
+            return multiply_by_scalar(numerator, ExactCoefficient::one() / *scalar);
         }
         if (const auto* power = std::get_if<FunctionCall>(&(*current));
             power && power->head == "Power" && power->args.size() == 2) {

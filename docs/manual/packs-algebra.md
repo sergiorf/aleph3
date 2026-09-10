@@ -43,11 +43,17 @@ input, or exposing an implementation-specific failure.
 Expand[(x + 1)*(x + 2)]                  -> x^2 + 3 * x + 2
 Expand[(x + 1)^3]                        -> x^3 + 3 * x^2 + 3 * x + 1
 Expand[(1/2)*(x + y)]                    -> 1/2 * x + 1/2 * y
+Expand[(x + 1)/3]                        -> 1/3 * x + 1/3
+Expand[x/(3/2)]                          -> 2/3 * x
 Collect[y*x + x^2 + z*x, x]              -> x^2 + x * y + x * z
 ```
 
 Exact rational coefficients remain exact. `Collect` returns a canonical
 expanded expression, not a coefficient map.
+Polynomial expressions may be divided by a nonzero exact scalar denominator;
+this is exact coefficient scaling, not general rational-function expansion.
+Nonconstant denominators such as `x/(x + 1)` remain outside the polynomial
+subset for `Expand` and `Collect`.
 
 Algebra helpers evaluate expression operands through the shared session state,
 but explicit variable selectors remain symbolic. This lets assigned polynomial

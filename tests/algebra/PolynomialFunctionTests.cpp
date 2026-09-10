@@ -308,6 +308,62 @@ TEST_CASE("Polynomial algebra preserves exact rationals for supported helpers", 
     REQUIRE(simplify_string(result_list.elements[1]) == "0");
 }
 
+TEST_CASE("Expand preserves exact coefficients through scalar division", "[algebra][functions][rational]") {
+    EvaluationContext ctx;
+
+    REQUIRE(to_string(*evaluate_source("Expand[2*x/3]", ctx)) == "2/3 * x");
+    REQUIRE(to_string(*evaluate_source("Expand[(2*x)/3]", ctx)) == "2/3 * x");
+    REQUIRE(to_string(*evaluate_source("Expand[2*(x/3)]", ctx)) == "2/3 * x");
+    REQUIRE(to_string(*evaluate_source("Expand[(2/3)*x]", ctx)) == "2/3 * x");
+    REQUIRE(to_string(*evaluate_source("Expand[x*(2/3)]", ctx)) == "2/3 * x");
+
+    REQUIRE(to_string(*evaluate_source("Expand[(x + 1)/3]", ctx)) == "1/3 * x + 1/3");
+    REQUIRE(to_string(*evaluate_source("Expand[(x^2 + 2*x + 1)/3]", ctx))
+            == "1/3 * x^2 + 2/3 * x + 1/3");
+    REQUIRE(to_string(*evaluate_source("Expand[(2*x^2 - 3*x + 7)/5]", ctx))
+            == "2/5 * x^2 - 3/5 * x + 7/5");
+    REQUIRE(to_string(*evaluate_source("Expand[x^2 + 2*x/3 + 1/9]", ctx))
+            == "x^2 + 2/3 * x + 1/9");
+    REQUIRE(to_string(*evaluate_source("Expand[(x + 1/3)^2 - (x^2 + 2*x/3 + 1/9)]", ctx))
+            == "0");
+    REQUIRE(to_string(*evaluate_source("Expand[(6*x^2 + 9*x + 3)/3]", ctx))
+            == "2 * x^2 + 3 * x + 1");
+}
+
+TEST_CASE("Expand rejects non-polynomial and zero denominators in scalar division", "[algebra][functions][rational]") {
+    EvaluationContext ctx;
+
+    REQUIRE_THROWS_AS(evaluate_source("Expand[x/(x + 1)]", ctx), EvaluatorError);
+    require_runtime_diagnostic(
+        [&] { static_cast<void>(evaluate_source("Expand[x/0]", ctx)); },
+        "runtime.division_by_zero",
+        "Polynomial division by zero");
+    require_runtime_diagnostic(
+        [&] { static_cast<void>(evaluate_source("Expand[x/(1 - 1)]", ctx)); },
+        "runtime.division_by_zero",
+        "Polynomial division by zero");
+}
+
+TEST_CASE("Expand preserves arbitrary-precision scalar division", "[algebra][functions][rational][large]") {
+    EvaluationContext ctx;
+
+    REQUIRE(
+        to_string(*evaluate_source(
+            "Expand[(1000000000000000000000000000000*x + "
+            "2000000000000000000000000000000) / 3]",
+            ctx)) ==
+        "1000000000000000000000000000000/3 * x + "
+        "2000000000000000000000000000000/3");
+
+    REQUIRE(
+        to_string(*evaluate_source(
+            "Expand[(3000000000000000000000000000000*x + "
+            "6000000000000000000000000000000) / 3]",
+            ctx)) ==
+        "1000000000000000000000000000000 * x + "
+        "2000000000000000000000000000000");
+}
+
 TEST_CASE("Exact algebra dispatch keeps supported rational inputs on exact paths", "[algebra][functions][rational][dispatch]") {
     EvaluationContext ctx;
 

@@ -117,6 +117,12 @@ behavior and identify the expected diagnostic code for each public layer.
 
 ### 2. Syntax And Lowering
 
+Status: complete. Literal exact zero-denominator slash forms now lower to
+ordinary `Divide` expressions with exact integer operands, and
+zero-denominator `Rational[n, d]` calls are preserved as calls instead of
+becoming symbolic infinity objects. Nonzero exact rational literals still
+normalize immediately.
+
 Update parser and symbolic lowering paths that currently construct
 `Infinity` or `Indeterminate` from zero-denominator exact rationals.
 

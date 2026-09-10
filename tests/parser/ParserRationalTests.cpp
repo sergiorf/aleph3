@@ -48,12 +48,22 @@ TEST_CASE("Rational parsing: invalid input", "[parser][rational]") {
     SECTION("Denominator zero") {
         auto expr = parse_expression("Rational[1,0]");
         REQUIRE(expr);
-        CHECK(std::holds_alternative<Infinity>(*expr));
+        REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+        const auto& rational = std::get<FunctionCall>(*expr);
+        CHECK(rational.head == "Rational");
+        REQUIRE(rational.args.size() == 2);
+        CHECK(std::holds_alternative<Integer>(*rational.args[1]));
+        CHECK(std::get<Integer>(*rational.args[1]).value.is_zero());
     }
-    SECTION("Zero over zero is Indeterminate") {
+    SECTION("Zero over zero remains an invalid Rational call for later semantics") {
         auto expr = parse_expression("Rational[0,0]");
         REQUIRE(expr);
-        CHECK(std::holds_alternative<Indeterminate>(*expr));
+        REQUIRE(std::holds_alternative<FunctionCall>(*expr));
+        const auto& rational = std::get<FunctionCall>(*expr);
+        CHECK(rational.head == "Rational");
+        REQUIRE(rational.args.size() == 2);
+        CHECK(std::holds_alternative<Integer>(*rational.args[1]));
+        CHECK(std::get<Integer>(*rational.args[1]).value.is_zero());
     }
     SECTION("Non-integer numerator") {
         auto expr = parse_expression("Rational[1.5,2]");
@@ -65,25 +75,45 @@ TEST_CASE("Rational parsing: invalid input", "[parser][rational]") {
     }
 }
 
-TEST_CASE("Parser baseline records zero-denominator exact literal lowering", "[parser][rational][division-by-zero][baseline]") {
-    SECTION("Slash exact literals lower before runtime evaluation") {
+TEST_CASE("Parser keeps zero-denominator exact literals out of symbolic infinity objects", "[parser][rational][division-by-zero]") {
+    SECTION("Slash exact literals lower to ordinary Divide") {
         auto nonzero_over_zero = parse_expression("1/0");
         REQUIRE(nonzero_over_zero);
-        CHECK(std::holds_alternative<Infinity>(*nonzero_over_zero));
+        REQUIRE(std::holds_alternative<FunctionCall>(*nonzero_over_zero));
+        const auto& divide = std::get<FunctionCall>(*nonzero_over_zero);
+        CHECK(divide.head == "Divide");
+        REQUIRE(divide.args.size() == 2);
+        CHECK(std::holds_alternative<Integer>(*divide.args[1]));
+        CHECK(std::get<Integer>(*divide.args[1]).value.is_zero());
 
         auto zero_over_zero = parse_expression("0/0");
         REQUIRE(zero_over_zero);
-        CHECK(std::holds_alternative<Indeterminate>(*zero_over_zero));
+        REQUIRE(std::holds_alternative<FunctionCall>(*zero_over_zero));
+        const auto& zero_divide = std::get<FunctionCall>(*zero_over_zero);
+        CHECK(zero_divide.head == "Divide");
+        REQUIRE(zero_divide.args.size() == 2);
+        CHECK(std::holds_alternative<Integer>(*zero_divide.args[1]));
+        CHECK(std::get<Integer>(*zero_divide.args[1]).value.is_zero());
     }
 
-    SECTION("Rational head exact literals lower before runtime evaluation") {
+    SECTION("Rational head exact literals preserve the call") {
         auto nonzero_over_zero = parse_expression("Rational[1,0]");
         REQUIRE(nonzero_over_zero);
-        CHECK(std::holds_alternative<Infinity>(*nonzero_over_zero));
+        REQUIRE(std::holds_alternative<FunctionCall>(*nonzero_over_zero));
+        const auto& rational = std::get<FunctionCall>(*nonzero_over_zero);
+        CHECK(rational.head == "Rational");
+        REQUIRE(rational.args.size() == 2);
+        CHECK(std::holds_alternative<Integer>(*rational.args[1]));
+        CHECK(std::get<Integer>(*rational.args[1]).value.is_zero());
 
         auto zero_over_zero = parse_expression("Rational[0,0]");
         REQUIRE(zero_over_zero);
-        CHECK(std::holds_alternative<Indeterminate>(*zero_over_zero));
+        REQUIRE(std::holds_alternative<FunctionCall>(*zero_over_zero));
+        const auto& zero_rational = std::get<FunctionCall>(*zero_over_zero);
+        CHECK(zero_rational.head == "Rational");
+        REQUIRE(zero_rational.args.size() == 2);
+        CHECK(std::holds_alternative<Integer>(*zero_rational.args[1]));
+        CHECK(std::get<Integer>(*zero_rational.args[1]).value.is_zero());
     }
 
     SECTION("Evaluated zero denominators remain ordinary Divide syntax") {

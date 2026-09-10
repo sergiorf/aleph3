@@ -95,6 +95,40 @@ TEST_CASE("Symbolic lowering preserves existing symbolic forms", "[syntax][symbo
     REQUIRE(def.delayed);
 }
 
+TEST_CASE("Symbolic lowering keeps zero-denominator exact slash literals as Divide", "[syntax][symbolic-lowering][division-by-zero]") {
+    for (const auto* source : {"1/0", "0/0", "42/0", "123456789012345678901234567890/0"}) {
+        DYNAMIC_SECTION(source) {
+            const auto lowered = syntax::parse_symbolic_source(source);
+
+            REQUIRE(lowered.ok());
+            REQUIRE(std::holds_alternative<FunctionCall>(*lowered.expr));
+            const auto& divide = std::get<FunctionCall>(*lowered.expr);
+            REQUIRE(divide.head == "Divide");
+            REQUIRE(divide.args.size() == 2);
+            CHECK(std::holds_alternative<Integer>(*divide.args[0]));
+            CHECK(std::holds_alternative<Integer>(*divide.args[1]));
+            CHECK(std::get<Integer>(*divide.args[1]).value.is_zero());
+        }
+    }
+}
+
+TEST_CASE("Symbolic lowering keeps zero-denominator Rational calls out of infinity objects", "[syntax][symbolic-lowering][division-by-zero]") {
+    for (const auto* source : {"Rational[1,0]", "Rational[0,0]"}) {
+        DYNAMIC_SECTION(source) {
+            const auto lowered = syntax::parse_symbolic_source(source);
+
+            REQUIRE(lowered.ok());
+            REQUIRE(std::holds_alternative<FunctionCall>(*lowered.expr));
+            const auto& rational = std::get<FunctionCall>(*lowered.expr);
+            REQUIRE(rational.head == "Rational");
+            REQUIRE(rational.args.size() == 2);
+            CHECK(std::holds_alternative<Integer>(*rational.args[0]));
+            CHECK(std::holds_alternative<Integer>(*rational.args[1]));
+            CHECK(std::get<Integer>(*rational.args[1]).value.is_zero());
+        }
+    }
+}
+
 TEST_CASE("Shared syntax tokenizes and lowers ReplaceAll shorthand", "[syntax][parser][rewrite]") {
     syntax::Lexer lexer("f[x] /. x / y");
     const auto lexed = lexer.tokenize();

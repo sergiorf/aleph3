@@ -298,6 +298,13 @@ namespace aleph3 {
                                 int64_t n = -static_cast<int64_t>(nval); // unary minus on numerator
                                 int64_t d = static_cast<int64_t>(dval);
                                 if (denom_negative) d = -d;
+                                if (d == 0) {
+                                    left = make_expr<FunctionCall>("Divide", std::vector<ExprPtr>{
+                                        make_expr<Number>(static_cast<double>(n)),
+                                        make_expr<Number>(static_cast<double>(d))
+                                    });
+                                    return left;
+                                }
                                 // Normalize: if both negative, make both positive
                                 if (n < 0 && d < 0) {
                                     n = -n;
@@ -423,10 +430,13 @@ namespace aleph3 {
                                     int64_t d = static_cast<int64_t>(right_val);
                                     if (denom_negative) d = -d;
                                     if (d == 0) {
-                                        if (n == 0) return make_expr<Indeterminate>();
-                                        return make_expr<Infinity>();
+                                        left = make_fcall("Divide", {
+                                            make_expr<Number>(static_cast<double>(n)),
+                                            make_expr<Number>(static_cast<double>(d))
+                                        });
+                                    } else {
+                                        left = make_expr<Rational>(n, d);
                                     }
-                                    left = make_expr<Rational>(n, d);
                                     // Do not parse more as denominator! Let implicit multiplication handle next token.
                                 }
                             }
@@ -482,11 +492,9 @@ namespace aleph3 {
 
                     int64_t n, d;
                     if (extract_int(num_expr, n) && extract_int(den_expr, d)) {
-                        if (d == 0) {
-                            if (n == 0) return make_expr<Indeterminate>();
-                            return make_expr<Infinity>();
+                        if (d != 0) {
+                            return make_expr<Rational>(n, d);
                         }
-                        return make_expr<Rational>(n, d);
                     }
                     std::vector<ExprPtr> args = { num_expr, den_expr };
                     left = make_expr<FunctionCall>("Rational", args);

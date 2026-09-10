@@ -49,16 +49,17 @@ std::optional<kernel::ExactInteger> exact_integer_from_expr(const ExprPtr& expr)
     return std::nullopt;
 }
 
-ExprPtr make_exact_rational(kernel::ExactInteger numerator, kernel::ExactInteger denominator) {
-    if (denominator.is_zero()) {
-        return numerator.is_zero() ? make_expr<Indeterminate>() : make_expr<Infinity>();
-    }
-    return make_exact_scalar_expr(kernel::ExactRational(std::move(numerator), std::move(denominator)));
+ExprPtr make_exact_divide(kernel::ExactInteger numerator, kernel::ExactInteger denominator) {
+    return make_expr<FunctionCall>(
+        "Divide",
+        std::vector<ExprPtr>{
+            make_expr<Integer>(std::move(numerator)),
+            make_expr<Integer>(std::move(denominator))});
 }
 
-ExprPtr make_rational_preserving_signs(kernel::ExactInteger numerator, kernel::ExactInteger denominator) {
+ExprPtr make_exact_rational_or_divide(kernel::ExactInteger numerator, kernel::ExactInteger denominator) {
     if (denominator.is_zero()) {
-        return numerator.is_zero() ? make_expr<Indeterminate>() : make_expr<Infinity>();
+        return make_exact_divide(std::move(numerator), std::move(denominator));
     }
     return make_exact_scalar_expr(kernel::ExactRational(std::move(numerator), std::move(denominator)));
 }
@@ -176,7 +177,7 @@ private:
             const auto literal_numerator = exact_integer_from_node(fraction->numerator);
             const auto literal_denominator = exact_integer_from_node(fraction->denominator);
             if (literal_numerator.has_value() && literal_denominator.has_value()) {
-                return make_rational_preserving_signs(*literal_numerator, *literal_denominator);
+                return make_exact_rational_or_divide(*literal_numerator, *literal_denominator);
             }
             if (!diagnostics_.empty()) {
                 return nullptr;
@@ -191,7 +192,7 @@ private:
             const auto numerator_value = exact_integer_from_expr(numerator);
             const auto denominator_value = exact_integer_from_expr(denominator);
             if (numerator_value.has_value() && denominator_value.has_value()) {
-                return make_rational_preserving_signs(*numerator_value, *denominator_value);
+                return make_exact_rational_or_divide(*numerator_value, *denominator_value);
             }
             return make_expr<FunctionCall>(
                 "Divide",
@@ -244,8 +245,8 @@ private:
             if (call->callee == "Rational" && arguments.size() == 2) {
                 const auto numerator = exact_integer_from_expr(arguments[0]);
                 const auto denominator = exact_integer_from_expr(arguments[1]);
-                if (numerator.has_value() && denominator.has_value()) {
-                    return make_rational_preserving_signs(*numerator, *denominator);
+                if (numerator.has_value() && denominator.has_value() && !denominator->is_zero()) {
+                    return make_exact_scalar_expr(kernel::ExactRational(*numerator, *denominator));
                 }
             }
 
@@ -381,7 +382,7 @@ private:
             const auto numerator = exact_integer_from_expr(left);
             const auto denominator = exact_integer_from_expr(right);
             if (numerator.has_value() && denominator.has_value()) {
-                return make_exact_rational(*numerator, *denominator);
+                return make_exact_rational_or_divide(*numerator, *denominator);
             }
         }
 

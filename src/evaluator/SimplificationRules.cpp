@@ -2,6 +2,7 @@
 #include "evaluator/EvaluatorErrors.hpp"
 #include "evaluator/GammaUtils.hpp"
 #include "evaluator/EvaluatorSemantics.hpp"
+#include "kernel/Diagnostics.hpp"
 #include "kernel/Rewrite.hpp"
 #include "normalizer/Normalizer.hpp"
 #include "expr/ExprUtils.hpp"
@@ -520,6 +521,12 @@ namespace aleph3 {
         if (args.size() != 2) return make_fcall("Divide", args);
             auto num = eval(args[0], ctx);
             auto denom = eval(args[1], ctx);
+            if (auto exact_denominator = exact_rational_atom(denom);
+                exact_denominator.has_value() && exact_denominator->is_zero()) {
+                kernel::throw_runtime_error(
+                    kernel::ErrorCode::division_by_zero,
+                    "Division by zero is not allowed.");
+            }
             if (std::holds_alternative<Number>(*denom) && get_number_value(denom) == 1.0) {
                 return num;
             }
@@ -535,15 +542,12 @@ namespace aleph3 {
                 const auto& a = std::get<Rational>(*num);
                 const auto& b = std::get<Rational>(*denom);
                 if (b.numerator == 0) {
-                    if (a.numerator == 0) return make_expr<Indeterminate>();
-                    return make_expr<Infinity>();
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::division_by_zero,
+                        "Division by zero is not allowed.");
                 }
                 auto [nn, dd] = checked_rational_divide(
                     a.numerator, a.denominator, b.numerator, b.denominator);
-                if (dd == 0) {
-                    if (nn == 0) return make_expr<Indeterminate>();
-                    return make_expr<Infinity>();
-                }
                 return make_expr<Rational>(nn, dd);
             }
             // Rational / Number or Number / Rational

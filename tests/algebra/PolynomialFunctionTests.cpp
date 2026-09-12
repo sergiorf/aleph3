@@ -337,11 +337,15 @@ TEST_CASE("Expand rejects non-polynomial and zero denominators in scalar divisio
     require_runtime_diagnostic(
         [&] { static_cast<void>(evaluate_source("Expand[x/0]", ctx)); },
         "runtime.division_by_zero",
-        "Polynomial division by zero");
+        "Division by zero is not allowed.");
     require_runtime_diagnostic(
         [&] { static_cast<void>(evaluate_source("Expand[x/(1 - 1)]", ctx)); },
         "runtime.division_by_zero",
-        "Polynomial division by zero");
+        "Division by zero is not allowed.");
+    require_runtime_diagnostic(
+        [&] { static_cast<void>(evaluate_source("Expand[(x + 1)/(2 - 2)]", ctx)); },
+        "runtime.division_by_zero",
+        "Division by zero is not allowed.");
 }
 
 TEST_CASE("Expand preserves arbitrary-precision scalar division", "[algebra][functions][rational][large]") {
@@ -460,7 +464,7 @@ TEST_CASE("Equivalent preserves rational-expression domain boundaries", "[algebr
     require_runtime_diagnostic(
         [&] { static_cast<void>(evaluate_source("Equivalent[x/0, x]", ctx)); },
         "runtime.division_by_zero",
-        "Rational expression denominator is zero");
+        "Division by zero is not allowed.");
 }
 
 TEST_CASE("Rational expression metadata records nonzero denominator restrictions", "[algebra][functions][rational-expression][domain]") {
@@ -514,8 +518,9 @@ TEST_CASE("Rational expression transformations reject unsupported and invalid in
     try {
         static_cast<void>(evaluate_source("Together[1/0 + x]", ctx));
         FAIL("Expected Together to reject unsupported denominator-zero input");
-    } catch (const EvaluatorError& ex) {
-        REQUIRE(ex.kind() == EvaluatorErrorKind::unsupported_construct);
+    } catch (const kernel::RuntimeFailure& failure) {
+        REQUIRE(failure.error().code == "runtime.division_by_zero");
+        REQUIRE(std::string_view(failure.what()) == "Division by zero is not allowed.");
     }
 }
 
@@ -626,15 +631,15 @@ TEST_CASE("Polynomial helpers map exact division by zero to public diagnostics",
     require_runtime_diagnostic(
         [&] { static_cast<void>(evaluate_source("PolynomialQuotient[x, 0, x]", ctx)); },
         "runtime.division_by_zero",
-        "Polynomial division by zero");
+        "Division by zero is not allowed.");
     require_runtime_diagnostic(
         [&] { static_cast<void>(evaluate_source("PolynomialRemainder[x, 0, x]", ctx)); },
         "runtime.division_by_zero",
-        "Polynomial division by zero");
+        "Division by zero is not allowed.");
     require_runtime_diagnostic(
         [&] { static_cast<void>(evaluate_source("Cancel[x/0]", ctx)); },
         "runtime.division_by_zero",
-        "Rational expression denominator is zero");
+        "Division by zero is not allowed.");
 }
 
 TEST_CASE("Polynomial helpers preserve documented round-trip invariants", "[algebra][functions][contract]") {

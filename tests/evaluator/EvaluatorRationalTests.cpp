@@ -118,16 +118,10 @@ TEST_CASE("Evaluator: Rational and integer/float mixing", "[evaluator][rational]
 TEST_CASE("Evaluator: Rational edge cases", "[evaluator][rational][edge]") {
     EvaluationContext ctx;
     SECTION("Zero denominator") {
-        auto expr = parse_expression("1/0");
-        auto result = evaluate(expr, ctx);
-        REQUIRE(result);
-        CHECK(std::holds_alternative<Infinity>(*result));
+        require_runtime_division_by_zero("1/0");
     }
     SECTION("Zero over zero") {
-        auto expr = parse_expression("0/0");
-        auto result = evaluate(expr, ctx);
-        REQUIRE(result);
-        CHECK(std::holds_alternative<Indeterminate>(*result));
+        require_runtime_division_by_zero("0/0");
     }
     SECTION("Negative denominator") {
         auto expr = parse_expression("3/-4");
@@ -149,7 +143,7 @@ TEST_CASE("Evaluator: Rational edge cases", "[evaluator][rational][edge]") {
     }
 }
 
-TEST_CASE("Evaluator red tests exact division by literal zero denominators", "[evaluator][rational][division-by-zero][red]") {
+TEST_CASE("Evaluator reports exact division by literal zero denominators", "[evaluator][rational][division-by-zero]") {
     for (const auto* input : {
              "1/0",
              "-1/0",
@@ -162,7 +156,7 @@ TEST_CASE("Evaluator red tests exact division by literal zero denominators", "[e
     }
 }
 
-TEST_CASE("Evaluator red tests exact division by evaluated zero denominators", "[evaluator][rational][division-by-zero][red]") {
+TEST_CASE("Evaluator reports exact division by evaluated zero denominators", "[evaluator][rational][division-by-zero]") {
     for (const auto* input : {
              "1/(1-1)",
              "1/(2-2)",
@@ -175,7 +169,7 @@ TEST_CASE("Evaluator red tests exact division by evaluated zero denominators", "
     }
 }
 
-TEST_CASE("Evaluator red tests rational exact division by known zero denominators", "[evaluator][rational][division-by-zero][red]") {
+TEST_CASE("Evaluator reports rational exact division by known zero denominators", "[evaluator][rational][division-by-zero]") {
     for (const auto* input : {
              "(1/2)/0",
              "(1/2)/(3-3)",

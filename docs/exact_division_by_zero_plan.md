@@ -4,6 +4,12 @@ Status: active implementation plan. Current behavior remains owned by the
 focused specifications and manual until this plan is implemented and those
 documents are updated.
 
+Current local status: slices 3 and 4 are implemented and verified. Focused
+evaluator and algebra coverage now pass for exact scalar division by zero,
+polynomial scalar division, and rational-expression zero-denominator
+boundaries. The full rebuilt Release `aleph3_symbolic_tests` suite passes.
+Slice 5 cross-surface regression coverage is the next implementation slice.
+
 ## Goal
 
 Standardize ordinary exact division by known zero across Aleph3.
@@ -141,6 +147,12 @@ lowering.
 
 ### 3. Evaluator Exact Divide Semantics
 
+Status: complete. Ordinary `Divide` evaluation now checks known exact scalar
+zero denominators after operand evaluation and reports
+`runtime.division_by_zero` instead of manufacturing `Infinity` or
+`Indeterminate` for exact arithmetic. Valid exact scalar division continues to
+canonicalize through the shared exact rational model.
+
 Update ordinary `Divide` evaluation and simplification so exact evaluated
 denominators are checked by value, not by original syntax.
 
@@ -159,6 +171,13 @@ denominator throw the existing division-by-zero runtime error, and valid exact
 division still produces canonical exact results.
 
 ### 4. Algebra And Symbolic Boundaries
+
+Status: complete. Public algebra boundaries now preserve exact rational
+coefficient scaling for supported scalar denominators, map known exact zero
+denominators to the shared `runtime.division_by_zero` diagnostic message, and
+keep nonconstant symbolic denominators such as `x/(x + 1)` on their existing
+unsupported polynomial or rational-expression paths instead of treating them
+as eager division-by-zero failures.
 
 Verify polynomial and rational-expression behavior at public algebra
 boundaries.

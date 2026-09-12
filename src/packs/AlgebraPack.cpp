@@ -28,6 +28,12 @@ using ExactMatrix = algebra::DenseMatrix<ExactCoefficient>;
     kernel::throw_runtime_error(kernel::ErrorCode::domain_violation, std::move(message));
 }
 
+[[noreturn]] void throw_division_by_zero() {
+    kernel::throw_runtime_error(
+        kernel::ErrorCode::division_by_zero,
+        "Division by zero is not allowed.");
+}
+
 ExactCoefficient exact_matrix_scalar(const ExprPtr& expr) {
     if (const auto* integer = std::get_if<Integer>(expr.get())) {
         return ExactCoefficient(integer->value, kernel::ExactInteger(1));
@@ -379,7 +385,8 @@ ExprPtr evaluate_polynomial_quotient(const FunctionCall& func, EvaluationContext
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     } catch (const std::domain_error& error) {
-        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        static_cast<void>(error);
+        throw_division_by_zero();
     }
 }
 
@@ -404,7 +411,8 @@ ExprPtr evaluate_polynomial_remainder(const FunctionCall& func, EvaluationContex
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     } catch (const std::domain_error& error) {
-        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        static_cast<void>(error);
+        throw_division_by_zero();
     }
 }
 
@@ -512,7 +520,8 @@ ExprPtr evaluate_equivalent(const FunctionCall& func, EvaluationContext& ctx) {
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     } catch (const std::domain_error& error) {
-        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        static_cast<void>(error);
+        throw_division_by_zero();
     }
 
     return make_expr<Symbol>("Unknown");

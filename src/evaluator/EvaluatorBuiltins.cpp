@@ -586,7 +586,11 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
             return make_exact_scalar_expr(a * b);
         }
         if (func.head == "Divide") {
-            if (b.numerator().is_zero()) throw_domain_violation("Division by zero");
+            if (b.numerator().is_zero()) {
+                kernel::throw_runtime_error(
+                    kernel::ErrorCode::division_by_zero,
+                    "Division by zero is not allowed.");
+            }
             return make_exact_scalar_expr(a / b);
         }
         if (func.head == "Power" && b.denominator().is_one()) {

@@ -751,12 +751,14 @@ TEST_CASE("Evaluator handles negative infinity", "[evaluator][infinity]") {
 }
 #endif
 
-TEST_CASE("Evaluator handles 0/0 as Indeterminate", "[evaluator][indeterminate]") {
-    EvaluationContext ctx; // Empty context
-    auto expr = parse_expression("0 / 0");
-    auto result = evaluate(expr, ctx);
-
-    REQUIRE(std::holds_alternative<Indeterminate>(*result));
+TEST_CASE("Evaluator reports exact 0/0 as division by zero", "[evaluator][division-by-zero]") {
+    EvaluationContext ctx;
+    try {
+        static_cast<void>(evaluate(parse_expression("0 / 0"), ctx));
+        FAIL("Expected runtime.division_by_zero");
+    } catch (const kernel::RuntimeFailure& failure) {
+        REQUIRE(failure.error().code == "runtime.division_by_zero");
+    }
 }
 
 TEST_CASE("Unknown variables are treated as symbolic", "[evaluator]") {

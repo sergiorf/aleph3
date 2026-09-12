@@ -283,7 +283,7 @@ Boundaries:
 - decimal coefficients and unsupported powers are rejected explicitly;
 - symbolic coefficients outside the selected exact polynomial subset are
   rejected explicitly;
-- denominator zero is a domain failure;
+- denominator zero reports the stable runtime division-by-zero diagnostic;
 - these part-extraction helpers do not cancel common polynomial factors;
   `Together` and `Cancel` own those transformations.
 
@@ -325,6 +325,8 @@ Domain boundary:
   original domain;
 - this metadata is not yet rendered as a public `ConditionalExpression` or
   exposed through a user-facing equivalence function;
+- exact zero denominators report the stable runtime division-by-zero
+  diagnostic;
 - cancellation across unsupported symbolic or general multivariate
   denominators is rejected rather than silently erasing possible
   singularities.

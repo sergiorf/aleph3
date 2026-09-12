@@ -13,6 +13,16 @@
 
 namespace aleph3 {
 
+namespace {
+
+[[noreturn]] void throw_division_by_zero() {
+    kernel::throw_runtime_error(
+        kernel::ErrorCode::division_by_zero,
+        "Division by zero is not allowed.");
+}
+
+}  // namespace
+
 ExprPtr expand_polynomial(const ExprPtr& expr, EvaluationContext& ctx) {
     static_cast<void>(ctx);
     const std::vector<std::string> variables = infer_polynomial_variables(expr);
@@ -22,7 +32,8 @@ ExprPtr expand_polynomial(const ExprPtr& expr, EvaluationContext& ctx) {
         } catch (const std::overflow_error& error) {
             kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
         } catch (const std::domain_error& error) {
-            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+            static_cast<void>(error);
+            throw_division_by_zero();
         }
     }
 
@@ -77,7 +88,8 @@ ExprPtr collect_polynomial(
         } catch (const std::overflow_error& error) {
             kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
         } catch (const std::domain_error& error) {
-            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+            static_cast<void>(error);
+            throw_division_by_zero();
         }
     }
 
@@ -130,7 +142,8 @@ std::pair<ExprPtr, ExprPtr> divide_polynomial(
         } catch (const std::overflow_error& error) {
             kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
         } catch (const std::domain_error& error) {
-            kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+            static_cast<void>(error);
+            throw_division_by_zero();
         }
     }
 
@@ -258,7 +271,8 @@ ExprPtr numerator_rational_expression(const ExprPtr& expr, EvaluationContext& ct
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     } catch (const std::domain_error& error) {
-        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        static_cast<void>(error);
+        throw_division_by_zero();
     }
 }
 
@@ -271,7 +285,8 @@ ExprPtr denominator_rational_expression(const ExprPtr& expr, EvaluationContext& 
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     } catch (const std::domain_error& error) {
-        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        static_cast<void>(error);
+        throw_division_by_zero();
     }
 }
 
@@ -284,7 +299,8 @@ ExprPtr together_rational_expression(const ExprPtr& expr, EvaluationContext& ctx
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     } catch (const std::domain_error& error) {
-        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        static_cast<void>(error);
+        throw_division_by_zero();
     }
 }
 
@@ -298,7 +314,8 @@ ExprPtr cancel_rational_expression(const ExprPtr& expr, EvaluationContext& ctx) 
     } catch (const std::overflow_error& error) {
         kernel::throw_runtime_error(kernel::ErrorCode::exact_overflow, error.what());
     } catch (const std::domain_error& error) {
-        kernel::throw_runtime_error(kernel::ErrorCode::division_by_zero, error.what());
+        static_cast<void>(error);
+        throw_division_by_zero();
     }
 }
 

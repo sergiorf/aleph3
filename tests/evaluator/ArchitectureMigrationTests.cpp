@@ -673,7 +673,7 @@ TEST_CASE("Attribute metadata alone does not make an unknown head callable", "[a
 
     auto result = evaluate(parse_expression("ghost[1/0]"), ctx);
     REQUIRE(std::holds_alternative<FunctionCall>(*result));
-    REQUIRE(to_string(result) == "ghost[Infinity]");
+    REQUIRE(to_string(result) == "ghost[1 / 0]");
     REQUIRE_FALSE(ctx.definition_records.contains("ghost"));
 }
 

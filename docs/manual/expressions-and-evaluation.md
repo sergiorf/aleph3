@@ -133,8 +133,29 @@ silently approximated.
 Use decimals only when approximation is intended:
 
 ```text
-N[1/3]                   -> approximate Number
+N[1/3]                   -> 0.333333
 ```
+
+Known exact zero denominators are diagnostics, not symbolic infinity values:
+
+```text
+1/0                      -> diagnostic
+0/0                      -> diagnostic
+1/(2 - 2)                -> diagnostic
+(1/2)/(3 - 3)            -> diagnostic
+```
+
+Valid exact division still normalizes through the exact rational model:
+
+```text
+2/4                      -> 1/2
+(1/2)/(3/4)              -> 2/3
+0/17                     -> 0
+```
+
+Machine-real division by zero currently reports the same runtime diagnostic at
+the public runtime boundary. Decimal inputs otherwise remain approximate and do
+not change the exact arithmetic contract.
 
 ## Diagnostics And Budgets
 

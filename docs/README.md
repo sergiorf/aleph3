@@ -22,8 +22,8 @@ foundations. The same sources can be
    persistence, display, and acceptance contract.
 5. [Unified Plan](aleph3_unified_plan.md) - active implementation roadmap,
    including the Windows-first local notebook MVP.
-6. [Exact Division-By-Zero Plan](exact_division_by_zero_plan.md) - active
-   implementation plan for standardizing known exact zero-denominator
+6. [Exact Division-By-Zero Plan](exact_division_by_zero_plan.md) - completed
+   implementation record for standardized known exact zero-denominator
    arithmetic diagnostics.
 7. [Signal Systems V0 Plan](signal_systems_v0_plan.md) - future plan for
    exact continuous-time SISO transfer functions and stability analysis. It is

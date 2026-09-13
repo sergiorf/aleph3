@@ -59,6 +59,8 @@ Invariants:
 - equal rational values compare structurally equal after normalization;
 - addition, subtraction, multiplication, and division preserve exactness;
 - denominator zero is invalid;
+- ordinary exact division by a known zero denominator is a runtime
+  division-by-zero diagnostic, not an `Infinity` or `Indeterminate` value;
 - exact arithmetic does not wrap through native integer overflow.
 
 Bounded adapters remain explicit where an operation needs a native index,
@@ -135,6 +137,16 @@ Exact algebra helpers consume evaluated `Expr` inputs through pack-registered
 functions. They may reuse normal expression rendering and simplification after
 constructing results, but they do not replace the kernel's general evaluator or
 rewrite system.
+
+The evaluator owns ordinary exact scalar division. After operands evaluate,
+`Integer / Integer`, `Integer / Rational`, `Rational / Integer`, and
+`Rational / Rational` all preserve exact rational arithmetic when the
+denominator is nonzero. When the evaluated denominator is the exact value zero,
+the evaluator reports the stable runtime division-by-zero diagnostic. This
+includes literal forms such as `1/0` and evaluated forms such as `1/(2 - 2)`.
+Symbolic infinity objects remain available as symbolic values where other
+contracts admit them, but ordinary exact scalar division does not manufacture
+`Infinity` or `Indeterminate`.
 
 The narrow kernel-owned symbolic coefficient rewrite contract remains separate
 from full exact polynomial algebra. Like-term collection for structurally

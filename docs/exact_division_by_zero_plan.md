@@ -1,16 +1,17 @@
 # Exact Division-By-Zero Implementation Plan
 
-Status: active implementation plan. Current behavior remains owned by the
-focused specifications and manual until this plan is implemented and those
-documents are updated.
+Status: complete. Current behavior is owned by the focused specifications,
+manual, supported-subset documentation, and help catalog.
 
-Current local status: slices 3, 4, and 5 are implemented and verified. Focused
-evaluator, algebra, session, SDK, matrix, infinity, and calculus coverage now
-pass for exact scalar division by zero, polynomial scalar division,
-rational-expression zero-denominator boundaries, and cross-surface recovery.
-The full rebuilt Release `aleph3_symbolic_tests` and `aleph3_sdk_tests` suites
-pass. Slice 6 documentation and help follow-through is the next implementation
-slice.
+Current local status: slices 3, 4, 5, and 6 are implemented and verified.
+Focused evaluator, algebra, session, SDK, matrix, infinity, and calculus
+coverage now pass for exact scalar division by zero, polynomial scalar
+division, rational-expression zero-denominator boundaries, and cross-surface
+recovery. The canonical documentation and `Divide` help text now state the
+current exact zero-denominator contract. The full rebuilt Release
+`aleph3_symbolic_tests` and `aleph3_sdk_tests` suites passed for the behavior
+slices; slice 6 was verified with focused CLI examples and the affected
+symbolic test target.
 
 ## Goal
 
@@ -226,6 +227,11 @@ Completion criterion: public consumers share the same kernel semantics, while
 their layer-specific diagnostic codes remain intentional.
 
 ### 6. Documentation And Help
+
+Status: complete. The exact scalar contract, manual examples, algebra subset
+boundaries, built-in `Divide` documentation, and help catalog now describe
+known exact zero denominators as runtime division-by-zero diagnostics rather
+than symbolic infinity values.
 
 Update current-behavior documentation in the same implementation change:
 

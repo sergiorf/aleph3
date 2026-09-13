@@ -11,6 +11,7 @@ does not imply that every possible symbolic identity is implemented.
 8 - 3                    -> 5
 4 * 5                    -> 20
 8 / 4                    -> 2
+1/0                      -> diagnostic
 2^5                      -> 32
 (2/3)^2                  -> 4/9
 3037000500^2             -> 9223372037000250000
@@ -28,6 +29,10 @@ Exact integer and rational arithmetic, including exact integer powers of exact
 integer or rational bases, stays exact unless a machine-real input participates
 or explicit numeric evaluation is requested. Exact power growth is bounded by
 the runtime evaluation-step budget in strict execution contexts.
+Known exact zero denominators in ordinary division, including evaluated cases
+such as `1/(2 - 2)`, report the runtime division-by-zero diagnostic. They do
+not evaluate to `Infinity` or `Indeterminate`; those remain symbolic objects
+for contracts that explicitly admit them.
 Non-integer or complex exponents on complex bases, such as `I^(1/2)` and
 `I^I`, remain symbolic because branch conventions for complex logarithms are
 not part of the supported subset.

@@ -136,6 +136,8 @@ Current boundary:
 - exact scalar division in polynomial expressions, such as `(x + 1)/3` or
   `x/(3/2)`, is treated as exact rational coefficient scaling when the
   denominator is a nonzero exact scalar
+- exact scalar zero denominators in polynomial expressions, such as `x/0` or
+  `(x + 1)/(2 - 2)`, report the stable runtime division-by-zero diagnostic
 - supported univariate `GCD` and univariate or explicitly selected multivariate
   `PolynomialQuotient` and `PolynomialRemainder` preserve exact rational
   coefficients
@@ -160,6 +162,8 @@ Examples:
 - `Expand[(1/2) * (x + y)]` -> `1/2 * x + 1/2 * y`
 - `Expand[(x + 1)/3]` -> `1/3 * x + 1/3`
 - `Expand[x/(3/2)]` -> `2/3 * x`
+- `Expand[x/0]` -> division-by-zero diagnostic
+- `Expand[x/(x + 1)]` -> unsupported polynomial-subset diagnostic
 - `Collect[(1/2) * x + 1, x]` -> `1/2 * x + 1`
 - `Collect[(1/2) * x * y + (3/2) * y, y]` -> `1/2 * x * y + 3/2 * y`
 - `PolynomialQuotient[x^2 - 1/4, x - 1/2, x]` -> `{x + 1/2, 0}`

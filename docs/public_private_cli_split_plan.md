@@ -1,10 +1,12 @@
-# Public/Private CLI Split Plan
+# Public App / Private Kernel Split Plan
 
 ## Status
 
 This is a proposed implementation plan. It records the intended first stage of
-a public/private repository split for Aleph3, scoped to the CLI and a local
-kernel process. It does not describe shipped behavior until the milestones are
+a public/private repository split for Aleph3, scoped to a private kernel
+process and public product clients such as the notebook and future agent
+integrations. The CLI is retained as a private first-party client and developer
+tool. This plan does not describe shipped behavior until the milestones are
 implemented and the owning specifications are updated.
 
 This plan complements the practical guidance in
@@ -13,24 +15,26 @@ guidance, not legal advice.
 
 ## Goal
 
-Refactor Aleph3 so the open-source CLI can be built, tested, and distributed
-without containing private kernel, parser, evaluator, exact arithmetic, or math
-pack implementations.
+Refactor Aleph3 so public product clients can be built, tested, and distributed
+without containing private kernel, parser, evaluator, exact arithmetic, CLI, or
+math pack implementations.
 
-The public CLI communicates with a separately built private `aleph-kernel`
-executable through a versioned local JSON protocol.
+The private CLI and public product clients communicate with a separately built
+private `aleph-kernel` executable through the same versioned local JSON
+protocol. The CLI remains in the private Aleph repository so kernel, protocol,
+diagnostic, and developer-tool iteration stays fast.
 
 The initial product boundary is:
 
 ```text
-open-source CLI
-        |
-        | framed JSON over stdin/stdout
-        v
-private aleph-kernel executable
-        |
-        v
-private libaleph + private packs
+public notebook / app clients        private CLI
+              |                         |
+              | framed JSON protocol    | framed JSON protocol
+              v                         v
+          private aleph-kernel executable
+                       |
+                       v
+          private libaleph + private packs
 ```
 
 ## Non-Goals
@@ -40,6 +44,7 @@ private libaleph + private packs
 - Ollama integration;
 - Qt toolkit selection;
 - dynamic pack marketplace or runtime pack unloading;
+- public CLI extraction;
 - public C++ kernel headers;
 - semantic changes to Aleph expressions, evaluation, exact arithmetic, or
   supported mathematics.
@@ -48,17 +53,17 @@ private libaleph + private packs
 
 The public repository should contain:
 
-- CLI application source and presentation code;
 - public kernel protocol and client types;
 - process-launching client code;
 - notebook document format and later notebook UI code when that work resumes;
 - generic agent framework and provider adapters when that work becomes active;
-- protocol, CLI, and fake-kernel tests;
+- protocol, product-client, and fake-kernel tests;
 - public documentation, examples, and compatibility notes.
 
 The private repository should contain:
 
 - `libaleph`;
+- the CLI application source, presentation code, and developer/debug commands;
 - parser and symbolic lowering;
 - `Expr` and the expression model;
 - evaluator and runtime;
@@ -68,6 +73,7 @@ The private repository should contain:
 - simplification, rewriting, assumptions, and diagnostics implementation;
 - Algebra, Calculus, Linear Algebra, and future domain pack implementations;
 - the real `aleph-kernel` executable;
+- real CLI-to-kernel integration tests;
 - advanced Aleph-specific Agent reasoning if it becomes a product
   differentiator.
 
@@ -86,11 +92,13 @@ exact arithmetic internals
 
 ## Target Repository Shape
 
-The public repository should evolve toward:
+The public repository should evolve toward a notebook and app-client project
+such as `aleph-notebook`:
 
 ```text
 apps/
-  cli/
+  notebook/
+  agent/
 
 include/
   aleph_client/
@@ -105,19 +113,27 @@ src/
     KernelProcess.cpp
 
 tests/
-  cli/
+  notebook/
+  agent/
   protocol/
   fake_kernel/
 
 docs/
-  public_private_cli_split_plan.md
   kernel_protocol.md
+  runtime_setup.md
+  examples/
 ```
 
-The private repository should evolve toward:
+The current Aleph repository should become the private repository and evolve
+toward:
 
 ```text
-libaleph/
+apps/
+  cli/
+  aleph-kernel/
+
+include/ or libaleph/
+  aleph_client/
   core/
   parser/
   expr/
@@ -131,12 +147,17 @@ packs/
   calculus/
   linear_algebra/
 
-apps/
-  aleph-kernel/
+tests/
+  cli/
+  protocol/
+  kernel_process/
+  session/
+  packs/
 ```
 
-The first physical moves should happen only after the public CLI has stopped
-including private headers.
+The first physical split should happen only after the in-repo process boundary
+is exercised by the private CLI and a fake public client. Until then, keep the
+monorepo fast and use the protocol boundary as the architectural constraint.
 
 ## Protocol Boundary
 
@@ -196,7 +217,7 @@ Example error response:
 }
 ```
 
-Minimum CLI-stage methods:
+Minimum first-client methods:
 
 - `initialize`
 - `evaluate`
@@ -215,7 +236,7 @@ Useful early additions:
 
 ## Public Protocol Types
 
-The public repository may define plain transport-facing types such as:
+Public and private clients may define plain transport-facing types such as:
 
 ```cpp
 struct KernelDiagnostic {
@@ -283,19 +304,20 @@ Response:
 }
 ```
 
-The CLI should fail clearly when the kernel protocol version is incompatible.
+Clients should fail clearly when the kernel protocol version is incompatible.
 
 ## Kernel Location
 
-The public CLI should find `aleph-kernel` in this order:
+The private CLI and public product clients should find `aleph-kernel` in this
+order:
 
 1. explicit `--kernel <path>` argument;
 2. `ALEPH_KERNEL_PATH`;
 3. same directory as the CLI executable;
 4. `PATH` lookup.
 
-If no compatible kernel is found, the CLI should report a clear diagnostic and
-avoid implying that public CLI code can perform private mathematical
+If no compatible kernel is found, the client should report a clear diagnostic
+and avoid implying that public app code can perform private mathematical
 execution by itself.
 
 ## Milestones
@@ -311,46 +333,50 @@ Produce a short architecture note or plan section listing:
 - which outputs must remain stable;
 - which tests prove current behavior.
 
-Decide whether trusted SDK formula features remain public or are routed through
-the private kernel boundary. For the IP split, symbolic CLI behavior should
-move through `aleph-kernel`; broader SDK cleanup can be deferred unless it
-blocks the boundary.
+Decide which current CLI behaviors should become protocol-backed first-party
+client behavior and which should remain private developer/debug tooling. For
+the repository split, symbolic CLI behavior should move through
+`aleph-kernel`; broader SDK cleanup can be deferred unless it blocks the
+process boundary.
 
 #### M0 Boundary Audit
 
-The initial public command name remains `aleph3_cli`. A later product rename
-may introduce `aleph` or another shorter launcher after the notebook and
-distribution shape are clearer; the repository split should not combine a
-public/private architecture change with a command rename.
+The CLI command name remains `aleph3_cli` inside the private repo. A later
+product rename may introduce `aleph` or another shorter launcher after the
+notebook and distribution shape are clearer; the repository split should not
+combine a process-boundary architecture change with a command rename.
 
 The private executable name is `aleph-kernel`.
 
-The public user-facing direction is a small CLI whose normal evaluation,
-script, REPL, help, completion, package discovery, and reset behavior routes
-through the kernel process. The protocol should be intent-shaped and stable,
-with plain textual source and result representations, structured diagnostics,
-and capability metadata. It should not expose parser tokens, SDK IR nodes,
-`Expr`, evaluator internals, exact arithmetic storage, or pack registration
-implementation details. AI-facing and natural-language-friendly behavior
-belongs in help text, examples, documentation, and later higher-level
-commands; the process protocol itself stays deterministic and typed.
+The user-facing direction is a public notebook and app-client layer whose
+normal evaluation, help, completion, package discovery, reset, and later agent
+workflows route through the kernel process. The private CLI should use that
+same protocol for its ordinary symbolic behavior, so it proves the process
+boundary before the public notebook replaces it as the main product client.
+The protocol should be intent-shaped and stable, with plain textual source and
+result representations, structured diagnostics, and capability metadata. It
+should not expose parser tokens, SDK IR nodes, `Expr`, evaluator internals,
+exact arithmetic storage, or pack registration implementation details.
+AI-facing and natural-language-friendly behavior belongs in help text,
+examples, documentation, and later higher-level commands; the process protocol
+itself stays deterministic and typed.
 
 Current command inventory:
 
 | Command or mode | Current implementation path | Split classification |
 | --- | --- | --- |
-| no arguments / `repl` | starts the interactive CLI; default mode is symbolic when `ALEPH3_HAS_SYMBOLIC_ENGINE` is enabled | public shell that should use `KernelClient` for symbolic work |
-| bare CLI expression | falls through to `run_default_expression`, symbolic when available | public evaluation surface; route through `aleph-kernel` |
-| `help`, `--help`, `-h` | static CLI presentation text plus symbolic help in the REPL | public presentation; symbolic help entries route through `aleph-kernel` |
-| `examples` | static CLI examples | public presentation; examples must avoid claiming private implementation is public |
-| `script [--json] <path>` | owns file reading, limits, JSON Lines rendering, and a `session::Session` for stateful evaluation | public command; evaluation/reset state must route through `aleph-kernel` while file IO and JSON Lines formatting remain public |
-| `host-functions` | prints demo SDK host function docs from `tooling/DemoHostFunctions` | SDK-era demo command; transitional and not part of the first public kernel protocol |
-| `tokens <formula>` | calls `frontend::Lexer` and prints token internals | trusted-frontend/debug leftover; do not carry into the first public protocol |
-| `parse <formula>` | calls `frontend::Parser` and prints SDK IR internals | trusted-frontend/debug leftover; do not carry into the first public protocol |
-| `validate <formula>` | calls `sdk::Engine::validate` with an empty schema | SDK-era command; transitional unless a later public SDK developer tool is explicitly kept |
-| `compile <formula>` | calls `sdk::Engine::compile` and reports compile success | SDK-era command; transitional unless a later public SDK developer tool is explicitly kept |
-| `evaluate [--var ...] <formula>` | calls `sdk::Engine::compile` and `evaluate` with CLI bindings | SDK-era command; transitional unless a later public SDK developer tool is explicitly kept |
-| `evaluate-host [--var ...] <formula>` | registers demo host functions, then calls SDK compile/evaluate | SDK-era demo command; transitional and not part of the first public kernel protocol |
+| no arguments / `repl` | starts the interactive CLI; default mode is symbolic when `ALEPH3_HAS_SYMBOLIC_ENGINE` is enabled | private shell that should use `KernelClient` for ordinary symbolic work |
+| bare CLI expression | falls through to `run_default_expression`, symbolic when available | private first-party evaluation surface; route through `aleph-kernel` |
+| `help`, `--help`, `-h` | static CLI presentation text plus symbolic help in the REPL | private presentation; symbolic help entries route through `aleph-kernel` |
+| `examples` | static CLI examples | private presentation; public examples live in the public app repo |
+| `script [--json] <path>` | owns file reading, limits, JSON Lines rendering, and a `session::Session` for stateful evaluation | private first-party command; evaluation/reset state should route through `aleph-kernel` while file IO and JSON Lines formatting stay client-owned |
+| `host-functions` | prints demo SDK host function docs from `tooling/DemoHostFunctions` | SDK-era demo command; private developer/demo tooling |
+| `tokens <formula>` | calls `frontend::Lexer` and prints token internals | private developer/debug tooling; do not carry into the first public protocol |
+| `parse <formula>` | calls `frontend::Parser` and prints SDK IR internals | private developer/debug tooling; do not carry into the first public protocol |
+| `validate <formula>` | calls `sdk::Engine::validate` with an empty schema | SDK-era command; private developer/tooling unless separately productized |
+| `compile <formula>` | calls `sdk::Engine::compile` and reports compile success | SDK-era command; private developer/tooling unless separately productized |
+| `evaluate [--var ...] <formula>` | calls `sdk::Engine::compile` and `evaluate` with CLI bindings | SDK-era command; private developer/tooling unless separately productized |
+| `evaluate-host [--var ...] <formula>` | registers demo host functions, then calls SDK compile/evaluate | SDK-era demo command; private developer/demo tooling |
 | `symbolic-evaluate <expr>` | calls symbolic CLI helpers, which use private symbolic behavior | compatibility command; route through `aleph-kernel` |
 | `symbolic-simplify <expr>` | calls symbolic CLI helpers, which use private symbolic behavior | compatibility command; route through `aleph-kernel` |
 | `symbolic-fullform <expr>` | calls symbolic CLI helpers, which use private symbolic behavior | compatibility command; route through `aleph-kernel` |
@@ -359,18 +385,18 @@ Current REPL command inventory:
 
 | REPL command | Current implementation path | Split classification |
 | --- | --- | --- |
-| bare input | uses active mode, symbolic by default when available | public evaluation surface; route through `aleph-kernel` |
-| `:help [name-or-prefix]` | static command help or `SessionOperation::help` | public; symbolic entries route through `aleph-kernel` |
-| `:examples` | static examples | public presentation |
-| `:mode [sdk|symbolic]` | switches between local SDK and symbolic execution modes | transitional; the public split should avoid making dual evaluators a lasting product concept |
-| `:host-functions` | static demo SDK host function docs | SDK-era demo command; transitional |
-| `:tokens`, `:parse`, `:validate`, `:compile`, `:evaluate`, `:evaluate-host` | same local lexer/parser/SDK paths as top-level commands | transitional; do not include in the first public kernel protocol |
+| bare input | uses active mode, symbolic by default when available | private first-party evaluation surface; route through `aleph-kernel` |
+| `:help [name-or-prefix]` | static command help or `SessionOperation::help` | private CLI command; symbolic entries route through `aleph-kernel` |
+| `:examples` | static examples | private presentation |
+| `:mode [sdk|symbolic]` | switches between local SDK and symbolic execution modes | private transitional command; do not make dual evaluators a public product concept |
+| `:host-functions` | static demo SDK host function docs | SDK-era demo command; private developer/demo tooling |
+| `:tokens`, `:parse`, `:validate`, `:compile`, `:evaluate`, `:evaluate-host` | same local lexer/parser/SDK paths as top-level commands | private developer/debug tooling; do not include in the first public kernel protocol |
 | `:symbolic-evaluate`, `:symbolic-simplify`, `:symbolic-fullform` | symbolic helper paths | compatibility commands; route through `aleph-kernel` |
-| `:inspect <expr>` | `SessionOperation::inspect` | public diagnostic command if retained; route through `aleph-kernel` |
-| `:packs` | `SessionOperation::discover_packs` | public discovery command; route through `aleph-kernel` |
-| `:complete <prefix>` | `SessionOperation::complete` | public discovery command; route through `aleph-kernel` |
-| `:reset` | `session::Session::reset` | public session lifecycle command; route through `aleph-kernel` |
-| `:quit`, `:exit` | local REPL control | public shell behavior; stays in CLI |
+| `:inspect <expr>` | `SessionOperation::inspect` | private diagnostic command; route through `aleph-kernel` if retained |
+| `:packs` | `SessionOperation::discover_packs` | private discovery command; route through `aleph-kernel` |
+| `:complete <prefix>` | `SessionOperation::complete` | private discovery command; route through `aleph-kernel` |
+| `:reset` | `session::Session::reset` | private session lifecycle command; route through `aleph-kernel` |
+| `:quit`, `:exit` | local REPL control | private shell behavior; stays in CLI |
 
 Current private-header dependencies in `src/tooling/aleph3_cli.cpp` include:
 
@@ -385,10 +411,11 @@ Current private-header dependencies in `src/tooling/aleph3_cli.cpp` include:
 
 The first split should move symbolic execution, simplification, full form,
 scripts, REPL bare evaluation, help, completion, pack discovery, inspection,
-and reset behind `aleph-kernel`. It should not attempt to preserve public
-access to token streams, parser trees, SDK IR, or demo host functions through
-the kernel protocol. If those SDK-era developer tools remain useful, they need
-a separate public SDK-tooling decision after the CLI/kernel boundary is stable.
+and reset behind `aleph-kernel` inside the private repo. It should not attempt
+to expose token streams, parser trees, SDK IR, or demo host functions through
+the public protocol. If those SDK-era developer tools remain useful, they can
+remain private CLI commands or receive a separate public SDK-tooling decision
+after the kernel-process boundary is stable.
 
 Outputs to preserve during the compatibility phase:
 
@@ -400,8 +427,8 @@ Outputs to preserve during the compatibility phase:
   `2` when any line fails, and line-size failure exit code `3`;
 - `script --json` JSON Lines fields `schema_version`, `line`, `source`, `ok`,
   `output`, and `diagnostics`, with exact outputs preserved as strings;
-- deterministic missing-kernel and incompatible-protocol diagnostics once the
-  process boundary exists.
+- deterministic missing-kernel and incompatible-protocol diagnostics in
+  private CLI and public app clients once the process boundary exists.
 
 Existing behavior evidence is concentrated in `tests/tooling/Aleph3CliTests.cpp`.
 It covers bare expression evaluation, REPL meta commands and help, mode
@@ -411,12 +438,13 @@ script JSON Lines output, exact string preservation, and script limits. Session
 help and completion behavior is also covered directly in
 `tests/session/SessionTests.cpp`.
 
-M0 decision: SDK-era formula commands are transitional for the public/private
-split. The initial protocol should not carry `tokens`, `parse`, `validate`,
-`compile`, `evaluate`, `evaluate-host`, or `host-functions`. Public symbolic
-compatibility names may remain during migration, but the durable public mental
-model should be ordinary evaluation through a compatible `aleph-kernel`, not a
-permanent split between SDK and symbolic evaluators in the CLI.
+M0 decision: SDK-era formula commands remain private developer/demo tooling for
+the public/private split. The initial protocol should not carry `tokens`,
+`parse`, `validate`, `compile`, `evaluate`, `evaluate-host`, or
+`host-functions`. Symbolic compatibility names may remain in the private CLI
+during migration, but the durable public mental model should be ordinary
+evaluation through a compatible `aleph-kernel`, not a permanent split between
+SDK and symbolic evaluators.
 
 ### M1 - Add Protocol Model In The Current Repository
 
@@ -468,10 +496,12 @@ Focused tests:
 - call `complete Po`;
 - reset session definitions.
 
-### M3 - Add Public `KernelClient`
+### M3 - Add First-Party `KernelClient`
 
-Create a CLI-facing client that starts `aleph-kernel` as a child process and
-communicates through the framed protocol.
+Create a client library that starts `aleph-kernel` as a child process and
+communicates through the framed protocol. The private CLI is the first real
+consumer. The same client model, or a small public subset of it, should later
+be reused by the public notebook and agent clients.
 
 Responsibilities:
 
@@ -485,10 +515,10 @@ Responsibilities:
 - send graceful shutdown where possible;
 - report missing executable clearly.
 
-Tests should use a fake kernel executable so public CLI tests do not require
-private kernel code.
+Tests should use a fake kernel executable so protocol/client behavior can be
+verified without invoking private kernel code.
 
-### M4 - Migrate CLI Symbolic Commands To `KernelClient`
+### M4 - Migrate Private CLI Symbolic Commands To `KernelClient`
 
 Change CLI symbolic commands so they no longer directly call `session::Session`
 or symbolic helper functions.
@@ -506,51 +536,53 @@ Commands to migrate first:
 - `:reset`
 - `:inspect` if retained
 
-After this milestone, CLI symbolic behavior should work through the process
-boundary:
+After this milestone, private CLI symbolic behavior should work through the
+same process boundary the public notebook will use:
 
 ```text
 aleph3_cli --kernel path/to/aleph-kernel symbolic-evaluate "Expand[(x+1)^2]"
 ```
 
-### M5 - Support A Public CLI Build Without Private Kernel Sources
+Private developer/debug commands such as `tokens`, `parse`, SDK validation,
+SDK compilation, and demo host-function evaluation may still call private code
+inside the private repository. They are not part of the public app protocol.
 
-Add a build option such as:
+### M5 - Prove A Public App Client Without Private Sources
 
-```text
-ALEPH3_BUILD_PRIVATE_KERNEL=OFF
-```
+Before physically splitting repositories, add an in-tree public-client build
+mode or fixture that represents what the future public notebook repo may
+contain:
 
-When private kernel sources are disabled, the public repository builds:
-
-- `aleph3_cli`;
 - public `aleph_client` library;
+- a small smoke-test app or notebook harness using `aleph_client`;
 - protocol tests;
 - fake-kernel tests.
 
 It does not build:
 
+- `aleph3_cli`;
 - `aleph3_kernel`;
 - private pack targets;
 - symbolic evaluator tests;
 - private kernel/session/pack tests.
 
-Acceptance gate:
+Possible in-repo acceptance gate:
 
 ```text
-cmake -S . -B build-public -DALEPH3_BUILD_PRIVATE_KERNEL=OFF
-cmake --build build-public
-ctest --test-dir build-public
+cmake -S . -B build-public-client -DALEPH3_BUILD_PUBLIC_CLIENT_ONLY=ON
+cmake --build build-public-client
+ctest --test-dir build-public-client
 ```
 
-The gate must pass without private source files.
+The gate must pass without private source files and without compiling the CLI.
 
-### M6 - Extract Private Code
+### M6 - Make Current Repo Private And Create Public App Repo
 
-Move private implementation to the private repository only after the public
-CLI has stopped including private headers.
+Make the current Aleph repository private only after the private CLI has proven
+the `aleph-kernel` process boundary and the public-client fixture builds
+without private sources.
 
-Private candidates include:
+The current private repository owns:
 
 ```text
 include/expr
@@ -572,21 +604,24 @@ src/transforms
 src/session
 src/algebra
 src/packs
+src/tooling/aleph3_cli.cpp
 ```
 
-The private repository owns:
+It also owns:
 
 - `libaleph`;
 - `aleph-kernel`;
+- `aleph3_cli`;
 - pack targets;
-- kernel, session, and pack tests.
+- kernel, session, pack, CLI, and real kernel-process tests.
 
-The public repository keeps:
+Create a new public repository, provisionally `aleph-notebook`, containing:
 
-- CLI source;
 - `aleph_client`;
 - protocol documentation;
-- CLI documentation;
+- notebook or app-client source;
+- agent integration when that work becomes active;
+- public examples and runtime setup documentation;
 - fake-kernel tests.
 
 ### M7 - Private Kernel Build And Packaging
@@ -595,24 +630,27 @@ The private repository should produce:
 
 ```text
 aleph-kernel.exe
+aleph3_cli.exe
 ```
 
 Later it may also produce private libraries or separately packaged packs, but
-the first public/private boundary only requires the kernel executable.
+the first public/private boundary requires the kernel executable and keeps the
+CLI as a private diagnostic client.
 
 Private artifact layout should include:
 
 ```text
 aleph-kernel.exe
+aleph3_cli.exe
 LICENSES.txt
 VERSION
 ```
 
 Official product distributions may bundle the private kernel binary with the
-public CLI. The open public source should not contain the private
-implementation.
+public notebook or app client. The open public source should not contain the
+private implementation or private CLI.
 
-### M8 - Public Compatibility Tests With Fake Kernel
+### M8 - Public App Compatibility Tests With Fake Kernel
 
 The public repository needs deterministic tests that do not require private
 kernel code.
@@ -631,16 +669,15 @@ reset -> ok
 
 These tests prove:
 
-- CLI argument parsing;
 - process launch;
 - protocol framing;
 - error rendering;
-- JSON output mode;
-- REPL command plumbing where practical.
+- notebook/app request orchestration;
+- public diagnostic and result rendering.
 
 ### M9 - Private Integration Tests Against Real Kernel
 
-The private repository should test the public CLI against the real private
+The private repository should test the private CLI against the real private
 kernel:
 
 ```text
@@ -650,24 +687,28 @@ aleph3_cli --kernel ./aleph-kernel symbolic-evaluate "Det[{{1,2},{3,4}}]"
 aleph3_cli --kernel ./aleph-kernel symbolic-evaluate "1/0"
 ```
 
-This proves the public CLI and private kernel remain compatible without
-duplicating semantics in the public repository.
+This proves the CLI and kernel remain compatible through the same process
+boundary used by the public notebook. Public app integration tests against the
+real private kernel can run in private CI or release smoke tests when a product
+bundle is assembled.
 
 ### M10 - Documentation And Release Rules
 
 Public documentation should state:
 
-- CLI source is open;
 - mathematical execution requires a compatible `aleph-kernel`;
 - the kernel protocol version is public;
 - the private kernel binary supplies Aleph semantics;
-- the CLI does not implement mathematical semantics.
+- the public notebook or app client does not implement mathematical semantics;
+- the CLI is private developer tooling unless a separate public CLI is later
+  introduced.
 
 Private documentation should state:
 
 - how to build `aleph-kernel`;
+- how to build and use the private CLI;
 - supported protocol version;
-- compatibility matrix with public CLI versions;
+- compatibility matrix with public client versions;
 - release artifact checklist.
 
 Release rule:
@@ -685,27 +726,29 @@ Public repository verification:
 
 - protocol encode/decode tests;
 - framed IO tests;
-- fake-kernel CLI tests;
+- fake-kernel product-client tests;
 - missing-kernel diagnostics;
-- public build with private sources disabled.
+- public app-client build with private sources disabled.
 
 Private repository verification:
 
 - existing kernel, pack, session, and symbolic behavior tests;
 - `aleph-kernel` protocol tests;
 - real CLI-to-kernel integration tests;
-- packaging smoke test proving a built public CLI can find and use the private
-  kernel executable.
+- packaging smoke test proving a public notebook or app client can find and
+  use the private kernel executable.
 
 ## Completion Criteria
 
-The CLI split is complete when:
+The public app / private kernel split is complete when:
 
-- public CLI code includes no private kernel, parser, expression, evaluator,
-  exact arithmetic, or pack headers;
-- public build and tests pass without private source files;
+- public app-client code includes no private kernel, parser, expression,
+  evaluator, exact arithmetic, CLI, or pack headers;
+- public app-client build and tests pass without private source files;
 - private `aleph-kernel` passes kernel/session/pack tests;
-- public CLI plus private `aleph-kernel` pass real integration tests;
+- private CLI plus private `aleph-kernel` pass real integration tests;
+- public app client plus private `aleph-kernel` pass product-bundle smoke
+  tests;
 - protocol versioning and incompatible-version diagnostics exist;
 - documentation accurately distinguishes public source from private semantics;
 - release checks prevent accidental publication of private implementation

@@ -25,16 +25,18 @@ foundations. The same sources can be
 6. [Rational-Expression Domain Conditions Plan](rational_expression_domain_conditions_plan.md) -
    active plan for consuming preserved denominator-exclusion metadata through a
    bounded condition-aware algebra workflow.
-7. [Signal Systems V0 Plan](signal_systems_v0_plan.md) - future plan for
+7. [Exact Vector Algebra Plan](exact_vector_algebra_plan.md) - approved plan
+   for adding exact `Dot`, `Cross`, `Norm`, and exact square-root preservation.
+8. [Signal Systems V0 Plan](signal_systems_v0_plan.md) - future plan for
    exact continuous-time SISO transfer functions and stability analysis. It is
    not the active roadmap.
-8. [Web MVP Launch Plan](web_mvp_launch_plan.md) - paused web launch scope,
+9. [Web MVP Launch Plan](web_mvp_launch_plan.md) - paused web launch scope,
    anonymous-user strategy, API shape, deployment phases, and acceptance gates
    for a possible future web notebook. It is not the active roadmap.
-9. [Web MVP Operations](web_mvp_operations.md) - local service, port,
+10. [Web MVP Operations](web_mvp_operations.md) - local service, port,
    Docker Compose, Traefik, and smoke-test procedures for the existing paused
    web slice.
-10. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
+11. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
    public/private transition guidance.
 
 ## Normative References

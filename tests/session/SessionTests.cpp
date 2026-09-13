@@ -381,6 +381,9 @@ TEST_CASE("Session reports exact division by known zero and recovers", "[session
              "0/0",
              "1/(2-2)",
              "1/(10-5-5)",
+             "1/(1000000000000000000000000-1000000000000000000000000)",
+             "(123456789/987654321)/(2-2)",
+             "1/((1/3)-(1/3))",
              "(1/2)/(3-3)"}) {
         DYNAMIC_SECTION(input) {
             const auto result = session.execute({input});
@@ -412,6 +415,14 @@ TEST_CASE("Session reports assignment-introduced exact zero denominators", "[ses
     REQUIRE(evaluated_zero.diagnostics.size() == 1);
     REQUIRE(evaluated_zero.diagnostics.front().code == "runtime.division_by_zero");
     REQUIRE(session.execute({"a + 3"}).output == "5");
+
+    REQUIRE(session.execute({"b = 2"}).ok);
+    REQUIRE(session.execute({"c = b - b"}).ok);
+    const auto chained_zero = session.execute({"1/c"});
+    REQUIRE_FALSE(chained_zero.ok);
+    REQUIRE(chained_zero.diagnostics.size() == 1);
+    REQUIRE(chained_zero.diagnostics.front().code == "runtime.division_by_zero");
+    REQUIRE(session.execute({"1/2 + 1/2"}).output == "1");
 }
 
 TEST_CASE("Session preserves lazy branches containing exact division by zero", "[session][special-forms][division-by-zero]") {

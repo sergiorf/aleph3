@@ -163,6 +163,7 @@ TEST_CASE("Evaluator reports exact division by evaluated zero denominators", "[e
              "1/(10-5-5)",
              "1/(2*0)",
              "1/(0+0)",
+             "1/(1000000000000000000000000-1000000000000000000000000)",
              "1/(12345678901234567890 - 12345678901234567890)"}) {
         DYNAMIC_SECTION(input) {
             require_runtime_division_by_zero(input);
@@ -173,8 +174,11 @@ TEST_CASE("Evaluator reports exact division by evaluated zero denominators", "[e
 TEST_CASE("Evaluator reports rational exact division by known zero denominators", "[evaluator][rational][division-by-zero]") {
     for (const auto* input : {
              "(1/2)/0",
+             "(-3/7)/0",
              "(1/2)/(3-3)",
+             "(123456789/987654321)/(2-2)",
              "1/(0/3)",
+             "1/((1/3)-(1/3))",
              "1/((2/6)-(1/3))"}) {
         DYNAMIC_SECTION(input) {
             require_runtime_division_by_zero(input);

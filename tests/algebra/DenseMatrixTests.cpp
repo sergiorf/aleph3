@@ -26,6 +26,11 @@ TEST_CASE("Dense matrix algorithms preserve exact rational arithmetic", "[algebr
     const auto reduced = aleph3::algebra::row_reduce(left);
     REQUIRE(reduced == aleph3::algebra::identity_matrix<ExactCoefficient>(2));
 
+    DenseMatrix<ExactCoefficient> rational(2, 2, {{1, 2}, {1, 1}, {1, 1}, {3, 1}});
+    REQUIRE(aleph3::algebra::determinant(rational) == ExactCoefficient(1, 2));
+    const auto rational_reduced = aleph3::algebra::row_reduce(rational);
+    REQUIRE(rational_reduced == aleph3::algebra::identity_matrix<ExactCoefficient>(2));
+
     DenseMatrix<ExactCoefficient> large(
         1,
         1,

@@ -184,9 +184,12 @@ TEST_CASE("Session exposes variable dependency inspection values and diagnostics
 TEST_CASE("Session exposes exact matrix values and diagnostics", "[session][algebra][matrix]") {
     Session session;
     REQUIRE(session.execute({"Det[{{1, 2}, {3, 4}}]"}).output == "-2");
+    REQUIRE(session.execute({"Det[{{1/2, 1}, {1, 3}}]"}).output == "1/2");
+    REQUIRE(session.execute({"RowReduce[{{1/2, 1}, {1, 3}}]"}).output == "{{1, 0}, {0, 1}}");
     REQUIRE(session.execute({"Det[{{9223372036854775808, 1}, {0, 1}}]"}).output ==
         "9223372036854775808");
     REQUIRE(session.execute({"LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]"}).output == "{2, 1}");
+    REQUIRE(session.execute({"LinearSolve[{{1/2, 1}, {1, 3}}, {5/2, 7}]"}).output == "{1, 2}");
     const auto failure = session.execute({"MatrixMultiply[{{1, 2}}, {{1, 2}}]"});
     REQUIRE_FALSE(failure.ok);
     REQUIRE(failure.diagnostics.front().code == "runtime.domain_violation");
@@ -370,7 +373,7 @@ TEST_CASE("Session reports polynomial division by zero with a stable diagnostic"
     REQUIRE(result.diagnostics.front().code == "runtime.division_by_zero");
 }
 
-TEST_CASE("Session red tests exact division by known zero reports runtime diagnostic and recovers", "[session][rational][division-by-zero][red]") {
+TEST_CASE("Session reports exact division by known zero and recovers", "[session][rational][division-by-zero]") {
     Session session;
 
     for (const auto* input : {
@@ -389,6 +392,34 @@ TEST_CASE("Session red tests exact division by known zero reports runtime diagno
             REQUIRE(recovery.output == "1");
         }
     }
+}
+
+TEST_CASE("Session reports assignment-introduced exact zero denominators", "[session][rational][division-by-zero]") {
+    Session session;
+
+    REQUIRE(session.execute({"a = 0"}).ok);
+    const auto direct_zero = session.execute({"1/a"});
+    REQUIRE_FALSE(direct_zero.ok);
+    REQUIRE(direct_zero.diagnostics.size() == 1);
+    REQUIRE(direct_zero.diagnostics.front().code == "runtime.division_by_zero");
+    REQUIRE(session.execute({"1/2 + 1/2"}).output == "1");
+
+    REQUIRE(session.execute({"a = 2"}).ok);
+    REQUIRE(session.execute({"b = a - a"}).ok);
+    const auto evaluated_zero = session.execute({"1/b"});
+    REQUIRE_FALSE(evaluated_zero.ok);
+    REQUIRE(evaluated_zero.diagnostics.size() == 1);
+    REQUIRE(evaluated_zero.diagnostics.front().code == "runtime.division_by_zero");
+    REQUIRE(session.execute({"a + 3"}).output == "5");
+}
+
+TEST_CASE("Session preserves lazy branches containing exact division by zero", "[session][special-forms][division-by-zero]") {
+    Session session;
+
+    REQUIRE(session.execute({"If[True, 1, 1/0]"}).output == "1");
+    REQUIRE(session.execute({"If[False, 1/0, 2]"}).output == "2");
+    REQUIRE(session.execute({"And[False, 1/0]"}).output == "False");
+    REQUIRE(session.execute({"Or[True, 1/0]"}).output == "True");
 }
 
 TEST_CASE("Session preserves large exact rational arithmetic", "[session][rational]") {

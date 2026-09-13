@@ -4,11 +4,13 @@ Status: active implementation plan. Current behavior remains owned by the
 focused specifications and manual until this plan is implemented and those
 documents are updated.
 
-Current local status: slices 3 and 4 are implemented and verified. Focused
-evaluator and algebra coverage now pass for exact scalar division by zero,
-polynomial scalar division, and rational-expression zero-denominator
-boundaries. The full rebuilt Release `aleph3_symbolic_tests` suite passes.
-Slice 5 cross-surface regression coverage is the next implementation slice.
+Current local status: slices 3, 4, and 5 are implemented and verified. Focused
+evaluator, algebra, session, SDK, matrix, infinity, and calculus coverage now
+pass for exact scalar division by zero, polynomial scalar division,
+rational-expression zero-denominator boundaries, and cross-surface recovery.
+The full rebuilt Release `aleph3_symbolic_tests` and `aleph3_sdk_tests` suites
+pass. Slice 6 documentation and help follow-through is the next implementation
+slice.
 
 ## Goal
 
@@ -197,6 +199,14 @@ Completion criterion: exact scalar zero denominators fail consistently without
 turning symbolic rational functions into eager runtime errors.
 
 ### 5. Cross-Surface Regressions
+
+Status: complete. Session, SDK, validator, dense-matrix, calculus, and
+symbolic-infinity regression coverage now verifies that exact known
+zero-denominator failures use the shared runtime diagnostic at public runtime
+boundaries, validation-owned constant failures keep their validator diagnostic,
+dead branches remain lazy, rational matrix operations continue to preserve
+exact division, and symbolic infinity objects remain available outside
+ordinary exact arithmetic.
 
 Update or add coverage for:
 

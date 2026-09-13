@@ -350,6 +350,13 @@ TEST_CASE("Engine evaluate reports runtime errors for compiled formulas", "[sdk]
     REQUIRE(division_result.error.has_value());
     REQUIRE(division_result.error->code == "runtime.division_by_zero");
 
+    const auto evaluated_zero_formula = engine.compile("1 / (x - x)", schema);
+    REQUIRE(evaluated_zero_formula.ok());
+    const auto evaluated_zero_result = engine.evaluate(*evaluated_zero_formula.formula, {{"x", Value(2.0)}});
+    REQUIRE_FALSE(evaluated_zero_result.ok());
+    REQUIRE(evaluated_zero_result.error.has_value());
+    REQUIRE(evaluated_zero_result.error->code == "runtime.division_by_zero");
+
     const auto zero_to_zero_formula = engine.compile("0 ^ 0", schema);
     REQUIRE(zero_to_zero_formula.ok());
     const auto zero_to_zero_result = engine.evaluate(*zero_to_zero_formula.formula, {});
@@ -443,21 +450,33 @@ TEST_CASE("Engine validate reports schema and policy failures with structured di
     REQUIRE_FALSE(constant_division_by_zero.ok);
     REQUIRE(constant_division_by_zero.diagnostics.size() == 1);
     REQUIRE(constant_division_by_zero.diagnostics.front().code == "semantics.validator.division_by_zero");
+
+    auto constant_zero_over_zero = engine.validate("0 / 0", schema, Policy::default_policy());
+    REQUIRE_FALSE(constant_zero_over_zero.ok);
+    REQUIRE(constant_zero_over_zero.diagnostics.size() == 1);
+    REQUIRE(constant_zero_over_zero.diagnostics.front().code == "semantics.validator.division_by_zero");
 }
 
 TEST_CASE("Engine compile and evaluate honor literal If branch pruning", "[sdk][engine]") {
     Engine engine;
     Schema schema;
 
-    const auto compile_result = engine.compile("If[True, 1, missing + 1]", schema);
-    REQUIRE(compile_result.ok());
-    REQUIRE(compile_result.formula.has_value());
+    for (const auto* source : {
+             "If[True, 1, missing + 1]",
+             "If[True, 1, 1 / 0]",
+             "If[False, 1 / 0, 1]"}) {
+        DYNAMIC_SECTION(source) {
+            const auto compile_result = engine.compile(source, schema);
+            REQUIRE(compile_result.ok());
+            REQUIRE(compile_result.formula.has_value());
 
-    const auto evaluation_result = engine.evaluate(*compile_result.formula, {});
-    REQUIRE(evaluation_result.ok());
-    REQUIRE(evaluation_result.value.has_value());
-    REQUIRE(evaluation_result.value->as_number() != nullptr);
-    REQUIRE(*evaluation_result.value->as_number() == 1.0);
+            const auto evaluation_result = engine.evaluate(*compile_result.formula, {});
+            REQUIRE(evaluation_result.ok());
+            REQUIRE(evaluation_result.value.has_value());
+            REQUIRE(evaluation_result.value->as_number() != nullptr);
+            REQUIRE(*evaluation_result.value->as_number() == 1.0);
+        }
+    }
 }
 
 TEST_CASE("Engine compile and evaluate honor constant-condition If branch pruning", "[sdk][engine]") {
@@ -637,28 +656,28 @@ TEST_CASE("Engine evaluate matches direct kernel evaluation for runtime failures
     Schema schema;
     schema.allow_variable({"x", ValueType::number, true});
 
-    constexpr std::string_view source = "1 / x";
+    for (const auto& [source, bindings] : {
+             std::pair<std::string_view, Bindings>{"1 / x", {{"x", Value(0.0)}}},
+             std::pair<std::string_view, Bindings>{"1 / (x - x)", {{"x", Value(2.0)}}}}) {
+        DYNAMIC_SECTION(source) {
+            const auto compile_result = engine.compile(source, schema);
+            REQUIRE(compile_result.ok());
+            REQUIRE(compile_result.formula.has_value());
 
-    const auto compile_result = engine.compile(source, schema);
-    REQUIRE(compile_result.ok());
-    REQUIRE(compile_result.formula.has_value());
+            const auto sdk_result = engine.evaluate(*compile_result.formula, bindings);
+            const auto kernel_expr = stage_sdk_source_as_kernel_expr(source, schema, Policy::default_policy());
+            const auto kernel_result = evaluate_direct_kernel_expr(
+                kernel_expr,
+                bindings,
+                schema.constant_values(),
+                {},
+                Policy::default_policy());
 
-    const Bindings bindings = {
-        {"x", Value(0.0)}
-    };
-
-    const auto sdk_result = engine.evaluate(*compile_result.formula, bindings);
-    const auto kernel_expr = stage_sdk_source_as_kernel_expr(source, schema, Policy::default_policy());
-    const auto kernel_result = evaluate_direct_kernel_expr(
-        kernel_expr,
-        bindings,
-        schema.constant_values(),
-        {},
-        Policy::default_policy());
-
-    require_same_evaluation_result(sdk_result, kernel_result);
-    REQUIRE_FALSE(sdk_result.ok());
-    REQUIRE(sdk_result.error->code == "runtime.division_by_zero");
+            require_same_evaluation_result(sdk_result, kernel_result);
+            REQUIRE_FALSE(sdk_result.ok());
+            REQUIRE(sdk_result.error->code == "runtime.division_by_zero");
+        }
+    }
 }
 
 TEST_CASE("Engine evaluate matches direct kernel evaluation for host functions", "[sdk][engine][kernel]") {

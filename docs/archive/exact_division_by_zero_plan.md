@@ -41,14 +41,14 @@ follow-through.
 
 Relevant canonical documents:
 
-- [Unified Plan](aleph3_unified_plan.md), especially Exact Algebra Depth and
+- [Unified Plan](../aleph3_unified_plan.md), especially Exact Algebra Depth and
   Quality and Documentation.
-- [Feature Development Workflow](feature_development_workflow.md).
-- [Kernel Exact Algebra Spec](kernel_exact_algebra_spec.md).
-- [Algebra Supported Subset](algebra_supported_subset.md).
-- [Dense Matrix Spec](algebra_dense_matrix_spec.md).
-- [Trusted Subset](trusted_subset_v1.md).
-- [Expressions And Evaluation](manual/expressions-and-evaluation.md).
+- [Feature Development Workflow](../feature_development_workflow.md).
+- [Kernel Exact Algebra Spec](../kernel_exact_algebra_spec.md).
+- [Algebra Supported Subset](../algebra_supported_subset.md).
+- [Dense Matrix Spec](../algebra_dense_matrix_spec.md).
+- [Trusted Subset](../trusted_subset_v1.md).
+- [Expressions And Evaluation](../manual/expressions-and-evaluation.md).
 
 Initial code search shows the inconsistency is spread across multiple paths:
 

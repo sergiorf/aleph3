@@ -316,6 +316,108 @@ the private kernel boundary. For the IP split, symbolic CLI behavior should
 move through `aleph-kernel`; broader SDK cleanup can be deferred unless it
 blocks the boundary.
 
+#### M0 Boundary Audit
+
+The initial public command name remains `aleph3_cli`. A later product rename
+may introduce `aleph` or another shorter launcher after the notebook and
+distribution shape are clearer; the repository split should not combine a
+public/private architecture change with a command rename.
+
+The private executable name is `aleph-kernel`.
+
+The public user-facing direction is a small CLI whose normal evaluation,
+script, REPL, help, completion, package discovery, and reset behavior routes
+through the kernel process. The protocol should be intent-shaped and stable,
+with plain textual source and result representations, structured diagnostics,
+and capability metadata. It should not expose parser tokens, SDK IR nodes,
+`Expr`, evaluator internals, exact arithmetic storage, or pack registration
+implementation details. AI-facing and natural-language-friendly behavior
+belongs in help text, examples, documentation, and later higher-level
+commands; the process protocol itself stays deterministic and typed.
+
+Current command inventory:
+
+| Command or mode | Current implementation path | Split classification |
+| --- | --- | --- |
+| no arguments / `repl` | starts the interactive CLI; default mode is symbolic when `ALEPH3_HAS_SYMBOLIC_ENGINE` is enabled | public shell that should use `KernelClient` for symbolic work |
+| bare CLI expression | falls through to `run_default_expression`, symbolic when available | public evaluation surface; route through `aleph-kernel` |
+| `help`, `--help`, `-h` | static CLI presentation text plus symbolic help in the REPL | public presentation; symbolic help entries route through `aleph-kernel` |
+| `examples` | static CLI examples | public presentation; examples must avoid claiming private implementation is public |
+| `script [--json] <path>` | owns file reading, limits, JSON Lines rendering, and a `session::Session` for stateful evaluation | public command; evaluation/reset state must route through `aleph-kernel` while file IO and JSON Lines formatting remain public |
+| `host-functions` | prints demo SDK host function docs from `tooling/DemoHostFunctions` | SDK-era demo command; transitional and not part of the first public kernel protocol |
+| `tokens <formula>` | calls `frontend::Lexer` and prints token internals | trusted-frontend/debug leftover; do not carry into the first public protocol |
+| `parse <formula>` | calls `frontend::Parser` and prints SDK IR internals | trusted-frontend/debug leftover; do not carry into the first public protocol |
+| `validate <formula>` | calls `sdk::Engine::validate` with an empty schema | SDK-era command; transitional unless a later public SDK developer tool is explicitly kept |
+| `compile <formula>` | calls `sdk::Engine::compile` and reports compile success | SDK-era command; transitional unless a later public SDK developer tool is explicitly kept |
+| `evaluate [--var ...] <formula>` | calls `sdk::Engine::compile` and `evaluate` with CLI bindings | SDK-era command; transitional unless a later public SDK developer tool is explicitly kept |
+| `evaluate-host [--var ...] <formula>` | registers demo host functions, then calls SDK compile/evaluate | SDK-era demo command; transitional and not part of the first public kernel protocol |
+| `symbolic-evaluate <expr>` | calls symbolic CLI helpers, which use private symbolic behavior | compatibility command; route through `aleph-kernel` |
+| `symbolic-simplify <expr>` | calls symbolic CLI helpers, which use private symbolic behavior | compatibility command; route through `aleph-kernel` |
+| `symbolic-fullform <expr>` | calls symbolic CLI helpers, which use private symbolic behavior | compatibility command; route through `aleph-kernel` |
+
+Current REPL command inventory:
+
+| REPL command | Current implementation path | Split classification |
+| --- | --- | --- |
+| bare input | uses active mode, symbolic by default when available | public evaluation surface; route through `aleph-kernel` |
+| `:help [name-or-prefix]` | static command help or `SessionOperation::help` | public; symbolic entries route through `aleph-kernel` |
+| `:examples` | static examples | public presentation |
+| `:mode [sdk|symbolic]` | switches between local SDK and symbolic execution modes | transitional; the public split should avoid making dual evaluators a lasting product concept |
+| `:host-functions` | static demo SDK host function docs | SDK-era demo command; transitional |
+| `:tokens`, `:parse`, `:validate`, `:compile`, `:evaluate`, `:evaluate-host` | same local lexer/parser/SDK paths as top-level commands | transitional; do not include in the first public kernel protocol |
+| `:symbolic-evaluate`, `:symbolic-simplify`, `:symbolic-fullform` | symbolic helper paths | compatibility commands; route through `aleph-kernel` |
+| `:inspect <expr>` | `SessionOperation::inspect` | public diagnostic command if retained; route through `aleph-kernel` |
+| `:packs` | `SessionOperation::discover_packs` | public discovery command; route through `aleph-kernel` |
+| `:complete <prefix>` | `SessionOperation::complete` | public discovery command; route through `aleph-kernel` |
+| `:reset` | `session::Session::reset` | public session lifecycle command; route through `aleph-kernel` |
+| `:quit`, `:exit` | local REPL control | public shell behavior; stays in CLI |
+
+Current private-header dependencies in `src/tooling/aleph3_cli.cpp` include:
+
+- `frontend/Lexer.hpp` and `frontend/Parser.hpp` for `tokens` and `parse`;
+- `ir/Node.hpp` for parser tree printing;
+- `sdk/Engine.hpp` for SDK validation, compilation, evaluation, and demo host
+  function evaluation;
+- `session/Session.hpp` for REPL discovery, session evaluation, scripts,
+  completion, help, packs, inspection, and reset;
+- `tooling/SymbolicCliSupport.hpp` when `ALEPH3_HAS_SYMBOLIC_ENGINE` is
+  enabled.
+
+The first split should move symbolic execution, simplification, full form,
+scripts, REPL bare evaluation, help, completion, pack discovery, inspection,
+and reset behind `aleph-kernel`. It should not attempt to preserve public
+access to token streams, parser trees, SDK IR, or demo host functions through
+the kernel protocol. If those SDK-era developer tools remain useful, they need
+a separate public SDK-tooling decision after the CLI/kernel boundary is stable.
+
+Outputs to preserve during the compatibility phase:
+
+- plain text result rendering for bare CLI expressions and `symbolic-*`
+  commands;
+- REPL prompt and command behavior where practical, especially bare input,
+  `:help`, `:complete`, `:packs`, `:reset`, `:inspect`, and `:quit`;
+- script continuation after failed lines, line-numbered diagnostics, exit code
+  `2` when any line fails, and line-size failure exit code `3`;
+- `script --json` JSON Lines fields `schema_version`, `line`, `source`, `ok`,
+  `output`, and `diagnostics`, with exact outputs preserved as strings;
+- deterministic missing-kernel and incompatible-protocol diagnostics once the
+  process boundary exists.
+
+Existing behavior evidence is concentrated in `tests/tooling/Aleph3CliTests.cpp`.
+It covers bare expression evaluation, REPL meta commands and help, mode
+switching, pack-backed matrix and calculus examples, session state, inspection,
+completion, reset, cleanup precedence, one-shot isolation, script state,
+script JSON Lines output, exact string preservation, and script limits. Session
+help and completion behavior is also covered directly in
+`tests/session/SessionTests.cpp`.
+
+M0 decision: SDK-era formula commands are transitional for the public/private
+split. The initial protocol should not carry `tokens`, `parse`, `validate`,
+`compile`, `evaluate`, `evaluate-host`, or `host-functions`. Public symbolic
+compatibility names may remain during migration, but the durable public mental
+model should be ordinary evaluation through a compatible `aleph-kernel`, not a
+permanent split between SDK and symbolic evaluators in the CLI.
+
 ### M1 - Add Protocol Model In The Current Repository
 
 Before moving private files, add protocol and client model code while kernel
@@ -608,4 +710,3 @@ The CLI split is complete when:
 - documentation accurately distinguishes public source from private semantics;
 - release checks prevent accidental publication of private implementation
   artifacts.
-

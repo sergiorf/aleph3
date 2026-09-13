@@ -604,17 +604,17 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
         left_finite.has_value() && right_finite.has_value()) {
         double a = *left_finite;
         double b = *right_finite;
+        if (func.head == "Divide" && b == 0.0) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::division_by_zero,
+                "Division by zero is not allowed.");
+        }
         if (func.head == "Power" && a == 0.0 && b == 0.0 && !ctx.strict_runtime_semantics()) {
             return make_fcall(func.head, {left, right});
         }
         if (ctx.strict_runtime_semantics()) {
             ensure_finite_number(a);
             ensure_finite_number(b);
-            if (func.head == "Divide" && b == 0.0) {
-                kernel::throw_runtime_error(
-                    kernel::ErrorCode::division_by_zero,
-                    "Division by zero is not allowed.");
-            }
             if (func.head == "Power") {
                 if (a == 0.0 && b == 0.0) {
                     kernel::throw_runtime_error(
@@ -672,17 +672,17 @@ ExprPtr evaluate_builtin_binary(const FunctionCall& func, EvaluationContext& ctx
     if (std::holds_alternative<Number>(*left) && std::holds_alternative<Number>(*right)) {
         double a = get_number_value(left);
         double b = get_number_value(right);
+        if (func.head == "Divide" && b == 0.0) {
+            kernel::throw_runtime_error(
+                kernel::ErrorCode::division_by_zero,
+                "Division by zero is not allowed.");
+        }
         if (func.head == "Power" && a == 0.0 && b == 0.0 && !ctx.strict_runtime_semantics()) {
             return make_fcall(func.head, {left, right});
         }
         if (ctx.strict_runtime_semantics()) {
             ensure_finite_number(a);
             ensure_finite_number(b);
-            if (func.head == "Divide" && b == 0.0) {
-                kernel::throw_runtime_error(
-                    kernel::ErrorCode::division_by_zero,
-                    "Division by zero is not allowed.");
-            }
             if (func.head == "Power") {
                 if (a == 0.0 && b == 0.0) {
                     kernel::throw_runtime_error(

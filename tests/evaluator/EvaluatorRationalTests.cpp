@@ -160,6 +160,7 @@ TEST_CASE("Evaluator reports exact division by evaluated zero denominators", "[e
     for (const auto* input : {
              "1/(1-1)",
              "1/(2-2)",
+             "1/(10-5-5)",
              "1/(2*0)",
              "1/(0+0)",
              "1/(12345678901234567890 - 12345678901234567890)"}) {

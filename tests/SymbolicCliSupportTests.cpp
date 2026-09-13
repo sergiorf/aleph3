@@ -113,6 +113,12 @@ TEST_CASE("Symbolic CLI support preserves special form laziness and malformed If
     REQUIRE_FALSE(extra_branch.error_message.empty());
 }
 
+TEST_CASE("Symbolic CLI support reports evaluated numeric zero denominators", "[tooling][symbolic-cli]") {
+    const auto result = tooling::symbolic_evaluate_expression("1/(10-5-5)");
+    REQUIRE_FALSE(result.ok);
+    REQUIRE(result.error_message == "Division by zero is not allowed.");
+}
+
 TEST_CASE("Symbolic CLI support prints FullForm", "[tooling][symbolic-cli]") {
     const auto result = tooling::symbolic_fullform_expression("x^2 + 1");
 

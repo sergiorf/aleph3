@@ -554,6 +554,11 @@ namespace aleph3 {
             if (std::holds_alternative<Rational>(*num) && std::holds_alternative<Number>(*denom)) {
                 const auto& a = std::get<Rational>(*num);
                 double b = std::get<Number>(*denom).value;
+                if (b == 0.0) {
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::division_by_zero,
+                        "Division by zero is not allowed.");
+                }
                 if (auto integer = exact_int64_from_number(b)) {
                     auto [nn, dd] = checked_rational_divide(
                         a.numerator, a.denominator, *integer, 1);
@@ -566,6 +571,11 @@ namespace aleph3 {
             if (std::holds_alternative<Number>(*num) && std::holds_alternative<Rational>(*denom)) {
                 double a = std::get<Number>(*num).value;
                 const auto& b = std::get<Rational>(*denom);
+                if (b.numerator.is_zero()) {
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::division_by_zero,
+                        "Division by zero is not allowed.");
+                }
                 if (auto integer = exact_int64_from_number(a)) {
                     auto [nn, dd] = checked_rational_divide(
                         *integer, 1, b.numerator, b.denominator);
@@ -579,11 +589,12 @@ namespace aleph3 {
                 double a = get_number_value(num);
                 double b = get_number_value(denom);
                 if (b == 0.0) {
-                    if (a == 0.0) return make_expr(Indeterminate{});
-                    // TODO: Return Infinity or ComplexInfinity for a != 0
+                    kernel::throw_runtime_error(
+                        kernel::ErrorCode::division_by_zero,
+                        "Division by zero is not allowed.");
+                }
+                return make_expr<Number>(a / b);
             }
-            return make_expr<Number>(a / b);
-        }
         return make_fcall("Divide", {num, denom});
     }},
     {"Gamma", [](const std::vector<ExprPtr>& args, EvaluationContext& ctx,

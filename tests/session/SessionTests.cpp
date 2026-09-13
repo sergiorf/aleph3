@@ -380,6 +380,7 @@ TEST_CASE("Session reports exact division by known zero and recovers", "[session
              "1/0",
              "0/0",
              "1/(2-2)",
+             "1/(10-5-5)",
              "(1/2)/(3-3)"}) {
         DYNAMIC_SECTION(input) {
             const auto result = session.execute({input});

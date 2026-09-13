@@ -316,7 +316,7 @@ the supported subset covered by existing tests: exact arithmetic, assignments,
 algebra, assumptions, rewriting, focused differentiation, exact matrices, and
 one deliberate parse diagnostic.
 
-## Paused Phase 6a Web Evaluation Loop
+## Paused Web Evaluation Loop
 
 The existing browser-facing web slice is deliberately narrow and is paused as
 the active near-term product path:
@@ -371,12 +371,12 @@ engine, and Postgres ports for debugging.
 ## Graphical Notebook Status
 
 No full graphical notebook application is included in the current build. The
-Phase 6a browser surface is a single evaluator loop, while the delivered
-headless core and JSON format remain product foundations rather than a claim
-that notebook persistence, examples, completion/help UI, or `Run All` have
-shipped in the browser. The near-term product path is now the Windows-first
-local graphical notebook; until that ships, `aleph3_cli repl` remains the
-runnable local interactive fallback.
+browser surface remains a narrow evaluator loop. The delivered headless core
+and JSON format are product foundations rather than a claim that notebook
+persistence, examples, completion/help UI, or `Run All` have shipped in the
+browser. The near-term product path is now the Windows-first local graphical
+notebook; until that ships, `aleph3_cli repl` remains the runnable local
+interactive fallback.
 
 The planned application remains a thin consumer: the GUI owns cells,
 presentation, and file interaction; the session owns interactive state; the

@@ -27,8 +27,8 @@ foundations. The same sources can be
    bounded condition-aware algebra workflow.
 7. [Exact Vector Specification](algebra_vector_spec.md) - current exact
    `Dot`, `Cross`, `Norm`, and exact square-root boundary.
-   [Exact Vector Algebra Plan](exact_vector_algebra_plan.md) records the
-   completed implementation plan.
+   [Exact Vector Algebra Plan](archive/exact_vector_algebra_plan.md) records
+   the completed implementation plan.
 8. [Simplify Trigonometric Identity Plan](simplify_trig_identity_plan.md) -
    proposed plan for adding the first explicit `Simplify` trigonometric
    identity while preserving conservative ordinary evaluation.

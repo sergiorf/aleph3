@@ -184,7 +184,7 @@ TEST_CASE("Algebra pack registers the full documented helper surface", "[packs][
              "PolynomialRemainder", "PolynomialDegree", "LeadingCoefficient",
              "Coefficient", "CoefficientList", "Numerator", "Denominator", "Together", "Cancel",
              "MatrixAdd", "MatrixMultiply", "IdentityMatrix", "Transpose", "Det", "RowReduce",
-             "LinearSolve"}) {
+             "LinearSolve", "Dot", "Cross", "Norm"}) {
         const auto* spec = registry.find_symbolic_function_spec(name);
         REQUIRE(spec != nullptr);
         REQUIRE(spec->metadata.source == kernel::RegistrationSource::pack);
@@ -220,6 +220,84 @@ TEST_CASE("Algebra pack dense matrices preserve large exact entries", "[packs][a
         "{{1, 1/9223372036854775808}}");
     REQUIRE(to_string(*evaluate_source("LinearSolve[{{9223372036854775808}}, {18446744073709551616}]", ctx)) ==
         "{2}");
+}
+
+TEST_CASE("Algebra pack exposes exact vector products and norms", "[packs][algebra][vector]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+
+    REQUIRE(to_string(*evaluate_source("Dot[{1,2,3}, {4,5,6}]", ctx)) == "32");
+    REQUIRE(to_string(*evaluate_source("Dot[{1/2,2/3}, {3/4,5/6}]", ctx)) == "67/72");
+    REQUIRE(to_string(*evaluate_source("Dot[{-1,2,-3}, {4,-5,6}]", ctx)) == "-32");
+    REQUIRE(to_string(*evaluate_source("Dot[{9223372036854775808}, {2}]", ctx)) ==
+        "18446744073709551616");
+
+    REQUIRE(to_string(*evaluate_source("Cross[{1,0,0}, {0,1,0}]", ctx)) == "{0, 0, 1}");
+    REQUIRE(to_string(*evaluate_source("Cross[{0,1,0}, {1,0,0}]", ctx)) == "{0, 0, -1}");
+    REQUIRE(to_string(*evaluate_source("Cross[{1,2,3}, {2,4,6}]", ctx)) == "{0, 0, 0}");
+    REQUIRE(to_string(*evaluate_source("Cross[{1/2,0,0}, {0,2/3,0}]", ctx)) == "{0, 0, 1/3}");
+
+    REQUIRE(to_string(*evaluate_source("Norm[{3,4}]", ctx)) == "5");
+    REQUIRE(to_string(*evaluate_source("Norm[{1/2,2/3}]", ctx)) == "5/6");
+    REQUIRE(to_string(*evaluate_source("Norm[{0,0,0}]", ctx)) == "0");
+    REQUIRE(to_string(*evaluate_source("Norm[{1,1}]", ctx)) == "Sqrt[2]");
+    REQUIRE(to_string(*evaluate_source("Norm[{1,2,2}]", ctx)) == "3");
+}
+
+TEST_CASE("Algebra pack vector invariants hold for explicit exact cases", "[packs][algebra][vector]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+
+    REQUIRE(to_string(*evaluate_source("Dot[Cross[{1,2,3},{4,5,6}], {1,2,3}]", ctx)) == "0");
+    REQUIRE(to_string(*evaluate_source("Dot[Cross[{1,2,3},{4,5,6}], {4,5,6}]", ctx)) == "0");
+    REQUIRE(to_string(*evaluate_source("Dot[{1,2,3}, {4,5,6}]", ctx)) ==
+        to_string(*evaluate_source("Dot[{4,5,6}, {1,2,3}]", ctx)));
+    REQUIRE(to_string(*evaluate_source("Cross[{4,5,6}, {1,2,3}]", ctx)) == "{3, -6, 3}");
+}
+
+TEST_CASE("Exact Sqrt preserves perfect integer and rational roots", "[packs][algebra][sqrt]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+
+    REQUIRE(to_string(*evaluate_source("Sqrt[0]", ctx)) == "0");
+    REQUIRE(to_string(*evaluate_source("Sqrt[1]", ctx)) == "1");
+    REQUIRE(to_string(*evaluate_source("Sqrt[9]", ctx)) == "3");
+    REQUIRE(to_string(*evaluate_source("Sqrt[25/36]", ctx)) == "5/6");
+    REQUIRE(to_string(*evaluate_source("Sqrt[2]", ctx)) == "Sqrt[2]");
+    REQUIRE(to_string(*evaluate_source("Sqrt[2/3]", ctx)) == "Sqrt[2/3]");
+    REQUIRE(std::holds_alternative<Number>(*evaluate_source("Sqrt[2.0]", ctx)));
+}
+
+TEST_CASE("Vector pack failures use shared diagnostics", "[packs][algebra][vector][diagnostics]") {
+    EvaluationContext ctx(kernel::default_function_registry());
+    const auto code_for = [&](std::string_view source) {
+        try {
+            (void)evaluate_source(source, ctx);
+        } catch (const kernel::RuntimeFailure& failure) {
+            return failure.error().code;
+        }
+        return std::string{};
+    };
+    REQUIRE(code_for("Dot[{}, {}]") == "runtime.invalid_form");
+    REQUIRE(code_for("Norm[{}]") == "runtime.invalid_form");
+    REQUIRE(code_for("Dot[{{1,2}}, {{3,4}}]") == "runtime.invalid_form");
+    REQUIRE(code_for("Dot[{x,1}, {2,3}]") == "runtime.unsupported_construct");
+    REQUIRE(code_for("Dot[{1.2,2}, {3,4}]") == "runtime.unsupported_construct");
+    REQUIRE(code_for("Dot[{1,2}, {3,4,5}]") == "runtime.domain_violation");
+    REQUIRE(code_for("Cross[{1,2}, {3,4}]") == "runtime.domain_violation");
+    REQUIRE(code_for("Cross[{1,2,3,4}, {5,6,7,8}]") == "runtime.domain_violation");
+}
+
+TEST_CASE("Vector arithmetic consumes the shared evaluation budget", "[packs][algebra][vector][budget]") {
+    Policy policy = Policy::default_policy();
+    policy.budget().max_evaluation_steps = 2;
+    Bindings bindings;
+    std::unordered_map<std::string, HostFunctionSpec> host_functions;
+    EvaluationContext ctx(bindings, bindings, host_functions, policy);
+    ctx.enable_runtime_strict_semantics(true);
+    try {
+        (void)evaluate_source("Dot[{1, 2, 3}, {4, 5, 6}]", ctx);
+        FAIL("Expected the shared evaluation budget to be exhausted");
+    } catch (const kernel::RuntimeFailure& failure) {
+        REQUIRE(failure.error().code == "runtime.step_budget_exhausted");
+    }
 }
 
 TEST_CASE("Matrix pack failures use shared diagnostics", "[packs][algebra][matrix][diagnostics]") {

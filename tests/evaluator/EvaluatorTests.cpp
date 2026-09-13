@@ -657,10 +657,10 @@ TEST_CASE("Evaluator numeric-function listability preserves edge-case fallback e
     REQUIRE(std::holds_alternative<List>(*sqrt_list));
     const auto& sqrt_elements = std::get<List>(*sqrt_list).elements;
     REQUIRE(sqrt_elements.size() == 3);
-    REQUIRE(std::holds_alternative<Number>(*sqrt_elements[0]));
-    REQUIRE(std::abs(get_number_value(sqrt_elements[0]) - 2.0) < 1e-12);
-    REQUIRE(std::holds_alternative<Number>(*sqrt_elements[1]));
-    REQUIRE(std::abs(get_number_value(sqrt_elements[1]) - 3.0) < 1e-12);
+    REQUIRE(std::holds_alternative<Integer>(*sqrt_elements[0]));
+    REQUIRE(to_string(sqrt_elements[0]) == "2");
+    REQUIRE(std::holds_alternative<Integer>(*sqrt_elements[1]));
+    REQUIRE(to_string(sqrt_elements[1]) == "3");
     REQUIRE(std::holds_alternative<FunctionCall>(*sqrt_elements[2]));
     REQUIRE(to_string(sqrt_elements[2]) == "Sqrt[-1]");
 }

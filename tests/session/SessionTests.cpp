@@ -149,8 +149,8 @@ TEST_CASE("Session discovers registered packs deterministically", "[session][pac
     REQUIRE(result.packs.size() == 2);
     REQUIRE(result.packs[0].name == "core-algebra");
     REQUIRE(result.packs[0].symbols ==
-        std::vector<std::string>{"Cancel", "Coefficient", "CoefficientList", "Collect", "Denominator", "Det", "Equivalent", "Expand", "Factor", "GCD",
-            "IdentityMatrix", "LeadingCoefficient", "LinearSolve", "MatrixAdd", "MatrixMultiply", "Numerator", "PolynomialDegree",
+        std::vector<std::string>{"Cancel", "Coefficient", "CoefficientList", "Collect", "Cross", "Denominator", "Det", "Dot", "Equivalent", "Expand", "Factor", "GCD",
+            "IdentityMatrix", "LeadingCoefficient", "LinearSolve", "MatrixAdd", "MatrixMultiply", "Norm", "Numerator", "PolynomialDegree",
             "PolynomialQuotient", "PolynomialRemainder", "RowReduce",
             "Together", "Transpose"});
     REQUIRE(result.packs[1].name == "core-calculus");
@@ -191,6 +191,32 @@ TEST_CASE("Session exposes exact matrix values and diagnostics", "[session][alge
     REQUIRE(session.execute({"LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]"}).output == "{2, 1}");
     REQUIRE(session.execute({"LinearSolve[{{1/2, 1}, {1, 3}}, {5/2, 7}]"}).output == "{1, 2}");
     const auto failure = session.execute({"MatrixMultiply[{{1, 2}}, {{1, 2}}]"});
+    REQUIRE_FALSE(failure.ok);
+    REQUIRE(failure.diagnostics.front().code == "runtime.domain_violation");
+}
+
+TEST_CASE("Session exposes exact vector algebra values and diagnostics", "[session][algebra][vector]") {
+    Session session;
+    REQUIRE(session.execute({"Dot[{1,2,3}, {4,5,6}]"}).output == "32");
+    REQUIRE(session.execute({"Dot[{1/2,2/3}, {3/4,5/6}]"}).output == "67/72");
+    REQUIRE(session.execute({"Cross[{1/2,0,0}, {0,2/3,0}]"}).output == "{0, 0, 1/3}");
+    REQUIRE(session.execute({"Norm[{1,1}]"}).output == "Sqrt[2]");
+    REQUIRE(session.execute({"Norm[{1/2,2/3}]"}).output == "5/6");
+    REQUIRE(session.execute({"Sqrt[25/36]"}).output == "5/6");
+
+    const auto completion = session.execute({"Do", SessionOperation::complete});
+    REQUIRE(completion.completions.size() == 1);
+    REQUIRE(completion.completions.front().name == "Dot");
+    REQUIRE(completion.completions.front().category == "pack");
+    REQUIRE(completion.completions.front().owning_package == "core-algebra");
+
+    const auto help = session.execute({"Norm", SessionOperation::help});
+    REQUIRE(help.ok);
+    REQUIRE(help.help_entries.size() == 1);
+    REQUIRE(help.help_entries.front().owning_package == "core-algebra");
+    REQUIRE_FALSE(help.help_entries.front().examples.empty());
+
+    const auto failure = session.execute({"Dot[{1, 2}, {3, 4, 5}]"});
     REQUIRE_FALSE(failure.ok);
     REQUIRE(failure.diagnostics.front().code == "runtime.domain_violation");
 }

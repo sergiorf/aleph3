@@ -61,6 +61,7 @@ private:
 
 [[nodiscard]] ExactInteger abs(const ExactInteger& value);
 [[nodiscard]] ExactInteger gcd(ExactInteger left, ExactInteger right);
+[[nodiscard]] std::optional<ExactInteger> exact_square_root(const ExactInteger& value);
 
 class ExactRational {
 public:
@@ -95,6 +96,7 @@ private:
 };
 
 [[nodiscard]] int compare(const ExactRational& left, const ExactRational& right);
+[[nodiscard]] std::optional<ExactRational> exact_square_root(const ExactRational& value);
 
 inline std::ostream& operator<<(std::ostream& out, const ExactInteger& value) {
     return out << value.to_string();

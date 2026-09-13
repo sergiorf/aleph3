@@ -1,8 +1,9 @@
 # The Algebra Pack
 
-The `core-algebra` pack owns the polynomial surface. It uses shared kernel
-expressions, exact arithmetic, diagnostics, and registration rather than a
-private evaluator. See [Polynomial Vocabulary](concepts-and-terminology.md#polynomial-vocabulary)
+The `core-algebra` pack owns the polynomial, exact vector, and exact dense
+matrix surfaces. It uses shared kernel expressions, exact arithmetic,
+diagnostics, and registration rather than a private evaluator. See
+[Polynomial Vocabulary](concepts-and-terminology.md#polynomial-vocabulary)
 for monomials, total degree, and variable precedence.
 
 ## Exact Coefficient Boundary
@@ -279,6 +280,38 @@ solving, quantifiers, and general theorem proving are outside this subset:
 Equivalent[Sin[x]^2 + Cos[x]^2, 1]               -> Unknown
 Equivalent[Sqrt[x^2], x]                         -> Unknown
 ```
+
+## Exact Vectors
+
+Vectors are ordinary non-empty flat lists. `Dot`, `Cross`, and `Norm` compute
+with exact integer and rational entries through the shared arbitrary-precision
+exact scalar model:
+
+```text
+Dot[{1, 2, 3}, {4, 5, 6}]               -> 32
+Dot[{1/2, 2/3}, {3/4, 5/6}]             -> 67/72
+Dot[{9223372036854775808}, {2}]         -> 18446744073709551616
+Cross[{1, 0, 0}, {0, 1, 0}]             -> {0, 0, 1}
+Cross[{0, 1, 0}, {1, 0, 0}]             -> {0, 0, -1}
+Cross[{1/2, 0, 0}, {0, 2/3, 0}]         -> {0, 0, 1/3}
+Norm[{3, 4}]                            -> 5
+Norm[{1/2, 2/3}]                        -> 5/6
+Norm[{1, 1}]                            -> Sqrt[2]
+Norm[{0, 0, 0}]                         -> 0
+```
+
+`Dot` requires equal lengths. `Cross` supports exactly three-dimensional
+vectors. `Norm` computes the exact squared norm, then returns an exact square
+root when one exists; otherwise it preserves the exact value under symbolic
+`Sqrt`.
+
+Vector inputs may contain at most 4,096 entries. Empty vectors, nested lists,
+symbolic entries, decimal entries, complex entries, tensors, approximate
+vector algebra, `Angle`, `Normalize`, `Projection`, and `Distance` are outside
+the supported surface. Vector algorithms consume the shared evaluation budget.
+
+The authoritative boundary is the
+[vector specification](../algebra_vector_spec.md).
 
 ## Exact Dense Matrices
 

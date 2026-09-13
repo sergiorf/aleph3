@@ -37,10 +37,12 @@ The current symbolic algebra surface is:
 - `Equivalent[expr1, expr2]`
 - `MatrixAdd[a, b]`, `MatrixMultiply[a, b]`, `IdentityMatrix[n]`, and `Transpose[a]`
 - `Det[a]`, `RowReduce[a]`, and `LinearSolve[a, b]` for bounded exact dense matrices
+- `Dot[v1, v2]`, `Cross[v1, v2]`, and `Norm[v]` for bounded exact vectors
 
 The polynomial functions operate on polynomial expressions. Matrix functions
-operate on exact rectangular nested lists. Unsupported forms fail
-explicitly rather than silently approximating or partially rewriting.
+operate on exact rectangular nested lists. Vector functions operate on exact
+non-empty flat lists. Unsupported forms fail explicitly rather than silently
+approximating or partially rewriting.
 
 ## Exact Dense Matrices
 
@@ -53,6 +55,20 @@ square-system solving. See the [dense-matrix specification](algebra_dense_matrix
 
 Symbolic, decimal, complex, empty, sparse, and arbitrary-rank inputs remain
 unsupported. Matrix operations never reinterpret scalar `Plus` or `Times`.
+
+## Exact Vectors
+
+Vectors use ordinary non-empty flat lists at the expression boundary and an
+algebra-owned value type internally. Exact integer and rational entries use
+the shared arbitrary-precision scalar model. The supported 4,096-element exact
+surface includes dot products, three-dimensional cross products, and Euclidean
+norms. `Norm` computes the exact squared norm and returns an exact square root
+when one exists, otherwise a symbolic `Sqrt[exact_value]`. See the
+[vector specification](algebra_vector_spec.md).
+
+Symbolic, decimal, complex, empty, nested, approximate, sparse, tensor, and
+angle/projection/normalization workflows remain unsupported. Vector operations
+never reinterpret matrices or fall back to floating point.
 
 ## Ownership Contract
 
@@ -128,6 +144,8 @@ above, but not to the whole algebra stack.
 Current boundary:
 
 - exact rational arithmetic such as `1/2 + 1/3` stays exact
+- exact square roots of nonnegative perfect-square integers and rationals stay
+  exact, while non-perfect exact square roots remain symbolic
 - mixed rational and integer arithmetic stays exact when no inexact numeric
   value is introduced
 - mixed rational and floating-point arithmetic demotes to inexact `Number`

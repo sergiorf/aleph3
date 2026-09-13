@@ -1,11 +1,13 @@
 /* Algebra-layer value and algorithm tests for exact dense matrices. */
 #include "algebra/DenseMatrix.hpp"
+#include "algebra/DenseVector.hpp"
 #include "algebra/ExactPolynomial.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 using aleph3::ExactCoefficient;
 using aleph3::algebra::DenseMatrix;
+using aleph3::algebra::DenseVector;
 
 TEST_CASE("DenseMatrix owns exact row-major value storage", "[algebra][matrix]") {
     DenseMatrix<ExactCoefficient> matrix(2, 2, {{1, 1}, {2, 1}, {3, 1}, {4, 1}});
@@ -39,6 +41,37 @@ TEST_CASE("Dense matrix algorithms preserve exact rational arithmetic", "[algebr
     DenseMatrix<ExactCoefficient> two(1, 1, {{2, 1}});
     const auto large_product = aleph3::algebra::matrix_multiply(large, two);
     REQUIRE(large_product(0, 0) == ExactCoefficient(
+        aleph3::kernel::ExactInteger::from_decimal_string("18446744073709551616"),
+        aleph3::kernel::ExactInteger(1)));
+}
+
+TEST_CASE("DenseVector owns exact flat value storage", "[algebra][vector]") {
+    DenseVector<ExactCoefficient> vector({{1, 1}, {2, 1}, {3, 1}});
+    REQUIRE(vector.size() == 3);
+    REQUIRE(vector[1] == ExactCoefficient(2, 1));
+    REQUIRE(vector.values()[2] == ExactCoefficient(3, 1));
+    REQUIRE_THROWS_AS(DenseVector<ExactCoefficient>(std::vector<ExactCoefficient>{}), std::invalid_argument);
+}
+
+TEST_CASE("Dense vector algorithms preserve exact arithmetic", "[algebra][vector][exact]") {
+    DenseVector<ExactCoefficient> left({{1, 1}, {2, 1}, {3, 1}});
+    DenseVector<ExactCoefficient> right({{4, 1}, {5, 1}, {6, 1}});
+    REQUIRE(aleph3::algebra::dot_product(left, right) == ExactCoefficient(32, 1));
+    REQUIRE(aleph3::algebra::dot_product(right, left) == ExactCoefficient(32, 1));
+
+    const auto cross = aleph3::algebra::cross_product(left, right);
+    REQUIRE(cross == DenseVector<ExactCoefficient>({{-3, 1}, {6, 1}, {-3, 1}}));
+    REQUIRE(aleph3::algebra::dot_product(cross, left) == ExactCoefficient(0, 1));
+    REQUIRE(aleph3::algebra::dot_product(cross, right) == ExactCoefficient(0, 1));
+
+    DenseVector<ExactCoefficient> rational({{1, 2}, {2, 3}});
+    REQUIRE(aleph3::algebra::squared_norm(rational) == ExactCoefficient(25, 36));
+
+    DenseVector<ExactCoefficient> large(
+        {{aleph3::kernel::ExactInteger::from_decimal_string("9223372036854775808"),
+          aleph3::kernel::ExactInteger(1)}});
+    DenseVector<ExactCoefficient> two({{2, 1}});
+    REQUIRE(aleph3::algebra::dot_product(large, two) == ExactCoefficient(
         aleph3::kernel::ExactInteger::from_decimal_string("18446744073709551616"),
         aleph3::kernel::ExactInteger(1)));
 }

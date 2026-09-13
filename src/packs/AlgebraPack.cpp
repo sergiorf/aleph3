@@ -1,6 +1,7 @@
 #include "packs/AlgebraPack.hpp"
 
 #include "algebra/DenseMatrix.hpp"
+#include "algebra/DenseVector.hpp"
 #include "algebra/ExactEquivalence.hpp"
 #include "algebra/ExactPolynomial.hpp"
 #include "algebra/PolyUtils.hpp"
@@ -20,9 +21,10 @@ namespace aleph3::packs {
 namespace {
 
 constexpr std::string_view kPackageName = "core-algebra";
-constexpr std::size_t kMaxMatrixElements = 4096;
+constexpr std::size_t kMaxAlgebraElements = 4096;
 
 using ExactMatrix = algebra::DenseMatrix<ExactCoefficient>;
+using ExactVector = algebra::DenseVector<ExactCoefficient>;
 
 [[noreturn]] void throw_matrix_domain(std::string message) {
     kernel::throw_runtime_error(kernel::ErrorCode::domain_violation, std::move(message));
@@ -34,7 +36,7 @@ using ExactMatrix = algebra::DenseMatrix<ExactCoefficient>;
         "Division by zero is not allowed.");
 }
 
-ExactCoefficient exact_matrix_scalar(const ExprPtr& expr) {
+ExactCoefficient exact_algebra_scalar(const ExprPtr& expr, std::string_view container_name) {
     if (const auto* integer = std::get_if<Integer>(expr.get())) {
         return ExactCoefficient(integer->value, kernel::ExactInteger(1));
     }
@@ -42,7 +44,7 @@ ExactCoefficient exact_matrix_scalar(const ExprPtr& expr) {
         return ExactCoefficient(rational->exact());
     }
     kernel::throw_runtime_error(kernel::ErrorCode::unsupported_construct,
-        "Matrices currently support exact integer and rational entries only");
+        std::string(container_name) + " currently support exact integer and rational entries only");
 }
 
 ExactMatrix exact_matrix_from_expr(const ExprPtr& expr) {
@@ -55,7 +57,7 @@ ExactMatrix exact_matrix_from_expr(const ExprPtr& expr) {
         kernel::throw_runtime_error(kernel::ErrorCode::invalid_form, "Matrix rows must be non-empty lists");
     }
     const std::size_t columns = first->elements.size();
-    if (outer->elements.size() > kMaxMatrixElements / columns) {
+    if (outer->elements.size() > kMaxAlgebraElements / columns) {
         kernel::throw_runtime_error(kernel::ErrorCode::domain_violation, "Matrix exceeds the 4096-element limit");
     }
     std::vector<ExactCoefficient> values;
@@ -66,9 +68,28 @@ ExactMatrix exact_matrix_from_expr(const ExprPtr& expr) {
             kernel::throw_runtime_error(kernel::ErrorCode::invalid_form,
                 "Matrix rows must have equal non-zero length");
         }
-        for (const auto& value : row->elements) values.push_back(exact_matrix_scalar(value));
+        for (const auto& value : row->elements) values.push_back(exact_algebra_scalar(value, "Matrices"));
     }
     return ExactMatrix(outer->elements.size(), columns, std::move(values));
+}
+
+ExactVector exact_vector_from_expr(const ExprPtr& expr) {
+    const auto* list = std::get_if<List>(expr.get());
+    if (!list || list->elements.empty()) {
+        kernel::throw_runtime_error(kernel::ErrorCode::invalid_form, "Vector must be a non-empty flat list");
+    }
+    if (list->elements.size() > kMaxAlgebraElements) {
+        kernel::throw_runtime_error(kernel::ErrorCode::domain_violation, "Vector exceeds the 4096-element limit");
+    }
+    std::vector<ExactCoefficient> values;
+    values.reserve(list->elements.size());
+    for (const auto& value : list->elements) {
+        if (std::holds_alternative<List>(*value)) {
+            kernel::throw_runtime_error(kernel::ErrorCode::invalid_form, "Vector must be a flat list");
+        }
+        values.push_back(exact_algebra_scalar(value, "Vectors"));
+    }
+    return ExactVector(std::move(values));
 }
 
 ExprPtr exact_scalar_to_expr(const ExactCoefficient& value) {
@@ -87,6 +108,15 @@ ExprPtr exact_matrix_to_expr(const ExactMatrix& matrix) {
         rows.push_back(make_expr<List>(List{std::move(values)}));
     }
     return make_expr<List>(List{std::move(rows)});
+}
+
+ExprPtr exact_vector_to_expr(const ExactVector& vector) {
+    std::vector<ExprPtr> values;
+    values.reserve(vector.size());
+    for (const auto& value : vector.values()) {
+        values.push_back(exact_scalar_to_expr(value));
+    }
+    return make_expr<List>(List{std::move(values)});
 }
 
 template <typename Operation>
@@ -542,7 +572,7 @@ ExprPtr evaluate_matrix_multiply(const FunctionCall& func, EvaluationContext& ct
     return run_matrix_operation([&] {
         const auto left = exact_matrix_from_expr(evaluate(func.args[0], ctx));
         const auto right = exact_matrix_from_expr(evaluate(func.args[1], ctx));
-        if (right.columns() > kMaxMatrixElements / left.rows()) {
+        if (right.columns() > kMaxAlgebraElements / left.rows()) {
             throw_matrix_domain("Matrix result exceeds the 4096-element limit");
         }
         return exact_matrix_to_expr(algebra::matrix_multiply(
@@ -603,7 +633,7 @@ ExprPtr evaluate_linear_solve(const FunctionCall& func, EvaluationContext& ctx) 
             for (std::size_t column = 0; column < coefficients.columns(); ++column) {
                 augmented_values.push_back(coefficients(row, column));
             }
-            augmented_values.push_back(exact_matrix_scalar(vector->elements[row]));
+            augmented_values.push_back(exact_algebra_scalar(vector->elements[row], "Matrices"));
         }
         auto reduced = algebra::row_reduce(
             ExactMatrix(coefficients.rows(), coefficients.columns() + 1, std::move(augmented_values)),
@@ -620,9 +650,53 @@ ExprPtr evaluate_linear_solve(const FunctionCall& func, EvaluationContext& ctx) 
     });
 }
 
+ExprPtr evaluate_dot(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) throw_invalid_arity_exact("Dot", 2);
+    return run_matrix_operation([&] {
+        const auto left = exact_vector_from_expr(evaluate(func.args[0], ctx));
+        const auto right = exact_vector_from_expr(evaluate(func.args[1], ctx));
+        return exact_scalar_to_expr(algebra::dot_product(
+            left,
+            right,
+            [&] { ctx.consume_evaluation_step(); }));
+    });
+}
+
+ExprPtr evaluate_cross(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 2) throw_invalid_arity_exact("Cross", 2);
+    return run_matrix_operation([&] {
+        const auto left = exact_vector_from_expr(evaluate(func.args[0], ctx));
+        const auto right = exact_vector_from_expr(evaluate(func.args[1], ctx));
+        return exact_vector_to_expr(algebra::cross_product(
+            left,
+            right,
+            [&] { ctx.consume_evaluation_step(); }));
+    });
+}
+
+ExprPtr evaluate_norm(const FunctionCall& func, EvaluationContext& ctx) {
+    if (func.args.size() != 1) throw_invalid_arity_exact("Norm", 1);
+    return run_matrix_operation([&] {
+        const auto vector = exact_vector_from_expr(evaluate(func.args[0], ctx));
+        const auto squared = algebra::squared_norm(
+            vector,
+            [&] { ctx.consume_evaluation_step(); });
+        if (auto root = kernel::exact_square_root(squared.exact())) {
+            return exact_scalar_to_expr(ExactCoefficient(*root));
+        }
+        return make_fcall("Sqrt", {exact_scalar_to_expr(squared)});
+    });
+}
+
 }  // namespace
 
 void register_algebra_pack(kernel::FunctionRegistry& registry) {
+    registry.register_pack_function(std::string(kPackageName), "Dot", evaluate_dot,
+        "Compute the exact dot product of two vectors.", true);
+    registry.register_pack_function(std::string(kPackageName), "Cross", evaluate_cross,
+        "Compute the exact cross product of two three-dimensional vectors.", true);
+    registry.register_pack_function(std::string(kPackageName), "Norm", evaluate_norm,
+        "Compute the exact Euclidean norm of a vector.", true);
     registry.register_pack_function(std::string(kPackageName), "MatrixAdd", evaluate_matrix_add,
         "Add two exact dense matrices of equal shape.", true);
     registry.register_pack_function(std::string(kPackageName), "MatrixMultiply", evaluate_matrix_multiply,

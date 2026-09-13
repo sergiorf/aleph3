@@ -457,6 +457,16 @@ ExprPtr evaluate_builtin_unary(const FunctionCall& func, EvaluationContext& ctx)
         }
     }
 
+    if (func.head == "Sqrt") {
+        if (auto exact_arg = exact_rational_atom(arg_eval);
+            exact_arg.has_value() && exact_arg->sign() >= 0) {
+            if (auto root = kernel::exact_square_root(*exact_arg)) {
+                return make_exact_scalar_expr(*root);
+            }
+            return make_fcall(func.head, {arg_eval});
+        }
+    }
+
     if (auto finite_arg = finite_scalar_atom(arg_eval)) {
         double arg = *finite_arg;
         if (ctx.strict_runtime_semantics()) {

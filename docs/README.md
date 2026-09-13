@@ -25,8 +25,10 @@ foundations. The same sources can be
 6. [Rational-Expression Domain Conditions Plan](rational_expression_domain_conditions_plan.md) -
    active plan for consuming preserved denominator-exclusion metadata through a
    bounded condition-aware algebra workflow.
-7. [Exact Vector Algebra Plan](exact_vector_algebra_plan.md) - approved plan
-   for adding exact `Dot`, `Cross`, `Norm`, and exact square-root preservation.
+7. [Exact Vector Specification](algebra_vector_spec.md) - current exact
+   `Dot`, `Cross`, `Norm`, and exact square-root boundary.
+   [Exact Vector Algebra Plan](exact_vector_algebra_plan.md) records the
+   completed implementation plan.
 8. [Simplify Trigonometric Identity Plan](simplify_trig_identity_plan.md) -
    proposed plan for adding the first explicit `Simplify` trigonometric
    identity while preserving conservative ordinary evaluation.
@@ -53,7 +55,7 @@ architecture.
 | Kernel and engine structure | [Architecture](architecture.md), [Kernel design](kernel_design_spec.md), [execution bridge](kernel_execution_bridge_spec.md) |
 | Symbols | [Symbol model](kernel_symbol_model_spec.md), [definition precedence](kernel_symbol_definition_precedence.md), [attributes](kernel_attribute_spec.md), [variable analysis](kernel_variable_analysis_spec.md), [list and structural operations](kernel_list_structural_spec.md) |
 | Rewriting | [Rewrite specification](kernel_rewrite_spec.md) |
-| Exact mathematics | [Exact algebra](kernel_exact_algebra_spec.md), [supported algebra subset](algebra_supported_subset.md), [algebra equivalence](algebra_equivalence_spec.md), [dense matrices](algebra_dense_matrix_spec.md), [focused differentiation](calculus_differentiation_spec.md) |
+| Exact mathematics | [Exact algebra](kernel_exact_algebra_spec.md), [supported algebra subset](algebra_supported_subset.md), [algebra equivalence](algebra_equivalence_spec.md), [dense matrices](algebra_dense_matrix_spec.md), [vectors](algebra_vector_spec.md), [focused differentiation](calculus_differentiation_spec.md) |
 | Assumptions | [Assumptions specification](kernel_assumptions_spec.md) |
 | Registration | [Registration lifecycle](kernel_registration_lifecycle_spec.md) |
 | Quality | [Feature development workflow](feature_development_workflow.md), [contract test matrix](contract_test_matrix.md), [header documentation guideline](header_documentation_guideline.md) |

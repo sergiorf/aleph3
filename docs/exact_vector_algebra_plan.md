@@ -2,10 +2,12 @@
 
 ## Status And Scope
 
-This plan records the approved implementation direction for a small exact
-vector-algebra surface in the `core-algebra` pack. It is not current behavior.
-When implemented, the durable behavior belongs in the supported algebra subset,
-the vector specification, the manual, help text, and tests.
+Status: complete.
+
+This plan records the implemented direction for a small exact vector-algebra
+surface in the `core-algebra` pack. The durable current behavior now belongs
+in the supported algebra subset, the vector specification, the manual, help
+text, and tests.
 
 The milestone adds:
 

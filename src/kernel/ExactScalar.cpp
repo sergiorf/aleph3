@@ -153,6 +153,27 @@ ExactInteger gcd(ExactInteger left, ExactInteger right) {
     return left;
 }
 
+std::optional<ExactInteger> exact_square_root(const ExactInteger& value) {
+    if (value.is_negative()) {
+        return std::nullopt;
+    }
+    if (value.is_zero() || value.is_one()) {
+        return value;
+    }
+
+    const cpp_int& n = value.value();
+    cpp_int root = n;
+    cpp_int next = (root + 1) / 2;
+    while (next < root) {
+        root = next;
+        next = (root + n / root) / 2;
+    }
+    if (root * root == n) {
+        return ExactInteger(root);
+    }
+    return std::nullopt;
+}
+
 ExactRational::ExactRational() : numerator_(0), denominator_(1) {}
 
 ExactRational::ExactRational(int64_t numerator, int64_t denominator)
@@ -256,6 +277,25 @@ int compare(const ExactRational& left, const ExactRational& right) {
     if (scaled_left < scaled_right) return -1;
     if (scaled_right < scaled_left) return 1;
     return 0;
+}
+
+std::optional<ExactRational> exact_square_root(const ExactRational& value) {
+    if (value.sign() < 0) {
+        return std::nullopt;
+    }
+    const auto numerator_root = exact_square_root(value.numerator());
+    if (!numerator_root.has_value()) {
+        return std::nullopt;
+    }
+    const auto denominator_root = exact_square_root(value.denominator());
+    if (!denominator_root.has_value()) {
+        return std::nullopt;
+    }
+    const ExactRational root(*numerator_root, *denominator_root);
+    if (root * root == value) {
+        return root;
+    }
+    return std::nullopt;
 }
 
 }  // namespace aleph3::kernel

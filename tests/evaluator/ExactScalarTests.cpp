@@ -81,3 +81,17 @@ TEST_CASE("ExactRational rejects zero denominators", "[kernel][exact-scalar]") {
     REQUIRE_THROWS_AS(ExactRational(ExactInteger(1), ExactInteger(0)), std::domain_error);
     REQUIRE_THROWS_AS(ExactRational(ExactInteger(1), ExactInteger(2)) / ExactRational(), std::domain_error);
 }
+
+TEST_CASE("Exact square roots preserve perfect integer and rational roots", "[kernel][exact-scalar][sqrt]") {
+    REQUIRE(exact_square_root(ExactInteger(0)).value() == ExactInteger(0));
+    REQUIRE(exact_square_root(ExactInteger(1)).value() == ExactInteger(1));
+    REQUIRE(exact_square_root(ExactInteger(9)).value() == ExactInteger(3));
+    REQUIRE(exact_square_root(ExactInteger::from_decimal_string("18446744073709551616")).value() ==
+        ExactInteger::from_decimal_string("4294967296"));
+    REQUIRE_FALSE(exact_square_root(ExactInteger(2)).has_value());
+    REQUIRE_FALSE(exact_square_root(ExactInteger(-4)).has_value());
+
+    REQUIRE(exact_square_root(ExactRational(ExactInteger(25), ExactInteger(36))).value() ==
+        ExactRational(ExactInteger(5), ExactInteger(6)));
+    REQUIRE_FALSE(exact_square_root(ExactRational(ExactInteger(2), ExactInteger(3))).has_value());
+}

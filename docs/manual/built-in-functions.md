@@ -18,6 +18,9 @@ does not imply that every possible symbolic identity is implemented.
 I^2                      -> -1
 (1 + I)^2                -> 2*I
 Sqrt[9]                  -> 3
+Sqrt[25/36]              -> 5/6
+Sqrt[2]                  -> Sqrt[2]
+Sqrt[2.0]                -> 1.414214
 Abs[-4]                  -> 4
 ```
 
@@ -29,6 +32,10 @@ Exact integer and rational arithmetic, including exact integer powers of exact
 integer or rational bases, stays exact unless a machine-real input participates
 or explicit numeric evaluation is requested. Exact power growth is bounded by
 the runtime evaluation-step budget in strict execution contexts.
+For nonnegative exact integer and rational inputs, `Sqrt` returns an exact
+root when one exists and otherwise preserves a symbolic `Sqrt` of the exact
+value. Approximate `Sqrt` inputs continue to use the machine-real numeric
+path.
 Known exact zero denominators in ordinary division, including evaluated cases
 such as `1/(2 - 2)`, report the runtime division-by-zero diagnostic. They do
 not evaluate to `Infinity` or `Indeterminate`; those remain symbolic objects

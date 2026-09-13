@@ -160,12 +160,12 @@ Remaining work:
 - remove growth-facing dependence on `double` polynomial internals;
 - deepen exact multivariate division, GCD, and factorization only in that
   order, with explicit monomial ordering and canonical-form invariants;
-- extend bounded exact matrix work only where the shared scalar layer can
+- extend bounded exact linear algebra only where the shared scalar layer can
   preserve exactness and diagnose unsupported cases;
 - keep the supported algebra subset and manual examples synchronized with
   every expansion.
 
-General multivariate GCD/factorization, broad approximate matrices,
+General multivariate GCD/factorization, broad approximate linear algebra,
 eigenvalue workflows, and advanced decompositions are outside this milestone
 unless separately planned.
 

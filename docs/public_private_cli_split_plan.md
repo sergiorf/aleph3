@@ -77,6 +77,21 @@ The private repository should contain:
 - advanced Aleph-specific Agent reasoning if it becomes a product
   differentiator.
 
+Agent ownership follows the same boundary as notebook ownership. Public app
+repositories may own generic agent UI, provider adapters, message/session
+schemas, tool-call envelopes, permission prompts, and workflows that consume
+only the stable `aleph-kernel` protocol. The private repository owns any
+Aleph-specific symbolic planning, tutoring strategy, proof or equivalence
+heuristics, pack-aware reasoning, prompt/tool policies that reveal private
+implementation structure, or tools that depend on `Expr`, evaluator, registry,
+assumption, or pack internals.
+
+Do not introduce a separate agent semantic protocol before the kernel protocol
+has proven insufficient. Initial agent workflows should use the same stable
+methods as the notebook and private CLI, such as `evaluate`, `help`,
+`complete`, `packages`, `reset`, `inspect`, and later any explicitly specified
+semantic method such as transformation validation.
+
 The public repository must not expose or depend on:
 
 ```text
@@ -626,7 +641,8 @@ Create a new public repository, provisionally `aleph-notebook`, containing:
 
 ### M7 - Private Kernel Build And Packaging
 
-The private repository should produce:
+The private repository CI/CD should produce signed or otherwise provenance-
+tracked runtime artifacts from the private source tree:
 
 ```text
 aleph-kernel.exe
@@ -649,6 +665,22 @@ VERSION
 Official product distributions may bundle the private kernel binary with the
 public notebook or app client. The open public source should not contain the
 private implementation or private CLI.
+
+Private CI should at minimum:
+
+- build `aleph-kernel` and the private CLI for the supported release targets;
+- run kernel, session, pack, protocol, and private CLI integration tests;
+- run a smoke test where the private CLI talks to the packaged
+  `aleph-kernel`;
+- produce versioned artifacts with checksums and dependency/license notices;
+- record the supported protocol version and client compatibility range;
+- fail the release if private symbols, debug artifacts, source paths, CI logs,
+  or implementation headers would be published accidentally.
+
+Public CI should not build the private kernel. It should build public app
+clients against fake-kernel fixtures and, in private or release-bundle CI,
+optionally smoke-test those public clients against the packaged private
+`aleph-kernel` artifact.
 
 ### M8 - Public App Compatibility Tests With Fake Kernel
 

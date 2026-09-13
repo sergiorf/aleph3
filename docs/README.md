@@ -43,6 +43,9 @@ foundations. The same sources can be
    web slice.
 12. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
    public/private transition guidance.
+13. [Public/Private CLI Split Plan](public_private_cli_split_plan.md) -
+   proposed CLI-first plan for separating open CLI code from private
+   `libaleph`, packs, and the real `aleph-kernel` executable.
 
 ## Normative References
 

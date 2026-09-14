@@ -75,6 +75,9 @@ flowchart TD
     AlephClient --> RuntimeProtocol["aleph_runtime_protocol"]
     RuntimeProtocol --> RuntimeExe["aleph-runtime"]
     RuntimeProtocol --> RuntimeTests["aleph_runtime_protocol_tests"]
+    Kernel --> RuntimeProtocol
+    Algebra --> RuntimeProtocol
+    Calculus --> RuntimeProtocol
     Kernel["aleph3_kernel"] --> SymbolicTests["aleph3_symbolic_tests"]
     Symbolic["aleph3_symbolic (alias)"] --> Kernel
     CoreMath["aleph3_pack_core_math"] --> Kernel

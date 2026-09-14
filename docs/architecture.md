@@ -23,6 +23,7 @@ flowchart TB
     AppClient["Future public app clients"] --> AlephClient["aleph_client<br/>protocol - framing"]
     PrivateCLI["Future private CLI path"] --> AlephClient
     AlephClient -. framed JSON .-> RuntimeProcess["aleph-runtime process"]
+    RuntimeProcess --> Session
     CLI["CLI"] --> Session["Stateful session"]
     Notebook["Notebook core<br/>documents - cells - Run All"] --> Session
     WebFrontend["Dormant React/Vite web experiment"] --> BFF["ASP.NET Core BFF experiment<br/>/api/*"]
@@ -395,6 +396,9 @@ flowchart TD
     AlephClient --> RuntimeProtocol["aleph_runtime_protocol"]
     RuntimeProtocol --> RuntimeExe["aleph-runtime"]
     RuntimeProtocol --> RuntimeTests["aleph_runtime_protocol_tests"]
+    Kernel --> RuntimeProtocol
+    Algebra --> RuntimeProtocol
+    Calculus --> RuntimeProtocol
     Kernel["aleph3_kernel"] --> SDK["aleph3_sdk"]
     Kernel --> Algebra["aleph3_pack_algebra"]
     Kernel --> Calculus["aleph3_pack_calculus"]

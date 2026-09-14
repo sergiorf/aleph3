@@ -175,7 +175,7 @@ separate runtime.
 - `aleph3_notebook_core` owns the current headless document model,
   persistence, and clean `Run All` lifecycle.
 - Public notebook and app-client code should communicate with a private
-  `aleph-kernel` executable through a stable protocol rather than linking
+  `aleph-runtime` executable through a stable protocol rather than linking
   kernel internals.
 
 `aleph3_symbolic` remains a compatibility target name during migration; it is
@@ -196,10 +196,11 @@ derivative subset, solving, plotting, arbitrary-precision expansion, DSP
 packs, web products, and large compatibility claims remain future work unless
 documented as supported in the manual and specifications.
 
-The intended commercial split is private `aleph-core` for the kernel, CLI,
-packs, and real `aleph-kernel` executable, with public visibility centered on
-`aleph-notebook` and protocol/client code. The split should happen only after
-the protocol boundary is proven in the current repository.
+The intended commercial split is private `aleph-core` for the
+domain-independent kernel core, CLI, packs, and real `aleph-runtime`
+executable, with public visibility centered on `aleph-notebook` and
+protocol/client code. The split should happen only after the protocol boundary
+is proven in the current repository.
 
 GitHub Actions runs the `CI` workflow for pushes and pull requests targeting
 `main`. The workflow builds and runs the CTest suite on Ubuntu and Windows,

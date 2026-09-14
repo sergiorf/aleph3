@@ -51,11 +51,11 @@ planned later as a separate product over the same kernel/protocol boundary.
 Commercial and repository decisions are governed by
 [IP and Repository Strategy](ip_and_repo_strategy.md) and the
 [Public App / Private Kernel Split Plan](public_private_cli_split_plan.md).
-The intended split is private `aleph-core` for kernel, packs, CLI, and the
-real `aleph-kernel` executable, with public visibility centered on
-`aleph-notebook` and protocol/client code. The free or low-friction notebook
-should become useful before paid packs, hosted services, or broader web
-products receive substantial investment.
+The intended split is private `aleph-core` for the domain-independent kernel
+core, registered packs, CLI, and real `aleph-runtime` executable, with public
+visibility centered on `aleph-notebook` and protocol/client code. The free or
+low-friction notebook should become useful before paid packs, hosted services,
+or broader web products receive substantial investment.
 
 ## Non-Negotiable Boundaries
 

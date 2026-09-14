@@ -1,20 +1,20 @@
-# Aleph Kernel Protocol M1 Plan
+# Aleph Runtime Protocol M1 Plan
 
 ## Status
 
-This is the implementation record for the first public/private split slice. It
+This archived document is the implementation record for the first
+public/private split slice. It
 details only M1 from
-[Public App / Private Kernel Split](public_private_cli_split_plan.md): the
+[Public App / Private Kernel Split](../public_private_cli_split_plan.md): the
 extraction-ready protocol model and framed JSON transport helpers.
 
 Initial implementation is complete. The repository now has an independent
 `aleph_client` target with protocol structs, JSON encode/decode helpers,
 framing helpers, focused tests, and a boundary guard against private semantic
-includes. This record remains useful until M2 replaces it as the active split
-slice.
+includes. M2 has replaced this document as the active split slice.
 
 This plan is intentionally narrower than the repository split. It does not
-implement `aleph-kernel`, move repositories, migrate the CLI, or create public
+implement `aleph-runtime`, move repositories, migrate the CLI, or create public
 notebook UI code.
 
 ## Goal
@@ -105,7 +105,7 @@ storage, pack handler identities, or registry internals.
 
 ## Non-Goals
 
-- starting or serving a real `aleph-kernel` process;
+- starting or serving a real `aleph-runtime` process;
 - launching child processes;
 - timeouts, stderr capture, or process lifecycle;
 - CLI migration;
@@ -244,7 +244,7 @@ Completed documentation updates:
 - `docs/sdk/build_and_targets.md` lists the new build target and tests.
 - `docs/README.md` links to this implementation record.
 
-Do not present `aleph-kernel`, CLI migration, or public notebook use as
+Do not present `aleph-runtime`, CLI migration, or public notebook use as
 shipped until later milestones implement them.
 
 ## Baseline And Verification
@@ -277,11 +277,11 @@ M1 is complete when:
 - the component has no forbidden private semantic dependencies;
 - existing user-visible behavior is unchanged;
 - documentation names the protocol component as implemented without claiming a
-  real kernel process or public repository split;
+  real runtime process or public repository split;
 - the final diff passes whitespace checks and has been reviewed.
 
 ## Next Slice
 
-After M1, proceed to M2: an in-tree private `aleph-kernel` executable that
-owns a `session::Session` and serves the protocol methods over the framed JSON
-transport.
+After M1, proceed to M2: an in-tree private `aleph-runtime` executable that
+hosts the domain-independent kernel core, session state, and registered packs
+while serving the protocol methods over the framed JSON transport.

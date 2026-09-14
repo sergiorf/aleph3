@@ -10,3 +10,7 @@ specifications for active contracts.
 - [Exact Vector Algebra Plan](exact_vector_algebra_plan.md) - completed
   implementation record for exact `Dot`, `Cross`, `Norm`, and exact
   square-root preservation.
+- [Aleph Runtime Protocol M1 Plan](aleph_runtime_protocol_m1_plan.md) -
+  completed implementation record for the extraction-ready protocol model,
+  JSON encoding/decoding, framing helpers, and public dependency boundary
+  guard.

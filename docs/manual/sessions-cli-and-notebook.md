@@ -162,7 +162,7 @@ The expected response is:
 
 Detailed local commands for this dormant code live in
 [Web Operations](../web_mvp_operations.md). A future web product should be
-planned separately after the local notebook and private-kernel protocol are
+planned separately after the local notebook and private runtime protocol are
 stable.
 
 ## Graphical Notebook Status

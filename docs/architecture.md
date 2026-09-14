@@ -22,7 +22,7 @@ flowchart TB
     Host["Host applications"] --> SDK["SDK<br/>Engine - Schema - Policy - Value"]
     AppClient["Future public app clients"] --> AlephClient["aleph_client<br/>protocol - framing"]
     PrivateCLI["Future private CLI path"] --> AlephClient
-    AlephClient -. framed JSON .-> KernelProcess["future aleph-kernel process"]
+    AlephClient -. framed JSON .-> RuntimeProcess["future aleph-runtime process"]
     CLI["CLI"] --> Session["Stateful session"]
     Notebook["Notebook core<br/>documents - cells - Run All"] --> Session
     WebFrontend["Dormant React/Vite web experiment"] --> BFF["ASP.NET Core BFF experiment<br/>/api/*"]
@@ -203,11 +203,12 @@ IDE consumers build on this boundary rather than owning evaluator state
 themselves.
 
 The intended public/private split adds a process boundary above the private
-core: public notebook and app clients talk to the private `aleph-kernel`
+core: public notebook and app clients talk to the private `aleph-runtime`
 executable through a stable framed JSON protocol. The private core, planned as
-`aleph-core`, owns the kernel, packs, CLI, and real kernel executable. Public
-clients must not link or expose private expression, parser, evaluator, exact
-arithmetic, or pack implementation headers.
+`aleph-core`, owns the domain-independent kernel core, registered packs, CLI,
+and real runtime executable. Public clients must not link or expose private
+expression, parser, evaluator, exact arithmetic, or pack implementation
+headers.
 
 The existing web code remains useful as dormant implementation context. The
 ASP.NET Core BFF experiment routes browser requests to an internal C++ engine
@@ -265,7 +266,7 @@ replaying input cells from a clean session in document order.
 | `include/ir` | SDK | validated transient representation |
 | `include/semantics`, `src/semantics` | SDK | schema and policy validation |
 | `include/sdk`, `src/sdk` | SDK | public host API |
-| `include/aleph_client`, `src/aleph_client` | public protocol/client | transport-facing protocol data, JSON encoding/decoding, and message framing for the future kernel process boundary |
+| `include/aleph_client`, `src/aleph_client` | public protocol/client | transport-facing protocol data, JSON encoding/decoding, and message framing for the future runtime process boundary |
 | `include/tooling`, `src/tooling` | tooling | CLI and supporting presentation |
 | `include/notebook`, `src/notebook` | notebook core | document model, JSON persistence, cached results, clean `Run All` |
 | `include/web`, `src/web` | dormant web/API experiments | internal engine API over shared sessions plus transitional transport-independent web API core |

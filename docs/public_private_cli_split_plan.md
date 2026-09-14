@@ -11,8 +11,10 @@ and the active sequencing in [Aleph3 Unified Plan](aleph3_unified_plan.md).
 It should stay concise: detailed implementation tasks belong in issues, pull
 requests, or the unified plan when they change roadmap priority.
 
+M1, the protocol model, is implemented and archived in
+[Aleph Runtime Protocol M1 Plan](archive/aleph_runtime_protocol_m1_plan.md).
 The active detailed slice plan is
-[Aleph Kernel Protocol M1 Plan](aleph_kernel_protocol_m1_plan.md).
+[Aleph Runtime Protocol M2 Plan](aleph_runtime_protocol_m2_plan.md).
 
 ## Direction
 
@@ -24,7 +26,12 @@ The current repository should become the private core repository, provisionally
 - registered math packs and pack implementation code;
 - session semantics and compatibility tests;
 - the private CLI, currently `aleph3_cli`;
-- the real `aleph-kernel` executable.
+- the real `aleph-runtime` executable.
+
+`aleph-runtime` is the private computation process, not the
+domain-independent kernel core. It hosts the core kernel library, session
+state, and registered packs behind the protocol. The kernel core remains
+domain-independent; domain behavior belongs in registered packs.
 
 Public visibility should move to a product repository, provisionally
 `aleph-notebook`. It owns product code that can be built and tested without
@@ -43,7 +50,7 @@ public notebook / app clients        private CLI
               |                         |
               | framed JSON protocol    | framed JSON protocol
               v                         v
-              private aleph-kernel executable
+              private aleph-runtime executable
                        |
                        v
               private aleph-core implementation
@@ -51,7 +58,7 @@ public notebook / app clients        private CLI
 
 The CLI remains private first-party tooling unless a separate public CLI is
 explicitly designed later. The public product surface is the notebook/client
-layer and the stable kernel protocol, not public C++ kernel headers.
+layer and the stable runtime protocol, not public C++ kernel headers.
 
 ## Boundary Rules
 
@@ -77,8 +84,8 @@ that is a protocol-design gap. Fix the protocol instead of coupling the client
 to private code.
 
 The notebook, future app clients, and future agent integrations should use the
-same kernel protocol for ordinary semantic operations. Do not introduce a
-separate agent semantic protocol until the kernel protocol has proven
+same runtime protocol for ordinary semantic operations. Do not introduce a
+separate agent semantic protocol until the runtime protocol has proven
 insufficient.
 
 ## Protocol Shape
@@ -111,12 +118,12 @@ status. They must not expose `Expr`, syntax trees, evaluator state, exact
 scalar storage, or pack registration internals.
 
 Version negotiation starts in `initialize`. Clients should fail clearly when
-the kernel is missing or the protocol version is incompatible.
+the runtime is missing or the protocol version is incompatible.
 
-Kernel lookup order:
+Runtime lookup order:
 
-1. explicit `--kernel <path>` argument where the client has one;
-2. `ALEPH_KERNEL_PATH`;
+1. explicit `--runtime <path>` argument where the client has one;
+2. `ALEPH_RUNTIME_PATH`;
 3. same directory as the client executable;
 4. `PATH` lookup.
 
@@ -129,13 +136,14 @@ the current tree.
    protocol types, framing, JSON encode/decode, malformed-message diagnostics,
    and documentation. This layer must not include private kernel, parser,
    session, SDK, pack, or CLI headers.
-2. **Private `aleph-kernel`.** Add an executable that owns a session and serves
-   protocol requests for evaluation, simplification, full form, help,
+2. **Private `aleph-runtime`.** Add an executable that hosts the
+   domain-independent kernel core, one session, and registered packs, then
+   serves protocol requests for evaluation, simplification, full form, help,
    completion, package discovery, reset, initialization, and shutdown.
 3. **Kernel client.** Add a client library that locates and launches
-   `aleph-kernel`, sends framed requests, handles timeouts and process exit,
-   and reports missing or incompatible kernels clearly. Test it with a fake
-   kernel.
+   `aleph-runtime`, sends framed requests, handles timeouts and process exit,
+   and reports missing or incompatible runtimes clearly. Test it with a fake
+   runtime.
 4. **Private CLI migration.** Route ordinary symbolic CLI behavior through the
    kernel client. Keep parser-token dumps, SDK validation/compile tooling, and
    demo host-function commands private developer tools unless separately
@@ -149,7 +157,7 @@ the current tree.
    boundary. Create the public `aleph-notebook` repository with notebook,
    protocol/client, examples, docs, and fake-kernel tests.
 7. **Packaging and release checks.** Private CI builds signed or provenance-
-   tracked `aleph-kernel` and private CLI artifacts. Public CI builds the
+   tracked `aleph-runtime` and private CLI artifacts. Public CI builds the
    notebook/client against fake kernels. Release checks must prevent private
    source, headers, debug symbols, private paths, and private CI logs from
    leaking into public artifacts.
@@ -170,7 +178,7 @@ Public verification:
 Private verification:
 
 - kernel, session, pack, and private CLI tests;
-- real `aleph-kernel` protocol tests;
+- real `aleph-runtime` protocol tests;
 - private CLI to real kernel integration tests;
 - product-bundle smoke tests where the public notebook/client finds and uses
   the packaged private kernel executable.
@@ -182,9 +190,9 @@ The split is complete when:
 - public app-client code includes no private kernel, parser, expression,
   evaluator, exact arithmetic, CLI, or pack implementation headers;
 - public app-client builds and tests pass without private source files;
-- private `aleph-kernel` passes kernel/session/pack tests;
-- private CLI plus private `aleph-kernel` pass integration tests;
-- public notebook/client plus private `aleph-kernel` pass bundle smoke tests;
+- private `aleph-runtime` passes kernel/session/pack tests;
+- private CLI plus private `aleph-runtime` pass integration tests;
+- public notebook/client plus private `aleph-runtime` pass bundle smoke tests;
 - protocol versioning and incompatible-version diagnostics exist;
 - documentation accurately distinguishes public source from private semantics;
 - release checks prevent accidental publication of private implementation

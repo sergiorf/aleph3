@@ -107,7 +107,7 @@ placeholder boundary.
 ## Practical Guidance
 
 - Use `ALEPH3_BUILD_SDK=ON` to work on the embedding and current CLI path.
-- Use `aleph_client_tests` to exercise the future kernel protocol/client
+- Use `aleph_client_tests` to exercise the future runtime protocol/client
   boundary. This target should stay independent of kernel, session, SDK, pack,
   notebook, web, and CLI implementation headers.
 - Expect the kernel to build whenever the SDK is enabled.

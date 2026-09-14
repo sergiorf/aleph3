@@ -41,9 +41,10 @@ same sources can be
    public/private transition guidance.
 12. [Public App / Private Kernel Split Plan](public_private_cli_split_plan.md) -
    proposed plan for keeping the kernel and CLI private while public notebook
-   and app clients use a stable `aleph-kernel` protocol.
-13. [Aleph Kernel Protocol M1 Plan](aleph_kernel_protocol_m1_plan.md) -
-   active implementation plan for the first protocol/client slice.
+   and app clients use a stable `aleph-runtime` protocol.
+13. [Aleph Runtime Protocol M2 Plan](aleph_runtime_protocol_m2_plan.md) -
+   active implementation plan for the private in-tree `aleph-runtime`
+   protocol server slice.
 
 ## Normative References
 

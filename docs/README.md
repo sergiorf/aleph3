@@ -42,6 +42,8 @@ same sources can be
 12. [Public App / Private Kernel Split Plan](public_private_cli_split_plan.md) -
    proposed plan for keeping the kernel and CLI private while public notebook
    and app clients use a stable `aleph-kernel` protocol.
+13. [Aleph Kernel Protocol M1 Plan](aleph_kernel_protocol_m1_plan.md) -
+   active implementation plan for the first protocol/client slice.
 
 ## Normative References
 

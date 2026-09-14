@@ -11,6 +11,9 @@ and the active sequencing in [Aleph3 Unified Plan](aleph3_unified_plan.md).
 It should stay concise: detailed implementation tasks belong in issues, pull
 requests, or the unified plan when they change roadmap priority.
 
+The active detailed slice plan is
+[Aleph Kernel Protocol M1 Plan](aleph_kernel_protocol_m1_plan.md).
+
 ## Direction
 
 The current repository should become the private core repository, provisionally
@@ -122,9 +125,10 @@ Kernel lookup order:
 Keep the physical repository split until the process boundary is proven inside
 the current tree.
 
-1. **Protocol model.** Add extraction-ready protocol types, framing, JSON
-   encode/decode, malformed-message diagnostics, and documentation. This layer
-   must not include private kernel, parser, session, SDK, pack, or CLI headers.
+1. **Protocol model.** Initial implementation complete. Add extraction-ready
+   protocol types, framing, JSON encode/decode, malformed-message diagnostics,
+   and documentation. This layer must not include private kernel, parser,
+   session, SDK, pack, or CLI headers.
 2. **Private `aleph-kernel`.** Add an executable that owns a session and serves
    protocol requests for evaluation, simplification, full form, help,
    completion, package discovery, reset, initialization, and shutdown.

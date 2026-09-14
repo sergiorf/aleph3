@@ -61,6 +61,14 @@ add_library(aleph3_syntax
     include/syntax/TrustedSubsetLowering.hpp)
 target_include_directories(aleph3_syntax PUBLIC include)
 
+add_library(aleph_client
+    src/aleph_client/Framing.cpp
+    src/aleph_client/Protocol.cpp
+    include/aleph_client/Framing.hpp
+    include/aleph_client/Protocol.hpp)
+target_include_directories(aleph_client PUBLIC include)
+target_include_directories(aleph_client PRIVATE third_party/nlohmann)
+
 if(ALEPH3_BUILD_SDK)
     add_library(aleph3_sdk
         src/sdk/Engine.cpp
@@ -254,6 +262,11 @@ if(BUILD_TESTING)
 
     set(FETCHCONTENT_QUIET OFF)
     FetchContent_MakeAvailable(Catch2)
+
+    add_executable(aleph_client_tests tests/aleph_client/ProtocolTests.cpp)
+    target_link_libraries(aleph_client_tests PRIVATE aleph_client Catch2::Catch2WithMain)
+    target_compile_definitions(aleph_client_tests PRIVATE ALEPH3_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME aleph_client_tests COMMAND aleph_client_tests)
 
     if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
         file(GLOB KERNEL_TEST_ROOT CONFIGURE_DEPENDS

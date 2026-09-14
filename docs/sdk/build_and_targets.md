@@ -1,8 +1,8 @@
 # Build And Targets
 
-The current build distinguishes the kernel, SDK, CLI, packs, dormant web/API
-experiments, and the GUI-independent notebook core. It does not yet contain a
-full graphical notebook application.
+The current build distinguishes the protocol/client layer, kernel, SDK, CLI,
+packs, dormant web/API experiments, and the GUI-independent notebook core. It
+does not yet contain a full graphical notebook application.
 
 Status note:
 
@@ -20,6 +20,7 @@ Related documents:
 
 | Target | Type | Purpose |
 | --- | --- | --- |
+| `aleph_client` | library | Public/private split protocol types, JSON encode/decode helpers, and framed message helpers; no semantic engine dependencies |
 | `aleph3_kernel` | library | Explicit kernel build target for the current symbolic engine surface |
 | `aleph3_symbolic` | alias | Compatibility alias for the current kernel target during migration |
 | `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
@@ -33,6 +34,7 @@ Related documents:
 | `aleph3_sdk` | library | Public SDK facade over kernel-backed execution |
 | `aleph3_cli` | executable | Current local workbench for symbolic REPL/script use plus SDK developer checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
+| `aleph_client_tests` | executable | Protocol encoding/decoding, framing, and dependency-boundary tests for `aleph_client` |
 | `aleph3_symbolic_tests` | executable | Kernel-oriented symbolic tests plus current symbolic tooling and pack coverage |
 | `aleph3_notebook_tests` | executable | Notebook model, isolation, rerun, diagnostics, and shared-session fixture coverage |
 | `aleph3_web_api_tests` | executable | Web API core tests for health, anonymous clients, sessions, reset, discovery, notebook persistence, run-all, examples, ownership, quotas, and expiration |
@@ -66,6 +68,7 @@ Current interpretation:
 
 ```mermaid
 flowchart TD
+    AlephClient["aleph_client"] --> AlephClientTests["aleph_client_tests"]
     Kernel["aleph3_kernel"] --> SymbolicTests["aleph3_symbolic_tests"]
     Symbolic["aleph3_symbolic (alias)"] --> Kernel
     CoreMath["aleph3_pack_core_math"] --> Kernel
@@ -104,6 +107,9 @@ placeholder boundary.
 ## Practical Guidance
 
 - Use `ALEPH3_BUILD_SDK=ON` to work on the embedding and current CLI path.
+- Use `aleph_client_tests` to exercise the future kernel protocol/client
+  boundary. This target should stay independent of kernel, session, SDK, pack,
+  notebook, web, and CLI implementation headers.
 - Expect the kernel to build whenever the SDK is enabled.
 - Use `aleph3_cli` for fast manual checks while broader validation and custom host-function tooling are still under construction.
 - Use `aleph3_notebook_tests` to exercise the current headless document and
@@ -140,6 +146,8 @@ placeholder boundary.
 - `tests/frontend`, `tests/ir`, `tests/semantics`, and `tests/sdk` are SDK-side
   coverage.
 - `tests/tooling` is SDK/tooling consumer coverage.
+- `tests/aleph_client` is protocol/client coverage and should remain free of
+  private semantic dependencies.
 - `tests/notebook` is notebook-product model and session-consumer coverage.
 - `tests/web` is web-product API core coverage. It must remain a consumer of
   session, notebook, kernel, and pack contracts rather than adding web-only

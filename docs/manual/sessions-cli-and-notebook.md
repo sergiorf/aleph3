@@ -9,6 +9,25 @@ diagnostics.
 
 This is shared infrastructure for the CLI and future graphical products.
 
+## Runtime Protocol Process
+
+The current build includes a private `aleph-runtime` executable for future
+notebook and app clients. It owns one `session::Session`, reads
+`Content-Length` framed JSON requests from standard input, and writes framed
+JSON responses to standard output. The supported protocol methods are
+`initialize`, `version`, `capabilities`, `evaluate`, `simplify`, `fullForm`,
+`help`, `complete`, `packages`, `reset`, and `shutdown`.
+
+The runtime process is a transport adapter over the same session behavior used
+by the CLI and notebook core. It does not expose parser trees, `Expr`, exact
+scalar storage, pack handler identities, or evaluator internals. Human-readable
+diagnostics, if any, must stay off stdout so protocol clients can treat stdout
+as framed protocol output only.
+
+`aleph-runtime` is not yet a public process-launching client library and the
+CLI does not launch it. Runtime lookup, timeout handling, packaged notebook
+integration, and CLI migration remain planned follow-up work.
+
 ## CLI Workflow
 
 `aleph3_cli repl` is the current local single-process kernel workbench. It
@@ -162,7 +181,7 @@ The expected response is:
 
 Detailed local commands for this dormant code live in
 [Web Operations](../web_mvp_operations.md). A future web product should be
-planned separately after the local notebook and private runtime protocol are
+planned separately after the local notebook and runtime client layer are
 stable.
 
 ## Graphical Notebook Status

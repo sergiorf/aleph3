@@ -14,3 +14,6 @@ specifications for active contracts.
   completed implementation record for the extraction-ready protocol model,
   JSON encoding/decoding, framing helpers, and public dependency boundary
   guard.
+- [Aleph Runtime Protocol M2 Plan](aleph_runtime_protocol_m2_plan.md) -
+  completed implementation record for the private in-tree `aleph-runtime`
+  protocol server executable.

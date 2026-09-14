@@ -2,18 +2,17 @@
 
 ## Status
 
-This is the active detailed implementation plan for M2 from
-[Public App / Private Kernel Split](public_private_cli_split_plan.md): an
-in-tree private `aleph-runtime` executable that hosts the domain-independent
-kernel core, one `session::Session`, and registered packs while serving the M1
-framed JSON protocol.
+M2 is implemented. This document is the archived implementation record for
+the in-tree private `aleph-runtime` executable from
+[Public App / Private Kernel Split](../public_private_cli_split_plan.md).
+Current build and usage facts live in the architecture, manual, and build
+target documentation.
 
 M1 is complete and archived in
-[Aleph Runtime Protocol M1 Plan](archive/aleph_runtime_protocol_m1_plan.md).
-The current repository has protocol data and framing helpers in `aleph_client`,
-but it does not yet ship the real `aleph-runtime` process, process-level
-protocol tests, client launch behavior, CLI migration, or a physical
-repository split.
+[Aleph Runtime Protocol M1 Plan](aleph_runtime_protocol_m1_plan.md). The
+current repository now has protocol data and framing helpers in `aleph_client`
+and the real private `aleph-runtime` process. Client launch behavior, CLI
+migration, and the physical repository split remain later work.
 
 ## Goal
 
@@ -38,7 +37,7 @@ semantic types through the protocol.
 ## Roadmap Alignment
 
 - Advances the public/private split direction in the unified plan and
-  [Public App / Private Kernel Split](public_private_cli_split_plan.md).
+  [Public App / Private Kernel Split](../public_private_cli_split_plan.md).
 - Supports the notebook-first product path by giving future public notebook
   and app-client code a real private runtime process to speak to.
 - Keeps the kernel and session as the only semantic core; the executable is a
@@ -293,7 +292,7 @@ git diff --check
 ```
 
 If the local Windows build hits MSBuild `FileTracker` or environment failures,
-follow [Windows Codex Build Environment](agents/windows-codex-build.md).
+follow [Windows Codex Build Environment](../agents/windows-codex-build.md).
 
 ## Completion Criteria
 

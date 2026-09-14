@@ -22,7 +22,7 @@ flowchart TB
     Host["Host applications"] --> SDK["SDK<br/>Engine - Schema - Policy - Value"]
     AppClient["Future public app clients"] --> AlephClient["aleph_client<br/>protocol - framing"]
     PrivateCLI["Future private CLI path"] --> AlephClient
-    AlephClient -. framed JSON .-> RuntimeProcess["future aleph-runtime process"]
+    AlephClient -. framed JSON .-> RuntimeProcess["aleph-runtime process"]
     CLI["CLI"] --> Session["Stateful session"]
     Notebook["Notebook core<br/>documents - cells - Run All"] --> Session
     WebFrontend["Dormant React/Vite web experiment"] --> BFF["ASP.NET Core BFF experiment<br/>/api/*"]
@@ -204,11 +204,12 @@ themselves.
 
 The intended public/private split adds a process boundary above the private
 core: public notebook and app clients talk to the private `aleph-runtime`
-executable through a stable framed JSON protocol. The private core, planned as
-`aleph-core`, owns the domain-independent kernel core, registered packs, CLI,
-and real runtime executable. Public clients must not link or expose private
-expression, parser, evaluator, exact arithmetic, or pack implementation
-headers.
+executable through a stable framed JSON protocol. The runtime executable is
+implemented in-tree and hosts one `session::Session`, the domain-independent
+kernel core, and registered packs. The private core, planned as `aleph-core`,
+owns those implementation details plus the CLI. Public clients must not link
+or expose private expression, parser, evaluator, exact arithmetic, or pack
+implementation headers.
 
 The existing web code remains useful as dormant implementation context. The
 ASP.NET Core BFF experiment routes browser requests to an internal C++ engine
@@ -267,7 +268,7 @@ replaying input cells from a clean session in document order.
 | `include/semantics`, `src/semantics` | SDK | schema and policy validation |
 | `include/sdk`, `src/sdk` | SDK | public host API |
 | `include/aleph_client`, `src/aleph_client` | public protocol/client | transport-facing protocol data, JSON encoding/decoding, and message framing for the future runtime process boundary |
-| `include/tooling`, `src/tooling` | tooling | CLI and supporting presentation |
+| `include/tooling`, `src/tooling` | tooling | CLI, private runtime protocol adapter, `aleph-runtime`, and supporting presentation |
 | `include/notebook`, `src/notebook` | notebook core | document model, JSON persistence, cached results, clean `Run All` |
 | `include/web`, `src/web` | dormant web/API experiments | internal engine API over shared sessions plus transitional transport-independent web API core |
 | `web/bff` | dormant web experiment | ASP.NET Core request validation and engine error mapping experiment |
@@ -391,6 +392,9 @@ This diagram is an orientation, not a substitute for the normative
 ```mermaid
 flowchart TD
     AlephClient["aleph_client"] --> AlephClientTests["aleph_client_tests"]
+    AlephClient --> RuntimeProtocol["aleph_runtime_protocol"]
+    RuntimeProtocol --> RuntimeExe["aleph-runtime"]
+    RuntimeProtocol --> RuntimeTests["aleph_runtime_protocol_tests"]
     Kernel["aleph3_kernel"] --> SDK["aleph3_sdk"]
     Kernel --> Algebra["aleph3_pack_algebra"]
     Kernel --> Calculus["aleph3_pack_calculus"]

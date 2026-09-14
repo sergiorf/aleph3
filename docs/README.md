@@ -40,11 +40,10 @@ same sources can be
 11. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
    public/private transition guidance.
 12. [Public App / Private Kernel Split Plan](public_private_cli_split_plan.md) -
-   proposed plan for keeping the kernel and CLI private while public notebook
-   and app clients use a stable `aleph-runtime` protocol.
-13. [Aleph Runtime Protocol M2 Plan](aleph_runtime_protocol_m2_plan.md) -
-   active implementation plan for the private in-tree `aleph-runtime`
-   protocol server slice.
+   direction for keeping the kernel and CLI private while public notebook and
+   app clients use a stable `aleph-runtime` protocol.
+13. [Aleph Runtime Protocol M3 Plan](aleph_runtime_protocol_m3_plan.md) -
+   active implementation plan for the process-launching runtime client slice.
 
 ## Normative References
 

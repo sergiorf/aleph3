@@ -21,6 +21,8 @@ Related documents:
 | Target | Type | Purpose |
 | --- | --- | --- |
 | `aleph_client` | library | Public/private split protocol types, JSON encode/decode helpers, and framed message helpers; no semantic engine dependencies |
+| `aleph_runtime_protocol` | library | Private adapter from framed protocol requests to one `session::Session`; links kernel and registered packs |
+| `aleph-runtime` | executable | Private runtime process that serves framed JSON protocol requests over stdin/stdout |
 | `aleph3_kernel` | library | Explicit kernel build target for the current symbolic engine surface |
 | `aleph3_symbolic` | alias | Compatibility alias for the current kernel target during migration |
 | `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
@@ -35,6 +37,7 @@ Related documents:
 | `aleph3_cli` | executable | Current local workbench for symbolic REPL/script use plus SDK developer checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
 | `aleph_client_tests` | executable | Protocol encoding/decoding, framing, and dependency-boundary tests for `aleph_client` |
+| `aleph_runtime_protocol_tests` | executable | Private runtime adapter and process-level framed protocol tests |
 | `aleph3_symbolic_tests` | executable | Kernel-oriented symbolic tests plus current symbolic tooling and pack coverage |
 | `aleph3_notebook_tests` | executable | Notebook model, isolation, rerun, diagnostics, and shared-session fixture coverage |
 | `aleph3_web_api_tests` | executable | Web API core tests for health, anonymous clients, sessions, reset, discovery, notebook persistence, run-all, examples, ownership, quotas, and expiration |
@@ -69,6 +72,9 @@ Current interpretation:
 ```mermaid
 flowchart TD
     AlephClient["aleph_client"] --> AlephClientTests["aleph_client_tests"]
+    AlephClient --> RuntimeProtocol["aleph_runtime_protocol"]
+    RuntimeProtocol --> RuntimeExe["aleph-runtime"]
+    RuntimeProtocol --> RuntimeTests["aleph_runtime_protocol_tests"]
     Kernel["aleph3_kernel"] --> SymbolicTests["aleph3_symbolic_tests"]
     Symbolic["aleph3_symbolic (alias)"] --> Kernel
     CoreMath["aleph3_pack_core_math"] --> Kernel
@@ -110,6 +116,10 @@ placeholder boundary.
 - Use `aleph_client_tests` to exercise the future runtime protocol/client
   boundary. This target should stay independent of kernel, session, SDK, pack,
   notebook, web, and CLI implementation headers.
+- Use `aleph_runtime_protocol_tests` to exercise the private `aleph-runtime`
+  executable and its adapter over the framed protocol. This target may link
+  private kernel, session, and pack implementation targets; `aleph_client`
+  itself must not.
 - Expect the kernel to build whenever the SDK is enabled.
 - Use `aleph3_cli` for fast manual checks while broader validation and custom host-function tooling are still under construction.
 - Use `aleph3_notebook_tests` to exercise the current headless document and
@@ -148,6 +158,9 @@ placeholder boundary.
 - `tests/tooling` is SDK/tooling consumer coverage.
 - `tests/aleph_client` is protocol/client coverage and should remain free of
   private semantic dependencies.
+- `tests/tooling/AlephRuntimeProtocolTests.cpp` is private runtime-process
+  coverage and may exercise the real session/kernel boundary through
+  `aleph-runtime`.
 - `tests/notebook` is notebook-product model and session-consumer coverage.
 - `tests/web` is web-product API core coverage. It must remain a consumer of
   session, notebook, kernel, and pack contracts rather than adding web-only

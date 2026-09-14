@@ -41,6 +41,21 @@ int required_int(const Json& json, const char* field) {
     return json.at(field).get<int>();
 }
 
+std::vector<std::string> string_vector_from_json(const Json& json, std::string_view code, std::string_view message) {
+    if (!json.is_array()) {
+        throw ProtocolException(std::string(code), std::string(message));
+    }
+    std::vector<std::string> result;
+    result.reserve(json.size());
+    for (const auto& item : json) {
+        if (!item.is_string()) {
+            throw ProtocolException(std::string(code), std::string(message));
+        }
+        result.push_back(item.get<std::string>());
+    }
+    return result;
+}
+
 ProtocolDiagnostic diagnostic_from_json(const Json& json) {
     require_object(json, "protocol.invalid_diagnostic", "Protocol diagnostics must be objects.");
     ProtocolDiagnostic diagnostic;
@@ -95,6 +110,7 @@ EvaluationResult evaluation_from_json(const Json& json) {
 InitializeResult initialize_from_json(const Json& json) {
     require_object(json, "protocol.invalid_result", "Initialize result must be an object.");
     InitializeResult result;
+    result.server_name = json.value("serverName", "");
     result.kernel_version = required_string(json, "kernelVersion");
     result.protocol_version = required_int(json, "protocolVersion");
     if (!json.contains("capabilities") || !json.at("capabilities").is_object()) {
@@ -106,6 +122,86 @@ InitializeResult initialize_from_json(const Json& json) {
         }
         result.capabilities.emplace(key, value.get<bool>());
     }
+    return result;
+}
+
+VersionResult version_from_json(const Json& json) {
+    require_object(json, "protocol.invalid_result", "Version result must be an object.");
+    VersionResult result;
+    result.server_name = required_string(json, "serverName");
+    result.kernel_version = required_string(json, "kernelVersion");
+    result.protocol_version = required_int(json, "protocolVersion");
+    return result;
+}
+
+CapabilitiesResult capabilities_from_json(const Json& json) {
+    require_object(json, "protocol.invalid_result", "Capabilities result must be an object.");
+    CapabilitiesResult result;
+    if (!json.contains("methods") || !json.contains("representations") || !json.contains("features")) {
+        throw ProtocolException("protocol.missing_field", "Capabilities result must contain methods, representations, and features.");
+    }
+    result.methods = string_vector_from_json(json.at("methods"), "protocol.invalid_capability", "Capability methods must be strings.");
+    result.representations = string_vector_from_json(
+        json.at("representations"),
+        "protocol.invalid_capability",
+        "Capability representations must be strings.");
+    if (!json.at("features").is_object()) {
+        throw ProtocolException("protocol.invalid_capability", "Capability features must be an object.");
+    }
+    for (const auto& [key, value] : json.at("features").items()) {
+        if (!value.is_boolean()) {
+            throw ProtocolException("protocol.invalid_capability", "Capability feature values must be booleans.");
+        }
+        result.features.emplace(key, value.get<bool>());
+    }
+    return result;
+}
+
+HelpEntry help_entry_from_json(const Json& json) {
+    require_object(json, "protocol.invalid_result", "Help entries must be objects.");
+    HelpEntry entry;
+    entry.name = required_string(json, "name");
+    entry.category = json.value("category", "");
+    entry.owning_package = json.value("owningPackage", "");
+    entry.description = json.value("description", "");
+    entry.forms = string_vector_from_json(json.value("forms", Json::array()), "protocol.invalid_result", "Help forms must be strings.");
+    entry.examples = string_vector_from_json(json.value("examples", Json::array()), "protocol.invalid_result", "Help examples must be strings.");
+    entry.exactness = json.value("exactness", "");
+    entry.unsupported = json.value("unsupported", "");
+    entry.manual_anchor = json.value("manualAnchor", "");
+    return entry;
+}
+
+CompletionEntry completion_entry_from_json(const Json& json) {
+    require_object(json, "protocol.invalid_result", "Completion entries must be objects.");
+    return CompletionEntry{
+        required_string(json, "name"),
+        json.value("category", ""),
+        json.value("owningPackage", ""),
+        json.value("documentation", "")};
+}
+
+PackageEntry package_entry_from_json(const Json& json) {
+    require_object(json, "protocol.invalid_result", "Package entries must be objects.");
+    PackageEntry entry;
+    entry.name = required_string(json, "name");
+    entry.version = json.value("version", "");
+    entry.description = json.value("description", "");
+    entry.symbols = string_vector_from_json(json.value("symbols", Json::array()), "protocol.invalid_result", "Package symbols must be strings.");
+    return entry;
+}
+
+StatusResult status_from_json(const Json& json) {
+    require_object(json, "protocol.invalid_result", "Status result must be an object.");
+    StatusResult result;
+    if (!json.contains("ok") || !json.at("ok").is_boolean()) {
+        throw ProtocolException("protocol.missing_field", "Status result field `ok` must be a boolean.");
+    }
+    if (!json.contains("message") || !json.at("message").is_string()) {
+        throw ProtocolException("protocol.missing_field", "Status result field `message` must be a string.");
+    }
+    result.ok = json.at("ok").get<bool>();
+    result.message = json.at("message").get<std::string>();
     return result;
 }
 
@@ -199,10 +295,33 @@ ProtocolResponse decode_response(std::string_view payload) {
 
     const auto& result = root.at("result");
     require_object(result, "protocol.invalid_result", "Protocol result must be an object.");
-    if (result.contains("representations")) {
+    if (result.contains("source") && result.contains("representations")) {
         response.evaluation = evaluation_from_json(result);
     } else if (result.contains("kernelVersion")) {
-        response.initialize = initialize_from_json(result);
+        if (result.contains("capabilities")) {
+            response.initialize = initialize_from_json(result);
+        } else {
+            response.version = version_from_json(result);
+        }
+    } else if (result.contains("methods")) {
+        response.capabilities = capabilities_from_json(result);
+    } else if (result.contains("help")) {
+        response.help = std::vector<HelpEntry>{};
+        for (const auto& item : result.at("help")) {
+            response.help->push_back(help_entry_from_json(item));
+        }
+    } else if (result.contains("completions")) {
+        response.completions = std::vector<CompletionEntry>{};
+        for (const auto& item : result.at("completions")) {
+            response.completions->push_back(completion_entry_from_json(item));
+        }
+    } else if (result.contains("packages")) {
+        response.packages = std::vector<PackageEntry>{};
+        for (const auto& item : result.at("packages")) {
+            response.packages->push_back(package_entry_from_json(item));
+        }
+    } else if (result.contains("ok")) {
+        response.status = status_from_json(result);
     } else {
         throw ProtocolException("protocol.unknown_result", "Protocol result shape is not recognized.");
     }

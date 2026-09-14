@@ -67,11 +67,28 @@ struct InitializeParams {
 };
 
 struct InitializeResult {
+    std::string server_name;
     std::string kernel_version;
     int protocol_version = 1;
     std::map<std::string, bool> capabilities;
 
     [[nodiscard]] bool operator==(const InitializeResult& other) const = default;
+};
+
+struct VersionResult {
+    std::string server_name;
+    std::string kernel_version;
+    int protocol_version = 1;
+
+    [[nodiscard]] bool operator==(const VersionResult& other) const = default;
+};
+
+struct CapabilitiesResult {
+    std::vector<std::string> methods;
+    std::vector<std::string> representations;
+    std::map<std::string, bool> features;
+
+    [[nodiscard]] bool operator==(const CapabilitiesResult& other) const = default;
 };
 
 struct HelpEntry {
@@ -81,6 +98,9 @@ struct HelpEntry {
     std::string description;
     std::vector<std::string> forms;
     std::vector<std::string> examples;
+    std::string exactness;
+    std::string unsupported;
+    std::string manual_anchor;
 
     [[nodiscard]] bool operator==(const HelpEntry& other) const = default;
 };
@@ -98,14 +118,28 @@ struct PackageEntry {
     std::string name;
     std::string version;
     std::string description;
+    std::vector<std::string> symbols;
 
     [[nodiscard]] bool operator==(const PackageEntry& other) const = default;
+};
+
+struct StatusResult {
+    bool ok = false;
+    std::string message;
+
+    [[nodiscard]] bool operator==(const StatusResult& other) const = default;
 };
 
 struct ProtocolResponse {
     RequestId id;
     std::optional<EvaluationResult> evaluation;
     std::optional<InitializeResult> initialize;
+    std::optional<VersionResult> version;
+    std::optional<CapabilitiesResult> capabilities;
+    std::optional<std::vector<HelpEntry>> help;
+    std::optional<std::vector<CompletionEntry>> completions;
+    std::optional<std::vector<PackageEntry>> packages;
+    std::optional<StatusResult> status;
     std::optional<ProtocolError> error;
 
     [[nodiscard]] bool ok() const;

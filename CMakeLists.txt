@@ -241,6 +241,22 @@ if(ALEPH3_BUILD_KERNEL)
         target_link_libraries(aleph3_engine_service PRIVATE ws2_32)
     endif()
 
+    add_library(aleph_runtime_protocol
+        src/tooling/RuntimeProtocolServer.cpp
+        include/tooling/RuntimeProtocolServer.hpp)
+    target_include_directories(aleph_runtime_protocol PUBLIC include)
+    target_include_directories(aleph_runtime_protocol PRIVATE third_party/nlohmann)
+    target_link_libraries(
+        aleph_runtime_protocol
+        PUBLIC
+        aleph3_kernel
+        aleph3_pack_algebra
+        aleph3_pack_calculus
+        aleph_client)
+
+    add_executable(aleph-runtime src/tooling/aleph_runtime.cpp)
+    target_link_libraries(aleph-runtime PRIVATE aleph_runtime_protocol aleph_client)
+
     if(ALEPH3_BUILD_SDK)
         target_link_libraries(aleph3_sdk PUBLIC aleph3_kernel aleph3_pack_algebra aleph3_pack_calculus)
     endif()
@@ -332,6 +348,24 @@ if(BUILD_TESTING)
             Catch2::Catch2WithMain)
         target_include_directories(aleph3_engine_api_tests PRIVATE third_party/nlohmann)
         add_test(NAME aleph3_engine_api_tests COMMAND aleph3_engine_api_tests)
+
+        add_executable(aleph_runtime_protocol_tests tests/tooling/AlephRuntimeProtocolTests.cpp)
+        target_link_libraries(
+            aleph_runtime_protocol_tests
+            PRIVATE
+            aleph_runtime_protocol
+            aleph_client
+            Catch2::Catch2WithMain)
+        target_include_directories(aleph_runtime_protocol_tests PRIVATE third_party/nlohmann)
+        target_compile_definitions(
+            aleph_runtime_protocol_tests
+            PRIVATE
+            ALEPH_RUNTIME_EXE_NAME="$<TARGET_FILE_NAME:aleph-runtime>")
+        add_dependencies(aleph_runtime_protocol_tests aleph-runtime)
+        add_test(NAME aleph_runtime_protocol_tests COMMAND aleph_runtime_protocol_tests)
+        set_tests_properties(
+            aleph_runtime_protocol_tests
+            PROPERTIES WORKING_DIRECTORY "$<TARGET_FILE_DIR:aleph-runtime>")
     endif()
 
     if(ALEPH3_BUILD_SDK)
@@ -342,6 +376,7 @@ if(BUILD_TESTING)
             "tests/sdk/*.cpp")
         file(GLOB SDK_TOOLING_TEST_SOURCES CONFIGURE_DEPENDS
             "tests/tooling/*.cpp")
+        list(FILTER SDK_TOOLING_TEST_SOURCES EXCLUDE REGEX "AlephRuntimeProtocolTests\\.cpp$")
 
         add_executable(
             aleph3_sdk_tests

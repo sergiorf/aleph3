@@ -13,8 +13,10 @@ requests, or the unified plan when they change roadmap priority.
 
 M1, the protocol model, is implemented and archived in
 [Aleph Runtime Protocol M1 Plan](archive/aleph_runtime_protocol_m1_plan.md).
+M2, the private in-tree `aleph-runtime` executable, is implemented and archived
+in [Aleph Runtime Protocol M2 Plan](archive/aleph_runtime_protocol_m2_plan.md).
 The active detailed slice plan is
-[Aleph Runtime Protocol M2 Plan](aleph_runtime_protocol_m2_plan.md).
+[Aleph Runtime Protocol M3 Plan](aleph_runtime_protocol_m3_plan.md).
 
 ## Direction
 
@@ -136,7 +138,7 @@ the current tree.
    protocol types, framing, JSON encode/decode, malformed-message diagnostics,
    and documentation. This layer must not include private kernel, parser,
    session, SDK, pack, or CLI headers.
-2. **Private `aleph-runtime`.** Add an executable that hosts the
+2. **Private `aleph-runtime`.** Complete. The executable hosts the
    domain-independent kernel core, one session, and registered packs, then
    serves protocol requests for evaluation, simplification, full form, help,
    completion, package discovery, reset, initialization, and shutdown.

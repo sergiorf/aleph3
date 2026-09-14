@@ -152,6 +152,13 @@ The M3 lifecycle is:
 8. terminate or detach only as a last-resort cleanup path after timeout or
    broken pipe.
 
+One `RuntimeClient` instance talks to one launched `aleph-runtime` process, and
+that process owns one `session::Session` for its lifetime. Session-local
+assignments and user definitions therefore persist across requests sent
+through the same client, for example `a = 7` followed by `a` returns `7`.
+`reset` clears that session-local state while preserving builtins and
+registered packs. A new client process starts with a fresh runtime session.
+
 The client must preserve stdout as framed protocol data and treat stderr as
 diagnostic text only. Stderr may be captured behind a bounded buffer for error
 messages, but no public behavior may depend on private log wording.
@@ -314,6 +321,10 @@ Completion criteria:
 Focused tests:
 
 - start fake runtime, send initialize, send evaluate, send shutdown;
+- send `a = 7` and then `a` through the same client and observe the persisted
+  session value;
+- send `reset` through the same client and observe that `a` becomes symbolic
+  again while builtins and packs remain available;
 - process exit before response reports `runtime.exited`;
 - malformed frame or malformed JSON reports `runtime.malformed_output`;
 - request write after process death reports `runtime.broken_pipe` or
@@ -352,7 +363,9 @@ Completion criteria:
   runtime headers;
 - initialize succeeds against the real runtime;
 - evaluating `1/2 + 1/3` returns `5/6`;
-- reset clears a session-local definition through the process client;
+- evaluating `a = 7` and then `a` proves session state persists within one
+  client/runtime process;
+- reset clears the session-local definition through the process client;
 - shutdown exits cleanly.
 
 Focused verification:
@@ -435,7 +448,8 @@ M3 is complete when:
 - the public runtime client can locate and launch a runtime using the split
   plan lookup order;
 - fake-runtime lifecycle tests cover launch, initialize, request/response,
-  timeout, early exit, malformed output, protocol errors, and shutdown;
+  session state, reset, timeout, early exit, malformed output, protocol errors,
+  and shutdown;
 - real-runtime smoke tests pass where private targets are enabled;
 - runtime lookup, timeout, process-exit, malformed-output, missing-runtime,
   and incompatible-version failures have stable diagnostics;

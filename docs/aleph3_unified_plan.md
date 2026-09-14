@@ -27,6 +27,9 @@ client, not the long-term public product surface.
 The first usable product is the Windows-first local symbolic notebook: a
 small, coherent environment for exact symbolic work, bounded numerical
 approximation, session state, examples, and deterministic diagnostics. The
+runtime boundary should be proven inside the private repository first through
+the CLI and then a private notebook-lite rehearsal, so the later public
+notebook can focus on product implementation over a stable interface. The
 first DSP pack follows that notebook foundation and uses shared kernel
 contracts rather than moving DSP-specific semantics into the kernel. Broader
 symbolic mathematics, exact continuous-time signal-systems workflows,
@@ -45,8 +48,10 @@ Parser and printer work must keep syntax separate from kernel semantics so a
 future Aleph3-native frontend remains possible.
 
 Earlier web work is dormant implementation context, not an active launch
-plan. The next product focus is the local notebook MVP; a web product can be
-planned later as a separate product over the same kernel/protocol boundary.
+plan. The next product focus is the local notebook MVP, but public notebook
+work should wait until the private CLI and notebook-lite have rehearsed the
+runtime boundary. A web product can be planned later as a separate product
+over the same kernel/protocol boundary.
 
 Commercial and repository decisions are governed by
 [IP and Repository Strategy](ip_and_repo_strategy.md) and the
@@ -83,19 +88,22 @@ or broader web products receive substantial investment.
 3. Fill bounded numerical and finite-list gaps that make the notebook useful
    for sampled data and exact-or-approximate exploration without weakening the
    exact symbolic default.
-4. Choose a Windows-first desktop toolkit from measured spikes and deliver the
+4. Finish the runtime-boundary rehearsal path: M3 process-launching client,
+   M4 private CLI migration, and M5 private notebook-lite over the same
+   boundary.
+5. Choose a Windows-first desktop toolkit from measured spikes and deliver the
    first visible notebook create/edit/evaluate/display/save/reopen/`Run All`
    loop.
-5. Add notebook cancellation, restart or reset, definition clearing flows,
+6. Add notebook cancellation, restart or reset, definition clearing flows,
    discoverability, example gallery, packaging, and interactive budget
    enforcement around that loop.
-6. Continue exact algebra hardening required by calculus, bounded solving,
+7. Continue exact algebra hardening required by calculus, bounded solving,
    finite summation, and future DSP work.
-7. Specify the shared kernel prerequisites for the first DSP pack without
+8. Specify the shared kernel prerequisites for the first DSP pack without
    adding DSP-specific semantics to the kernel.
-8. Deliver a focused DSP pack for finite sequences, convolution, FIR filtering,
+9. Deliver a focused DSP pack for finite sequences, convolution, FIR filtering,
    and direct DFT/inverse DFT.
-9. Extend DSP with bounded transform functionality such as a small unilateral
+10. Extend DSP with bounded transform functionality such as a small unilateral
    Z-transform, while leaving acceleration and broad transform theory for later.
 
 Each product tranche should pair a contract improvement with a mathematical
@@ -388,8 +396,15 @@ through one shared session, understand results or failures, save and reopen the
 document, run all inputs, and launch an installable Windows-first desktop
 package without a development environment.
 
+Before the public notebook product starts, create a private notebook-lite
+consumer after CLI runtime migration. Notebook-lite rehearses notebook
+workflows over the runtime client inside this repository and is not the public
+product surface.
+
 Remaining work:
 
+- complete the public/private runtime-boundary sequence through M3 client, M4
+  private CLI migration, and M5 private notebook-lite;
 - build the graphical application over the existing headless document,
   persistence, and clean `Run All` foundations;
 - add input/text/output presentation, queued/running/completed/cancelled/failed
@@ -535,21 +550,24 @@ Use this order unless a regression or dependency changes it:
 3. Specify and fill the remaining bounded numerical and finite-list gaps,
    especially `Range`, `Table`, `Total`, budget behavior, and unsupported
    diagnostics.
-4. Run and record the notebook toolkit spikes against one shared fixture.
-5. Build the first graphical notebook vertical slice, then add cancellation,
+4. Complete the private runtime-boundary rehearsal sequence: M3
+   process-launching client, M4 private CLI migration, and M5 private
+   notebook-lite.
+5. Run and record the notebook toolkit spikes against one shared fixture.
+6. Build the first graphical notebook vertical slice, then add cancellation,
    reset, help, example gallery, packaging, and keyboard workflow checks.
-6. Continue exact algebra hardening required by calculus, bounded solving,
+7. Continue exact algebra hardening required by calculus, bounded solving,
    finite summation, future DSP work, and the CAS engine roadmap gap-closure
    tranche.
-7. After the local notebook MVP is stable, continue the CAS engine gap-closure
+8. After the local notebook MVP is stable, continue the CAS engine gap-closure
    sequence with broader domain-restriction consumers before broad solving,
    integration, or validation.
-8. Specify the focused DSP kernel prerequisite slice, including piecewise,
+9. Specify the focused DSP kernel prerequisite slice, including piecewise,
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.
-9. Deliver the first DSP pack for finite sequences, convolution, FIR
+10. Deliver the first DSP pack for finite sequences, convolution, FIR
    filtering, direct DFT, and inverse DFT.
-10. Specify the bounded Z-transform and later transform tranche, keeping FFT
+11. Specify the bounded Z-transform and later transform tranche, keeping FFT
    acceleration and broad Fourier work deferred.
 
 ## Deferred Work

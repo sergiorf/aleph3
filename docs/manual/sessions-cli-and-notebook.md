@@ -24,9 +24,11 @@ scalar storage, pack handler identities, or evaluator internals. Human-readable
 diagnostics, if any, must stay off stdout so protocol clients can treat stdout
 as framed protocol output only.
 
-`aleph-runtime` is not yet a public process-launching client library and the
-CLI does not launch it. Runtime lookup, timeout handling, packaged notebook
-integration, and CLI migration remain planned follow-up work.
+`aleph-runtime` is not yet a process-launching client library and the CLI does
+not launch it. Runtime lookup, timeout handling, CLI migration, and private
+notebook-lite rehearsal remain planned follow-up work. Public notebook
+integration should wait until those internal boundary proofs are implemented
+and tested.
 
 ## CLI Workflow
 
@@ -189,11 +191,12 @@ stable.
 No full graphical notebook application is included in the current build. The
 delivered headless core and JSON format are product foundations rather than a
 claim that notebook persistence, examples, completion/help UI, or `Run All`
-have shipped in a graphical app. The near-term product path is the
-Windows-first local graphical notebook; until that ships, `aleph3_cli repl`
-remains the runnable local interactive fallback. In the planned public/private
-split, that CLI stays private first-party tooling while public visibility
-centers on the notebook and protocol/client layer.
+have shipped in a graphical app. The planned private notebook-lite is an
+internal rehearsal consumer over the runtime client, not the public notebook
+product. Until a graphical product ships, `aleph3_cli repl` remains the
+runnable local interactive fallback. In the planned public/private split, that
+CLI stays private first-party tooling while public visibility centers on the
+notebook and protocol/client layer.
 
 The planned application remains a thin consumer: the GUI owns cells,
 presentation, and file interaction; the session owns interactive state; the

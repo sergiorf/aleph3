@@ -32,6 +32,12 @@ measured result. The physical v1 encoding is bounded UTF-8 JSON. The web
 notebook is a separate later product; this document owns the near-term local
 notebook contract.
 
+Before starting the public notebook product repository, a private
+notebook-lite may rehearse the same notebook workflows inside the current
+repository over the runtime client. That internal tool is a boundary and
+workflow proof, not a replacement product contract or permission to add
+notebook-local semantics.
+
 ## Ownership
 
 | Concern | Owner |

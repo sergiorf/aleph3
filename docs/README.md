@@ -44,6 +44,10 @@ same sources can be
    app clients use a stable `aleph-runtime` protocol.
 13. [Aleph Runtime Protocol M3 Plan](aleph_runtime_protocol_m3_plan.md) -
    active implementation plan for the process-launching runtime client slice.
+14. [Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md) -
+   planned private CLI migration through the runtime client.
+15. [Aleph Runtime Protocol M5 Plan](aleph_runtime_protocol_m5_plan.md) -
+   planned private notebook-lite rehearsal over the runtime boundary.
 
 ## Normative References
 

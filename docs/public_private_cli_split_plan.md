@@ -17,6 +17,9 @@ M2, the private in-tree `aleph-runtime` executable, is implemented and archived
 in [Aleph Runtime Protocol M2 Plan](archive/aleph_runtime_protocol_m2_plan.md).
 The active detailed slice plan is
 [Aleph Runtime Protocol M3 Plan](aleph_runtime_protocol_m3_plan.md).
+The next detailed slice plans are
+[Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md) and
+[Aleph Runtime Protocol M5 Plan](aleph_runtime_protocol_m5_plan.md).
 
 ## Direction
 
@@ -62,6 +65,13 @@ The CLI remains private first-party tooling unless a separate public CLI is
 explicitly designed later. The public product surface is the notebook/client
 layer and the stable runtime protocol, not public C++ kernel headers.
 
+Before building the public notebook repository, the process boundary should be
+rehearsed inside the private repository. The private CLI is the first real
+consumer of the launchable runtime client. A later private notebook-lite should
+exercise notebook-shaped workflows over the same boundary so the public
+notebook starts from a stable protocol, client lifecycle, diagnostics, and
+document interaction model.
+
 ## Boundary Rules
 
 Public repositories may contain protocol-facing data types, process-launching
@@ -86,9 +96,10 @@ that is a protocol-design gap. Fix the protocol instead of coupling the client
 to private code.
 
 The notebook, future app clients, and future agent integrations should use the
-same runtime protocol for ordinary semantic operations. Do not introduce a
-separate agent semantic protocol until the runtime protocol has proven
-insufficient.
+same runtime protocol for ordinary semantic operations. Agent-facing behavior
+belongs inside this runtime boundary or an explicitly versioned extension of
+it. Do not introduce a separate agent semantic protocol until the runtime
+protocol has proven insufficient.
 
 ## Protocol Shape
 
@@ -150,15 +161,20 @@ the current tree.
    kernel client. Keep parser-token dumps, SDK validation/compile tooling, and
    demo host-function commands private developer tools unless separately
    productized.
-5. **Public-client fixture.** Prove a build mode or fixture that includes only
-   public protocol/client/notebook code and fake-kernel tests. It must not
-   compile the CLI, private kernel executable, private packs, or semantic
-   implementation tests.
-6. **Physical split.** Make the current repository private as `aleph-core` only
+5. **Private notebook-lite.** Add an internal notebook-shaped harness or small
+   app over the runtime client. It exercises document create/edit/evaluate,
+   save/reopen, `Run All`, reset, help, completion, package discovery,
+   diagnostics, stale output handling, and runtime failure display without
+   starting the public notebook repository or adding UI-owned semantics.
+6. **Public-client fixture.** Prove a build mode or fixture that includes only
+   extraction-ready protocol/client/notebook-facing code and fake-kernel tests.
+   It must not compile the CLI, private kernel executable, private packs, or
+   semantic implementation tests.
+7. **Physical split.** Make the current repository private as `aleph-core` only
    after the private CLI and fake public client both exercise the protocol
    boundary. Create the public `aleph-notebook` repository with notebook,
    protocol/client, examples, docs, and fake-kernel tests.
-7. **Packaging and release checks.** Private CI builds signed or provenance-
+8. **Packaging and release checks.** Private CI builds signed or provenance-
    tracked `aleph-runtime` and private CLI artifacts. Public CI builds the
    notebook/client against fake kernels. Release checks must prevent private
    source, headers, debug symbols, private paths, and private CI logs from
@@ -182,6 +198,7 @@ Private verification:
 - kernel, session, pack, and private CLI tests;
 - real `aleph-runtime` protocol tests;
 - private CLI to real kernel integration tests;
+- private notebook-lite to real `aleph-runtime` integration tests;
 - product-bundle smoke tests where the public notebook/client finds and uses
   the packaged private kernel executable.
 
@@ -194,6 +211,7 @@ The split is complete when:
 - public app-client builds and tests pass without private source files;
 - private `aleph-runtime` passes kernel/session/pack tests;
 - private CLI plus private `aleph-runtime` pass integration tests;
+- private notebook-lite proves notebook workflows through the runtime client;
 - public notebook/client plus private `aleph-runtime` pass bundle smoke tests;
 - protocol versioning and incompatible-version diagnostics exist;
 - documentation accurately distinguishes public source from private semantics;

@@ -255,16 +255,17 @@ Cached generated results are not semantic truth. Loading a notebook preserves
 the cache as data and never evaluates source. Re-running the notebook replaces
 the cache from a fresh session.
 
-## BFF And Internal Engine Service
+## Dormant Web Terms
 
-The **BFF** is the ASP.NET Core backend-for-frontend that owns public browser
-routes under `/api/*` in the paused Web MVP path. It validates public request
-shape and delegates computation to the internal C++ engine service.
+The repository contains dormant web/API experiments. In that code, the
+**BFF** is an ASP.NET Core backend-for-frontend experiment that validates
+browser request shape and delegates computation to the internal C++ engine
+service.
 
-The **internal engine service** owns symbolic sessions over `/internal/*`.
-It uses `session::Session`, the kernel, and registered packs. It does not own
-browser cookies, notebook ownership, product persistence, or public account
-policy.
+The **internal engine service** owns symbolic sessions over `/internal/*` in
+the web experiment. It uses `session::Session`, the kernel, and registered
+packs. It does not own browser cookies, notebook ownership, product
+persistence, or public account policy.
 
 ```text
 browser -> BFF /api/* -> engine /internal/* -> session -> kernel + packs

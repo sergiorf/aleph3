@@ -1,7 +1,7 @@
 # Build And Targets
 
-The current build distinguishes the kernel, SDK, CLI, packs, web computation
-services, and the GUI-independent notebook core. It does not yet contain a
+The current build distinguishes the kernel, SDK, CLI, packs, dormant web/API
+experiments, and the GUI-independent notebook core. It does not yet contain a
 full graphical notebook application.
 
 Status note:
@@ -26,12 +26,12 @@ Related documents:
 | `aleph3_pack_algebra` | library | Current polynomial implementation and registered algebra pack |
 | `aleph3_pack_calculus` | library | Current focused differentiation pack registered as `core-calculus` |
 | `aleph3_notebook_core` | library | Tested headless notebook document model and session-backed `Run All` consumer |
-| `aleph3_web_api` | library | Tested transitional transport-independent web API core over anonymous clients and shared sessions |
+| `aleph3_web_api` | library | Dormant transport-independent web/API experiment over anonymous clients and shared sessions |
 | `aleph3_web_api_server` | executable | Minimal smoke-check executable for the web API core; not a network listener |
 | `aleph3_engine_api` | library | Internal engine API core for `/internal/*` session creation, evaluation, and reset |
-| `aleph3_engine_service` | executable | Internal HTTP engine listener used by the BFF in the paused Web MVP service graph |
+| `aleph3_engine_service` | executable | Internal HTTP engine listener used by the dormant BFF experiment |
 | `aleph3_sdk` | library | Public SDK facade over kernel-backed execution |
-| `aleph3_cli` | executable | Thin SDK tooling CLI for manual parser/validator/runtime checks |
+| `aleph3_cli` | executable | Current local workbench for symbolic REPL/script use plus SDK developer checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
 | `aleph3_symbolic_tests` | executable | Kernel-oriented symbolic tests plus current symbolic tooling and pack coverage |
 | `aleph3_notebook_tests` | executable | Notebook model, isolation, rerun, diagnostics, and shared-session fixture coverage |
@@ -109,12 +109,11 @@ placeholder boundary.
 - Use `aleph3_notebook_tests` to exercise the current headless document and
   clean `Run All` lifecycle. No notebook executable is built yet.
 - Use `aleph3_web_api_tests` to exercise the current anonymous-client,
-  session, notebook persistence, run-all, and example API core.
-  `aleph3_web_api_server --health` is a build/run smoke check only; a real
-  public web backend is the ASP.NET Core BFF path, not this compatibility
-  executable.
+  session, notebook persistence, run-all, and example API experiment.
+  `aleph3_web_api_server --health` is a build/run smoke check only. Treat web
+  code as dormant implementation context, not the active product path.
 - Use `aleph3_engine_api_tests` and `aleph3_engine_service --health` for the
-  internal engine service used by the BFF.
+  internal engine service used by the dormant BFF experiment.
 - `validate` in the CLI now exercises the real lexer/parser/validator path.
 - `evaluate` in the CLI now accepts `--var name=value` bindings for basic runtime checks.
 - `evaluate-host` in the CLI registers demo host functions for end-to-end SDK checks.

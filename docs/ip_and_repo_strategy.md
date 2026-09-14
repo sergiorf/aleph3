@@ -28,8 +28,8 @@ Before any later change in repository or distribution strategy:
 1. tag and archive the last public MIT release and the first Apache 2.0
    release;
 2. record a source and dependency provenance audit;
-3. create access-controlled repositories for future kernel, notebook, and
-   separately distributed work if the project ever needs that structure;
+3. create access-controlled repositories for the private core and public
+   notebook/client work when the protocol boundary is proven;
 4. keep public documentation truthful about which binaries and source are available;
 5. define a release process that never publishes private submodules, symbols,
    debug artifacts, package feeds, or CI logs accidentally.
@@ -37,17 +37,17 @@ Before any later change in repository or distribution strategy:
 A possible later layout is:
 
 ```text
-aleph3-core-private
-aleph3-notebook-private
-aleph3-packs-private
-aleph3-site-public
-aleph3-examples-public
-aleph3-demo-public
+aleph-core-private
+aleph-notebook-public
+aleph-client-public, only if the protocol/client layer needs independence
+aleph-site-public
+aleph-examples-public
 ```
 
-This is a deployment option, not today's repository structure. Public examples
-should depend on a versioned binary/product interface rather than copying
-advanced simplification, solving, code-generation, or notebook internals.
+This is a deployment option, not today's repository structure. Public notebook
+and example code should depend on a versioned binary/protocol interface rather
+than copying advanced simplification, solving, code-generation, or kernel
+internals.
 
 ## Boundaries and Risks
 

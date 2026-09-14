@@ -8,14 +8,14 @@ repeating its background.
 
 For the complete user journey, start with the
 [Aleph3 Manual](manual/README.md). It covers expressions, built-ins, rewriting,
-the SDK, packs, sessions, the CLI, and the current notebook and paused web
-foundations. The same sources can be
+the SDK, packs, sessions, the CLI, and the current notebook foundation. The
+same sources can be
 [built as a PDF book](manual/README.md#build-the-pdf-book).
 
 1. [Project README](../README.md) - build, run, and product orientation.
 2. [Architecture](architecture.md) - system shape and ownership boundaries,
-   including the current kernel, pack, session, notebook-core, SDK, and paused
-   web service architecture.
+   including the current kernel, pack, session, notebook-core, SDK, and
+   dormant web/API experiments.
 3. [SDK Guide](sdk/README.md) - embedding surface and SDK-specific references.
 4. [Notebook MVP Design](notebook_mvp_design.md) - product scope, shipped
    headless notebook-core slices, planned GUI behavior, evaluation,
@@ -35,15 +35,11 @@ foundations. The same sources can be
 9. [Signal Systems V0 Plan](signal_systems_v0_plan.md) - future plan for
    exact continuous-time SISO transfer functions and stability analysis. It is
    not the active roadmap.
-10. [Web MVP Launch Plan](web_mvp_launch_plan.md) - paused web launch scope,
-   anonymous-user strategy, API shape, deployment phases, and acceptance gates
-   for a possible future web notebook. It is not the active roadmap.
-11. [Web MVP Operations](web_mvp_operations.md) - local service, port,
-   Docker Compose, Traefik, and smoke-test procedures for the existing paused
-   web slice.
-12. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
+10. [Web Operations](web_mvp_operations.md) - developer runbook for dormant
+   web/API experiments. It is not a product roadmap.
+11. [IP and Repository Strategy](ip_and_repo_strategy.md) - practical
    public/private transition guidance.
-13. [Public App / Private Kernel Split Plan](public_private_cli_split_plan.md) -
+12. [Public App / Private Kernel Split Plan](public_private_cli_split_plan.md) -
    proposed plan for keeping the kernel and CLI private while public notebook
    and app clients use a stable `aleph-kernel` protocol.
 
@@ -68,9 +64,8 @@ architecture.
 
 - **Guide** documents teach readers how the system fits together.
 - **Specification** documents state testable current contracts and limits.
-- **Plan** documents track unfinished work and sequencing. A paused plan may
-  remain in the tree when it documents an implemented transitional surface or
-  an intentionally deferred product path.
+- **Plan** documents track unfinished work and sequencing. Keep only plans
+  that affect current or near-term decisions.
 - **Archive** documents under [docs/archive](archive/README.md) preserve completed
   implementation plans that are no longer canonical current-behavior
   references.
@@ -87,8 +82,8 @@ guide, specification, or plan. Prefer a section and a stable anchor over a new
 top-level file. Keep historical discussion in Git history; keep the current
 tree focused on facts readers still need.
 
-Remove a document only when it is obsolete, unreferenced, and no longer useful
-as a canonical specification, current guide, active or paused plan, operational
-runbook, or archived implementation record. When a superseded document still
-explains a completed decision or migration, move it under `docs/archive/`
-instead of deleting it.
+Remove a document when it is obsolete, unreferenced, and no longer useful as a
+canonical specification, current guide, active plan, operational runbook, or
+archived implementation record. When a superseded document still explains a
+completed decision or migration, move it under `docs/archive/` instead of
+deleting it.

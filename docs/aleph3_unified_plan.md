@@ -19,9 +19,10 @@ the owning specification and user documentation.
 
 Aleph3 is becoming a lightweight, local-first symbolic notebook and
 computation environment written in modern C++. The kernel is its only semantic
-core. The SDK is the stable host-embedding boundary, the CLI is the permanent
-scripting and diagnostic surface, the session is shared interactive
-infrastructure, and math grows through registered packs.
+core. The SDK is the stable host-embedding boundary, the session is shared
+interactive infrastructure, and math grows through registered packs. The CLI
+is the current local workbench and future private first-party diagnostic
+client, not the long-term public product surface.
 
 The first usable product is the Windows-first local symbolic notebook: a
 small, coherent environment for exact symbolic work, bounded numerical
@@ -29,8 +30,8 @@ approximation, session state, examples, and deterministic diagnostics. The
 first DSP pack follows that notebook foundation and uses shared kernel
 contracts rather than moving DSP-specific semantics into the kernel. Broader
 symbolic mathematics, exact continuous-time signal-systems workflows,
-accelerated DSP, advanced transform work, and hosted web product work remain
-later tranches. The future exact SISO LTI direction is captured in the
+accelerated DSP, advanced transform work, and web products remain later
+tranches. The future exact SISO LTI direction is captured in the
 [Signal Systems V0 Plan](signal_systems_v0_plan.md) and does not replace the
 focused finite-DSP milestone below.
 
@@ -43,15 +44,18 @@ The current Wolfram-like syntax is a frontend rather than the product identity.
 Parser and printer work must keep syntax separate from kernel semantics so a
 future Aleph3-native frontend remains possible.
 
-The earlier Web MVP work is paused as the active short-term launch path. Its
-BFF, React/Vite frontend, internal engine service, and Compose documentation
-remain useful transitional assets, but near-term product planning targets the
-local notebook MVP.
+Earlier web work is dormant implementation context, not an active launch
+plan. The next product focus is the local notebook MVP; a web product can be
+planned later as a separate product over the same kernel/protocol boundary.
 
 Commercial and repository decisions are governed by
-[IP and Repository Strategy](ip_and_repo_strategy.md). The free or
-low-friction notebook should become useful before paid packs or hosted
-services receive substantial investment.
+[IP and Repository Strategy](ip_and_repo_strategy.md) and the
+[Public App / Private Kernel Split Plan](public_private_cli_split_plan.md).
+The intended split is private `aleph-core` for kernel, packs, CLI, and the
+real `aleph-kernel` executable, with public visibility centered on
+`aleph-notebook` and protocol/client code. The free or low-friction notebook
+should become useful before paid packs, hosted services, or broader web
+products receive substantial investment.
 
 ## Non-Negotiable Boundaries
 
@@ -182,8 +186,8 @@ Remaining work:
 
 ### Symbolic MVP Gap Closure
 
-Outcome: the first public CLI/notebook experience has the small symbolic
-operations users naturally reach for while staying narrower than a
+Outcome: the first local workbench and notebook experience has the small
+symbolic operations users naturally reach for while staying narrower than a
 general-purpose CAS.
 
 Remaining work:

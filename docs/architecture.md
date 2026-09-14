@@ -11,8 +11,9 @@ Aleph3 is a symbolic engine moving toward a lightweight, Windows-first local
 notebook product. The shared kernel is the product-critical semantic asset.
 The CLI, SDK, stateful session layer, headless notebook core, internal engine
 service, and first web evaluator slice are current consumers of that same
-kernel. The web product path is paused while near-term product work targets
-the local notebook MVP.
+kernel. Near-term product work targets the local notebook MVP. Web code is
+dormant implementation context and a later product, not the active launch
+path.
 
 ## System At A Glance
 
@@ -21,7 +22,7 @@ flowchart TB
     Host["Host applications"] --> SDK["SDK<br/>Engine - Schema - Policy - Value"]
     CLI["CLI"] --> Session["Stateful session"]
     Notebook["Notebook core<br/>documents - cells - Run All"] --> Session
-    WebFrontend["React/Vite web frontend"] --> BFF["ASP.NET Core BFF<br/>public /api/*"]
+    WebFrontend["Dormant React/Vite web experiment"] --> BFF["ASP.NET Core BFF experiment<br/>/api/*"]
     BFF --> EngineSvc["Internal C++ engine service<br/>/internal/*"]
     EngineSvc --> Session
     WebApi["Legacy web API core<br/>transitional tests"] --> Session
@@ -46,9 +47,9 @@ Four layers remain stable even as directories move:
 1. **Kernel** - defines what expressions mean.
 2. **Packs** - add domain mathematics through kernel contracts.
 3. **SDK** - validates, constrains, and exposes the kernel to host programs.
-4. **Tools and products** - the CLI, notebook core, web surfaces, and other
-   consumers present shared session and kernel behavior without inventing
-   semantics.
+4. **Tools and products** - the CLI, notebook core, dormant web surfaces, and
+   other consumers present shared session and kernel behavior without
+   inventing semantics.
 
 Dependencies point downward. A lower layer must not depend on host-facing
 policy or a particular product.
@@ -187,9 +188,9 @@ symbolic semantics.
 
 ## Tools And Products
 
-The CLI, web surfaces, examples, tests, and notebook products are consumers.
-They may compose APIs and present results, but semantic rules do not belong
-there.
+The CLI, examples, tests, notebook products, and dormant web surfaces are
+consumers. They may compose APIs and present results, but semantic rules do
+not belong there.
 
 The stateful session layer is the reusable interactive consumer boundary. It
 owns one kernel evaluation context across requests, returns rendered results
@@ -198,17 +199,22 @@ internal web engine service, and the transitional web API core. Notebook and
 IDE consumers build on this boundary rather than owning evaluator state
 themselves.
 
-The paused Web MVP public backend is the ASP.NET Core BFF. Browser traffic
-reaches only `/api/*` on the BFF, which validates product-facing requests and
-delegates computation to the internal C++ engine service. The engine service
-owns session lifecycle and symbolic evaluation over `/internal/*`; it does not
-own browser cookies, notebook ownership, Postgres product persistence,
-examples, or future account policy.
+The intended public/private split adds a process boundary above the private
+core: public notebook and app clients talk to the private `aleph-kernel`
+executable through a stable framed JSON protocol. The private core, planned as
+`aleph-core`, owns the kernel, packs, CLI, and real kernel executable. Public
+clients must not link or expose private expression, parser, evaluator, exact
+arithmetic, or pack implementation headers.
+
+The existing web code remains useful as dormant implementation context. The
+ASP.NET Core BFF experiment routes browser requests to an internal C++ engine
+service, which delegates to `session::Session` and the shared kernel. It is
+not the active product plan.
 
 ```mermaid
 sequenceDiagram
-    participant Browser as React/Vite browser
-    participant BFF as ASP.NET Core BFF
+    participant Browser as React/Vite web experiment
+    participant BFF as ASP.NET Core BFF experiment
     participant Engine as C++ engine service
     participant Session as session::Session
     participant Kernel as kernel + packs
@@ -258,10 +264,11 @@ replaying input cells from a clean session in document order.
 | `include/sdk`, `src/sdk` | SDK | public host API |
 | `include/tooling`, `src/tooling` | tooling | CLI and supporting presentation |
 | `include/notebook`, `src/notebook` | notebook core | document model, JSON persistence, cached results, clean `Run All` |
-| `include/web`, `src/web` | web computation/product transition | internal engine API over shared sessions plus transitional transport-independent web API core |
-| `web/bff` | product backend | ASP.NET Core public `/api/*` boundary, request validation, engine error mapping, and future product persistence |
-| `web/frontend` | product frontend | React/Vite editing and presentation surface that delegates execution to the BFF |
+| `include/web`, `src/web` | dormant web/API experiments | internal engine API over shared sessions plus transitional transport-independent web API core |
+| `web/bff` | dormant web experiment | ASP.NET Core request validation and engine error mapping experiment |
+| `web/frontend` | dormant web experiment | React/Vite evaluator surface that delegates execution to the BFF experiment |
 | future graphical notebook application | product | cells, display, local file workflows, example gallery, export |
+| future `aleph_client` component | public client/protocol | protocol data, framing, process launch, fake-kernel tests, and runtime setup |
 
 When ownership is unclear, ask: "Would changing this change expression meaning
 for every consumer?" If yes, it is probably kernel work. If it is a domain
@@ -436,5 +443,5 @@ For current implementation sequencing, see the
 [Unified Plan](aleph3_unified_plan.md). For vocabulary and worked examples,
 see [Concepts and Terminology](manual/concepts-and-terminology.md). The
 notebook product contract and shipped headless slices are in the
-[Notebook MVP Design](notebook_mvp_design.md). The paused web path remains
-documented in [Web MVP Launch Plan](web_mvp_launch_plan.md).
+[Notebook MVP Design](notebook_mvp_design.md). The planned public/private
+boundary is in [Public App / Private Kernel Split](public_private_cli_split_plan.md).

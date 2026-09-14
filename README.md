@@ -65,18 +65,12 @@ Current implemented surfaces include:
 - calculus pack functionality including focused symbolic differentiation;
 - a headless notebook core for document structure, JSON persistence, and clean
   `Run All` lifecycle behavior;
-- an internal C++ engine service and transitional web API core over shared
-  sessions;
-- an ASP.NET Core BFF skeleton and React/Vite frontend slice for the paused
-  Web MVP.
+- dormant web/API experiments over shared sessions, kept as implementation
+  context rather than the active product path.
 
 The CLI is currently the fastest way to try the engine locally. The near-term
 product path is the Windows-first local notebook over the existing notebook
-core and session layer. The paused web layer is assembled around this path:
-
-```text
-React/Vite frontend -> ASP.NET Core BFF /api/* -> internal C++ engine /internal/* -> session::Session -> kernel + packs
-```
+core and session layer.
 
 ## Build And Try The CLI
 
@@ -165,38 +159,6 @@ The SDK still uses the kernel in this configuration. The option disables the
 broader symbolic product surface and its tests; it does not introduce a
 separate runtime.
 
-## Paused Web MVP Slice
-
-The existing web implementation uses ASP.NET Core for the BFF and React/Vite
-for the browser frontend. It is paused as the active short-term product path.
-The C++ engine service owns symbolic sessions and delegates computation to the
-same session, kernel, and pack code used by the CLI.
-
-Build and smoke-test the internal engine service:
-
-```bash
-cmake --build build --config Release --target aleph3_engine_service
-./build/bin/aleph3_engine_service --health
-```
-
-Start the BFF and frontend for local development:
-
-```bash
-cd web/bff
-dotnet run
-```
-
-```bash
-cd web/frontend
-npm install
-npm run dev
-```
-
-Detailed service endpoints, ports, Docker Compose topology, Traefik routing,
-and smoke-test procedures live in
-[Web MVP Operations](docs/web_mvp_operations.md). Paused web scope lives in
-the [Web MVP Launch Plan](docs/web_mvp_launch_plan.md).
-
 ## Architecture At A Glance
 
 - `aleph3_kernel` owns expressions, evaluation, rewriting, exact arithmetic,
@@ -208,12 +170,13 @@ the [Web MVP Launch Plan](docs/web_mvp_launch_plan.md).
   embedding boundary over the kernel.
 - The reusable session layer owns interactive state and exposes evaluation,
   completion, help, and reset behavior to CLI and web consumers.
-- `aleph3_cli` is the local interactive and scripting workbench.
+- `aleph3_cli` is the current local interactive and scripting workbench. In
+  the planned public/private split it remains private first-party tooling.
 - `aleph3_notebook_core` owns the current headless document model,
   persistence, and clean `Run All` lifecycle.
-- The paused web product path uses React/Vite, an ASP.NET Core BFF, and an
-  internal C++ engine service; browser and BFF code must not add private
-  symbolic semantics.
+- Public notebook and app-client code should communicate with a private
+  `aleph-kernel` executable through a stable protocol rather than linking
+  kernel internals.
 
 `aleph3_symbolic` remains a compatibility target name during migration; it is
 not a second semantic engine.
@@ -222,17 +185,21 @@ For the full ownership model, see [Architecture](docs/architecture.md).
 
 ## Project Status
 
-Aleph3 is an open-source personal engineering project in active development.
+Aleph3 is a personal engineering project in active development.
 The strongest current surfaces are the kernel, CLI, SDK, sessions, focused
-algebra and calculus support, notebook core, and the first web evaluation
-path.
+algebra and calculus support, and notebook core.
 
 The near-term product work is the Windows-first local notebook MVP: a usable
 graphical notebook backed by the shared semantic engine and existing notebook
 core. Broader CAS features, richer notebook UX, calculus beyond the focused
 derivative subset, solving, plotting, arbitrary-precision expansion, DSP
-packs, hosted web product work, and large compatibility claims remain future
-work unless documented as supported in the manual and specifications.
+packs, web products, and large compatibility claims remain future work unless
+documented as supported in the manual and specifications.
+
+The intended commercial split is private `aleph-core` for the kernel, CLI,
+packs, and real `aleph-kernel` executable, with public visibility centered on
+`aleph-notebook` and protocol/client code. The split should happen only after
+the protocol boundary is proven in the current repository.
 
 GitHub Actions runs the `CI` workflow for pushes and pull requests targeting
 `main`. The workflow builds and runs the CTest suite on Ubuntu and Windows,
@@ -247,8 +214,8 @@ and checks changed C++ source/header formatting with `clang-format` on Ubuntu.
 - [SDK Guide](docs/sdk/README.md) - embedding surface and SDK references.
 - [Notebook MVP Design](docs/notebook_mvp_design.md) - local notebook product
   contract and shipped headless slices.
-- [Web MVP Launch Plan](docs/web_mvp_launch_plan.md) - paused web product
-  scope and sequencing.
+- [Public App / Private Kernel Split Plan](docs/public_private_cli_split_plan.md) -
+  planned private core and public notebook/client boundary.
 - [Unified Plan](docs/aleph3_unified_plan.md) - longer-term implementation
   roadmap.
 

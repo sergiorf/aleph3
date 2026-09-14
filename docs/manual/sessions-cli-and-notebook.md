@@ -133,200 +133,22 @@ old file using the supported platform API. A failed validation, write, or
 replacement leaves the previous valid destination intact. Autosave, recovery
 journals, and migrations are not implemented.
 
-## Paused Web API Foundation
+## Dormant Web/API Experiments
 
-The current build also includes the tested `aleph3_web_api` library. It is a
-transport-independent API core that predates the Web MVP BFF boundary. It is
-now transitional contract evidence rather than the active product path or
-public browser backend. The existing web slice includes an internal C++ engine
-HTTP service, an ASP.NET Core BFF that owns public `/api/*` browser routes, a
-React/Vite evaluator surface, and a Docker Compose graph through Traefik.
+The current build includes tested web/API experiments, but they are not the
+active product path and are not a public web notebook contract. They are
+developer context for future work and must remain thin consumers of the shared
+session and kernel.
 
-The API core still has a notebook store boundary; ordinary tests use an
-in-memory store, and cloud-oriented builds can enable the Postgres store. The
-companion `aleph3_web_api_server --health` executable remains a smoke check
-for that API core.
-
-The API core currently supports:
-
-```text
-GET  /api/health
-POST /api/clients
-POST /api/sessions
-GET  /api/sessions/{sessionId}
-POST /api/sessions/{sessionId}/evaluate
-POST /api/sessions/{sessionId}/reset
-GET  /api/sessions/{sessionId}/complete?prefix={prefix}
-GET  /api/sessions/{sessionId}/help?query={nameOrPrefix}
-DELETE /api/sessions/{sessionId}
-
-POST /api/notebooks
-GET  /api/notebooks
-GET  /api/notebooks/{notebookId}
-PUT  /api/notebooks/{notebookId}
-DELETE /api/notebooks/{notebookId}
-POST /api/notebooks/{notebookId}/run-all
-POST /api/notebooks/{notebookId}/clear-results
-
-GET  /api/examples
-POST /api/examples/{exampleId}/copy
-```
-
-Legacy API-core session endpoints require the anonymous client identifier in
-`X-Aleph3-Client`. Evaluation requests accept JSON with a string `source`
-field and delegate directly to `session::Session` using the ordinary evaluate
-operation:
-
-```json
-{"source":"1/2 + 1/3"}
-```
-
-A successful evaluation response contains canonical plain text and the current
-session diagnostics array. `canonicalText` is a JSON string, not a numeric JSON
-atom, so exact symbolic results keep their full canonical text:
-
-```json
-{
-  "status": "ok",
-  "sessionId": "opaque-session-id",
-  "result": {
-    "status": "ok",
-    "canonicalText": "5/6",
-    "diagnostics": []
-  }
-}
-```
-
-Parse or evaluation failures are represented as successful API requests with
-an error result and structured diagnostics. Invalid API input, missing clients,
-unknown sessions, ownership failures, quota failures, oversized requests, and
-unknown routes use a JSON error envelope instead.
-
-Completion and focused help endpoints delegate to the same session discovery
-operations used by the CLI. Completion returns deterministic supported-subset
-matches for builtins, registered pack functions, and session-local definitions:
-
-```json
-{
-  "status": "ok",
-  "sessionId": "opaque-session-id",
-  "prefix": "Fac",
-  "completions": [
-    {
-      "name": "Factor",
-      "category": "pack",
-      "owningPackage": "core-algebra",
-      "documentation": "Factor a supported exact polynomial expression."
-    }
-  ]
-}
-```
-
-Focused help accepts a name, prefix, package, or category query where the
-shared session catalog supports it. Unknown non-empty help queries return a
-stable JSON error envelope instead of an empty success response. These
-endpoints are discovery aids only; inserting a completion never changes parser
-or evaluator behavior.
-
-Sessions are in-memory only in this slice. They are isolated by anonymous
-client, expire after the configured idle TTL, and enforce a per-client
-active-session limit. Notebook documents are persisted through the web
-notebook store boundary. Production web persistence is Postgres-backed when the
-backend is built with Postgres support and configured with
-`ALEPH3_DATABASE_URL`. In the paused Web MVP architecture, BFF-owned Postgres
-persistence replaces this C++ product-store path in a later slice.
-
-Notebook endpoints persist versioned notebook JSON and validate it through the
-same headless notebook core used by local file persistence. Create requests may
-omit a document to create an empty notebook, or provide either a JSON
-`document` object or a string `documentJson` field:
-
-```json
-{
-  "title": "Scratch",
-  "document": {
-    "format": "aleph3-notebook",
-    "version": 1,
-    "cells": [
-      {"id": "cell-1", "kind": "input", "source": "1/2 + 1/3"}
-    ]
-  }
-}
-```
-
-Notebook records are owned by the anonymous client in `X-Aleph3-Client`.
-Cross-client load, save, or delete attempts fail with a structured ownership
-error. Because the anonymous client identifier is cookie-backed in the planned
-web deployment, clearing cookies can lose access to notebooks tied only to that
-identifier. Invalid notebook JSON, unsupported document versions, oversized
-documents, title limits, per-client notebook count limits, and stored-byte
-quota failures are rejected before saving. Live evaluator state is not
-persisted in Postgres.
-
-`POST /api/notebooks/{notebookId}/run-all` loads the persisted notebook
-document, delegates to the headless notebook runner, and saves the resulting
-generated-result cache back through the notebook store. It starts from a clean
-session, skips text cells, evaluates input cells in order, lets definitions
-flow to later cells during that one run, and records diagnostics without
-stopping later cells:
-
-```json
-{
-  "status": "ok",
-  "notebook": {
-    "id": "opaque-notebook-id",
-    "title": "Scratch",
-    "document": {
-      "format": "aleph3-notebook",
-      "version": 1,
-      "cells": [
-        {"id": "define", "kind": "input", "source": "a = 2"},
-        {"id": "use", "kind": "input", "source": "a + 3"}
-      ],
-      "results": [
-        {
-          "source_cell_id": "define",
-          "ok": true,
-          "output": "2",
-          "diagnostics": [],
-          "producer_version": "unknown"
-        },
-        {
-          "source_cell_id": "use",
-          "ok": true,
-          "output": "5",
-          "diagnostics": [],
-          "producer_version": "unknown"
-        }
-      ]
-    }
-  }
-}
-```
-
-`POST /api/notebooks/{notebookId}/clear-results` removes persisted generated
-results while preserving cells and source. It does not reset or mutate any
-live interactive session.
-
-The example endpoints expose verified read-only notebook templates and copy a
-template into a notebook owned by the requesting anonymous client. Copying an
-example does not evaluate it; use `run-all` on the copied notebook to generate
-fresh cached results. The first example catalog intentionally advertises only
-the supported subset covered by existing tests: exact arithmetic, assignments,
-algebra, assumptions, rewriting, focused differentiation, exact matrices, and
-one deliberate parse diagnostic.
-
-## Paused Web Evaluation Loop
-
-The existing browser-facing web slice is deliberately narrow and is paused as
-the active near-term product path:
+The dormant browser-facing path is:
 
 ```text
 browser -> BFF /api/* -> internal engine /internal/* -> session::Session
 ```
 
-The internal engine service is built as `aleph3_engine_service`. Its smoke
-check is:
+The C++ web API core exercises anonymous clients, sessions, notebook
+persistence, `Run All`, examples, quotas, and ownership in tests. The internal
+engine service is built as `aleph3_engine_service`; its smoke check is:
 
 ```text
 aleph3_engine_service --health
@@ -338,45 +160,21 @@ The expected response is:
 {"ready":true,"service":"aleph3-engine","status":"ok"}
 ```
 
-When run as a listener, the engine exposes only internal computation routes
-such as:
-
-```text
-GET  /internal/health
-POST /internal/sessions
-POST /internal/sessions/{sessionId}/evaluate
-POST /internal/sessions/{sessionId}/reset
-```
-
-The ASP.NET Core BFF exposes the first public browser API:
-
-```text
-GET  /api/health
-POST /api/sessions
-POST /api/sessions/{sessionId}/evaluate
-```
-
-The BFF validates browser JSON, forwards evaluation to the engine, and maps
-engine failures into public JSON error envelopes. It does not parse,
-evaluate, simplify, or maintain symbolic help catalogs. The React/Vite
-frontend creates a session, sends input source to the BFF, and renders
-canonical plain text plus diagnostics. Exact results are transported as
-canonical text. Running `1/2 + 1/3` through the browser should display `5/6`.
-
-The production-like Compose graph routes `/` to the frontend and `/api/*` to
-the BFF through Traefik. The engine and Postgres services are internal-only in
-that profile. The development Compose override may publish frontend, BFF,
-engine, and Postgres ports for debugging.
+Detailed local commands for this dormant code live in
+[Web Operations](../web_mvp_operations.md). A future web product should be
+planned separately after the local notebook and private-kernel protocol are
+stable.
 
 ## Graphical Notebook Status
 
 No full graphical notebook application is included in the current build. The
-browser surface remains a narrow evaluator loop. The delivered headless core
-and JSON format are product foundations rather than a claim that notebook
-persistence, examples, completion/help UI, or `Run All` have shipped in the
-browser. The near-term product path is now the Windows-first local graphical
-notebook; until that ships, `aleph3_cli repl` remains the runnable local
-interactive fallback.
+delivered headless core and JSON format are product foundations rather than a
+claim that notebook persistence, examples, completion/help UI, or `Run All`
+have shipped in a graphical app. The near-term product path is the
+Windows-first local graphical notebook; until that ships, `aleph3_cli repl`
+remains the runnable local interactive fallback. In the planned public/private
+split, that CLI stays private first-party tooling while public visibility
+centers on the notebook and protocol/client layer.
 
 The planned application remains a thin consumer: the GUI owns cells,
 presentation, and file interaction; the session owns interactive state; the

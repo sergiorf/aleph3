@@ -8,9 +8,11 @@ workspace without adopting a Python/Jupyter stack or a commercial CAS. It is
 a focused product, not a claim of broad CAS or notebook-platform parity.
 
 The kernel remains the semantic asset, the session supplies interactive state,
-and the CLI remains the scripting and diagnostic fallback. Make the free or
+and the CLI is the current local scripting and diagnostic fallback. In the
+planned public/private split, the CLI remains private first-party tooling and
+the public notebook becomes the visible product surface. Make the free or
 low-friction notebook useful before investing substantially in paid packs,
-hosted services, or provider-backed features.
+hosted services, web products, or provider-backed features.
 
 ## Status and Goal
 
@@ -27,7 +29,8 @@ bundled examples.
 The product name and GUI toolkit remain open. The first packaged distribution
 target is Windows-first unless the toolkit decision records a different
 measured result. The physical v1 encoding is bounded UTF-8 JSON. The web
-notebook path is paused; this document owns the near-term product contract.
+notebook is a separate later product; this document owns the near-term local
+notebook contract.
 
 ## Ownership
 

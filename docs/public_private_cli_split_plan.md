@@ -466,6 +466,31 @@ SDK and symbolic evaluators.
 Before moving private files, add protocol and client model code while kernel
 code is still local.
 
+This layer is intentionally born inside the private repository for iteration
+speed, alongside the CLI and the future in-tree `aleph-kernel`, but it should
+be treated as extraction-ready public infrastructure from its first commit.
+Place it in an obvious standalone component such as `include/aleph_client` and
+`src/aleph_client`, with no ownership under `session`, `kernel`, `tooling`,
+`web`, `sdk`, or pack directories.
+
+The component should remain stable, boring, and dependency-light:
+
+- depend only on the C++ standard library and the repository-standard JSON
+  dependency, if one is needed;
+- include no private `expr`, `frontend`, `parser`, `session`, `kernel`,
+  `packs`, `sdk`, or CLI headers;
+- keep CLI presentation decisions outside the component;
+- expose only versioned transport-facing protocol types, framing,
+  encode/decode helpers, diagnostics, and later process-client plumbing;
+- document near the component boundary that it is intended to move to a
+  standalone public client/protocol repository after the in-repo boundary is
+  proven.
+
+Review M1 and later protocol work against this dependency boundary. If the
+client layer needs semantic information that would require private headers,
+that is a protocol-design gap to resolve explicitly rather than a reason to
+couple the client layer to private implementation code.
+
 Deliverables:
 
 - protocol encode/decode helpers;

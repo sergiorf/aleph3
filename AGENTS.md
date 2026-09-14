@@ -47,6 +47,12 @@ the change. Correct stale documentation encountered while implementing the
 feature; do not knowingly leave examples or claims that disagree with the
 code. Follow the documentation gate in the feature workflow.
 
+When work changes product direction, repository/public-private strategy,
+deployment shape, or the long-term role of the CLI, notebook, SDK, packs, or
+kernel process, update the `Direction` section of
+[`docs/aleph3_unified_plan.md`](docs/aleph3_unified_plan.md) as part of the
+same planning change.
+
 The kernel is the only semantic core. Do not create private SDK, evaluator,
 pack, CLI, session, or IDE semantics to bypass a missing shared contract. Keep
 exactness, unsupported behavior, diagnostics, compatibility, and resource

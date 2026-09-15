@@ -1,3 +1,4 @@
+#include "aleph_client/RuntimeClient.hpp"
 #include "frontend/Lexer.hpp"
 #include "frontend/Parser.hpp"
 #include "ir/Node.hpp"
@@ -20,6 +21,7 @@
 #include <string>
 #include <string_view>
 #include <algorithm>
+#include <optional>
 #include <vector>
 
 #if defined(_WIN32)
@@ -39,6 +41,10 @@ namespace {
 enum class ReplMode {
     sdk,
     symbolic
+};
+
+struct CliOptions {
+    std::optional<std::filesystem::path> runtime_path;
 };
 
 using aleph3::Diagnostic;
@@ -242,6 +248,7 @@ void print_usage() {
     print_cli_logo(true);
     std::cout
         << style_stdout("Usage", cli_palette().accent) << '\n'
+        << "  aleph3_cli [--runtime <path>] <command> [args...]\n"
         << "  aleph3_cli help\n"
         << "  aleph3_cli examples\n"
         << "  aleph3_cli repl\n"
@@ -301,6 +308,8 @@ void print_help() {
 #endif
         << "\n"
         << style_stdout("Notes", cli_palette().accent) << '\n'
+        << "  --runtime <path> selects the aleph-runtime executable for ordinary\n"
+        << "  symbolic commands, scripts, and symbolic REPL work.\n"
         << "  validate is live, but with the default empty schema it will reject\n"
         << "  unknown variables and functions.\n"
         << "  evaluate automatically allows variables passed through --var.\n"
@@ -371,7 +380,7 @@ bool print_repl_command_help(std::string_view command) {
 }
 
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
-void print_session_help_entries(const std::vector<aleph3::session::SessionHelpEntry>& entries) {
+void print_runtime_help_entries(const std::vector<aleph3::client::HelpEntry>& entries) {
     for (const auto& entry : entries) {
         std::cout << entry.name << " [" << entry.category << "]";
         if (!entry.owning_package.empty()) {
@@ -406,7 +415,110 @@ void print_session_help_entries(const std::vector<aleph3::session::SessionHelpEn
     }
 }
 
-void print_repl_discovery_menu(aleph3::session::Session& session) {
+int print_runtime_client_error(const aleph3::client::RuntimeClientException& error) {
+    std::cerr << style_stderr("Runtime error", cli_palette().error)
+              << " (" << error.code() << "): " << error.what() << '\n';
+    if (error.protocol_error().has_value()) {
+        for (const auto& diagnostic : error.protocol_error()->diagnostics) {
+            std::cerr << diagnostic.code << ": " << diagnostic.message << '\n';
+        }
+    }
+    return 3;
+}
+
+void print_protocol_error(const aleph3::client::ProtocolError& error) {
+    if (!error.diagnostics.empty()) {
+        for (const auto& diagnostic : error.diagnostics) {
+            std::cerr << diagnostic.code << ": " << diagnostic.message << '\n';
+        }
+        return;
+    }
+    std::cerr << error.code << ": " << error.message << '\n';
+}
+
+std::string runtime_output_text(const aleph3::client::EvaluationResult& result) {
+    if (const auto found = result.representations.find("text/plain"); found != result.representations.end()) {
+        return found->second;
+    }
+    if (const auto found = result.representations.find("text/x-aleph-source"); found != result.representations.end()) {
+        return found->second;
+    }
+    return "";
+}
+
+aleph3::client::RuntimeClientOptions runtime_options(const CliOptions& cli_options) {
+    aleph3::client::RuntimeClientOptions options;
+    options.runtime_path = cli_options.runtime_path;
+    options.client_name = "aleph3-cli";
+    options.client_version = aleph3_VERSION;
+    return options;
+}
+
+int start_runtime_client(aleph3::client::RuntimeClient& client) {
+    try {
+        static_cast<void>(client.start());
+        return 0;
+    } catch (const aleph3::client::RuntimeClientException& error) {
+        return print_runtime_client_error(error);
+    }
+}
+
+int finish_runtime_client(aleph3::client::RuntimeClient& client, int exit_code) {
+    try {
+        client.shutdown();
+    } catch (const aleph3::client::RuntimeClientException& error) {
+        return print_runtime_client_error(error);
+    }
+    return exit_code;
+}
+
+int print_runtime_evaluation_response(const aleph3::client::ProtocolResponse& response) {
+    if (response.error.has_value()) {
+        print_protocol_error(*response.error);
+        return 2;
+    }
+    if (!response.evaluation.has_value()) {
+        std::cerr << style_stderr("Runtime returned an unexpected response.", cli_palette().error) << '\n';
+        return 3;
+    }
+    if (!response.evaluation->ok) {
+        for (const auto& diagnostic : response.evaluation->diagnostics) {
+            std::cerr << diagnostic.code << ": " << diagnostic.message << '\n';
+        }
+        return 2;
+    }
+    std::cout << runtime_output_text(*response.evaluation) << '\n';
+    return 0;
+}
+
+int run_runtime_operation(
+    const CliOptions& cli_options,
+    const std::string& operation,
+    std::string_view source) {
+    aleph3::client::RuntimeClient client(runtime_options(cli_options));
+    if (const int started = start_runtime_client(client); started != 0) {
+        return started;
+    }
+
+    int exit_code = 0;
+    try {
+        if (operation == "evaluate") {
+            exit_code = print_runtime_evaluation_response(client.evaluate(source));
+        } else if (operation == "simplify") {
+            exit_code = print_runtime_evaluation_response(client.simplify(source));
+        } else if (operation == "fullForm") {
+            exit_code = print_runtime_evaluation_response(client.full_form(source));
+        } else {
+            std::cerr << style_stderr("Unsupported runtime CLI operation.", cli_palette().error) << '\n';
+            exit_code = 3;
+        }
+    } catch (const aleph3::client::RuntimeClientException& error) {
+        return print_runtime_client_error(error);
+    }
+    return finish_runtime_client(client, exit_code);
+}
+
+void print_runtime_repl_discovery_menu(aleph3::client::RuntimeClient& client) {
     std::cout
         << style_stdout("Commands", cli_palette().accent) << '\n'
         << "  :help [name-or-prefix]   Show this menu or focused help\n"
@@ -420,22 +532,24 @@ void print_repl_discovery_menu(aleph3::session::Session& session) {
         << "  Builtins                 Arithmetic, lists, rewriting, assumptions, cleanup\n"
         << "  Special forms            Held/evaluation-control forms such as And, Or, Set, SetDelayed\n";
 
-    const auto packs = session.execute({"", aleph3::session::SessionOperation::discover_packs});
+    const auto packs = client.packages();
     std::cout << "  Discovered packs";
-    if (packs.ok && !packs.packs.empty()) {
+    if (!packs.error.has_value() && packs.packages.has_value() && !packs.packages->empty()) {
         std::cout << "         ";
-        for (std::size_t i = 0; i < packs.packs.size(); ++i) {
+        for (std::size_t i = 0; i < packs.packages->size(); ++i) {
             if (i != 0) std::cout << ", ";
-            std::cout << packs.packs[i].name;
+            std::cout << packs.packages->at(i).name;
         }
     }
     std::cout << '\n';
 
-    const auto locals = session.execute({"", aleph3::session::SessionOperation::complete});
+    const auto locals = client.complete("");
     std::vector<std::string> local_names;
-    for (const auto& completion : locals.completions) {
-        if (completion.category == "symbol" || completion.category == "function") {
-            local_names.push_back(completion.name);
+    if (!locals.error.has_value() && locals.completions.has_value()) {
+        for (const auto& completion : *locals.completions) {
+            if (completion.category == "symbol" || completion.category == "function") {
+                local_names.push_back(completion.name);
+            }
         }
     }
     std::cout << "  User-defined";
@@ -892,7 +1006,7 @@ bool try_complete_repl_line(
     const std::string& prompt,
     std::string& buffer,
     std::size_t& cursor,
-    aleph3::session::Session* session,
+    aleph3::client::RuntimeClient* runtime_client,
     bool virtual_terminal_output = true) {
     std::size_t token_start = 0;
     std::vector<std::string> matches;
@@ -901,17 +1015,20 @@ bool try_complete_repl_line(
         if (split != std::string::npos && cursor > split) return false;
         matches = complete_command_prefix(buffer.substr(0, cursor));
     } else {
-        if (session == nullptr) return false;
+        if (runtime_client == nullptr) return false;
         token_start = cursor;
         while (token_start > 0) {
             const unsigned char ch = static_cast<unsigned char>(buffer[token_start - 1]);
             if (!std::isalnum(ch) && ch != '_') break;
             --token_start;
         }
-        const auto result = session->execute({
-            buffer.substr(token_start, cursor - token_start),
-            aleph3::session::SessionOperation::complete});
-        for (const auto& completion : result.completions) matches.push_back(completion.name);
+        try {
+            const auto result = runtime_client->complete(buffer.substr(token_start, cursor - token_start));
+            if (result.error.has_value() || !result.completions.has_value()) return false;
+            for (const auto& completion : *result.completions) matches.push_back(completion.name);
+        } catch (const aleph3::client::RuntimeClientException&) {
+            return false;
+        }
     }
     if (matches.empty()) {
         return false;
@@ -946,7 +1063,7 @@ bool read_repl_line(
     const std::string& prompt,
     std::vector<std::string>& history,
     std::string& line,
-    aleph3::session::Session* completion_session) {
+    aleph3::client::RuntimeClient* runtime_client) {
 #if defined(_WIN32)
     if (_isatty(_fileno(stdin)) == 0) {
         std::cout << prompt;
@@ -998,7 +1115,7 @@ bool read_repl_line(
                 prompt,
                 buffer,
                 cursor,
-                completion_session,
+                runtime_client,
                 virtual_terminal_output);
             continue;
         }
@@ -1112,7 +1229,7 @@ bool read_repl_line(
         }
 
         if (ch == '\t') {
-            try_complete_repl_line(prompt, buffer, cursor, completion_session);
+            try_complete_repl_line(prompt, buffer, cursor, runtime_client);
             continue;
         }
 
@@ -1173,8 +1290,9 @@ bool read_repl_line(
 
 int run_default_expression(
     std::string_view input,
+    const CliOptions& cli_options,
     ReplMode mode = default_repl_mode(),
-    aleph3::session::Session* session = nullptr) {
+    aleph3::client::RuntimeClient* runtime_client = nullptr) {
     if (mode == ReplMode::sdk) {
         const auto evaluate_options = aleph3::tooling::parse_evaluate_repl_arguments(input);
         if (!evaluate_options.ok()) {
@@ -1185,25 +1303,27 @@ int run_default_expression(
     }
 
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
-    const auto result = session == nullptr
-        ? aleph3::tooling::symbolic_evaluate_expression(input)
-        : aleph3::tooling::symbolic_evaluate_expression(input, *session);
-    if (!result.ok) {
-        std::cerr << style_stderr(result.error_message, cli_palette().error) << '\n';
-        return 2;
+    if (runtime_client != nullptr) {
+        try {
+            return print_runtime_evaluation_response(runtime_client->evaluate(input));
+        } catch (const aleph3::client::RuntimeClientException& error) {
+            return print_runtime_client_error(error);
+        }
     }
-    std::cout << result.output << '\n';
-    return 0;
+    return run_runtime_operation(cli_options, "evaluate", input);
 #else
+    (void)cli_options;
+    (void)runtime_client;
     std::cerr << style_stderr("Symbolic mode is not available in this build.", cli_palette().error) << '\n';
     return 2;
 #endif
 }
 
-int run_script(const std::filesystem::path& path, bool json_output) {
+int run_script(const std::filesystem::path& path, bool json_output, const CliOptions& cli_options) {
 #if !defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
     (void)path;
     (void)json_output;
+    (void)cli_options;
     std::cerr << "Script execution requires the symbolic engine.\n";
     return 3;
 #else
@@ -1227,7 +1347,11 @@ int run_script(const std::filesystem::path& path, bool json_output) {
         return 3;
     }
 
-    aleph3::session::Session session;
+    aleph3::client::RuntimeClient client(runtime_options(cli_options));
+    if (const int started = start_runtime_client(client); started != 0) {
+        return started;
+    }
+
     bool any_failed = false;
     std::string source;
     std::size_t line_number = 0;
@@ -1242,28 +1366,62 @@ int run_script(const std::filesystem::path& path, bool json_output) {
             continue;
         }
 
-        const auto result = session.execute({source, aleph3::session::SessionOperation::evaluate});
-        any_failed = any_failed || !result.ok;
+        aleph3::client::ProtocolResponse response;
+        try {
+            response = client.evaluate(source);
+        } catch (const aleph3::client::RuntimeClientException& error) {
+            return print_runtime_client_error(error);
+        }
+        const bool ok = response.evaluation.has_value() && response.evaluation->ok && !response.error.has_value();
+        any_failed = any_failed || !ok;
         if (json_output) {
             nlohmann::json record = {
                 {"schema_version", 1},
                 {"line", line_number},
                 {"source", source},
-                {"ok", result.ok},
-                {"output", result.output},
+                {"ok", ok},
+                {"output", response.evaluation.has_value() ? runtime_output_text(*response.evaluation) : ""},
                 {"diagnostics", nlohmann::json::array()}};
-            for (const auto& diagnostic : result.diagnostics) {
-                record["diagnostics"].push_back({
-                    {"code", diagnostic.code},
-                    {"message", diagnostic.message}});
+            if (response.evaluation.has_value()) {
+                for (const auto& diagnostic : response.evaluation->diagnostics) {
+                    record["diagnostics"].push_back({
+                        {"code", diagnostic.code},
+                        {"message", diagnostic.message}});
+                }
+            }
+            if (response.error.has_value()) {
+                if (response.error->diagnostics.empty()) {
+                    record["diagnostics"].push_back({
+                        {"code", response.error->code},
+                        {"message", response.error->message}});
+                } else {
+                    for (const auto& diagnostic : response.error->diagnostics) {
+                        record["diagnostics"].push_back({
+                            {"code", diagnostic.code},
+                            {"message", diagnostic.message}});
+                    }
+                }
             }
             std::cout << record.dump() << '\n';
-        } else if (result.ok) {
-            std::cout << result.output << '\n';
+        } else if (ok) {
+            std::cout << runtime_output_text(*response.evaluation) << '\n';
         } else {
-            for (const auto& diagnostic : result.diagnostics) {
-                std::cerr << "line " << line_number << ": " << diagnostic.code
-                          << ": " << diagnostic.message << '\n';
+            if (response.evaluation.has_value()) {
+                for (const auto& diagnostic : response.evaluation->diagnostics) {
+                    std::cerr << "line " << line_number << ": " << diagnostic.code
+                              << ": " << diagnostic.message << '\n';
+                }
+            }
+            if (response.error.has_value()) {
+                if (response.error->diagnostics.empty()) {
+                    std::cerr << "line " << line_number << ": " << response.error->code
+                              << ": " << response.error->message << '\n';
+                } else {
+                    for (const auto& diagnostic : response.error->diagnostics) {
+                        std::cerr << "line " << line_number << ": " << diagnostic.code
+                                  << ": " << diagnostic.message << '\n';
+                    }
+                }
             }
         }
     }
@@ -1271,40 +1429,22 @@ int run_script(const std::filesystem::path& path, bool json_output) {
         std::cerr << "Unable to read script `" << path.string() << "`.\n";
         return 3;
     }
-    return any_failed ? 2 : 0;
+    return finish_runtime_client(client, any_failed ? 2 : 0);
 #endif
 }
 
-int run_command(std::string_view command, std::string_view formula) {
+int run_command(std::string_view command, std::string_view formula, const CliOptions& cli_options) {
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
     if (command == "symbolic-evaluate") {
-        const auto result = aleph3::tooling::symbolic_evaluate_expression(formula);
-        if (!result.ok) {
-            std::cerr << style_stderr(result.error_message, cli_palette().error) << '\n';
-            return 2;
-        }
-        std::cout << result.output << '\n';
-        return 0;
+        return run_runtime_operation(cli_options, "evaluate", formula);
     }
 
     if (command == "symbolic-simplify") {
-        const auto result = aleph3::tooling::symbolic_simplify_expression(formula);
-        if (!result.ok) {
-            std::cerr << style_stderr(result.error_message, cli_palette().error) << '\n';
-            return 2;
-        }
-        std::cout << result.output << '\n';
-        return 0;
+        return run_runtime_operation(cli_options, "simplify", formula);
     }
 
     if (command == "symbolic-fullform") {
-        const auto result = aleph3::tooling::symbolic_fullform_expression(formula);
-        if (!result.ok) {
-            std::cerr << style_stderr(result.error_message, cli_palette().error) << '\n';
-            return 2;
-        }
-        std::cout << result.output << '\n';
-        return 0;
+        return run_runtime_operation(cli_options, "fullForm", formula);
     }
 #endif
 
@@ -1382,14 +1522,18 @@ int run_command(std::string_view command, std::string_view formula) {
         return run_host_evaluate_command(evaluate_options.options);
     }
 
-    return run_default_expression(command);
+    return run_default_expression(command, cli_options);
 }
 
-int run_repl() {
+int run_repl(const CliOptions& cli_options) {
     print_cli_logo();
     ReplMode repl_mode = default_repl_mode();
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
     aleph3::session::Session symbolic_session;
+    aleph3::client::RuntimeClient runtime_client(runtime_options(cli_options));
+    if (const int started = start_runtime_client(runtime_client); started != 0) {
+        return started;
+    }
 #endif
     std::cout
         << style_stdout("Interactive REPL", cli_palette().accent) << '\n'
@@ -1406,13 +1550,17 @@ int run_repl() {
                 history,
                 line,
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
-                &symbolic_session
+                &runtime_client
 #else
                 nullptr
 #endif
                 )) {
             std::cout << '\n';
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+            return finish_runtime_client(runtime_client, 0);
+#else
             return 0;
+#endif
         }
 
         line = trim(std::move(line));
@@ -1425,9 +1573,10 @@ int run_repl() {
         if (line.empty() || line.front() != ':') {
             const int exit_code = run_default_expression(
                 line,
+                cli_options,
                 repl_mode
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
-                , &symbolic_session
+                , &runtime_client
 #endif
             );
             if (exit_code != 0) {
@@ -1450,12 +1599,20 @@ int run_repl() {
         const std::string normalized_command(strip_repl_command_prefix(command));
 
         if (normalized_command == "quit" || normalized_command == "exit") {
+#if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
+            return finish_runtime_client(runtime_client, 0);
+#else
             return 0;
+#endif
         }
         if (normalized_command == "help") {
 #if defined(ALEPH3_HAS_SYMBOLIC_ENGINE)
             if (formula.empty()) {
-                print_repl_discovery_menu(symbolic_session);
+                try {
+                    print_runtime_repl_discovery_menu(runtime_client);
+                } catch (const aleph3::client::RuntimeClientException& error) {
+                    static_cast<void>(print_runtime_client_error(error));
+                }
                 continue;
             }
             if (!formula.empty() && formula.front() == ':') {
@@ -1464,17 +1621,22 @@ int run_repl() {
                 }
                 continue;
             }
-            const auto result = symbolic_session.execute(
-                {formula, aleph3::session::SessionOperation::help});
-            if (!result.ok) {
-                std::cerr << style_stderr("Help lookup failed.", cli_palette().error) << '\n';
+            aleph3::client::ProtocolResponse result;
+            try {
+                result = runtime_client.help(formula);
+            } catch (const aleph3::client::RuntimeClientException& error) {
+                static_cast<void>(print_runtime_client_error(error));
                 continue;
             }
-            if (result.help_entries.empty()) {
+            if (result.error.has_value()) {
+                print_protocol_error(*result.error);
+                continue;
+            }
+            if (!result.help.has_value() || result.help->empty()) {
                 std::cout << "No help found for " << formula << '\n';
                 continue;
             }
-            print_session_help_entries(result.help_entries);
+            print_runtime_help_entries(*result.help);
 #else
             if (formula.empty()) {
                 print_help();
@@ -1540,13 +1702,18 @@ int run_repl() {
             continue;
         }
         if (normalized_command == "packs") {
-            const auto result = symbolic_session.execute(
-                {"", aleph3::session::SessionOperation::discover_packs});
-            if (!result.ok) {
+            aleph3::client::ProtocolResponse result;
+            try {
+                result = runtime_client.packages();
+            } catch (const aleph3::client::RuntimeClientException& error) {
+                static_cast<void>(print_runtime_client_error(error));
+                continue;
+            }
+            if (result.error.has_value() || !result.packages.has_value()) {
                 std::cerr << style_stderr("Pack discovery failed.", cli_palette().error) << '\n';
                 continue;
             }
-            for (const auto& pack : result.packs) {
+            for (const auto& pack : *result.packages) {
                 std::cout << pack.name << ':';
                 for (const auto& symbol : pack.symbols) std::cout << ' ' << symbol;
                 std::cout << '\n';
@@ -1554,18 +1721,33 @@ int run_repl() {
             continue;
         }
         if (normalized_command == "reset") {
-            symbolic_session.reset();
-            std::cout << style_stdout("session reset", cli_palette().success) << '\n';
+            try {
+                const auto result = runtime_client.reset();
+                if (result.error.has_value()) {
+                    print_protocol_error(*result.error);
+                    continue;
+                }
+                std::cout << style_stdout(
+                    result.status.has_value() ? result.status->message : "session reset",
+                    cli_palette().success) << '\n';
+            } catch (const aleph3::client::RuntimeClientException& error) {
+                static_cast<void>(print_runtime_client_error(error));
+            }
             continue;
         }
         if (normalized_command == "complete") {
-            const auto result = symbolic_session.execute(
-                {formula, aleph3::session::SessionOperation::complete});
-            if (!result.ok) {
+            aleph3::client::ProtocolResponse result;
+            try {
+                result = runtime_client.complete(formula);
+            } catch (const aleph3::client::RuntimeClientException& error) {
+                static_cast<void>(print_runtime_client_error(error));
+                continue;
+            }
+            if (result.error.has_value() || !result.completions.has_value()) {
                 std::cerr << style_stderr("Completion failed.", cli_palette().error) << '\n';
                 continue;
             }
-            for (const auto& completion : result.completions) {
+            for (const auto& completion : *result.completions) {
                 std::cout << completion.name << '\t' << completion.category;
                 if (!completion.owning_package.empty()) {
                     std::cout << '\t' << completion.owning_package;
@@ -1590,7 +1772,7 @@ int run_repl() {
             continue;
         }
 
-        const int exit_code = run_command(normalized_command, formula);
+        const int exit_code = run_command(normalized_command, formula, cli_options);
         if (exit_code != 0) {
             std::cerr << style_stderr("(command failed with exit code " + std::to_string(exit_code) + ")",
                                       cli_palette().warning)
@@ -1602,14 +1784,30 @@ int run_repl() {
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
-        return run_repl();
+    CliOptions cli_options;
+    int command_index = 1;
+    while (command_index < argc) {
+        const std::string_view argument = argv[command_index];
+        if (argument == "--runtime") {
+            if (command_index + 1 >= argc) {
+                std::cerr << "Usage: aleph3_cli --runtime <path> <command> [args...]\n";
+                return 2;
+            }
+            cli_options.runtime_path = std::filesystem::path(argv[command_index + 1]);
+            command_index += 2;
+            continue;
+        }
+        break;
     }
 
-    const std::string_view command = argv[1];
+    if (command_index >= argc) {
+        return run_repl(cli_options);
+    }
+
+    const std::string_view command = argv[command_index];
 
     if (!is_known_cli_command(command)) {
-        return run_default_expression(join_formula_args(argc, argv, 1));
+        return run_default_expression(join_formula_args(argc, argv, command_index), cli_options);
     }
 
     if (command == "help" || command == "--help" || command == "-h") {
@@ -1625,12 +1823,12 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (command == "repl") {
-        return run_repl();
+        return run_repl(cli_options);
     }
     if (command == "script") {
         bool json_output = false;
         std::filesystem::path path;
-        for (int i = 2; i < argc; ++i) {
+        for (int i = command_index + 1; i < argc; ++i) {
             const std::string_view argument = argv[i];
             if (argument == "--json" && !json_output) {
                 json_output = true;
@@ -1645,13 +1843,13 @@ int main(int argc, char** argv) {
             std::cerr << "Usage: aleph3_cli script [--json] <path>\n";
             return 2;
         }
-        return run_script(path, json_output);
+        return run_script(path, json_output, cli_options);
     }
 
     if (command == "evaluate") {
         std::vector<std::string_view> arguments;
-        arguments.reserve(static_cast<std::size_t>(argc - 2));
-        for (int i = 2; i < argc; ++i) {
+        arguments.reserve(static_cast<std::size_t>(argc - command_index - 1));
+        for (int i = command_index + 1; i < argc; ++i) {
             arguments.emplace_back(argv[i]);
         }
 
@@ -1665,8 +1863,8 @@ int main(int argc, char** argv) {
 
     if (command == "evaluate-host") {
         std::vector<std::string_view> arguments;
-        arguments.reserve(static_cast<std::size_t>(argc - 2));
-        for (int i = 2; i < argc; ++i) {
+        arguments.reserve(static_cast<std::size_t>(argc - command_index - 1));
+        for (int i = command_index + 1; i < argc; ++i) {
             arguments.emplace_back(argv[i]);
         }
 
@@ -1678,10 +1876,10 @@ int main(int argc, char** argv) {
         return run_host_evaluate_command(evaluate_options.options);
     }
 
-    if (argc < 3) {
+    if (command_index + 1 >= argc) {
         print_usage();
         return 1;
     }
 
-    return run_command(command, join_formula_args(argc, argv, 2));
+    return run_command(command, join_formula_args(argc, argv, command_index + 1), cli_options);
 }

@@ -46,9 +46,10 @@ same sources can be
    completed implementation record for the process-launching runtime client
    slice.
 14. [Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md) -
-   active plan for private CLI migration through the runtime client.
+   completed implementation record for private CLI migration through the
+   runtime client.
 15. [Aleph Runtime Protocol M5 Plan](aleph_runtime_protocol_m5_plan.md) -
-   planned private notebook-lite rehearsal over the runtime boundary.
+   active plan for private notebook-lite rehearsal over the runtime boundary.
 
 ## Normative References
 

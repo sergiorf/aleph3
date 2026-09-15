@@ -35,7 +35,7 @@ Related documents:
 | `aleph3_engine_api` | library | Internal engine API core for `/internal/*` session creation, evaluation, and reset |
 | `aleph3_engine_service` | executable | Internal HTTP engine listener used by the dormant BFF experiment |
 | `aleph3_sdk` | library | Public SDK facade over kernel-backed execution |
-| `aleph3_cli` | executable | Current local workbench for symbolic REPL/script use plus SDK developer checks |
+| `aleph3_cli` | executable | Current private local workbench; ordinary symbolic REPL/script/one-shot work uses `aleph_client` and `aleph-runtime`, while SDK and inspection commands remain developer tooling |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
 | `aleph_client_tests` | executable | Protocol encoding/decoding, framing, dependency-boundary, fake-runtime lifecycle, and real-runtime smoke tests for `aleph_client` |
 | `aleph_runtime_protocol_tests` | executable | Private runtime adapter and process-level framed protocol tests |
@@ -78,6 +78,7 @@ flowchart TD
     AlephClient --> RuntimeProtocol["aleph_runtime_protocol"]
     RuntimeProtocol --> RuntimeExe["aleph-runtime"]
     RuntimeProtocol --> RuntimeTests["aleph_runtime_protocol_tests"]
+    AlephClient --> Cli["aleph3_cli"]
     Kernel --> RuntimeProtocol
     Algebra --> RuntimeProtocol
     Calculus --> RuntimeProtocol
@@ -104,7 +105,7 @@ flowchart TD
     Algebra --> Sdk
     Calculus --> Sdk
     Sdk --> SdkTests["aleph3_sdk_tests"]
-    Sdk --> Cli["aleph3_cli"]
+    Sdk --> Cli
     Sdk --> Example["aleph3_sdk_example"]
 ```
 
@@ -130,7 +131,11 @@ placeholder boundary.
   private kernel, session, and pack implementation targets; `aleph_client`
   itself must not.
 - Expect the kernel to build whenever the SDK is enabled.
-- Use `aleph3_cli` for fast manual checks while broader validation and custom host-function tooling are still under construction.
+- Use `aleph3_cli` for fast manual checks. Ordinary symbolic one-shot,
+  REPL, script, help, completion, package, and reset workflows launch
+  `aleph-runtime` through `aleph_client`; pass `--runtime <path>` to select a
+  specific executable. SDK validation/compile/evaluate-host and private
+  inspection remain direct developer tooling.
 - Use `aleph3_notebook_tests` to exercise the current headless document and
   clean `Run All` lifecycle. No notebook executable is built yet.
 - Use `aleph3_web_api_tests` to exercise the current anonymous-client,
@@ -164,7 +169,9 @@ placeholder boundary.
   is treated as pack-owned coverage by architecture.
 - `tests/frontend`, `tests/ir`, `tests/semantics`, and `tests/sdk` are SDK-side
   coverage.
-- `tests/tooling` is SDK/tooling consumer coverage.
+- `tests/tooling` is SDK/tooling consumer coverage, including private CLI
+  coverage that proves ordinary symbolic workflows use the runtime client and
+  report missing-runtime failures without direct fallback.
 - `tests/aleph_client` is protocol/client coverage and should remain free of
   private semantic dependencies. Its fake runtime links only the public client
   layer; real-runtime smoke tests depend on the executable artifact, not

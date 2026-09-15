@@ -21,10 +21,10 @@ path.
 flowchart TB
     Host["Host applications"] --> SDK["SDK<br/>Engine - Schema - Policy - Value"]
     AppClient["Future public app clients"] --> AlephClient["aleph_client<br/>protocol - framing - process client"]
-    PrivateCLI["Future private CLI path"] --> AlephClient
+    PrivateCLI["Private CLI ordinary symbolic path"] --> AlephClient
     AlephClient -. framed JSON .-> RuntimeProcess["aleph-runtime process"]
     RuntimeProcess --> Session
-    CLI["CLI"] --> Session["Stateful session"]
+    CLI["CLI SDK/private tooling path"] --> Session["Stateful session"]
     Notebook["Notebook core<br/>documents - cells - Run All"] --> Session
     WebFrontend["Dormant React/Vite web experiment"] --> BFF["ASP.NET Core BFF experiment<br/>/api/*"]
     BFF --> EngineSvc["Internal C++ engine service<br/>/internal/*"]
@@ -197,10 +197,12 @@ consumers. They may compose APIs and present results, but semantic rules do
 not belong there.
 
 The stateful session layer is the reusable interactive consumer boundary. It
-owns one kernel evaluation context across requests, returns rendered results
-plus structured diagnostics, and is used by the symbolic CLI REPL, the
-internal web engine service, and the transitional web API core. Notebook and
-IDE consumers build on this boundary rather than owning evaluator state
+owns one kernel evaluation context across requests and returns rendered
+results plus structured diagnostics. The `aleph-runtime` process hosts this
+session for the private CLI's ordinary symbolic path and future app clients;
+the internal web engine service and transitional web API core still consume
+the session in-process as dormant implementation context. Notebook and IDE
+consumers build on this boundary rather than owning evaluator state
 themselves.
 
 The intended public/private split adds a process boundary above the private
@@ -211,6 +213,13 @@ kernel core, and registered packs. The private core, planned as `aleph-core`,
 owns those implementation details plus the CLI. Public clients must not link
 or expose private expression, parser, evaluator, exact arithmetic, or pack
 implementation headers.
+
+The private CLI is now the first real runtime-client consumer for ordinary
+symbolic evaluation, simplification, full-form rendering, scripts, help,
+completion, package discovery, and reset. Parser/token dumps, SDK validation
+and compile tooling, demo host-function commands, and private inspection
+remain direct developer tooling unless promoted through a separate protocol
+design.
 
 The existing web code remains useful as dormant implementation context. The
 ASP.NET Core BFF experiment routes browser requests to an internal C++ engine
@@ -398,6 +407,7 @@ flowchart TD
     AlephClient --> RuntimeProtocol["aleph_runtime_protocol"]
     RuntimeProtocol --> RuntimeExe["aleph-runtime"]
     RuntimeProtocol --> RuntimeTests["aleph_runtime_protocol_tests"]
+    AlephClient --> CLI["aleph3_cli"]
     Kernel --> RuntimeProtocol
     Algebra --> RuntimeProtocol
     Calculus --> RuntimeProtocol
@@ -410,7 +420,7 @@ flowchart TD
     Kernel -. compatibility alias .-> Symbolic["aleph3_symbolic"]
     Algebra --> SDK
     Calculus --> SDK
-    SDK --> CLI["aleph3_cli"]
+    SDK --> CLI
     SDK --> Example["aleph3_sdk_example"]
     EngineApi --> EngineSvc["aleph3_engine_service"]
     WebApi --> WebApiServer["aleph3_web_api_server"]

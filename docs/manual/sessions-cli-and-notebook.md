@@ -34,19 +34,32 @@ with stable `runtime.*` lifecycle codes. One launched client talks to one
 runtime process, so session definitions persist across requests until `reset`
 or shutdown.
 
-The private CLI does not launch `aleph-runtime` yet. CLI migration and private
-notebook-lite rehearsal remain planned follow-up work. Public notebook
-integration should wait until those internal boundary proofs are implemented
-and tested.
+The private CLI now uses this runtime client for ordinary symbolic work:
+one-shot symbolic evaluation, simplification, full-form rendering, REPL
+symbolic evaluation, help, completion, package discovery, reset, and scripts.
+Use `aleph3_cli --runtime <path> ...` to select a specific runtime executable
+for those workflows. Without an explicit path, the CLI follows the runtime
+client lookup order above. Runtime lookup, launch, timeout, malformed-output,
+shutdown, and incompatible-version failures are reported as stable `runtime.*`
+lifecycle diagnostics.
+
+Developer commands that are not protocol methods remain direct private tools:
+token dumps, parse-tree dumps, SDK validation and compilation, host-function
+demos, and `:inspect`. Adding those to the runtime boundary requires a
+separate protocol decision. Private notebook-lite rehearsal remains the next
+runtime-boundary follow-up before public notebook integration.
 
 ## CLI Workflow
 
-`aleph3_cli repl` is the current local single-process kernel workbench. It
-does not require the web BFF, the internal engine HTTP service, Traefik, or
-Postgres:
+`aleph3_cli repl` is the current local symbolic workbench. Ordinary symbolic
+input goes through one launched `aleph-runtime` process, so the REPL exercises
+the same process boundary planned for notebook clients. It does not require
+the web BFF, the internal engine HTTP service, Traefik, or Postgres:
 
 ```text
 aleph3_cli repl
+  -> aleph_client
+  -> aleph-runtime
   -> session::Session
   -> kernel + registered packs
 ```
@@ -128,6 +141,7 @@ For stateful batch work, a script contains one expression per non-empty line:
 ```text
 aleph3_cli script calculations.aleph3
 aleph3_cli script --json calculations.aleph3
+aleph3_cli --runtime C:\path\to\aleph-runtime.exe script calculations.aleph3
 ```
 
 One session is shared across the file, failures do not stop later lines, and

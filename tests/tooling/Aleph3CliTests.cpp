@@ -110,6 +110,10 @@ std::string make_direct_command(std::string_view arguments) {
 #endif
 }
 
+std::string quote_argument(const std::filesystem::path& path) {
+    return std::string(1, char(34)) + path.string() + char(34);
+}
+
 std::size_t count_substrings(std::string_view text, std::string_view needle) {
     std::size_t count = 0;
     std::size_t pos = 0;
@@ -143,6 +147,23 @@ TEST_CASE("CLI evaluates bare expressions directly", "[tooling][cli]") {
     INFO("output: " << result.output);
     REQUIRE(result.exit_code == 0);
     REQUIRE(result.output == "2\n");
+}
+
+TEST_CASE("CLI symbolic runtime path reports missing runtimes without direct fallback", "[tooling][cli][runtime]") {
+#ifndef ALEPH_RUNTIME_PATH
+    SKIP("Runtime-backed CLI test requires the private aleph-runtime target.");
+#else
+    const auto missing_runtime = std::filesystem::path(ALEPH_RUNTIME_PATH).parent_path() / "missing-aleph-runtime";
+    const auto command = make_direct_command(
+        "--runtime " + quote_argument(missing_runtime) + " symbolic-evaluate \"1+1\"");
+    const auto result = run_shell_command(command);
+
+    INFO("command: " << command);
+    INFO("output: " << result.output);
+    REQUIRE(result.exit_code == 3);
+    REQUIRE(result.output.find("runtime.not_found") != std::string::npos);
+    REQUIRE(result.output.find("2\n") == std::string::npos);
+#endif
 }
 
 TEST_CASE("REPL treats bare input as a default expression", "[tooling][cli]") {

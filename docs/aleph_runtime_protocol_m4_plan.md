@@ -2,11 +2,11 @@
 
 ## Status
 
-This is the planned detailed implementation plan for M4 from
+Implemented. This is the completed implementation record for M4 from
 [Public App / Private Kernel Split](public_private_cli_split_plan.md): private
 CLI migration through the M3 runtime client.
 
-M4 should start only after M3 delivers a process-launching runtime client with
+M4 started after M3 delivered a process-launching runtime client with
 fake-runtime tests, real-runtime smoke tests, lookup behavior, timeout
 handling, and stable lifecycle diagnostics.
 
@@ -74,10 +74,9 @@ Ordinary protocol-backed behavior includes:
 - script execution and JSON Lines output where protocol response data can
   preserve the current public shape.
 
-`inspect` needs an explicit decision because it is currently a session/CLI
-operation but not an M1/M2 protocol method. M4 should either keep `inspect` on
-the private direct path with clear documentation, or produce a focused protocol
-change plan before adding it to the runtime boundary.
+`inspect` remains on the private direct path because it is a session/CLI
+operation and not an M1/M2 protocol method. Adding it to the runtime boundary
+requires a focused protocol change plan.
 
 ## Non-Goals
 

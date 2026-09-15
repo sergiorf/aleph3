@@ -17,8 +17,8 @@ M2, the private in-tree `aleph-runtime` executable, is implemented and archived
 in [Aleph Runtime Protocol M2 Plan](archive/aleph_runtime_protocol_m2_plan.md).
 M3, the process-launching runtime client, is implemented and archived in
 [Aleph Runtime Protocol M3 Plan](archive/aleph_runtime_protocol_m3_plan.md).
-The active detailed slice plan is
-[Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md). The next
+M4, the private CLI migration through the runtime client, is implemented in
+[Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md). The active
 detailed slice plan is
 [Aleph Runtime Protocol M5 Plan](aleph_runtime_protocol_m5_plan.md).
 
@@ -158,10 +158,11 @@ the current tree.
    `aleph-runtime`, sends framed requests, handles timeouts and process exit,
    and reports missing or incompatible runtimes clearly. It is tested with a
    fake runtime and a real private-runtime smoke path.
-4. **Private CLI migration.** Route ordinary symbolic CLI behavior through the
-   kernel client. Keep parser-token dumps, SDK validation/compile tooling, and
-   demo host-function commands private developer tools unless separately
-   productized.
+4. **Private CLI migration.** Complete. Ordinary symbolic CLI behavior routes
+   through the kernel client. Parser-token dumps, SDK validation/compile
+   tooling, demo host-function commands, and private inspection remain private
+   developer tools unless separately productized or promoted through a separate
+   protocol design.
 5. **Private notebook-lite.** Add an internal notebook-shaped harness or small
    app over the runtime client. It exercises document create/edit/evaluate,
    save/reopen, `Run All`, reset, help, completion, package discovery,

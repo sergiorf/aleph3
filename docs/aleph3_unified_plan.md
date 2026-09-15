@@ -88,9 +88,10 @@ or broader web products receive substantial investment.
 3. Fill bounded numerical and finite-list gaps that make the notebook useful
    for sampled data and exact-or-approximate exploration without weakening the
    exact symbolic default.
-4. Continue the runtime-boundary rehearsal path through M5 private
-   notebook-lite over the implemented process-launching client and
-   runtime-backed private CLI.
+4. Stabilize the runtime boundary through
+   [M4.1 Architecture Stabilization](m4_1_architecture_stabilization_plan.md),
+   then continue the rehearsal path through M5 private notebook-lite over the
+   process-launching client and runtime-backed private CLI.
 5. Choose a Windows-first desktop toolkit from measured spikes and deliver the
    first visible notebook create/edit/evaluate/display/save/reopen/`Run All`
    loop.
@@ -403,9 +404,11 @@ product surface.
 
 Remaining work:
 
-- complete the remaining public/private runtime-boundary sequence through M5
-  private notebook-lite over the implemented M3 client and runtime-backed
-  private CLI;
+- complete the remaining public/private runtime-boundary sequence by first
+  finishing
+  [M4.1 Architecture Stabilization](m4_1_architecture_stabilization_plan.md),
+  then M5 private notebook-lite over the implemented process-launching client
+  and runtime-backed private CLI;
 - build the graphical application over the existing headless document,
   persistence, and clean `Run All` foundations;
 - add input/text/output presentation, queued/running/completed/cancelled/failed
@@ -551,24 +554,30 @@ Use this order unless a regression or dependency changes it:
 3. Specify and fill the remaining bounded numerical and finite-list gaps,
    especially `Range`, `Table`, `Total`, budget behavior, and unsupported
    diagnostics.
-4. Complete the remaining private runtime-boundary rehearsal sequence: M5
-   private notebook-lite over the implemented M3 process-launching client and
-   runtime-backed private CLI.
-5. Run and record the notebook toolkit spikes against one shared fixture.
-6. Build the first graphical notebook vertical slice, then add cancellation,
+4. Complete
+   [M4.1 Architecture Stabilization](m4_1_architecture_stabilization_plan.md)
+   before M5: remove kernel/pack dependency cycles, extract the neutral
+   protocol layer, split notebook model from runtime execution, add
+   read-only session symbol inspection, and prove the extraction-safe subset
+   builds without private semantic targets.
+5. Continue the private runtime-boundary rehearsal sequence: M5 private
+   notebook-lite over the process-launching client and runtime-backed private
+   CLI.
+6. Run and record the notebook toolkit spikes against one shared fixture.
+7. Build the first graphical notebook vertical slice, then add cancellation,
    reset, help, example gallery, packaging, and keyboard workflow checks.
-7. Continue exact algebra hardening required by calculus, bounded solving,
+8. Continue exact algebra hardening required by calculus, bounded solving,
    finite summation, future DSP work, and the CAS engine roadmap gap-closure
    tranche.
-8. After the local notebook MVP is stable, continue the CAS engine gap-closure
+9. After the local notebook MVP is stable, continue the CAS engine gap-closure
    sequence with broader domain-restriction consumers before broad solving,
    integration, or validation.
-9. Specify the focused DSP kernel prerequisite slice, including piecewise,
+10. Specify the focused DSP kernel prerequisite slice, including piecewise,
    finite sampling, binding, substitution, conditional rewrites, and bounded
    linear inequality reasoning.
-10. Deliver the first DSP pack for finite sequences, convolution, FIR
+11. Deliver the first DSP pack for finite sequences, convolution, FIR
    filtering, direct DFT, and inverse DFT.
-11. Specify the bounded Z-transform and later transform tranche, keeping FFT
+12. Specify the bounded Z-transform and later transform tranche, keeping FFT
    acceleration and broad Fourier work deferred.
 
 ## Deferred Work

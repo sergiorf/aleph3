@@ -48,7 +48,10 @@ same sources can be
 14. [Aleph Runtime Protocol M4 Plan](archive/aleph_runtime_protocol_m4_plan.md) -
    completed implementation record for private CLI migration through the
    runtime client.
-15. [Aleph Runtime Protocol M5 Plan](aleph_runtime_protocol_m5_plan.md) -
+15. [M4.1 Architecture Stabilization Plan](m4_1_architecture_stabilization_plan.md) -
+   active plan for removing runtime-boundary dependency violations before
+   notebook-lite work begins.
+16. [Aleph Runtime Protocol M5 Plan](aleph_runtime_protocol_m5_plan.md) -
    active plan for private notebook-lite rehearsal over the runtime boundary.
 
 ## Normative References

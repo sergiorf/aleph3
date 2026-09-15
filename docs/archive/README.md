@@ -20,3 +20,6 @@ specifications for active contracts.
 - [Aleph Runtime Protocol M3 Plan](aleph_runtime_protocol_m3_plan.md) -
   completed implementation record for the process-launching runtime client
   library, fake-runtime lifecycle tests, and real-runtime smoke coverage.
+- [Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md) -
+  completed implementation record for private CLI migration through the
+  runtime client.

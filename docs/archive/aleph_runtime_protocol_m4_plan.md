@@ -3,7 +3,7 @@
 ## Status
 
 Implemented. This is the completed implementation record for M4 from
-[Public App / Private Kernel Split](public_private_cli_split_plan.md): private
+[Public App / Private Kernel Split](../public_private_cli_split_plan.md): private
 CLI migration through the M3 runtime client.
 
 M4 started after M3 delivered a process-launching runtime client with

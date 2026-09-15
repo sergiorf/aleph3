@@ -17,9 +17,9 @@ M2, the private in-tree `aleph-runtime` executable, is implemented and archived
 in [Aleph Runtime Protocol M2 Plan](archive/aleph_runtime_protocol_m2_plan.md).
 M3, the process-launching runtime client, is implemented and archived in
 [Aleph Runtime Protocol M3 Plan](archive/aleph_runtime_protocol_m3_plan.md).
-M4, the private CLI migration through the runtime client, is implemented in
-[Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md). The active
-detailed slice plan is
+M4, the private CLI migration through the runtime client, is implemented and
+archived in [Aleph Runtime Protocol M4 Plan](archive/aleph_runtime_protocol_m4_plan.md).
+The active detailed slice plan is
 [Aleph Runtime Protocol M5 Plan](aleph_runtime_protocol_m5_plan.md).
 
 ## Direction

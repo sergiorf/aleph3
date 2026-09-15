@@ -466,7 +466,7 @@ M3 is complete when:
 ## Next Slice
 
 After M3, proceed to
-[M4](../aleph_runtime_protocol_m4_plan.md): migrate ordinary private CLI symbolic
+[M4](aleph_runtime_protocol_m4_plan.md): migrate ordinary private CLI symbolic
 behavior through the kernel client and use that path to prove the
 public/private process boundary. Keep parser-token dumps, SDK validation/
 compile tooling, and demo host-function commands private developer tools

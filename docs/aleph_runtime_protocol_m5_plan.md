@@ -57,6 +57,29 @@ command-line harness over notebook documents is acceptable if it exercises the
 same product workflows more cheaply than a GUI. A lightweight internal GUI may
 follow only after the harness has stable runtime-backed behavior.
 
+If M5 includes an internal GUI, use a Mathematica-inspired notebook interaction
+model without copying Mathematica's full product surface. The primary surface
+is a cell-oriented notebook for text, input, output, diagnostics, save/reopen,
+single-cell evaluation, and `Run All`. The secondary surface is a switchable
+side inspector, preferably a right-side panel, with at least a session
+variables view and an agent chat view when agent assistance is included. This
+combines Mathematica-like cell workflow with a VS Code/Jupyter-like inspector
+shape.
+
+The variables panel is a read-only view of shared session state by default. It
+may show names, definition kinds, canonical value or definition previews, and
+the cell or request that last produced the state when that provenance is
+available. Any mutation controls, such as clear or unset, must call the shared
+runtime/session contract rather than maintaining UI-private state.
+
+The agent chat panel is an assistant and workflow surface, not a semantic
+surface. It may explain diagnostics, search or summarize supported help,
+suggest next cells, or draft source text for the user to run. It must keep
+provenance visible: kernel results, cached notebook output, documentation
+suggestions, and agent-drafted text are distinct states. Agent responses do not
+count as evaluated results and must not add hidden transformations or
+unsupported mathematical behavior.
+
 The first notebook-lite path should support:
 
 - create or open a bounded notebook document;
@@ -67,6 +90,9 @@ The first notebook-lite path should support:
 - save and reopen the document;
 - preserve and clear cached generated results;
 - display canonical text, request status, and structured diagnostics;
+- inspect current session-visible variables or definitions when an internal UI
+  exposes a variables panel;
+- expose agent chat only as an optional provenance-aware helper surface;
 - call runtime help, completion, packages, reset, initialize, and shutdown;
 - show runtime lookup and lifecycle failures in a user-understandable way.
 
@@ -81,6 +107,10 @@ core, not paper over them with private semantics.
 - toolkit decision unless a separate measured spike is approved;
 - rich mathematical typesetting;
 - plotting, export, collaboration, cloud execution, marketplace, or accounts;
+- full Mathematica UI parity, palettes, dynamic notebooks, or broad menu
+  surfaces;
+- spreadsheet-like live object inspection or UI-private variable mutation;
+- agent-computed mathematical answers presented as kernel evaluation results;
 - cancellation, streaming, concurrent cell execution, automatic restart, or
   crash recovery unless a prior runtime/client slice has specified them;
 - new symbolic functions, parser syntax, simplifications, or pack behavior;
@@ -179,6 +209,9 @@ Completion criteria:
 
 - keyboard-only or command-only workflow can create, edit, run, save, reopen,
   reset, and inspect diagnostics;
+- if an internal GUI is included, the notebook is the primary surface and a
+  switchable side inspector can show session variables and, optionally,
+  provenance-aware agent chat without adding semantic behavior;
 - output presentation has canonical text fallback;
 - no in-product text claims unsupported capabilities;
 - notebook-lite remains marked private/internal in docs and help.

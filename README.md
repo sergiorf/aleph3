@@ -83,8 +83,15 @@ header-only Boost modules.
 git clone https://github.com/sergiorf/aleph3.git
 cd aleph3
 cmake -S . -B build
-cmake --build build --config Release --target aleph3_cli
+cmake --build build --config Release --target aleph3_cli aleph-runtime
 ```
+
+`aleph3_cli` is the current interactive and scripting workbench. The
+`aleph-runtime` target builds the private runtime process used by the
+runtime-protocol/client boundary. Until the CLI migration milestone is
+complete, ordinary CLI use still follows the current CLI path, while runtime
+protocol tests and future notebook-facing clients exercise `aleph-runtime`
+directly.
 
 Run the REPL on Unix-like single-configuration builds:
 
@@ -140,6 +147,13 @@ and tests:
 ```bash
 cmake -S . -B build
 cmake --build build --config Release
+```
+
+For a focused runtime-boundary build, compile the CLI, runtime executable,
+client tests, and private runtime protocol tests:
+
+```bash
+cmake --build build --config Release --target aleph3_cli aleph-runtime aleph_client_tests aleph_runtime_protocol_tests
 ```
 
 Run the configured CTest suite:

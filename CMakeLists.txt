@@ -111,14 +111,12 @@ if(ALEPH3_BUILD_KERNEL)
             GIT_REPOSITORY https://github.com/boostorg/config.git
             GIT_TAG boost-1.86.0
             GIT_SHALLOW TRUE
-            GIT_CONFIG http.sslBackend=openssl
         )
         FetchContent_Declare(
             aleph3_boost_multiprecision
             GIT_REPOSITORY https://github.com/boostorg/multiprecision.git
             GIT_TAG boost-1.86.0
             GIT_SHALLOW TRUE
-            GIT_CONFIG http.sslBackend=openssl
         )
         FetchContent_MakeAvailable(aleph3_boost_config aleph3_boost_multiprecision)
 

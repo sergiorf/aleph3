@@ -256,13 +256,24 @@ std::string encode_initialize_request(const RequestId& id, const InitializeParam
     return payload.dump();
 }
 
-std::string encode_evaluate_request(const RequestId& id, std::string_view source) {
+std::string encode_request(
+    const RequestId& id,
+    std::string_view method,
+    const std::map<std::string, std::string>& string_params) {
+    Json params = Json::object();
+    for (const auto& [key, value] : string_params) {
+        params[key] = value;
+    }
     const Json payload = {
         {"jsonrpc", "2.0"},
         {"id", id_to_json(id)},
-        {"method", "evaluate"},
-        {"params", {{"source", std::string(source)}}}};
+        {"method", std::string(method)},
+        {"params", std::move(params)}};
     return payload.dump();
+}
+
+std::string encode_evaluate_request(const RequestId& id, std::string_view source) {
+    return encode_request(id, "evaluate", {{"source", std::string(source)}});
 }
 
 ProtocolResponse decode_response(std::string_view payload) {

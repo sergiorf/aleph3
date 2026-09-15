@@ -64,8 +64,10 @@ target_include_directories(aleph3_syntax PUBLIC include)
 add_library(aleph_client
     src/aleph_client/Framing.cpp
     src/aleph_client/Protocol.cpp
+    src/aleph_client/RuntimeClient.cpp
     include/aleph_client/Framing.hpp
-    include/aleph_client/Protocol.hpp)
+    include/aleph_client/Protocol.hpp
+    include/aleph_client/RuntimeClient.hpp)
 target_include_directories(aleph_client PUBLIC include)
 target_include_directories(aleph_client PRIVATE third_party/nlohmann)
 
@@ -279,9 +281,21 @@ if(BUILD_TESTING)
     set(FETCHCONTENT_QUIET OFF)
     FetchContent_MakeAvailable(Catch2)
 
-    add_executable(aleph_client_tests tests/aleph_client/ProtocolTests.cpp)
+    add_executable(aleph_client_fake_runtime tests/aleph_client/FakeRuntime.cpp)
+    target_link_libraries(aleph_client_fake_runtime PRIVATE aleph_client)
+    target_include_directories(aleph_client_fake_runtime PRIVATE third_party/nlohmann)
+
+    add_executable(
+        aleph_client_tests
+        tests/aleph_client/ProtocolTests.cpp
+        tests/aleph_client/RuntimeClientTests.cpp)
     target_link_libraries(aleph_client_tests PRIVATE aleph_client Catch2::Catch2WithMain)
-    target_compile_definitions(aleph_client_tests PRIVATE ALEPH3_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    target_compile_definitions(
+        aleph_client_tests
+        PRIVATE
+        ALEPH3_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+        ALEPH_CLIENT_FAKE_RUNTIME_PATH="$<TARGET_FILE:aleph_client_fake_runtime>")
+    add_dependencies(aleph_client_tests aleph_client_fake_runtime)
     add_test(NAME aleph_client_tests COMMAND aleph_client_tests)
 
     if(ALEPH3_BUILD_SYMBOLIC_ENGINE)
@@ -366,6 +380,13 @@ if(BUILD_TESTING)
         set_tests_properties(
             aleph_runtime_protocol_tests
             PROPERTIES WORKING_DIRECTORY "$<TARGET_FILE_DIR:aleph-runtime>")
+
+        target_compile_definitions(
+            aleph_client_tests
+            PRIVATE
+            ALEPH_CLIENT_HAS_REAL_RUNTIME=1
+            ALEPH_RUNTIME_PATH="$<TARGET_FILE:aleph-runtime>")
+        add_dependencies(aleph_client_tests aleph-runtime)
     endif()
 
     if(ALEPH3_BUILD_SDK)

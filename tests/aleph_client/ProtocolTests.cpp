@@ -99,8 +99,12 @@ TEST_CASE("Aleph client public layer does not include private semantic headers",
     const std::vector<std::filesystem::path> files = {
         source_root / "include/aleph_client/Framing.hpp",
         source_root / "include/aleph_client/Protocol.hpp",
+        source_root / "include/aleph_client/RuntimeClient.hpp",
         source_root / "src/aleph_client/Framing.cpp",
-        source_root / "src/aleph_client/Protocol.cpp"};
+        source_root / "src/aleph_client/Protocol.cpp",
+        source_root / "src/aleph_client/RuntimeClient.cpp",
+        source_root / "tests/aleph_client/FakeRuntime.cpp",
+        source_root / "tests/aleph_client/RuntimeClientTests.cpp"};
     const std::vector<std::string> forbidden = {
         "algebra/",
         "evaluator/",

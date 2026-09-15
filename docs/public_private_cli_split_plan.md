@@ -15,10 +15,11 @@ M1, the protocol model, is implemented and archived in
 [Aleph Runtime Protocol M1 Plan](archive/aleph_runtime_protocol_m1_plan.md).
 M2, the private in-tree `aleph-runtime` executable, is implemented and archived
 in [Aleph Runtime Protocol M2 Plan](archive/aleph_runtime_protocol_m2_plan.md).
+M3, the process-launching runtime client, is implemented and archived in
+[Aleph Runtime Protocol M3 Plan](archive/aleph_runtime_protocol_m3_plan.md).
 The active detailed slice plan is
-[Aleph Runtime Protocol M3 Plan](aleph_runtime_protocol_m3_plan.md).
-The next detailed slice plans are
-[Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md) and
+[Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md). The next
+detailed slice plan is
 [Aleph Runtime Protocol M5 Plan](aleph_runtime_protocol_m5_plan.md).
 
 ## Direction
@@ -153,10 +154,10 @@ the current tree.
    domain-independent kernel core, one session, and registered packs, then
    serves protocol requests for evaluation, simplification, full form, help,
    completion, package discovery, reset, initialization, and shutdown.
-3. **Kernel client.** Add a client library that locates and launches
+3. **Kernel client.** Complete. The client library locates and launches
    `aleph-runtime`, sends framed requests, handles timeouts and process exit,
-   and reports missing or incompatible runtimes clearly. Test it with a fake
-   runtime.
+   and reports missing or incompatible runtimes clearly. It is tested with a
+   fake runtime and a real private-runtime smoke path.
 4. **Private CLI migration.** Route ordinary symbolic CLI behavior through the
    kernel client. Keep parser-token dumps, SDK validation/compile tooling, and
    demo host-function commands private developer tools unless separately

@@ -20,9 +20,10 @@ Related documents:
 
 | Target | Type | Purpose |
 | --- | --- | --- |
-| `aleph_client` | library | Public/private split protocol types, JSON encode/decode helpers, and framed message helpers; no semantic engine dependencies |
+| `aleph_client` | library | Public/private split protocol types, JSON encode/decode helpers, framed message helpers, and the process-launching runtime client; no semantic engine dependencies |
 | `aleph_runtime_protocol` | library | Private adapter from framed protocol requests to one `session::Session`; links kernel and registered packs |
 | `aleph-runtime` | executable | Private runtime process that serves framed JSON protocol requests over stdin/stdout |
+| `aleph_client_fake_runtime` | executable | Test-only fake runtime process used by public client lifecycle tests |
 | `aleph3_kernel` | library | Explicit kernel build target for the current symbolic engine surface |
 | `aleph3_symbolic` | alias | Compatibility alias for the current kernel target during migration |
 | `aleph3_pack_core_math` | interface library | Placeholder pack boundary for future elementary/core math extraction |
@@ -36,7 +37,7 @@ Related documents:
 | `aleph3_sdk` | library | Public SDK facade over kernel-backed execution |
 | `aleph3_cli` | executable | Current local workbench for symbolic REPL/script use plus SDK developer checks |
 | `aleph3_sdk_example` | executable | Minimal host-app example using registered demo host functions |
-| `aleph_client_tests` | executable | Protocol encoding/decoding, framing, and dependency-boundary tests for `aleph_client` |
+| `aleph_client_tests` | executable | Protocol encoding/decoding, framing, dependency-boundary, fake-runtime lifecycle, and real-runtime smoke tests for `aleph_client` |
 | `aleph_runtime_protocol_tests` | executable | Private runtime adapter and process-level framed protocol tests |
 | `aleph3_symbolic_tests` | executable | Kernel-oriented symbolic tests plus current symbolic tooling and pack coverage |
 | `aleph3_notebook_tests` | executable | Notebook model, isolation, rerun, diagnostics, and shared-session fixture coverage |
@@ -72,6 +73,8 @@ Current interpretation:
 ```mermaid
 flowchart TD
     AlephClient["aleph_client"] --> AlephClientTests["aleph_client_tests"]
+    AlephClient --> FakeRuntime["aleph_client_fake_runtime"]
+    FakeRuntime --> AlephClientTests
     AlephClient --> RuntimeProtocol["aleph_runtime_protocol"]
     RuntimeProtocol --> RuntimeExe["aleph-runtime"]
     RuntimeProtocol --> RuntimeTests["aleph_runtime_protocol_tests"]
@@ -116,9 +119,12 @@ placeholder boundary.
 ## Practical Guidance
 
 - Use `ALEPH3_BUILD_SDK=ON` to work on the embedding and current CLI path.
-- Use `aleph_client_tests` to exercise the future runtime protocol/client
-  boundary. This target should stay independent of kernel, session, SDK, pack,
-  notebook, web, and CLI implementation headers.
+- Use `aleph_client_tests` to exercise the runtime protocol/client boundary,
+  including fake-runtime launch, request, timeout, process-exit, malformed
+  output, protocol-error, reset, and shutdown cases. This target should stay
+  independent of kernel, session, SDK, pack, notebook, web, and CLI
+  implementation headers except for gated smoke coverage that launches the
+  built private `aleph-runtime` executable as an external process artifact.
 - Use `aleph_runtime_protocol_tests` to exercise the private `aleph-runtime`
   executable and its adapter over the framed protocol. This target may link
   private kernel, session, and pack implementation targets; `aleph_client`
@@ -160,7 +166,9 @@ placeholder boundary.
   coverage.
 - `tests/tooling` is SDK/tooling consumer coverage.
 - `tests/aleph_client` is protocol/client coverage and should remain free of
-  private semantic dependencies.
+  private semantic dependencies. Its fake runtime links only the public client
+  layer; real-runtime smoke tests depend on the executable artifact, not
+  private runtime headers.
 - `tests/tooling/AlephRuntimeProtocolTests.cpp` is private runtime-process
   coverage and may exercise the real session/kernel boundary through
   `aleph-runtime`.

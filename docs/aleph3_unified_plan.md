@@ -88,9 +88,9 @@ or broader web products receive substantial investment.
 3. Fill bounded numerical and finite-list gaps that make the notebook useful
    for sampled data and exact-or-approximate exploration without weakening the
    exact symbolic default.
-4. Finish the runtime-boundary rehearsal path: M3 process-launching client,
-   M4 private CLI migration, and M5 private notebook-lite over the same
-   boundary.
+4. Continue the runtime-boundary rehearsal path through M4 private CLI
+   migration and M5 private notebook-lite over the implemented
+   process-launching client.
 5. Choose a Windows-first desktop toolkit from measured spikes and deliver the
    first visible notebook create/edit/evaluate/display/save/reopen/`Run All`
    loop.
@@ -403,8 +403,9 @@ product surface.
 
 Remaining work:
 
-- complete the public/private runtime-boundary sequence through M3 client, M4
-  private CLI migration, and M5 private notebook-lite;
+- complete the remaining public/private runtime-boundary sequence through M4
+  private CLI migration and M5 private notebook-lite over the implemented M3
+  client;
 - build the graphical application over the existing headless document,
   persistence, and clean `Run All` foundations;
 - add input/text/output presentation, queued/running/completed/cancelled/failed
@@ -550,9 +551,9 @@ Use this order unless a regression or dependency changes it:
 3. Specify and fill the remaining bounded numerical and finite-list gaps,
    especially `Range`, `Table`, `Total`, budget behavior, and unsupported
    diagnostics.
-4. Complete the private runtime-boundary rehearsal sequence: M3
-   process-launching client, M4 private CLI migration, and M5 private
-   notebook-lite.
+4. Complete the remaining private runtime-boundary rehearsal sequence: M4
+   private CLI migration and M5 private notebook-lite over the implemented M3
+   process-launching client.
 5. Run and record the notebook toolkit spikes against one shared fixture.
 6. Build the first graphical notebook vertical slice, then add cancellation,
    reset, help, example gallery, packaging, and keyboard workflow checks.

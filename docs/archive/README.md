@@ -17,3 +17,6 @@ specifications for active contracts.
 - [Aleph Runtime Protocol M2 Plan](aleph_runtime_protocol_m2_plan.md) -
   completed implementation record for the private in-tree `aleph-runtime`
   protocol server executable.
+- [Aleph Runtime Protocol M3 Plan](aleph_runtime_protocol_m3_plan.md) -
+  completed implementation record for the process-launching runtime client
+  library, fake-runtime lifecycle tests, and real-runtime smoke coverage.

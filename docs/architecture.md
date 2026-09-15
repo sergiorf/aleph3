@@ -20,7 +20,7 @@ path.
 ```mermaid
 flowchart TB
     Host["Host applications"] --> SDK["SDK<br/>Engine - Schema - Policy - Value"]
-    AppClient["Future public app clients"] --> AlephClient["aleph_client<br/>protocol - framing"]
+    AppClient["Future public app clients"] --> AlephClient["aleph_client<br/>protocol - framing - process client"]
     PrivateCLI["Future private CLI path"] --> AlephClient
     AlephClient -. framed JSON .-> RuntimeProcess["aleph-runtime process"]
     RuntimeProcess --> Session
@@ -268,14 +268,14 @@ replaying input cells from a clean session in document order.
 | `include/ir` | SDK | validated transient representation |
 | `include/semantics`, `src/semantics` | SDK | schema and policy validation |
 | `include/sdk`, `src/sdk` | SDK | public host API |
-| `include/aleph_client`, `src/aleph_client` | public protocol/client | transport-facing protocol data, JSON encoding/decoding, and message framing for the future runtime process boundary |
+| `include/aleph_client`, `src/aleph_client` | public protocol/client | transport-facing protocol data, JSON encoding/decoding, message framing, runtime lookup, process launch, lifecycle diagnostics, and request plumbing for the runtime process boundary |
 | `include/tooling`, `src/tooling` | tooling | CLI, private runtime protocol adapter, `aleph-runtime`, and supporting presentation |
 | `include/notebook`, `src/notebook` | notebook core | document model, JSON persistence, cached results, clean `Run All` |
 | `include/web`, `src/web` | dormant web/API experiments | internal engine API over shared sessions plus transitional transport-independent web API core |
 | `web/bff` | dormant web experiment | ASP.NET Core request validation and engine error mapping experiment |
 | `web/frontend` | dormant web experiment | React/Vite evaluator surface that delegates execution to the BFF experiment |
 | future graphical notebook application | product | cells, display, local file workflows, example gallery, export |
-| future `aleph_client` process layer | public client/protocol | process launch, fake-kernel tests, runtime setup, and request lifecycle over the implemented protocol/framing base |
+| `aleph_client` process layer | public client/protocol | process launch, fake-kernel tests, runtime setup, and request lifecycle over the implemented protocol/framing base |
 
 When ownership is unclear, ask: "Would changing this change expression meaning
 for every consumer?" If yes, it is probably kernel work. If it is a domain
@@ -393,6 +393,8 @@ This diagram is an orientation, not a substitute for the normative
 ```mermaid
 flowchart TD
     AlephClient["aleph_client"] --> AlephClientTests["aleph_client_tests"]
+    AlephClient --> FakeRuntime["aleph_client_fake_runtime"]
+    FakeRuntime --> AlephClientTests
     AlephClient --> RuntimeProtocol["aleph_runtime_protocol"]
     RuntimeProtocol --> RuntimeExe["aleph-runtime"]
     RuntimeProtocol --> RuntimeTests["aleph_runtime_protocol_tests"]

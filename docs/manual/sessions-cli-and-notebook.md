@@ -24,8 +24,17 @@ scalar storage, pack handler identities, or evaluator internals. Human-readable
 diagnostics, if any, must stay off stdout so protocol clients can treat stdout
 as framed protocol output only.
 
-`aleph-runtime` is not yet a process-launching client library and the CLI does
-not launch it. Runtime lookup, timeout handling, CLI migration, and private
+The public-facing `aleph_client` library now includes a synchronous
+process-launching runtime client. It can resolve `aleph-runtime` from an
+explicit path, `ALEPH_RUNTIME_PATH`, the client executable's directory, or
+`PATH`; launch the process; send one framed request at a time; preserve
+protocol error envelopes; and report lookup, launch, timeout, process-exit,
+broken-pipe, malformed-output, shutdown, and incompatible-version failures
+with stable `runtime.*` lifecycle codes. One launched client talks to one
+runtime process, so session definitions persist across requests until `reset`
+or shutdown.
+
+The private CLI does not launch `aleph-runtime` yet. CLI migration and private
 notebook-lite rehearsal remain planned follow-up work. Public notebook
 integration should wait until those internal boundary proofs are implemented
 and tested.

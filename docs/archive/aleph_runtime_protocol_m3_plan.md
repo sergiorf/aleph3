@@ -3,12 +3,12 @@
 ## Status
 
 This is the active detailed implementation plan for M3 from
-[Public App / Private Kernel Split](public_private_cli_split_plan.md): a
+[Public App / Private Kernel Split](../public_private_cli_split_plan.md): a
 process-launching runtime client library over the implemented private
 `aleph-runtime` protocol server.
 
 M1, the protocol model, and M2, the private runtime executable, are complete
-and archived in [docs/archive](archive/README.md). M3 should be completed
+and archived in [docs/archive](README.md). M3 should be completed
 inside the current tree before CLI migration, private notebook-lite, public
 notebook integration, or physical repository movement.
 
@@ -435,7 +435,7 @@ git diff --check
 ```
 
 If the local Windows build hits MSBuild `FileTracker` or environment failures,
-follow [Windows Codex Build Environment](agents/windows-codex-build.md).
+follow [Windows Codex Build Environment](../agents/windows-codex-build.md).
 
 Review the final diff for forbidden dependencies, duplicate process lifecycle
 logic, stale public/private claims, leaked private paths in public docs, and
@@ -466,11 +466,11 @@ M3 is complete when:
 ## Next Slice
 
 After M3, proceed to
-[M4](aleph_runtime_protocol_m4_plan.md): migrate ordinary private CLI symbolic
+[M4](../aleph_runtime_protocol_m4_plan.md): migrate ordinary private CLI symbolic
 behavior through the kernel client and use that path to prove the
 public/private process boundary. Keep parser-token dumps, SDK validation/
 compile tooling, and demo host-function commands private developer tools
 unless a separate product design promotes them. After M4, proceed to
-[M5](aleph_runtime_protocol_m5_plan.md), a private notebook-lite rehearsal over
+[M5](../aleph_runtime_protocol_m5_plan.md), a private notebook-lite rehearsal over
 the same runtime boundary. Start public notebook integration only after those
 boundary proofs are implemented, tested, and documented.

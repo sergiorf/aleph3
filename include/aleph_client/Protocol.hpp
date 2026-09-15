@@ -156,6 +156,10 @@ private:
 };
 
 [[nodiscard]] std::string encode_initialize_request(const RequestId& id, const InitializeParams& params);
+[[nodiscard]] std::string encode_request(
+    const RequestId& id,
+    std::string_view method,
+    const std::map<std::string, std::string>& string_params = {});
 [[nodiscard]] std::string encode_evaluate_request(const RequestId& id, std::string_view source);
 [[nodiscard]] ProtocolResponse decode_response(std::string_view payload);
 

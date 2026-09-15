@@ -42,10 +42,11 @@ same sources can be
 12. [Public App / Private Kernel Split Plan](public_private_cli_split_plan.md) -
    direction for keeping the kernel and CLI private while public notebook and
    app clients use a stable `aleph-runtime` protocol.
-13. [Aleph Runtime Protocol M3 Plan](aleph_runtime_protocol_m3_plan.md) -
-   active implementation plan for the process-launching runtime client slice.
+13. [Aleph Runtime Protocol M3 Plan](archive/aleph_runtime_protocol_m3_plan.md) -
+   completed implementation record for the process-launching runtime client
+   slice.
 14. [Aleph Runtime Protocol M4 Plan](aleph_runtime_protocol_m4_plan.md) -
-   planned private CLI migration through the runtime client.
+   active plan for private CLI migration through the runtime client.
 15. [Aleph Runtime Protocol M5 Plan](aleph_runtime_protocol_m5_plan.md) -
    planned private notebook-lite rehearsal over the runtime boundary.
 
